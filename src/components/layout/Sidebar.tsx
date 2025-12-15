@@ -3,10 +3,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-    LayoutDashboard,
-    Database,
+    House,
+    Upload,
+    Settings2,
     GitBranch,
-    Settings,
+    BarChart3,
     Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -17,22 +18,27 @@ const navigationItems = [
     {
         name: 'Home',
         href: '/',
-        icon: LayoutDashboard,
+        icon: House,
     },
     {
-        name: 'Data',
-        href: '/data',
-        icon: Database,
+        name: 'Upload Data',
+        href: '/upload',
+        icon: Upload,
     },
     {
-        name: 'Explore',
-        href: '/explore',
+        name: 'Configure',
+        href: '/configure',
+        icon: Settings2,
+    },
+    {
+        name: 'Process Map',
+        href: '/process-map',
         icon: GitBranch,
     },
     {
-        name: 'Settings',
-        href: '/settings',
-        icon: Settings,
+        name: 'Insights',
+        href: '/insights',
+        icon: BarChart3,
     },
 ];
 
@@ -52,7 +58,7 @@ export function Sidebar({ className }: SidebarProps) {
     return (
         <div
             className={cn(
-                'flex h-full w-64 flex-col bg-card border-r',
+                'flex h-full w-[250px] flex-col bg-card border-r',
                 className
             )}
         >
@@ -88,19 +94,11 @@ export function Sidebar({ className }: SidebarProps) {
                 })}
             </nav>
 
-            {/* User section */}
+            {/* Footer */}
             <div className="border-t p-4">
-                <div className="flex items-center gap-3 rounded-lg px-3 py-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-medium">
-                        JD
-                    </div>
-                    <div className="flex-1 overflow-hidden">
-                        <p className="truncate text-sm font-medium">John Doe</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                            john@example.com
-                        </p>
-                    </div>
-                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                    Process Mining Tool
+                </p>
             </div>
         </div>
     );

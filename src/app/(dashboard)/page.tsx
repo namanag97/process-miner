@@ -1,144 +1,77 @@
 'use client';
 
-import { format } from 'date-fns';
-import {
-    Database,
-    FileBox,
-    Calendar,
-    Activity,
-    Upload,
-    BookOpen,
-} from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { EmptyState } from '@/components/shared/EmptyState';
-import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { useLogStore } from '@/lib/stores/useLogStore';
+import { useAppStore } from '@/lib/stores/useAppStore';
 
-// Placeholder data
-const stats = [
-    {
-        name: 'Data Models',
-        value: '0',
-        icon: Database,
-        description: 'Total models',
-    },
-    {
-        name: 'Total Cases',
-        value: '0',
-        icon: FileBox,
-        description: 'Across all models',
-    },
-    {
-        name: 'Total Events',
-        value: '0',
-        icon: Activity,
-        description: 'Tracked events',
-    },
-    {
-        name: 'Last Upload',
-        value: 'Never',
-        icon: Calendar,
-        description: 'Last activity',
-    },
-];
+export default function HomePage() {
+    const addLog = useLogStore((state) => state.addLog);
+    const reset = useAppStore((state) => state.reset);
 
-const quickActions = [
-    {
-        title: 'Upload Data',
-        description: 'Import your event log files to start analyzing processes',
-        icon: Upload,
-        href: '/data',
-    },
-    {
-        title: 'View Documentation',
-        description: 'Learn how to use ProcessMiner effectively',
-        icon: BookOpen,
-        href: '/docs',
-    },
-];
+    useEffect(() => {
+        addLog('info', 'ProcessMiner app initialized');
+    }, [addLog]);
 
-export default function DashboardPage() {
-    const today = format(new Date(), 'EEEE, MMMM d, yyyy');
+    const handleTestLogs = () => {
+        addLog('info', 'This is an info message');
+        addLog('success', 'Operation completed successfully');
+        addLog('warning', 'This is a warning message');
+        addLog('error', 'An error occurred');
+    };
 
     return (
-        <div className="flex flex-col">
-            <Header title="Dashboard" />
-
-            <div className="flex-1 space-y-6 p-4 md:p-6">
-                {/* Welcome section */}
-                <div className="space-y-1">
-                    <h2 className="text-2xl font-bold tracking-tight">
-                        Welcome back, John
-                    </h2>
-                    <p className="text-muted-foreground">{today}</p>
-                </div>
-
-                {/* Quick stats */}
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    {stats.map((stat) => (
-                        <Card key={stat.name}>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">
-                                    {stat.name}
-                                </CardTitle>
-                                <stat.icon className="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{stat.value}</div>
-                                <p className="text-xs text-muted-foreground">
-                                    {stat.description}
-                                </p>
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
-
-                {/* Recent Data Models */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Recent Data Models</CardTitle>
-                        <CardDescription>
-                            Your most recently created and updated data models
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <EmptyState
-                            icon={Database}
-                            title="No data models yet"
-                            description="Upload your first file to get started with process mining."
-                            action={{
-                                label: 'Upload Data',
-                                href: '/data',
-                            }}
-                        />
-                    </CardContent>
-                </Card>
-
-                {/* Quick Actions */}
-                <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Quick Actions</h3>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        {quickActions.map((action) => (
-                            <Card
-                                key={action.title}
-                                className="transition-colors hover:bg-accent/50"
-                            >
-                                <Link href={action.href}>
-                                    <CardHeader className="flex flex-row items-start gap-4">
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                                            <action.icon className="h-5 w-5 text-primary" />
-                                        </div>
-                                        <div className="flex-1 space-y-1">
-                                            <CardTitle className="text-base">{action.title}</CardTitle>
-                                            <CardDescription>{action.description}</CardDescription>
-                                        </div>
-                                    </CardHeader>
-                                </Link>
-                            </Card>
-                        ))}
-                    </div>
-                </div>
+        <div className="container mx-auto p-6 space-y-6">
+            <div>
+                <h1 className="text-3xl font-bold mb-2">Welcome to ProcessMiner</h1>
+                <p className="text-muted-foreground">
+                    Discover, analyze, and optimize your business processes with powerful process mining capabilities.
+                </p>
             </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Quick Start Guide</CardTitle>
+                    <CardDescription>Follow these steps to analyze your process data</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div>
+                        <h3 className="font-semibold mb-1">1. Upload Data</h3>
+                        <p className="text-sm text-muted-foreground">
+                            Upload your event log data in CSV or XES format
+                        </p>
+                    </div>
+                    <div>
+                        <h3 className="font-semibold mb-1">2. Configure</h3>
+                        <p className="text-sm text-muted-foreground">
+                            Map columns to case ID, activity, timestamp, and optional fields
+                        </p>
+                    </div>
+                    <div>
+                        <h3 className="font-semibold mb-1">3. Analyze</h3>
+                        <p className="text-sm text-muted-foreground">
+                            View the discovered process map with flows and frequencies
+                        </p>
+                    </div>
+                    <div>
+                        <h3 className="font-semibold mb-1">4. Visualize Insights</h3>
+                        <p className="text-sm text-muted-foreground">
+                            Explore metrics, variants, and bottlenecks in your process
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Test Log Panel</CardTitle>
+                    <CardDescription>Click the button to test the logging system</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Button onClick={handleTestLogs}>Add Test Logs</Button>
+                </CardContent>
+            </Card>
         </div>
     );
 }

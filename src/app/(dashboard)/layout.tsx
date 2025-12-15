@@ -1,6 +1,7 @@
 'use client';
 
 import { Sidebar } from '@/components/layout/Sidebar';
+import { StepIndicator } from '@/components/layout/StepIndicator';
 import { useUIStore } from '@/lib/stores/ui-store';
 import {
     Sheet,
@@ -29,8 +30,14 @@ export default function DashboardLayout({
             </Sheet>
 
             {/* Main content area */}
-            <main className="flex-1 overflow-y-auto">
-                {children}
+            <main className="flex flex-1 flex-col overflow-hidden">
+                {/* Step Indicator */}
+                <StepIndicator />
+
+                {/* Page Content */}
+                <div className="flex-1 overflow-y-auto pb-[200px]">
+                    {children}
+                </div>
             </main>
         </div>
     );
