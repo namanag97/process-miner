@@ -8,7 +8,7 @@ import { useAppStore } from '@/lib/stores/useAppStore';
 
 export default function HomePage() {
     const addLog = useLogStore((state) => state.addLog);
-    const reset = useAppStore((state) => state.reset);
+    const _reset = useAppStore((state) => state.reset);
 
     useEffect(() => {
         addLog('info', 'ProcessMiner app initialized');

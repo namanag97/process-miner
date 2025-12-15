@@ -5,27 +5,28 @@ import { useDropzone, type FileRejection } from 'react-dropzone';
 import { UploadCloud } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useAppStore } from '@/lib/stores';
+import { useLogStore } from '@/lib/stores/useLogStore';
 import { formatFileSize } from '@/lib/parsers';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 interface FileDropzoneProps {
     className?: string;
+    onFileSelected: (file: File) => void;
 }
 
-export function FileDropzone({ className }: FileDropzoneProps) {
-    const { setFile, addLog } = useAppStore();
+export function FileDropzone({ className, onFileSelected }: FileDropzoneProps) {
+    const addLog = useLogStore((state) => state.addLog);
 
     const onDrop = useCallback(
         (acceptedFiles: File[]) => {
             if (acceptedFiles.length > 0) {
                 const file = acceptedFiles[0];
-                setFile(file);
-                addLog(`📁 File selected: ${file.name} (${formatFileSize(file.size)})`, 'info');
+                onFileSelected(file);
+                addLog('info', `📁 File selected: ${file.name} (${formatFileSize(file.size)})`);
             }
         },
-        [setFile, addLog]
+        [onFileSelected, addLog]
     );
 
     const onDropRejected = useCallback(
@@ -35,11 +36,11 @@ export function FileDropzone({ className }: FileDropzoneProps) {
 
             const error = rejection.errors[0];
             if (error?.code === 'file-invalid-type') {
-                addLog('❌ Invalid file format. Please upload CSV or XES file', 'error');
+                addLog('error', '❌ Invalid file format. Please upload CSV or XES file');
             } else if (error?.code === 'file-too-large') {
-                addLog('❌ File too large. Maximum size is 50MB', 'error');
+                addLog('error', '❌ File too large. Maximum size is 50MB');
             } else {
-                addLog(`❌ ${error?.message || 'Unknown error'}`, 'error');
+                addLog('error', `❌ ${error?.message || 'Unknown error'}`);
             }
         },
         [addLog]

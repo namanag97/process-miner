@@ -14,7 +14,7 @@ const steps = [
 
 export function StepIndicator() {
     const pathname = usePathname();
-    const currentStep = useAppStore((state) => state.currentStep);
+    const _currentStep = useAppStore((state) => state.currentStep);
 
     // Determine active step based on pathname
     const getActiveStep = () => {

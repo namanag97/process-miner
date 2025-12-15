@@ -4,28 +4,15 @@ import { useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { ScrollText } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAppStore, type LogEntry } from '@/lib/stores/app-store';
+import { useLogStore, type LogLevel } from '@/lib/stores/useLogStore';
 
 interface LogPanelProps {
     className?: string;
     maxHeight?: string;
 }
 
-const getLogIcon = (type: LogEntry['type']) => {
-    switch (type) {
-        case 'success':
-            return '✅';
-        case 'error':
-            return '❌';
-        case 'warning':
-            return '⚠️';
-        default:
-            return '📝';
-    }
-};
-
-const getLogColor = (type: LogEntry['type']) => {
-    switch (type) {
+const getLogColor = (level: LogLevel) => {
+    switch (level) {
         case 'success':
             return 'text-green-600 dark:text-green-400';
         case 'error':
@@ -38,7 +25,7 @@ const getLogColor = (type: LogEntry['type']) => {
 };
 
 export function LogPanel({ className, maxHeight = '300px' }: LogPanelProps) {
-    const { logs } = useAppStore();
+    const { logs } = useLogStore();
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Auto-scroll to bottom when new logs are added
@@ -71,7 +58,7 @@ export function LogPanel({ className, maxHeight = '300px' }: LogPanelProps) {
                         {logs.map((log) => (
                             <div
                                 key={log.id}
-                                className={cn('flex gap-2', getLogColor(log.type))}
+                                className={cn('flex gap-2', getLogColor(log.level))}
                             >
                                 <span className="shrink-0 text-muted-foreground">
                                     [{format(log.timestamp, 'HH:mm:ss')}]

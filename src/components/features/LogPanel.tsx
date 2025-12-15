@@ -143,7 +143,9 @@ export function LogPanel() {
                                         {log.message}
                                         {log.details && (
                                             <span className="ml-2 text-muted-foreground">
-                                                {JSON.stringify(log.details)}
+                                                {typeof log.details === 'string'
+                                                    ? log.details
+                                                    : JSON.stringify(log.details)}
                                             </span>
                                         )}
                                     </span>

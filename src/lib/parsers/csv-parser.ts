@@ -1,5 +1,10 @@
 import Papa from 'papaparse';
-import type { ParsedData } from '@/lib/stores/app-store';
+
+export interface ParsedData {
+    headers: string[];
+    rows: Record<string, unknown>[];
+    rowCount: number;
+}
 
 export interface CSVParseResult {
     success: boolean;

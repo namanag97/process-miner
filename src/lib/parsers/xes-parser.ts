@@ -1,4 +1,10 @@
-import type { ParsedData } from '@/lib/stores/app-store';
+// XES Parser - parses XML event log files
+
+export interface ParsedData {
+    headers: string[];
+    rows: Record<string, unknown>[];
+    rowCount: number;
+}
 
 export interface XESParseResult {
     success: boolean;

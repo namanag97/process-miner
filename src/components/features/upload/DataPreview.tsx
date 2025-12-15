@@ -12,7 +12,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { formatFileSize } from '@/lib/parsers';
-import type { ParsedData } from '@/lib/stores';
+import type { ParsedData } from '@/lib/stores/useAppStore';
 
 interface DataPreviewProps {
     data: ParsedData;
@@ -94,8 +94,8 @@ export function DataPreview({
                                                 key={header}
                                                 className="whitespace-nowrap"
                                             >
-                                                {row[header] !== undefined
-                                                    ? String(row[header])
+                                                {(row as Record<string, unknown>)[header] !== undefined
+                                                    ? String((row as Record<string, unknown>)[header])
                                                     : '-'}
                                             </TableCell>
                                         ))}
