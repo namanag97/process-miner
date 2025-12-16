@@ -9,36 +9,49 @@ import {
     GitBranch,
     BarChart3,
     Zap,
+    Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useUIStore } from '@/lib/stores/ui-store';
+import { useAppStore } from '@/lib/stores/useAppStore';
+import { getRouteAccessibility, getCompletedSteps } from '@/hooks/useNavigationGuard';
 
 const navigationItems = [
     {
         name: 'Home',
         href: '/',
         icon: House,
+        key: 'home',
     },
     {
         name: 'Upload Data',
         href: '/upload',
         icon: Upload,
+        key: 'upload',
     },
     {
         name: 'Configure',
         href: '/configure',
         icon: Settings2,
+        key: 'configure',
     },
     {
         name: 'Process Map',
         href: '/process-map',
         icon: GitBranch,
+        key: 'process-map',
     },
     {
         name: 'Insights',
         href: '/insights',
         icon: BarChart3,
+        key: 'insights',
     },
 ];
 
@@ -49,9 +62,12 @@ interface SidebarProps {
 export function Sidebar({ className }: SidebarProps) {
     const pathname = usePathname();
     const { closeSidebar } = useUIStore();
+    const { parsedData, columnConfig, miningResults } = useAppStore();
+
+    const accessibility = getRouteAccessibility({ parsedData, columnConfig, miningResults });
+    const completed = getCompletedSteps({ parsedData, columnConfig, miningResults });
 
     const handleNavClick = () => {
-        // Close sidebar on mobile after clicking a link
         closeSidebar();
     };
 
@@ -74,6 +90,41 @@ export function Sidebar({ className }: SidebarProps) {
             <nav className="flex-1 space-y-1 p-4">
                 {navigationItems.map((item) => {
                     const isActive = pathname === item.href;
+                    const isAccessible = accessibility[item.href as keyof typeof accessibility];
+                    const isCompleted = completed[item.key as keyof typeof completed];
+
+                    const buttonContent = (
+                        <span className="flex items-center gap-3 w-full">
+                            <item.icon className="h-4 w-4" />
+                            <span className="flex-1 text-left">{item.name}</span>
+                            {isCompleted && (
+                                <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                            )}
+                        </span>
+                    );
+
+                    if (!isAccessible) {
+                        return (
+                            <Tooltip key={item.href}>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        className={cn(
+                                            'w-full justify-start gap-3 h-10',
+                                            'opacity-50 cursor-not-allowed'
+                                        )}
+                                        disabled
+                                    >
+                                        {buttonContent}
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="right">
+                                    Complete previous steps first
+                                </TooltipContent>
+                            </Tooltip>
+                        );
+                    }
+
                     return (
                         <Button
                             key={item.href}
@@ -86,8 +137,7 @@ export function Sidebar({ className }: SidebarProps) {
                             onClick={handleNavClick}
                         >
                             <Link href={item.href}>
-                                <item.icon className="h-4 w-4" />
-                                {item.name}
+                                {buttonContent}
                             </Link>
                         </Button>
                     );

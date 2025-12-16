@@ -2,6 +2,7 @@
 
 import { Sidebar } from '@/components/layout/Sidebar';
 import { StepIndicator } from '@/components/layout/StepIndicator';
+import { Breadcrumbs } from '@/components/navigation/Breadcrumbs';
 import { useUIStore } from '@/lib/stores/ui-store';
 import {
     Sheet,
@@ -33,6 +34,9 @@ export default function DashboardLayout({
             <main className="flex flex-1 flex-col overflow-hidden">
                 {/* Step Indicator */}
                 <StepIndicator />
+
+                {/* Breadcrumbs */}
+                <Breadcrumbs />
 
                 {/* Page Content */}
                 <div className="flex-1 overflow-y-auto pb-[200px]">

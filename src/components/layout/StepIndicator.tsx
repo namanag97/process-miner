@@ -1,20 +1,25 @@
 'use client';
 
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/lib/stores/useAppStore';
+import { getRouteAccessibility, getCompletedSteps } from '@/hooks/useNavigationGuard';
 
 const steps = [
-    { number: 1, label: 'Upload', route: '/upload' },
-    { number: 2, label: 'Configure', route: '/configure' },
-    { number: 3, label: 'Analyze', route: '/process-map' },
-    { number: 4, label: 'Visualize', route: '/insights' },
+    { number: 1, label: 'Upload', route: '/upload', key: 'upload' },
+    { number: 2, label: 'Configure', route: '/configure', key: 'configure' },
+    { number: 3, label: 'Analyze', route: '/process-map', key: 'process-map' },
+    { number: 4, label: 'Visualize', route: '/insights', key: 'insights' },
 ];
 
 export function StepIndicator() {
     const pathname = usePathname();
-    const _currentStep = useAppStore((state) => state.currentStep);
+    const { parsedData, columnConfig, miningResults } = useAppStore();
+
+    const accessibility = getRouteAccessibility({ parsedData, columnConfig, miningResults });
+    const completed = getCompletedSteps({ parsedData, columnConfig, miningResults });
 
     // Determine active step based on pathname
     const getActiveStep = () => {
@@ -31,31 +36,38 @@ export function StepIndicator() {
         <div className="border-b bg-card">
             <div className="mx-auto max-w-4xl px-6 py-4">
                 <div className="flex items-center justify-between">
-                    {steps.map((step, index) => (
-                        <div key={step.number} className="flex flex-1 items-center">
-                            {/* Step Circle */}
-                            <div className="flex items-center">
-                                <div
-                                    className={cn(
-                                        'flex h-8 w-8 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors',
-                                        step.number < activeStep
+                    {steps.map((step, index) => {
+                        const isActive = step.number === activeStep;
+                        const isCompleted = completed[step.key as keyof typeof completed];
+                        const isAccessible = accessibility[step.route as keyof typeof accessibility];
+
+                        const stepCircle = (
+                            <div
+                                className={cn(
+                                    'flex h-8 w-8 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors',
+                                    isCompleted
+                                        ? 'border-green-500 bg-green-500 text-white'
+                                        : isActive
                                             ? 'border-primary bg-primary text-primary-foreground'
-                                            : step.number === activeStep
-                                                ? 'border-primary bg-primary text-primary-foreground'
-                                                : 'border-muted-foreground/30 bg-background text-muted-foreground'
-                                    )}
-                                >
-                                    {step.number < activeStep ? (
-                                        <Check className="h-4 w-4" />
-                                    ) : (
-                                        step.number
-                                    )}
-                                </div>
+                                            : 'border-muted-foreground/30 bg-background text-muted-foreground'
+                                )}
+                            >
+                                {isCompleted ? (
+                                    <Check className="h-4 w-4" />
+                                ) : (
+                                    step.number
+                                )}
+                            </div>
+                        );
+
+                        const content = (
+                            <div className="flex items-center">
+                                {stepCircle}
                                 <div className="ml-2">
                                     <div
                                         className={cn(
                                             'text-sm font-medium',
-                                            step.number <= activeStep
+                                            isActive || isCompleted
                                                 ? 'text-foreground'
                                                 : 'text-muted-foreground'
                                         )}
@@ -64,20 +76,37 @@ export function StepIndicator() {
                                     </div>
                                 </div>
                             </div>
+                        );
 
-                            {/* Connector Line */}
-                            {index < steps.length - 1 && (
-                                <div
-                                    className={cn(
-                                        'mx-4 h-0.5 flex-1 transition-colors',
-                                        step.number < activeStep
-                                            ? 'bg-primary'
-                                            : 'bg-muted-foreground/30'
-                                    )}
-                                />
-                            )}
-                        </div>
-                    ))}
+                        return (
+                            <div key={step.number} className="flex flex-1 items-center">
+                                {isAccessible && !isActive ? (
+                                    <Link
+                                        href={step.route}
+                                        className="hover:opacity-80 transition-opacity"
+                                    >
+                                        {content}
+                                    </Link>
+                                ) : (
+                                    content
+                                )}
+
+                                {/* Connector Line */}
+                                {index < steps.length - 1 && (
+                                    <div
+                                        className={cn(
+                                            'mx-4 h-0.5 flex-1 transition-colors',
+                                            isCompleted
+                                                ? 'bg-green-500'
+                                                : step.number < activeStep
+                                                    ? 'bg-primary'
+                                                    : 'bg-muted-foreground/30'
+                                        )}
+                                    />
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
         </div>

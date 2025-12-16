@@ -24,7 +24,7 @@ export function parseCSV(
     file: File,
     callbacks?: CSVParseCallbacks
 ): Promise<CSVParseResult> {
-    const { onProgress, onLog } = callbacks || {};
+    const { onProgress: _onProgress, onLog } = callbacks || {};
 
     log.info('parseCSV called', { fileName: file.name, size: file.size, type: file.type });
 

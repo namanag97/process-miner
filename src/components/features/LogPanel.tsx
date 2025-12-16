@@ -141,11 +141,11 @@ export function LogPanel() {
                                     </span>
                                     <span className="flex-1">
                                         {log.message}
-                                        {log.details && (
+                                        {log.details != null && (
                                             <span className="ml-2 text-muted-foreground">
-                                                {typeof log.details === 'string'
+                                                {String(typeof log.details === 'string'
                                                     ? log.details
-                                                    : JSON.stringify(log.details)}
+                                                    : JSON.stringify(log.details))}
                                             </span>
                                         )}
                                     </span>

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
     Hash,
     Activity,
@@ -10,14 +9,12 @@ import {
     User,
     DollarSign,
     AlertCircle,
-    Upload,
     ChevronDown,
     ChevronRight,
     Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import {
     Dialog,
@@ -34,6 +31,7 @@ import {
 } from '@/components/ui/collapsible';
 import { Header } from '@/components/layout/Header';
 import { ColumnSelector, ValidationResults } from '@/components/features/configure';
+import { NavigationGuard } from '@/components/navigation';
 import { useAppStore } from '@/lib/stores/useAppStore';
 import { useLogStore } from '@/lib/stores/useLogStore';
 import {
@@ -162,227 +160,205 @@ export default function ConfigurePage() {
         router.push('/process-map');
     }, [caseId, activity, timestamp, resource, cost, setColumnConfig, setCurrentStep, addLog, router]);
 
-    // No parsed data - show alert
-    if (!parsedData) {
-        return (
+    return (
+        <NavigationGuard>
             <div className="flex flex-col">
                 <Header title="Configure" />
-                <div className="flex-1 p-6">
-                    <Alert>
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>No data available</AlertTitle>
-                        <AlertDescription>
-                            You need to upload and parse a file before configuring column mappings.
-                        </AlertDescription>
-                    </Alert>
-                    <Button asChild className="mt-4">
-                        <Link href="/upload">
-                            <Upload className="mr-2 h-4 w-4" />
-                            Go to Upload
-                        </Link>
-                    </Button>
-                </div>
-            </div>
-        );
-    }
 
-    return (
-        <div className="flex flex-col">
-            <Header title="Configure" />
+                <div className="flex-1 p-4 md:p-6 space-y-6">
+                    {/* Summary Card */}
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle>Configure: {uploadedFile?.name || 'Event Log'}</CardTitle>
+                            <CardDescription>
+                                {parsedData?.rowCount.toLocaleString() || 0} events • {columns.length} columns detected
+                            </CardDescription>
+                        </CardHeader>
+                    </Card>
 
-            <div className="flex-1 p-4 md:p-6 space-y-6">
-                {/* Summary Card */}
-                <Card>
-                    <CardHeader className="pb-3">
-                        <CardTitle>Configure: {uploadedFile?.name || 'Event Log'}</CardTitle>
-                        <CardDescription>
-                            {parsedData.rowCount.toLocaleString()} events • {columns.length} columns detected
-                        </CardDescription>
-                    </CardHeader>
-                </Card>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Column Mapping */}
-                    <div className="space-y-6">
-                        {/* Required Columns */}
-                        <Card>
-                            <CardHeader className="pb-3">
-                                <CardTitle className="text-base">Required Columns</CardTitle>
-                                <CardDescription>
-                                    Map your data columns to the required process mining fields
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                                <ColumnSelector
-                                    icon={Hash}
-                                    label="Case ID"
-                                    description="Select the column that identifies each process instance"
-                                    helperText="Each unique value represents one process execution (e.g., order ID, ticket number)"
-                                    columns={columns}
-                                    selectedColumn={caseId}
-                                    onSelect={setCaseId}
-                                    rows={rows}
-                                    required
-                                    error={errors.caseId}
-                                />
-
-                                <Separator />
-
-                                <ColumnSelector
-                                    icon={Activity}
-                                    label="Activity"
-                                    description="Select the column containing activity/event names"
-                                    helperText="The name of each step in your process (e.g., 'Order Created', 'Payment Received')"
-                                    columns={columns}
-                                    selectedColumn={activity}
-                                    onSelect={setActivity}
-                                    rows={rows}
-                                    required
-                                    error={errors.activity}
-                                />
-
-                                <Separator />
-
-                                <ColumnSelector
-                                    icon={Clock}
-                                    label="Timestamp"
-                                    description="Select the column with event timestamps"
-                                    helperText="When each activity occurred (date/time format)"
-                                    columns={columns}
-                                    selectedColumn={timestamp}
-                                    onSelect={setTimestamp}
-                                    rows={rows}
-                                    required
-                                    error={errors.timestamp}
-                                />
-                            </CardContent>
-                        </Card>
-
-                        {/* Optional Columns */}
-                        <Collapsible open={optionalOpen} onOpenChange={setOptionalOpen}>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Column Mapping */}
+                        <div className="space-y-6">
+                            {/* Required Columns */}
                             <Card>
-                                <CollapsibleTrigger asChild>
-                                    <CardHeader className="pb-3 cursor-pointer hover:bg-muted/50 transition-colors">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <CardTitle className="text-base">Optional Columns</CardTitle>
-                                                <CardDescription>
-                                                    Additional columns for enhanced analysis
-                                                </CardDescription>
+                                <CardHeader className="pb-3">
+                                    <CardTitle className="text-base">Required Columns</CardTitle>
+                                    <CardDescription>
+                                        Map your data columns to the required process mining fields
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    <ColumnSelector
+                                        icon={Hash}
+                                        label="Case ID"
+                                        description="Select the column that identifies each process instance"
+                                        helperText="Each unique value represents one process execution (e.g., order ID, ticket number)"
+                                        columns={columns}
+                                        selectedColumn={caseId}
+                                        onSelect={setCaseId}
+                                        rows={rows}
+                                        required
+                                        error={errors.caseId}
+                                    />
+
+                                    <Separator />
+
+                                    <ColumnSelector
+                                        icon={Activity}
+                                        label="Activity"
+                                        description="Select the column containing activity/event names"
+                                        helperText="The name of each step in your process (e.g., 'Order Created', 'Payment Received')"
+                                        columns={columns}
+                                        selectedColumn={activity}
+                                        onSelect={setActivity}
+                                        rows={rows}
+                                        required
+                                        error={errors.activity}
+                                    />
+
+                                    <Separator />
+
+                                    <ColumnSelector
+                                        icon={Clock}
+                                        label="Timestamp"
+                                        description="Select the column with event timestamps"
+                                        helperText="When each activity occurred (date/time format)"
+                                        columns={columns}
+                                        selectedColumn={timestamp}
+                                        onSelect={setTimestamp}
+                                        rows={rows}
+                                        required
+                                        error={errors.timestamp}
+                                    />
+                                </CardContent>
+                            </Card>
+
+                            {/* Optional Columns */}
+                            <Collapsible open={optionalOpen} onOpenChange={setOptionalOpen}>
+                                <Card>
+                                    <CollapsibleTrigger asChild>
+                                        <CardHeader className="pb-3 cursor-pointer hover:bg-muted/50 transition-colors">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <CardTitle className="text-base">Optional Columns</CardTitle>
+                                                    <CardDescription>
+                                                        Additional columns for enhanced analysis
+                                                    </CardDescription>
+                                                </div>
+                                                {optionalOpen ? (
+                                                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                                ) : (
+                                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                                )}
                                             </div>
-                                            {optionalOpen ? (
-                                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                            ) : (
-                                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                            )}
-                                        </div>
-                                    </CardHeader>
-                                </CollapsibleTrigger>
-                                <CollapsibleContent>
-                                    <CardContent className="space-y-6 pt-0">
-                                        <ColumnSelector
-                                            icon={User}
-                                            label="Resource"
-                                            description="Who performed this activity? (optional)"
-                                            helperText="The person or system that executed the activity"
-                                            columns={columns}
-                                            selectedColumn={resource}
-                                            onSelect={setResource}
-                                            rows={rows}
-                                            error={errors.resource}
-                                        />
+                                        </CardHeader>
+                                    </CollapsibleTrigger>
+                                    <CollapsibleContent>
+                                        <CardContent className="space-y-6 pt-0">
+                                            <ColumnSelector
+                                                icon={User}
+                                                label="Resource"
+                                                description="Who performed this activity? (optional)"
+                                                helperText="The person or system that executed the activity"
+                                                columns={columns}
+                                                selectedColumn={resource}
+                                                onSelect={setResource}
+                                                rows={rows}
+                                                error={errors.resource}
+                                            />
 
-                                        <Separator />
+                                            <Separator />
 
-                                        <ColumnSelector
-                                            icon={DollarSign}
-                                            label="Cost"
-                                            description="Cost associated with this event (optional)"
-                                            helperText="Monetary value or cost for cost analysis"
-                                            columns={columns}
-                                            selectedColumn={cost}
-                                            onSelect={setCost}
-                                            rows={rows}
-                                            error={errors.cost}
-                                        />
-                                    </CardContent>
-                                </CollapsibleContent>
-                            </Card>
-                        </Collapsible>
+                                            <ColumnSelector
+                                                icon={DollarSign}
+                                                label="Cost"
+                                                description="Cost associated with this event (optional)"
+                                                helperText="Monetary value or cost for cost analysis"
+                                                columns={columns}
+                                                selectedColumn={cost}
+                                                onSelect={setCost}
+                                                rows={rows}
+                                                error={errors.cost}
+                                            />
+                                        </CardContent>
+                                    </CollapsibleContent>
+                                </Card>
+                            </Collapsible>
 
-                        {/* Validate Button */}
-                        <Button
-                            size="lg"
-                            className="w-full"
-                            disabled={!isFormValid || isValidating}
-                            onClick={handleValidate}
-                        >
-                            {isValidating ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Validating...
-                                </>
+                            {/* Validate Button */}
+                            <Button
+                                size="lg"
+                                className="w-full"
+                                disabled={!isFormValid || isValidating}
+                                onClick={handleValidate}
+                            >
+                                {isValidating ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Validating...
+                                    </>
+                                ) : (
+                                    'Validate & Continue'
+                                )}
+                            </Button>
+                        </div>
+
+                        {/* Validation Results */}
+                        <div>
+                            {validationResult ? (
+                                <ValidationResults result={validationResult} />
                             ) : (
-                                'Validate & Continue'
+                                <Card className="h-[400px] flex items-center justify-center">
+                                    <div className="text-center text-muted-foreground">
+                                        <Activity className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                                        <p>Configure your columns and click</p>
+                                        <p className="font-medium">&quot;Validate &amp; Continue&quot;</p>
+                                        <p>to see validation results</p>
+                                    </div>
+                                </Card>
                             )}
-                        </Button>
-                    </div>
-
-                    {/* Validation Results */}
-                    <div>
-                        {validationResult ? (
-                            <ValidationResults result={validationResult} />
-                        ) : (
-                            <Card className="h-[400px] flex items-center justify-center">
-                                <div className="text-center text-muted-foreground">
-                                    <Activity className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                                    <p>Configure your columns and click</p>
-                                    <p className="font-medium">"Validate & Continue"</p>
-                                    <p>to see validation results</p>
-                                </div>
-                            </Card>
-                        )}
+                        </div>
                     </div>
                 </div>
+
+                {/* Warning Dialog */}
+                <Dialog open={showWarningDialog} onOpenChange={setShowWarningDialog}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                                <AlertCircle className="h-5 w-5 text-yellow-500" />
+                                Proceed with warnings?
+                            </DialogTitle>
+                            <DialogDescription>
+                                The validation completed with some warnings. You can still proceed, but the results might not be optimal.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="py-4">
+                            <ul className="space-y-2">
+                                {validationResult?.warnings.map((warning, i) => (
+                                    <li key={i} className="flex items-start gap-2 text-sm">
+                                        <AlertCircle className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
+                                        <span>{warning}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setShowWarningDialog(false)}>
+                                Go Back
+                            </Button>
+                            <Button onClick={() => {
+                                setShowWarningDialog(false);
+                                handleProceed();
+                            }}>
+                                Continue Anyway
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
-
-            {/* Warning Dialog */}
-            <Dialog open={showWarningDialog} onOpenChange={setShowWarningDialog}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <AlertCircle className="h-5 w-5 text-yellow-500" />
-                            Proceed with warnings?
-                        </DialogTitle>
-                        <DialogDescription>
-                            The validation completed with some warnings. You can still proceed, but the results might not be optimal.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="py-4">
-                        <ul className="space-y-2">
-                            {validationResult?.warnings.map((warning, i) => (
-                                <li key={i} className="flex items-start gap-2 text-sm">
-                                    <AlertCircle className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
-                                    <span>{warning}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowWarningDialog(false)}>
-                            Go Back
-                        </Button>
-                        <Button onClick={() => {
-                            setShowWarningDialog(false);
-                            handleProceed();
-                        }}>
-                            Continue Anyway
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </div>
+        </NavigationGuard>
     );
 }
