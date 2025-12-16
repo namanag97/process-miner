@@ -3,7 +3,7 @@
 import { FileText, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { formatFileSize } from '@/lib/parsers';
+import { formatFileSize } from '@/lib/utils';
 
 interface FilePreviewCardProps {
     file: File;

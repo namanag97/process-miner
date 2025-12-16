@@ -1,4 +1,7 @@
 import Papa from 'papaparse';
+import { loggers } from '@/lib/debug-logger';
+
+const log = loggers.parse;
 
 export interface ParsedData {
     headers: string[];
@@ -23,20 +26,33 @@ export function parseCSV(
 ): Promise<CSVParseResult> {
     const { onProgress, onLog } = callbacks || {};
 
+    log.info('parseCSV called', { fileName: file.name, size: file.size, type: file.type });
+
     return new Promise((resolve) => {
         onLog?.('⏳ Parsing CSV file...', 'info');
+        log.debug('Starting Papa.parse');
 
         Papa.parse<Record<string, unknown>>(file, {
             header: true,
             dynamicTyping: true,
             skipEmptyLines: true,
+            worker: false, // Disable worker for large files - can cause issues
             complete: (results) => {
+                log.info('Papa.parse complete callback', {
+                    rowCount: results.data?.length,
+                    fieldCount: results.meta?.fields?.length,
+                    errors: results.errors?.length,
+                    aborted: results.meta?.aborted,
+                    truncated: results.meta?.truncated,
+                });
+
                 try {
-                    if (results.errors.length > 0) {
+                    if (results.errors && results.errors.length > 0) {
                         const errorMessages = results.errors
-                            .slice(0, 3)
-                            .map((e) => e.message)
+                            .slice(0, 5)
+                            .map((e) => `Row ${e.row}: ${e.message}`)
                             .join('; ');
+                        log.warn('Parse had errors', results.errors.slice(0, 5));
                         onLog?.(`⚠️ Parse warnings: ${errorMessages}`, 'warning');
                     }
 
@@ -44,8 +60,15 @@ export function parseCSV(
                     const rows = results.data as Record<string, unknown>[];
                     const rowCount = rows.length;
 
+                    log.info('Parse results', { headers, rowCount, sampleRow: rows[0] });
+
+                    if (rowCount === 0) {
+                        log.error('No rows parsed - possible encoding or format issue');
+                        onLog?.(`⚠️ No rows found - check file format/encoding`, 'warning');
+                    }
+
                     onLog?.(
-                        `📊 Detected ${headers.length} columns: ${headers.join(', ')}`,
+                        `📊 Detected ${headers.length} columns: ${headers.slice(0, 10).join(', ')}${headers.length > 10 ? '...' : ''}`,
                         'info'
                     );
                     onLog?.(`📝 Found ${rowCount} rows of event data`, 'info');
@@ -60,8 +83,8 @@ export function parseCSV(
                         },
                     });
                 } catch (error) {
-                    const message =
-                        error instanceof Error ? error.message : 'Unknown error';
+                    const message = error instanceof Error ? error.message : 'Unknown error';
+                    log.error('Parse processing error', error);
                     onLog?.(`❌ Parse error: ${message}`, 'error');
                     resolve({
                         success: false,
@@ -70,25 +93,13 @@ export function parseCSV(
                 }
             },
             error: (error) => {
+                log.error('Papa.parse error callback', error);
                 onLog?.(`❌ Parse error: ${error.message}`, 'error');
                 resolve({
                     success: false,
                     error: error.message,
                 });
             },
-            // Progress callback for large files
-            ...(onProgress && {
-                step: (results, parser) => {
-                    // Papa doesn't provide built-in progress, but we can estimate
-                    // based on file cursor position
-                    const cursor = (parser as unknown as { streamer?: { _handle?: { _cursor?: number } } }).streamer?._handle?._cursor || 0;
-                    const percent = Math.round((cursor / file.size) * 100);
-                    if (percent > 0 && percent < 100 && percent % 10 === 0) {
-                        onProgress(percent);
-                        onLog?.(`Parsing: ${percent}%`, 'info');
-                    }
-                },
-            }),
         });
     });
 }

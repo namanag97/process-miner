@@ -3,12 +3,10 @@
 import { useCallback } from 'react';
 import { useDropzone, type FileRejection } from 'react-dropzone';
 import { UploadCloud } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatFileSize } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useLogStore } from '@/lib/stores/useLogStore';
-import { formatFileSize } from '@/lib/parsers';
-
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+import { MAX_FILE_SIZE, ACCEPTED_FILE_TYPES } from '@/lib/constants';
 
 interface FileDropzoneProps {
     className?: string;
@@ -49,11 +47,7 @@ export function FileDropzone({ className, onFileSelected }: FileDropzoneProps) {
     const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
         onDrop,
         onDropRejected,
-        accept: {
-            'text/csv': ['.csv'],
-            'application/xml': ['.xes'],
-            'text/xml': ['.xes'],
-        },
+        accept: ACCEPTED_FILE_TYPES,
         maxSize: MAX_FILE_SIZE,
         multiple: false,
     });

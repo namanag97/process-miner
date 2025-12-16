@@ -11,7 +11,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { formatFileSize } from '@/lib/parsers';
+import { formatFileSize } from '@/lib/utils';
 import type { ParsedData } from '@/lib/stores/useAppStore';
 
 interface DataPreviewProps {
