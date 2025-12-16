@@ -26,25 +26,52 @@ function assignLayers(
 
     // Find start and end activities
     const startActivities = activities.filter(a => a.isStart).map(a => a.name);
-    const _endActivities = activities.filter(a => a.isEnd).map(a => a.name);
+
+    // If no explicit start activities, use the ones with no incoming edges or just the first one
+    let effectiveStartActivities = [...startActivities];
 
     // Build adjacency list
     const successors = new Map<string, string[]>();
+    // Track incoming edge counts to help identify start nodes if none marked
+    const incomingCounts = new Map<string, number>();
+
     for (const edge of dfgEdges) {
         if (!successors.has(edge.source)) {
             successors.set(edge.source, []);
         }
         successors.get(edge.source)!.push(edge.target);
+
+        incomingCounts.set(edge.target, (incomingCounts.get(edge.target) || 0) + 1);
+    }
+
+    // Fallback if no start activities found
+    if (effectiveStartActivities.length === 0 && activities.length > 0) {
+        // Try nodes with no incoming edges
+        const noIncoming = activities
+            .map(a => a.name)
+            .filter(name => !incomingCounts.has(name) || incomingCounts.get(name) === 0);
+
+        if (noIncoming.length > 0) {
+            effectiveStartActivities = noIncoming;
+        } else {
+            // Just pick the first one to break the cycle
+            effectiveStartActivities = [activities[0].name];
+        }
     }
 
     // BFS from start activities
     const queue: Array<{ activity: string; layer: number }> = [];
 
     // Initialize start activities at layer 0
-    for (const start of startActivities) {
+    for (const start of effectiveStartActivities) {
         layers.set(start, 0);
         queue.push({ activity: start, layer: 0 });
     }
+
+    // Track updates to prevent infinite loops in cycles
+    // Limit updates to total number of activities * 2 to allow for some re-layering but prevent infinite cycling
+    const updateCounts = new Map<string, number>();
+    const MAX_UPDATES = activities.length * 2;
 
     // Process queue
     while (queue.length > 0) {
@@ -55,20 +82,24 @@ function assignLayers(
             const currentLayer = layers.get(succ);
             const newLayer = layer + 1;
 
+            const currentUpdates = updateCounts.get(succ) || 0;
+
             // Only update if we found a longer path (for better layout)
-            if (currentLayer === undefined || newLayer > currentLayer) {
+            // AND we haven't updated this node too many times (breaking cycles)
+            if ((currentLayer === undefined || newLayer > currentLayer) && currentUpdates < MAX_UPDATES) {
                 layers.set(succ, newLayer);
+                updateCounts.set(succ, currentUpdates + 1);
                 queue.push({ activity: succ, layer: newLayer });
             }
         }
     }
 
-    // Handle activities not reachable from start (shouldn't happen normally)
+    // Handle unreachable nodes
+    const maxLayer = Math.max(...Array.from(layers.values()), 0);
     for (const activity of activities) {
         if (!layers.has(activity.name)) {
-            // Put them in the middle
-            const maxLayer = Math.max(...Array.from(layers.values()), 0);
-            layers.set(activity.name, Math.floor(maxLayer / 2));
+            // Place disconnected nodes at layer 0 or after max layer
+            layers.set(activity.name, 0);
         }
     }
 

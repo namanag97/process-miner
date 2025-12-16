@@ -92,37 +92,61 @@ export function useMining(
         setWarnings([]);
         setProgress({ stage: 'Starting', progress: 0 });
 
-        try {
-            // Run mining - it's now async with proper yields for UI updates
-            const result = await mineProcess(parsedData, columnConfig, (stage, prog) => {
-                setProgress({ stage, progress: prog });
+        return new Promise<MiningResult>((resolve) => {
+            // Instantiate worker
+            const worker = new Worker(new URL('./worker.ts', import.meta.url), {
+                type: 'module'
             });
 
-            if (result.success && result.model) {
-                setResults(result.model);
-                setProgress({ stage: 'Complete', progress: 100 });
-            } else {
-                setError(result.error || 'Mining failed');
-                setProgress({ stage: 'Failed', progress: 0 });
-            }
+            worker.onmessage = (e) => {
+                const { type } = e.data;
 
-            setWarnings(result.warnings);
-            setIsProcessing(false);
-
-            return result;
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-            setError(errorMessage);
-            setProgress({ stage: 'Failed', progress: 0 });
-            setIsProcessing(false);
-
-            return {
-                success: false,
-                model: null,
-                error: errorMessage,
-                warnings: [],
+                if (type === 'PROGRESS') {
+                    setProgress({ stage: e.data.stage, progress: e.data.progress });
+                } else if (type === 'SUCCESS') {
+                    setResults(e.data.result);
+                    setProgress({ stage: 'Complete', progress: 100 });
+                    setIsProcessing(false);
+                    worker.terminate();
+                    resolve({
+                        success: true,
+                        model: e.data.result,
+                        warnings: [], // Warnings not passed from worker in this simple version yet, can add later
+                    });
+                } else if (type === 'ERROR') {
+                    setError(e.data.error);
+                    setProgress({ stage: 'Failed', progress: 0 });
+                    setIsProcessing(false);
+                    worker.terminate();
+                    resolve({
+                        success: false,
+                        model: null,
+                        error: e.data.error,
+                        warnings: [],
+                    });
+                }
             };
-        }
+
+            worker.onerror = (err) => {
+                const errorMessage = err.message || 'Unknown worker error';
+                setError(errorMessage);
+                setProgress({ stage: 'Failed', progress: 0 });
+                setIsProcessing(false);
+                worker.terminate();
+                resolve({
+                    success: false,
+                    model: null,
+                    error: errorMessage,
+                    warnings: [],
+                });
+            };
+
+            // Start mining
+            worker.postMessage({
+                type: 'START',
+                payload: { parsedData, columnConfig }
+            });
+        });
     }, [parsedData, columnConfig]);
 
     return {
