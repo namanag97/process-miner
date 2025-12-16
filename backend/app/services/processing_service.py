@@ -1,17 +1,16 @@
-import logging
 import json
-import asyncio
 from datetime import datetime
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select
 
-from ..models.db import Job, Mapping, Upload, Dataset
+from ..models import Job, Mapping, Upload, Dataset
 from ..services import parse_file, pm4py_service
 from ..database import engine
+from ..core import get_logger
 
-logger = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 # Create a new session factory for background tasks since they run outside request scope
 # Dependencies like 'get_db' are for requests and might close the session too early/late differently.
