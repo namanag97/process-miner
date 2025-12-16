@@ -25,6 +25,9 @@ aiosqlite>=0.19.0
 # Structured logging for better visibility
 structlog>=24.1.0
 
+# Error tracking and APM
+sentry-sdk[fastapi]>=1.39.0
+
 # Utilities
 python-dateutil>=2.8.0
 httpx>=0.25.0

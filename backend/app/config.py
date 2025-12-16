@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     # Optional: Redis for async job processing
     redis_url: str | None = None
 
+    # Sentry for error tracking (get DSN from sentry.io)
+    sentry_dsn: str | None = None
+    sentry_traces_sample_rate: float = 0.1  # 10% of requests for APM
+
     @property
     def upload_path(self) -> Path:
         """Get upload directory as Path, creating if needed."""

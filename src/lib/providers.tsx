@@ -1,6 +1,7 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ThemeProvider } from 'next-themes';
 import { useState } from 'react';
 import { Toaster } from '@/components/ui/toaster';
@@ -43,7 +44,8 @@ export function Providers({ children }: ProvidersProps) {
                     <Toaster />
                 </TooltipProvider>
             </ThemeProvider>
+            {/* React Query Devtools - only visible in development */}
+            <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
         </QueryClientProvider>
     );
 }
-

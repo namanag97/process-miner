@@ -1,11 +1,12 @@
 import pytest
 import asyncio
 from typing import AsyncGenerator
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+from sqlmodel import SQLModel
 
-from app.database import Base, get_db
+from app.database import get_db
 from app.main import app
 
 # Use in-memory SQLite for tests
@@ -39,13 +40,13 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
     Creates tables before and drops them after.
     """
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(SQLModel.metadata.create_all)
 
     async with TestingSessionLocal() as session:
         yield session
 
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(SQLModel.metadata.drop_all)
 
 @pytest.fixture(scope="function")
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
@@ -57,7 +58,9 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     app.dependency_overrides[get_db] = override_get_db
     
-    async with AsyncClient(app=app, base_url="http://test") as c:
+    # Use ASGITransport for newer httpx versions
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
     
     app.dependency_overrides.clear()

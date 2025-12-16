@@ -25,7 +25,20 @@ from .routers import (
     mappings_router,
     processing_router,
     analysis_router,
+    admin_router,
 )
+
+# Initialize Sentry before anything else (if configured)
+settings = get_settings()
+if settings.sentry_dsn:
+    import sentry_sdk
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        traces_sample_rate=settings.sentry_traces_sample_rate,
+        profiles_sample_rate=settings.sentry_traces_sample_rate,
+        environment="development" if settings.debug else "production",
+        send_default_pii=False,
+    )
 
 # Configure structured logging
 configure_logging()
@@ -106,6 +119,7 @@ app.include_router(uploads_router, prefix="/api")
 app.include_router(mappings_router, prefix="/api")
 app.include_router(processing_router, prefix="/api")
 app.include_router(analysis_router, prefix="/api")
+app.include_router(admin_router, prefix="/api")
 
 
 @app.get("/")

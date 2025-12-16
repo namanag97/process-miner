@@ -26,7 +26,7 @@ async def run_mining_job(job_id: str, mapping_id: str):
     """
     Background task to run the process mining job.
     """
-    logger.info(f"Starting background job: {job_id}")
+    log.info(f"Starting background job: {job_id}")
     
     async with AsyncSessionLocal() as db:
         try:
@@ -35,7 +35,7 @@ async def run_mining_job(job_id: str, mapping_id: str):
             job = result.scalar_one_or_none()
             
             if not job:
-                logger.error(f"Job {job_id} not found!")
+                log.error(f"Job {job_id} not found!")
                 return
             
             result = await db.execute(select(Mapping).where(Mapping.id == mapping_id))
@@ -58,7 +58,7 @@ async def run_mining_job(job_id: str, mapping_id: str):
             
             # 3. Load File
             file_path = Path(upload.file_path)
-            logger.info(f"Loading file: {file_path}")
+            log.info(f"Loading file: {file_path}")
             
             job.progress = 10
             job.progress_message = "Loading file..."
@@ -147,10 +147,10 @@ async def run_mining_job(job_id: str, mapping_id: str):
             job.completed_at = datetime.utcnow()
             await db.commit()
             
-            logger.info(f"Job {job_id} completed successfully")
+            log.info(f"Job {job_id} completed successfully")
 
         except Exception as e:
-            logger.error(f"Job {job_id} failed: {e}", exc_info=True)
+            log.error(f"Job {job_id} failed: {e}", exc_info=True)
             # Re-fetch job in case of transaction rollback issues (safeguard)
             try:
                 # We need to ensure we can write the error state
@@ -161,4 +161,4 @@ async def run_mining_job(job_id: str, mapping_id: str):
                 job.completed_at = datetime.utcnow()
                 await db.commit()
             except Exception as inner_e:
-                logger.error(f"Failed to update job failure status: {inner_e}")
+                log.error(f"Failed to update job failure status: {inner_e}")

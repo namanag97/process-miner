@@ -4,3 +4,5 @@ from .mappings import router as mappings_router
 from .processing import router as processing_router
 from .analysis import router as analysis_router
 from .users import router as users_router
+from .admin import router as admin_router
+
