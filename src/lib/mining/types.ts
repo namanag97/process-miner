@@ -87,6 +87,8 @@ export interface ProcessVariant {
     avgDuration: number;
     /** Whether this is the most common ("happy") path */
     isHappyPath: boolean;
+    /** Case IDs that follow this variant */
+    caseIds: string[];
 }
 
 /**

@@ -76,6 +76,7 @@ export function analyzeVariants(cases: Case[]): ProcessVariant[] {
             percentage: (acc.cases.length / totalCases) * 100,
             avgDuration: calculateAverage(acc.durations),
             isHappyPath: false, // Will be set after sorting
+            caseIds: acc.cases.map((c) => c.caseId),
         })
     );
 

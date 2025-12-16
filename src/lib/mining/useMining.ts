@@ -93,15 +93,9 @@ export function useMining(
         setProgress({ stage: 'Starting', progress: 0 });
 
         try {
-            // Run mining in a microtask to allow UI to update
-            const result = await new Promise<MiningResult>((resolve) => {
-                // Use setTimeout to allow the UI to render the "Starting" state
-                setTimeout(() => {
-                    const miningResult = mineProcess(parsedData, columnConfig, (stage, prog) => {
-                        setProgress({ stage, progress: prog });
-                    });
-                    resolve(miningResult);
-                }, 0);
+            // Run mining - it's now async with proper yields for UI updates
+            const result = await mineProcess(parsedData, columnConfig, (stage, prog) => {
+                setProgress({ stage, progress: prog });
             });
 
             if (result.success && result.model) {

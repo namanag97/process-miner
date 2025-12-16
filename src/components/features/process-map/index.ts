@@ -8,6 +8,8 @@ export { VariantsTab } from './VariantsTab';
 export { DeviationsTab } from './DeviationsTab';
 export { ProcessMapLegend } from './ProcessMapLegend';
 export { NodeDetailPanel } from './NodeDetailPanel';
+export { ActivitySequence } from './ActivitySequence';
+export { VariantCasesDialog } from './VariantCasesDialog';
 
 // Hooks
 export { useProcessMapFlow } from './useProcessMapFlow';

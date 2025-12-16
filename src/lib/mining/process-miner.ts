@@ -243,6 +243,13 @@ function calculateStats(
 }
 
 /**
+ * Helper to yield to the event loop so React can render
+ */
+function yieldToEventLoop(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+/**
  * Main mining function - orchestrates all mining operations
  * 
  * @param parsedData The parsed CSV/XES data
@@ -250,11 +257,11 @@ function calculateStats(
  * @param onProgress Optional progress callback for UI updates
  * @returns Complete ProcessModel or error
  */
-export function mineProcess(
+export async function mineProcess(
     parsedData: ParsedData,
     columnConfig: ColumnConfig,
     onProgress?: ProgressCallback
-): MiningResult {
+): Promise<MiningResult> {
     logger.info('⛏️ Starting process mining...');
     const startTime = Date.now();
     const warnings: string[] = [];
@@ -262,6 +269,8 @@ export function mineProcess(
     try {
         // Step 1: Transform raw data to Event objects
         onProgress?.('Starting', 0);
+        await yieldToEventLoop();
+
         const { events, warnings: transformWarnings } = transformToEvents(
             parsedData,
             columnConfig,
@@ -279,6 +288,7 @@ export function mineProcess(
         }
 
         // Step 2: Group events into Cases
+        await yieldToEventLoop();
         const cases = buildCases(events, onProgress);
 
         if (cases.length === 0) {
@@ -292,16 +302,19 @@ export function mineProcess(
 
         // Step 3: Build DFG
         onProgress?.('Building DFG', 0);
+        await yieldToEventLoop();
         const { edges, activities } = buildDirectlyFollowsGraph(cases);
         onProgress?.('Building DFG', 100);
 
         // Step 4 & 5: Analyze variants and detect deviations
         onProgress?.('Analyzing variants', 0);
+        await yieldToEventLoop();
         const { variants, deviations } = analyzeVariantsWithDeviations(cases);
         onProgress?.('Analyzing variants', 100);
 
         // Step 6: Calculate overall statistics
         onProgress?.('Calculating statistics', 0);
+        await yieldToEventLoop();
         const startActivities = activities.filter((a) => a.isStart).map((a) => a.name);
         const endActivities = activities.filter((a) => a.isEnd).map((a) => a.name);
         const stats = calculateStats(cases, events, startActivities, endActivities);
