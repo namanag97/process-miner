@@ -1,0 +1,24 @@
+# FastAPI Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# Pydantic for validation
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# PM4Py - Core process mining engine
+pm4py>=2.7.0
+
+# Data processing
+pandas>=2.0.0
+openpyxl>=3.1.0
+numpy>=1.24.0
+
+# Database (SQLite for MVP, can add asyncpg for PostgreSQL later)
+sqlalchemy>=2.0.0
+aiosqlite>=0.19.0
+
+# Utilities
+python-dateutil>=2.8.0
+httpx>=0.25.0
