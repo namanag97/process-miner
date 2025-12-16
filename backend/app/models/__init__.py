@@ -1,158 +1,155 @@
 """
-Models package - Using SQLModel for unified ORM + Pydantic schemas.
+Models package - Unified imports for database models and schemas.
+
+Database tables are defined in db.py.
+Pydantic schemas (API models) are defined in schemas.py.
 """
 
-from .common import generate_uuid
-
-from .user import (
-    User,
-    UserBase,
-    UserResponse,
-)
-
-from .upload import (
-    Upload,
-    UploadBase,
-    UploadResponse,
-    ColumnMetadata,
-)
-
-from .mapping import (
-    Mapping,
-    MappingBase,
-    MappingCreate,
-    MappingResponse,
-)
-
-from .job import (
-    Job,
-    JobResponse,
-    ProcessingRequest,
-)
-
-from .dataset import (
-    Dataset,
-    DatasetSummary,
-)
-
-from .analysis import (
-    DFGNode,
-    DFGEdge,
-    DFGSummary,
-    DFGResponse,
-    NodePosition,
-    ActivityNodeData,
-    EdgeData,
-    VariantItem,
-    VariantsResponse,
-    ActivityStat,
-    Deviation,
-    ProcessStats,
-)
-
-from .validation import (
-    ValidationError,
-    ValidationWarning,
-    ValidationStats,
-    ValidationResult,
-)
-
-from .error import ErrorResponse
-
-from .organization import (
+# Database models (table=True)
+from .db import (
+    # Utility
+    generate_uuid,
+    # Enums
+    UploadStatus,
+    JobStatus,
+    # Tables
     Organization,
+    User,
+    Process,
+    Upload,
+    Mapping,
+    Job,
+    Dataset,
+    AuditLog,
+    Insight,
+)
+
+# Pydantic schemas (request/response models)
+from .schemas import (
+    # Organization
     OrganizationBase,
     OrganizationCreate,
     OrganizationResponse,
-)
-
-from .process import (
-    Process,
+    # User
+    UserBase,
+    UserResponse,
+    # Process
     ProcessBase,
     ProcessCreate,
     ProcessUpdate,
     ProcessResponse,
     ProcessWithStats,
-)
-
-from .audit_log import (
-    AuditLog,
+    # Upload
+    UploadBase,
+    ColumnMetadata,
+    UploadResponse,
+    # Mapping
+    MappingBase,
+    MappingCreate,
+    MappingResponse,
+    # Job
+    JobResponse,
+    ProcessingRequest,
+    # Dataset
+    DatasetSummary,
+    # Analysis
+    NodePosition,
+    ActivityNodeData,
+    DFGNode,
+    EdgeData,
+    DFGEdge,
+    DFGSummary,
+    DFGResponse,
+    VariantItem,
+    VariantsResponse,
+    ActivityStat,
+    Deviation,
+    ProcessStats,
+    # Validation
+    ValidationError,
+    ValidationWarning,
+    ValidationStats,
+    ValidationResult,
+    # Audit Log
     AuditLogCreate,
     AuditLogResponse,
     AuditLogFilter,
-)
-
-from .insight import (
-    Insight,
+    # Insight
     InsightCreate,
     InsightResponse,
     InsightSummary,
+    # Error
+    ErrorResponse,
 )
 
 __all__ = [
-    # Common
+    # Utility
     "generate_uuid",
-    # User
-    "User",
-    "UserBase",
-    "UserResponse",
-    # Upload
-    "Upload",
-    "UploadBase",
-    "UploadResponse",
-    "ColumnMetadata",
-    # Mapping
-    "Mapping",
-    "MappingBase",
-    "MappingCreate",
-    "MappingResponse",
-    # Job
-    "Job",
-    "JobResponse",
-    "ProcessingRequest",
-    # Dataset
-    "Dataset",
-    "DatasetSummary",
-    # Analysis
-    "DFGNode",
-    "DFGEdge",
-    "DFGSummary",
-    "DFGResponse",
-    "NodePosition",
-    "ActivityNodeData",
-    "EdgeData",
-    "VariantItem",
-    "VariantsResponse",
-    "ActivityStat",
-    "Deviation",
-    "ProcessStats",
-    # Validation
-    "ValidationError",
-    "ValidationWarning",
-    "ValidationStats",
-    "ValidationResult",
-    # Error
-    "ErrorResponse",
-    # Organization
+    # Enums
+    "UploadStatus",
+    "JobStatus",
+    # Database Tables
     "Organization",
+    "User",
+    "Process",
+    "Upload",
+    "Mapping",
+    "Job",
+    "Dataset",
+    "AuditLog",
+    "Insight",
+    # Organization Schemas
     "OrganizationBase",
     "OrganizationCreate",
     "OrganizationResponse",
-    # Process
-    "Process",
+    # User Schemas
+    "UserBase",
+    "UserResponse",
+    # Process Schemas
     "ProcessBase",
     "ProcessCreate",
     "ProcessUpdate",
     "ProcessResponse",
     "ProcessWithStats",
-    # AuditLog
-    "AuditLog",
+    # Upload Schemas
+    "UploadBase",
+    "ColumnMetadata",
+    "UploadResponse",
+    # Mapping Schemas
+    "MappingBase",
+    "MappingCreate",
+    "MappingResponse",
+    # Job Schemas
+    "JobResponse",
+    "ProcessingRequest",
+    # Dataset Schemas
+    "DatasetSummary",
+    # Analysis Schemas
+    "NodePosition",
+    "ActivityNodeData",
+    "DFGNode",
+    "EdgeData",
+    "DFGEdge",
+    "DFGSummary",
+    "DFGResponse",
+    "VariantItem",
+    "VariantsResponse",
+    "ActivityStat",
+    "Deviation",
+    "ProcessStats",
+    # Validation Schemas
+    "ValidationError",
+    "ValidationWarning",
+    "ValidationStats",
+    "ValidationResult",
+    # Audit Log Schemas
     "AuditLogCreate",
     "AuditLogResponse",
     "AuditLogFilter",
-    # Insight
-    "Insight",
+    # Insight Schemas
     "InsightCreate",
     "InsightResponse",
     "InsightSummary",
+    # Error
+    "ErrorResponse",
 ]

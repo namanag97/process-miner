@@ -18,7 +18,7 @@ import type {
     Deviation,
 } from './types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 const USER_ID_KEY = 'process_miner_user_id';
 
 /**

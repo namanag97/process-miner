@@ -11,6 +11,13 @@ from .storage_service import storage_service, StorageService
 from .repository import BaseRepository, get_repository
 from .audit_service import audit_service, AuditService
 from .insight_service import insight_service, InsightService
+from .job_service import (
+    JobService,
+    get_job_service,
+    JobServiceError,
+    JobNotFoundError,
+    MappingNotFoundError,
+)
 
 __all__ = [
     "parse_file",
@@ -27,4 +34,9 @@ __all__ = [
     "AuditService",
     "insight_service",
     "InsightService",
+    "JobService",
+    "get_job_service",
+    "JobServiceError",
+    "JobNotFoundError",
+    "MappingNotFoundError",
 ]

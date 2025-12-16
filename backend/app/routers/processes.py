@@ -85,7 +85,22 @@ async def list_processes(
     db: AsyncSession = Depends(get_db),
 ):
     """List processes with optional filtering."""
-    query = select(Process).order_by(Process.created_at.desc())
+    # Subquery for upload counts per process
+    upload_counts = (
+        select(Upload.process_id, func.count().label("count"))
+        .group_by(Upload.process_id)
+        .subquery()
+    )
+    
+    # Build main query with left join
+    query = (
+        select(
+            Process,
+            func.coalesce(upload_counts.c.count, 0).label("upload_count")
+        )
+        .outerjoin(upload_counts, Process.id == upload_counts.c.process_id)
+        .order_by(Process.created_at.desc())
+    )
     
     if org_id:
         query = query.where(Process.org_id == org_id)
@@ -93,20 +108,10 @@ async def list_processes(
         query = query.where(Process.status == status)
     
     result = await db.execute(query)
-    processes = result.scalars().all()
+    rows = result.all()
     
-    responses = []
-    for process in processes:
-        # Count uploads
-        upload_count_result = await db.execute(
-            select(func.count()).select_from(Upload).where(Upload.process_id == process.id)
-        )
-        upload_count = upload_count_result.scalar() or 0
-        
-        # Count datasets (through uploads -> mappings -> datasets)
-        dataset_count = 0  # Simplified for now
-        
-        responses.append(ProcessResponse(
+    return [
+        ProcessResponse(
             id=process.id,
             org_id=process.org_id,
             name=process.name,
@@ -117,10 +122,10 @@ async def list_processes(
             created_at=process.created_at,
             updated_at=process.updated_at,
             upload_count=upload_count,
-            dataset_count=dataset_count,
-        ))
-    
-    return responses
+            dataset_count=0,  # Simplified for now
+        )
+        for process, upload_count in rows
+    ]
 
 
 @router.get("/{process_id}", response_model=ProcessWithStats)
@@ -129,6 +134,8 @@ async def get_process(
     db: AsyncSession = Depends(get_db),
 ):
     """Get process with aggregated statistics."""
+    import json
+    
     result = await db.execute(
         select(Process).where(Process.id == process_id)
     )
@@ -143,34 +150,29 @@ async def get_process(
     )
     upload_count = upload_count_result.scalar() or 0
     
-    # Get aggregated stats from datasets
+    # Get all datasets in a SINGLE query using JOINs instead of nested loops
+    datasets_query = (
+        select(Dataset)
+        .join(Mapping, Dataset.mapping_id == Mapping.id)
+        .join(Upload, Mapping.upload_id == Upload.id)
+        .where(Upload.process_id == process_id)
+    )
+    datasets_result = await db.execute(datasets_query)
+    datasets = datasets_result.scalars().all()
+    
+    # Aggregate stats from all datasets
     total_cases = 0
     total_events = 0
     avg_duration = 0.0
     last_analysis_at = None
     
-    # Find datasets through uploads -> mappings
-    uploads_result = await db.execute(
-        select(Upload).where(Upload.process_id == process.id)
-    )
-    uploads = uploads_result.scalars().all()
-    
-    for upload in uploads:
-        mappings_result = await db.execute(
-            select(Mapping).where(Mapping.upload_id == upload.id)
-        )
-        for mapping in mappings_result.scalars():
-            datasets_result = await db.execute(
-                select(Dataset).where(Dataset.mapping_id == mapping.id)
-            )
-            for dataset in datasets_result.scalars():
-                if dataset.stats_json:
-                    import json
-                    stats = json.loads(dataset.stats_json)
-                    total_cases += stats.get("total_cases", 0)
-                    total_events += stats.get("total_events", 0)
-                    if not last_analysis_at or dataset.created_at > last_analysis_at:
-                        last_analysis_at = dataset.created_at
+    for dataset in datasets:
+        if dataset.stats_json:
+            stats = json.loads(dataset.stats_json)
+            total_cases += stats.get("total_cases", 0)
+            total_events += stats.get("total_events", 0)
+            if not last_analysis_at or dataset.created_at > last_analysis_at:
+                last_analysis_at = dataset.created_at
     
     return ProcessWithStats(
         id=process.id,
@@ -183,7 +185,7 @@ async def get_process(
         created_at=process.created_at,
         updated_at=process.updated_at,
         upload_count=upload_count,
-        dataset_count=0,
+        dataset_count=len(datasets),
         total_cases=total_cases,
         total_events=total_events,
         avg_case_duration_ms=avg_duration,
@@ -294,28 +296,26 @@ async def get_process_insights(
         unacknowledged_count=0,
     )
     
-    # Get all datasets for this process
-    uploads_result = await db.execute(
-        select(Upload).where(Upload.process_id == process_id)
+    # Get all datasets for this process in a SINGLE query using JOINs
+    datasets_query = (
+        select(Dataset)
+        .join(Mapping, Dataset.mapping_id == Mapping.id)
+        .join(Upload, Mapping.upload_id == Upload.id)
+        .where(Upload.process_id == process_id)
     )
+    datasets_result = await db.execute(datasets_query)
+    datasets = datasets_result.scalars().all()
     
-    for upload in uploads_result.scalars():
-        mappings_result = await db.execute(
-            select(Mapping).where(Mapping.upload_id == upload.id)
-        )
-        for mapping in mappings_result.scalars():
-            datasets_result = await db.execute(
-                select(Dataset).where(Dataset.mapping_id == mapping.id)
-            )
-            for dataset in datasets_result.scalars():
-                summary = await insight_service.get_insight_summary(db, dataset.id)
-                total_summary.total_insights += summary.total_insights
-                total_summary.critical_count += summary.critical_count
-                total_summary.unacknowledged_count += summary.unacknowledged_count
-                
-                for t, c in summary.by_type.items():
-                    total_summary.by_type[t] = total_summary.by_type.get(t, 0) + c
-                for s, c in summary.by_severity.items():
-                    total_summary.by_severity[s] = total_summary.by_severity.get(s, 0) + c
+    # Aggregate summaries for all datasets
+    for dataset in datasets:
+        summary = await insight_service.get_insight_summary(db, dataset.id)
+        total_summary.total_insights += summary.total_insights
+        total_summary.critical_count += summary.critical_count
+        total_summary.unacknowledged_count += summary.unacknowledged_count
+        
+        for t, c in summary.by_type.items():
+            total_summary.by_type[t] = total_summary.by_type.get(t, 0) + c
+        for s, c in summary.by_severity.items():
+            total_summary.by_severity[s] = total_summary.by_severity.get(s, 0) + c
     
     return total_summary

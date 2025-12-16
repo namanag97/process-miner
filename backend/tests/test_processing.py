@@ -2,6 +2,7 @@ import pytest
 from httpx import AsyncClient
 from unittest.mock import patch, MagicMock
 
+
 @pytest.mark.asyncio
 async def test_start_processing(client: AsyncClient):
     # 1. Create User
@@ -24,14 +25,30 @@ async def test_start_processing(client: AsyncClient):
     mapping_res = await client.post(f"/api/mappings/uploads/{upload_id}/mappings", json=mapping_payload)
     mapping_id = mapping_res.json()["mapping_id"]
 
-    # 4. Start Processing (Mock background task to avoid actual execution)
-    # We patch the BACKGROUND TASK adds, but for integration test we want to ensure endpoint returns 200
-    # The actual background task execution is hard to test in simple async tests without widespread mocking
-    # or waiting. Here we just test the endpoint response.
-    
-    with patch("app.routers.processing.run_mining_job") as mock_run:
+    # 4. Start Processing (Mock Celery task to avoid actual execution)
+    mock_task = MagicMock()
+    mock_task.id = "mock-celery-task-id"
+    mock_task.delay.return_value = mock_task
+
+    with patch("app.tasks.mining_tasks.run_mining_task") as mock_run:
+        mock_run.delay.return_value = mock_task
         response = await client.post(f"/api/processing/mappings/{mapping_id}/process")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "queued"
         assert "job_id" in data
+
+
+@pytest.mark.asyncio
+async def test_get_job_status(client: AsyncClient):
+    """Test getting job status for a non-existent job returns 404."""
+    response = await client.get("/api/processing/jobs/non-existent-id")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_processing_invalid_mapping(client: AsyncClient):
+    """Test starting processing with invalid mapping returns 404."""
+    with patch("app.tasks.mining_tasks.run_mining_task") as mock_run:
+        response = await client.post("/api/processing/mappings/invalid-mapping-id/process")
+        assert response.status_code == 404

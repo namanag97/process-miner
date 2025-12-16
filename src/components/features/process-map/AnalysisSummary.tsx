@@ -43,7 +43,14 @@ function StatCard({ icon, label, value, subtext }: StatCardProps) {
 }
 
 export function AnalysisSummary({ model }: AnalysisSummaryProps) {
-    const { stats, activities, variants } = model;
+    // Defensive: handle missing or incomplete model
+    if (!model || !model.stats) {
+        return <div className="text-muted-foreground">Loading analysis...</div>;
+    }
+
+    const stats = model.stats;
+    const activities = model.activities ?? [];
+    const variants = model.variants ?? [];
 
     // Calculate happy path percentage
     const happyPathVariant = variants.find((v) => v.isHappyPath);

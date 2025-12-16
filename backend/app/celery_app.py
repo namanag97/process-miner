@@ -10,6 +10,10 @@ from .config import get_settings
 
 settings = get_settings()
 
+# DEBUG: Print broker URL to diagnose connection issues
+print(f"[CELERY DEBUG] Broker URL: {settings.celery_broker_url}")
+print(f"[CELERY DEBUG] Backend URL: {settings.celery_result_backend}")
+
 # Create Celery app
 celery_app = Celery(
     "process_miner",
@@ -43,7 +47,6 @@ celery_app.conf.update(
     task_send_sent_event=True,
 )
 
-# Optional: Configure task routes for different queues
-celery_app.conf.task_routes = {
-    "app.tasks.mining_tasks.*": {"queue": "mining"},
-}
+
+# Note: Using default queue for simplicity. For production, consider
+# separate queues for different task types.

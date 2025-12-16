@@ -3,106 +3,78 @@ Processing router - Handles process mining job execution.
 
 This router:
 1. Takes a mapping ID
-2. Creates a job record
+2. Creates a job record via JobService
 3. Dispatches a Celery task for background processing
 4. Returns job ID for status polling
 """
 
-from datetime import datetime
-
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import Mapping, Upload, Job, JobResponse, ProcessingRequest
+from ..models import JobResponse, ProcessingRequest
 from ..database import get_db
-from ..services.repository import BaseRepository
-from ..tasks.mining_tasks import run_mining_task
+from ..services import JobService, JobNotFoundError, MappingNotFoundError
 from ..core import get_logger
 
 log = get_logger(__name__)
 router = APIRouter(prefix="/processing", tags=["processing"])
 
 
-async def get_mapping_repo(db: AsyncSession = Depends(get_db)) -> BaseRepository[Mapping]:
-    return BaseRepository(Mapping, db)
-
-
-async def get_upload_repo(db: AsyncSession = Depends(get_db)) -> BaseRepository[Upload]:
-    return BaseRepository(Upload, db)
-
-
-async def get_job_repo(db: AsyncSession = Depends(get_db)) -> BaseRepository[Job]:
-    return BaseRepository(Job, db)
+async def get_job_service(db: AsyncSession = Depends(get_db)) -> JobService:
+    """Dependency to get JobService instance."""
+    return JobService(db)
 
 
 @router.post("/mappings/{mapping_id}/process", response_model=JobResponse)
 async def start_processing(
-    mapping_id: str, 
+    mapping_id: str,
     request: ProcessingRequest | None = None,
-    db: AsyncSession = Depends(get_db),
-    mapping_repo: BaseRepository[Mapping] = Depends(get_mapping_repo),
-    upload_repo: BaseRepository[Upload] = Depends(get_upload_repo),
+    job_service: JobService = Depends(get_job_service),
 ):
     """
     Start processing a mapped file asynchronously.
-    
+
     Creates a job record and dispatches a Celery task.
     Returns immediately with job ID for status polling.
     """
-    # Verify resources exist
-    mapping = await mapping_repo.get_or_404(mapping_id)
-    await upload_repo.get_or_404(mapping.upload_id)
-    
-    # Create job record
-    new_job = Job(
-        mapping_id=mapping_id,
-        status="queued",
-        progress=0,
-        progress_message="Queued for processing...",
-        created_at=datetime.utcnow(),
-    )
-    db.add(new_job)
-    await db.commit()
-    await db.refresh(new_job)
-    
-    # Dispatch Celery task
-    task = run_mining_task.delay(new_job.id, mapping_id)
-    
-    log.info(
-        "job_queued",
-        job_id=new_job.id,
-        mapping_id=mapping_id,
-        celery_task_id=task.id,
-    )
-    
-    return JobResponse(
-        job_id=new_job.id,
-        status="queued",
-        progress=0,
-        progress_message="Queued for processing...",
-        dataset_id=None,
-        error=None,
-        created_at=new_job.created_at,
-        completed_at=None,
-    )
+    try:
+        job, celery_task_id = await job_service.create_processing_job(mapping_id)
+
+        log.info(
+            "job_queued",
+            job_id=job.id,
+            mapping_id=mapping_id,
+            celery_task_id=celery_task_id,
+        )
+
+        return job_service.to_response(job)
+
+    except MappingNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get("/jobs/{job_id}", response_model=JobResponse)
 async def get_job_status(
     job_id: str,
-    job_repo: BaseRepository[Job] = Depends(get_job_repo),
+    job_service: JobService = Depends(get_job_service),
 ):
     """Get job status by ID."""
-    job = await job_repo.get_or_404(job_id)
-    
-    return JobResponse(
-        job_id=job.id,
-        status=job.status,
-        progress=job.progress,
-        progress_message=job.progress_message,
-        dataset_id=job.dataset_id,
-        error=job.error,
-        created_at=job.created_at,
-        completed_at=job.completed_at,
-    )
+    try:
+        return await job_service.get_job_status(job_id)
+    except JobNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
 
+
+@router.delete("/jobs/{job_id}", response_model=JobResponse)
+async def cancel_job(
+    job_id: str,
+    job_service: JobService = Depends(get_job_service),
+):
+    """Cancel a queued or processing job."""
+    try:
+        job = await job_service.cancel_job(job_id)
+        return job_service.to_response(job)
+    except JobNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

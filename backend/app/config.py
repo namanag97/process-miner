@@ -34,8 +34,8 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./process_miner.db"
 
     # Celery for background task processing
-    celery_broker_url: str = "redis://localhost:6379/0"
-    celery_result_backend: str = "redis://localhost:6379/0"
+    celery_broker_url: str = "redis://127.0.0.1:6379/0"
+    celery_result_backend: str = "redis://127.0.0.1:6379/0"
 
     # Optional: Redis for caching (uses same Redis as Celery by default)
     redis_url: str | None = None

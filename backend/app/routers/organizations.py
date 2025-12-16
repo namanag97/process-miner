@@ -91,26 +91,37 @@ async def list_organizations(
     db: AsyncSession = Depends(get_db),
 ):
     """List all organizations."""
-    result = await db.execute(
-        select(Organization).order_by(Organization.created_at.desc())
+    # Subquery for user counts per org
+    user_counts = (
+        select(User.org_id, func.count().label("count"))
+        .group_by(User.org_id)
+        .subquery()
     )
-    orgs = result.scalars().all()
     
-    responses = []
-    for org in orgs:
-        # Count users
-        user_count_result = await db.execute(
-            select(func.count()).select_from(User).where(User.org_id == org.id)
+    # Subquery for process counts per org
+    process_counts = (
+        select(Process.org_id, func.count().label("count"))
+        .group_by(Process.org_id)
+        .subquery()
+    )
+    
+    # Single query with left joins to get all data at once
+    query = (
+        select(
+            Organization,
+            func.coalesce(user_counts.c.count, 0).label("user_count"),
+            func.coalesce(process_counts.c.count, 0).label("process_count")
         )
-        user_count = user_count_result.scalar() or 0
-        
-        # Count processes
-        process_count_result = await db.execute(
-            select(func.count()).select_from(Process).where(Process.org_id == org.id)
-        )
-        process_count = process_count_result.scalar() or 0
-        
-        responses.append(OrganizationResponse(
+        .outerjoin(user_counts, Organization.id == user_counts.c.org_id)
+        .outerjoin(process_counts, Organization.id == process_counts.c.org_id)
+        .order_by(Organization.created_at.desc())
+    )
+    
+    result = await db.execute(query)
+    rows = result.all()
+    
+    return [
+        OrganizationResponse(
             id=org.id,
             name=org.name,
             slug=org.slug,
@@ -118,9 +129,9 @@ async def list_organizations(
             created_at=org.created_at,
             user_count=user_count,
             process_count=process_count,
-        ))
-    
-    return responses
+        )
+        for org, user_count, process_count in rows
+    ]
 
 
 @router.get("/{org_id}", response_model=OrganizationResponse)
@@ -129,25 +140,38 @@ async def get_organization(
     db: AsyncSession = Depends(get_db),
 ):
     """Get organization by ID."""
-    result = await db.execute(
-        select(Organization).where(Organization.id == org_id)
+    # Subqueries for counts
+    user_counts = (
+        select(User.org_id, func.count().label("count"))
+        .where(User.org_id == org_id)
+        .group_by(User.org_id)
+        .subquery()
     )
-    org = result.scalar_one_or_none()
+    process_counts = (
+        select(Process.org_id, func.count().label("count"))
+        .where(Process.org_id == org_id)
+        .group_by(Process.org_id)
+        .subquery()
+    )
     
-    if not org:
+    query = (
+        select(
+            Organization,
+            func.coalesce(user_counts.c.count, 0).label("user_count"),
+            func.coalesce(process_counts.c.count, 0).label("process_count")
+        )
+        .where(Organization.id == org_id)
+        .outerjoin(user_counts, Organization.id == user_counts.c.org_id)
+        .outerjoin(process_counts, Organization.id == process_counts.c.org_id)
+    )
+    
+    result = await db.execute(query)
+    row = result.first()
+    
+    if not row:
         raise HTTPException(status_code=404, detail="Organization not found")
     
-    # Count users
-    user_count_result = await db.execute(
-        select(func.count()).select_from(User).where(User.org_id == org.id)
-    )
-    user_count = user_count_result.scalar() or 0
-    
-    # Count processes
-    process_count_result = await db.execute(
-        select(func.count()).select_from(Process).where(Process.org_id == org.id)
-    )
-    process_count = process_count_result.scalar() or 0
+    org, user_count, process_count = row
     
     return OrganizationResponse(
         id=org.id,

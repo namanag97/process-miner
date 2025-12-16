@@ -80,9 +80,11 @@ async def upload_file(
     
     try:
         # Parse file to detect columns (limit rows for performance)
-        df = parse_file(file_path, max_rows=10000)
-        columns = detect_columns(df)
-        row_count = get_row_count(file_path)
+        # Use asyncio.to_thread to avoid blocking the event loop
+        import asyncio
+        df = await asyncio.to_thread(parse_file, file_path, max_rows=10000)
+        columns = await asyncio.to_thread(detect_columns, df)
+        row_count = await asyncio.to_thread(get_row_count, file_path)
         
         # Create upload with cached columns (KEY IMPROVEMENT!)
         new_upload = Upload(
