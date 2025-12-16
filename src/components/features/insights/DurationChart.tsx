@@ -93,7 +93,7 @@ export function DurationChart({ model }: DurationChartProps) {
                                 tickLine={false}
                             />
                             <Tooltip
-                                formatter={(value: number) => [formatDuration(value), 'Avg Duration']}
+                                formatter={(value) => value != null ? [formatDuration(value as number), 'Avg Duration'] : ['N/A', 'Avg Duration']}
                                 labelStyle={{ fontWeight: 'bold' }}
                             />
                             <Bar dataKey="duration" radius={[0, 4, 4, 0]}>

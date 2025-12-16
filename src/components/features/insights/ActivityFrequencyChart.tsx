@@ -78,7 +78,7 @@ export function ActivityFrequencyChart({ model }: ActivityFrequencyChartProps) {
                                 tickLine={false}
                             />
                             <Tooltip
-                                formatter={(value: number) => [value.toLocaleString(), 'Occurrences']}
+                                formatter={(value) => value != null ? [(value as number).toLocaleString(), 'Occurrences'] : ['0', 'Occurrences']}
                                 labelStyle={{ fontWeight: 'bold' }}
                             />
                             <Bar dataKey="frequency" radius={[0, 4, 4, 0]}>
