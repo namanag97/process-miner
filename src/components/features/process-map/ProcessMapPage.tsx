@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
-import { RefreshCw, Download } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAppStore } from '@/lib/stores/useAppStore';
@@ -14,6 +14,7 @@ import { AnalysisSummary } from './AnalysisSummary';
 import { ProcessMapViewer } from './ProcessMapViewer';
 import { VariantsTab } from './VariantsTab';
 import { DeviationsTab } from './DeviationsTab';
+import { ExportDropdown } from '@/components/features/export';
 
 const logger = createLogger('process-map-page');
 
@@ -114,10 +115,7 @@ export function ProcessMapPage() {
                         <RefreshCw className="h-4 w-4 mr-2" />
                         Re-run Analysis
                     </Button>
-                    <Button variant="outline" size="sm" disabled>
-                        <Download className="h-4 w-4 mr-2" />
-                        Export Results
-                    </Button>
+                    {currentResults && <ExportDropdown model={currentResults} />}
                 </div>
 
                 {warnings.length > 0 && (
