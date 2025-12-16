@@ -15,6 +15,9 @@ import {
     type UploadResponse,
     type MappingCreate,
 } from '@/lib/api';
+import { createLogger } from '@/lib/debug-logger';
+
+const logger = createLogger('backend-upload');
 
 interface UseBackendUploadOptions {
     onUploadSuccess?: (response: UploadResponse) => void;
@@ -41,6 +44,7 @@ export function useBackendUpload(options: UseBackendUploadOptions = {}) {
         setCurrentStep,
         setJobStatus,
         setJobProgress,
+        sessionId,
     } = useAppStore();
 
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -63,7 +67,13 @@ export function useBackendUpload(options: UseBackendUploadOptions = {}) {
             rawData: null,
         });
 
-        addLog('info', `📁 File selected: ${file.name} (${formatFileSize(file.size)})`);
+        logger.info('File selected', {
+            sessionId,
+            fileName: file.name,
+            fileSize: file.size,
+            fileType: file.type,
+        });
+        addLog('info', `📁 [Session: ${sessionId.slice(0, 8)}] File selected: ${file.name} (${formatFileSize(file.size)})`);
     }, [setUploadedFile, addLog]);
 
     // Handle file upload to backend
@@ -77,7 +87,13 @@ export function useBackendUpload(options: UseBackendUploadOptions = {}) {
         setError(null);
         setJobStatus('uploading');
         setJobProgress(0, 'Uploading file...');
-        addLog('info', `📤 Uploading: ${selectedFile.name}`);
+
+        logger.info('Starting upload', {
+            sessionId,
+            fileName: selectedFile.name,
+            fileSize: selectedFile.size,
+        });
+        addLog('info', `📤 [Session: ${sessionId.slice(0, 8)}] Uploading: ${selectedFile.name}`);
 
         try {
             // Upload to backend
@@ -87,14 +103,23 @@ export function useBackendUpload(options: UseBackendUploadOptions = {}) {
             setUploadId(response.upload_id);
             setBackendColumns(response.columns);
 
+            // Create proper preview rows from column sample values
+            // Transpose column samples into row format for DataPreview
+            const maxSamples = Math.max(...response.columns.map(c => c.sample_values.length), 0);
+            const previewRows: Record<string, string>[] = [];
+
+            for (let i = 0; i < maxSamples; i++) {
+                const row: Record<string, string> = {};
+                response.columns.forEach(col => {
+                    row[col.name] = col.sample_values[i] || '';
+                });
+                previewRows.push(row);
+            }
+
             // Also set parsed data for compatibility with existing UI
             setParsedData({
                 headers: response.columns.map(c => c.name),
-                rows: response.columns.map(c => {
-                    const row: Record<string, string> = {};
-                    row[c.name] = c.sample_values[0] || '';
-                    return row;
-                }),
+                rows: previewRows,
                 rowCount: response.row_count,
             });
 
@@ -102,7 +127,14 @@ export function useBackendUpload(options: UseBackendUploadOptions = {}) {
             setJobStatus('idle');
             setJobProgress(100, 'Upload complete');
 
-            addLog('success', `✅ Uploaded: ${response.row_count} rows, ${response.columns.length} columns`);
+            logger.info('Upload successful', {
+                sessionId,
+                uploadId: response.upload_id,
+                rowCount: response.row_count,
+                columnCount: response.columns.length,
+                columns: response.columns.map(c => c.name),
+            });
+            addLog('success', `✅ [Upload: ${response.upload_id.slice(0, 8)}] ${response.row_count} rows, ${response.columns.length} columns`);
             addLog('info', `📊 Detected columns: ${response.columns.map(c => c.name).join(', ')}`);
 
             options.onUploadSuccess?.(response);

@@ -1,36 +1,169 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Process Mining Platform
 
-## Getting Started
+A modern process mining tool powered by PM4Py with a Next.js frontend and FastAPI backend.
 
-First, run the development server:
+## 🚀 Quick Start
 
+### Local Development
+
+**1. Start Backend (Terminal 1):**
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**2. Start Frontend (Terminal 2):**
+```bash
+npm install
+npm run dev
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**3. Open:** http://localhost:3000
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 📁 Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+process-miner/
+├── src/                    # Next.js frontend
+│   ├── app/               # Pages (App Router)
+│   ├── components/        # React components
+│   ├── lib/               # Utilities, API client, stores
+│   └── hooks/             # React hooks
+├── backend/               # FastAPI backend
+│   ├── app/
+│   │   ├── routers/       # API endpoints
+│   │   ├── services/      # PM4Py, file handling
+│   │   └── models/        # Pydantic schemas
+│   └── requirements.txt
+└── docker-compose.yml     # Run both services
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🌿 Git Branches
 
-## Deploy on Vercel
+| Branch | Purpose |
+|--------|---------|
+| `main` | Production-ready code |
+| `dev` | Development/staging |
+| `feature/*` | New features |
+| `fix/*` | Bug fixes |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Workflow
+```bash
+# Start a new feature
+git checkout dev
+git pull origin dev
+git checkout -b feature/my-feature
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# Work on feature...
+git add .
+git commit -m "feat: add new feature"
+
+# Push and create PR
+git push origin feature/my-feature
+# Create PR: feature/my-feature → dev
+
+# After review, merge to dev
+# When ready for production, merge dev → main
+```
+
+---
+
+## 🚀 Deployment (FREE Options)
+
+### Frontend → Vercel (FREE)
+
+1. Go to [vercel.com](https://vercel.com)
+2. Connect your GitHub repo
+3. Set environment variable:
+   - `NEXT_PUBLIC_API_URL` = your backend URL
+4. Deploy!
+
+### Backend → Railway (FREE tier: 500 hrs/month)
+
+1. Go to [railway.app](https://railway.app)
+2. Connect your GitHub repo
+3. Select the `backend` folder as root
+4. Set environment variables:
+   ```
+   FRONTEND_URL=https://your-app.vercel.app
+   DEBUG=false
+   ```
+5. Deploy!
+
+### Alternative: Render (FREE with auto-sleep)
+
+1. Go to [render.com](https://render.com)
+2. Create new Web Service
+3. Connect repo, select `backend` folder
+4. Build Command: `pip install -r requirements.txt`
+5. Start Command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+
+---
+
+## 🐳 Docker (Optional)
+
+```bash
+# Run both services
+docker-compose up
+
+# Frontend: http://localhost:3000
+# Backend: http://localhost:8000
+```
+
+---
+
+## ⚙️ Environment Variables
+
+### Frontend (.env.local)
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+### Backend (.env)
+```
+HOST=0.0.0.0
+PORT=8000
+DEBUG=true
+FRONTEND_URL=http://localhost:3000
+UPLOAD_DIR=./uploads
+MAX_FILE_SIZE_MB=100
+```
+
+---
+
+## 🧪 Testing
+
+```bash
+# Frontend type check
+npm run type-check
+
+# Backend health check
+curl http://localhost:8000/api/health
+```
+
+---
+
+## 📚 API Documentation
+
+When backend is running: http://localhost:8000/docs
+
+---
+
+## 🛠️ Tech Stack
+
+- **Frontend:** Next.js 14, React Flow, Zustand, TailwindCSS
+- **Backend:** FastAPI, PM4Py, Pandas
+- **Deployment:** Vercel (frontend), Railway (backend)
+
+---
+
+## 📄 License
+
+MIT

@@ -176,29 +176,44 @@ export function InsightsPage() {
                                     <ActivityFrequencyChart model={miningResults} />
                                 </div>
 
-                                {/* Timeline */}
-                                <CasesTimelineChart
-                                    cases={caseData.map((c) => ({
-                                        caseId: c.caseId,
-                                        startTime: c.startTime,
-                                    }))}
-                                />
+                                {/* Timeline - only show if we have case data */}
+                                {caseData.length > 0 && (
+                                    <CasesTimelineChart
+                                        cases={caseData.map((c) => ({
+                                            caseId: c.caseId,
+                                            startTime: c.startTime,
+                                        }))}
+                                    />
+                                )}
 
                                 {/* Top Lists */}
                                 <TopLists
                                     model={miningResults}
-                                    cases={caseData.map((c) => ({
+                                    cases={caseData.length > 0 ? caseData.map((c) => ({
                                         caseId: c.caseId,
                                         duration: c.duration,
-                                    }))}
+                                    })) : []}
                                 />
                             </TabsContent>
 
                             <TabsContent value="cases" className="mt-6">
-                                <CaseExplorer
-                                    cases={caseData}
-                                    model={miningResults}
-                                />
+                                {caseData.length > 0 ? (
+                                    <CaseExplorer
+                                        cases={caseData}
+                                        model={miningResults}
+                                    />
+                                ) : (
+                                    <Alert className="max-w-md mx-auto">
+                                        <AlertTriangle className="h-4 w-4" />
+                                        <AlertTitle>Case Data Not Available</AlertTitle>
+                                        <AlertDescription>
+                                            <p>
+                                                Individual case data is only available when processing files locally.
+                                                The overall metrics and charts on the Dashboard tab are based on the analysis results.
+                                            </p>
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
                             </TabsContent>
                         </Tabs>
                     </div>

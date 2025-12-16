@@ -12,10 +12,12 @@ import {
     ChevronDown,
     ChevronRight,
     Loader2,
+    Wifi,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
 import {
     Dialog,
     DialogContent,
@@ -40,11 +42,47 @@ import {
     type ValidationResult,
     type ColumnMapping,
 } from '@/lib/validation';
+import {
+    createMapping,
+    validateMapping as apiValidateMapping,
+    startProcessing,
+    waitForJob,
+    getFullAnalysis,
+} from '@/lib/api';
+import { createLogger } from '@/lib/debug-logger';
+
+const logger = createLogger('configure-page');
 
 export default function ConfigurePage() {
     const router = useRouter();
-    const { parsedData, uploadedFile, setColumnConfig, setCurrentStep } = useAppStore();
+    const {
+        parsedData,
+        uploadedFile,
+        setColumnConfig,
+        setCurrentStep,
+        useBackend,
+        uploadId,
+        sessionId,
+        setMappingId,
+        setDatasetId,
+        setMiningResults,
+        jobProgress,
+        jobMessage,
+        setJobProgress,
+        setJobStatus,
+    } = useAppStore();
     const addLog = useLogStore((state) => state.addLog);
+
+    // Log session info on mount
+    useEffect(() => {
+        logger.info('Configure page mounted', {
+            sessionId,
+            uploadId,
+            useBackend,
+            hasData: !!parsedData,
+            columns: parsedData?.headers?.length ?? 0,
+        });
+    }, [sessionId, uploadId, useBackend, parsedData]);
 
     // Column mapping state
     const [caseId, setCaseId] = useState<string | null>(null);
@@ -56,6 +94,7 @@ export default function ConfigurePage() {
     // UI state
     const [optionalOpen, setOptionalOpen] = useState(true);
     const [isValidating, setIsValidating] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
     const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
     const [showWarningDialog, setShowWarningDialog] = useState(false);
 
@@ -113,14 +152,169 @@ export default function ConfigurePage() {
         return caseId && activity && timestamp && Object.keys(errors).length === 0;
     }, [caseId, activity, timestamp, errors]);
 
+    // Handle proceeding to next step (must be defined before handleValidate)
+    const handleProceed = useCallback(async (mapping?: ColumnMapping) => {
+        const config = mapping || {
+            caseId: caseId!,
+            activity: activity!,
+            timestamp: timestamp!,
+            resource: resource || undefined,
+            cost: cost || undefined,
+        };
+
+        setColumnConfig(config);
+        setCurrentStep(3);
+
+        // If using backend, create mapping and start processing
+        if (useBackend && uploadId) {
+            setIsProcessing(true);
+            setJobStatus('processing');
+
+            logger.info('Starting backend processing', {
+                sessionId: useAppStore.getState().sessionId,
+                uploadId,
+                config,
+            });
+
+            try {
+                // Create mapping on backend
+                addLog('info', `📤 [${uploadId.slice(0, 8)}] Creating column mapping...`);
+                logger.info('Creating mapping', { uploadId, config });
+
+                const mappingResponse = await createMapping(uploadId, {
+                    case_id_column: config.caseId,
+                    activity_column: config.activity,
+                    timestamp_column: config.timestamp,
+                    resource_column: config.resource,
+                    cost_column: config.cost,
+                });
+                setMappingId(mappingResponse.mapping_id);
+                addLog('success', `✅ [${uploadId.slice(0, 8)}] Mapping created: ${mappingResponse.mapping_id.slice(0, 8)}`);
+                logger.info('Mapping created', { mappingId: mappingResponse.mapping_id });
+
+                // Start processing
+                addLog('info', `⚙️ [${uploadId.slice(0, 8)}] Starting PM4Py processing...`);
+                logger.info('Starting processing', { mappingId: mappingResponse.mapping_id });
+
+                const job = await startProcessing(mappingResponse.mapping_id);
+                logger.info('Job started', { jobId: job.job_id });
+
+                // Wait for job completion with progress updates
+                const completedJob = await waitForJob(
+                    job.job_id,
+                    (progress, message) => {
+                        setJobProgress(progress, message || '');
+                        if (message) {
+                            addLog('info', `⏳ [${job.job_id.slice(0, 8)}] ${message} (${progress}%)`);
+                        }
+                    }
+                );
+
+                logger.info('Job completed', {
+                    jobId: job.job_id,
+                    status: completedJob.status,
+                    datasetId: completedJob.dataset_id
+                });
+
+                if (completedJob.status === 'failed') {
+                    logger.error('Processing failed', { error: completedJob.error });
+                    throw new Error(completedJob.error || 'Processing failed');
+                }
+
+                // Get full analysis results
+                const datasetId = completedJob.dataset_id!;
+                setDatasetId(datasetId);
+                addLog('info', `📊 [${datasetId.slice(0, 8)}] Fetching analysis results...`);
+                logger.info('Fetching analysis', { datasetId });
+
+                const analysis = await getFullAnalysis(datasetId);
+                logger.info('Analysis received', {
+                    cases: analysis.stats.total_cases,
+                    events: analysis.stats.total_events,
+                    variants: analysis.stats.total_variants,
+                });
+
+                // Transform backend response to frontend ProcessModel format
+                setMiningResults({
+                    activities: analysis.dfg.nodes.map(n => ({
+                        name: n.data.label,
+                        frequency: n.data.frequency,
+                        avgDuration: n.data.avgDuration,
+                        isStart: n.data.isStart,
+                        isEnd: n.data.isEnd,
+                    })),
+                    edges: analysis.dfg.edges.map(e => ({
+                        source: analysis.dfg.nodes.find(n => n.id === e.source)?.data.label || e.source,
+                        target: analysis.dfg.nodes.find(n => n.id === e.target)?.data.label || e.target,
+                        frequency: e.data.frequency,
+                        avgDuration: e.data.avgDuration,
+                        cases: [],
+                    })),
+                    variants: analysis.variants.variants.map(v => ({
+                        id: v.id,
+                        sequence: v.sequence,
+                        caseCount: v.case_count,
+                        percentage: v.percentage,
+                        avgDuration: v.avg_duration_ms,
+                        isHappyPath: v.is_happy_path,
+                        caseIds: v.case_ids,
+                    })),
+                    deviations: analysis.deviations.map(d => ({
+                        type: d.type,
+                        description: d.description,
+                        affectedCases: d.affected_cases,
+                        frequency: d.frequency,
+                    })),
+                    stats: {
+                        totalCases: analysis.stats.total_cases,
+                        totalEvents: analysis.stats.total_events,
+                        avgCaseDuration: analysis.stats.avg_case_duration_ms,
+                        medianCaseDuration: analysis.stats.median_case_duration_ms,
+                        startActivities: analysis.stats.start_activities,
+                        endActivities: analysis.stats.end_activities,
+                    },
+                });
+
+                setJobStatus('complete');
+                addLog('success', `✅ [${datasetId.slice(0, 8)}] Mining complete: ${analysis.stats.total_cases} cases, ${analysis.stats.total_variants} variants`);
+
+                logger.info('Navigating to process-map', {
+                    sessionId: useAppStore.getState().sessionId,
+                    datasetId,
+                    cases: analysis.stats.total_cases,
+                });
+
+                router.push('/process-map');
+
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Processing failed';
+                setJobStatus('error');
+                addLog('error', `❌ [${uploadId?.slice(0, 8) || 'unknown'}] Processing failed: ${message}`);
+                logger.error('Processing failed', { error: message, uploadId });
+            } finally {
+                setIsProcessing(false);
+            }
+        } else {
+            // Client-side mode - navigate to process map for local processing
+            logger.info('Client-side mode - navigating to process-map', {
+                sessionId: useAppStore.getState().sessionId,
+                useBackend,
+                uploadId,
+                hasData: !!parsedData,
+            });
+            addLog('success', '✅ Configuration saved. Proceeding to process mining...');
+            router.push('/process-map');
+        }
+    }, [
+        caseId, activity, timestamp, resource, cost,
+        setColumnConfig, setCurrentStep, addLog, router,
+        useBackend, uploadId, setMappingId, setDatasetId, setMiningResults,
+        setJobProgress, setJobStatus
+    ]);
+
     // Handle validation
     const handleValidate = useCallback(async () => {
         if (!caseId || !activity || !timestamp) return;
-
-        setIsValidating(true);
-
-        // Small delay to show loading state
-        await new Promise(resolve => setTimeout(resolve, 100));
 
         const mapping: ColumnMapping = {
             caseId,
@@ -129,6 +323,17 @@ export default function ConfigurePage() {
             resource: resource || undefined,
             cost: cost || undefined,
         };
+
+        // In backend mode, skip client-side validation and go directly to backend processing
+        if (useBackend && uploadId) {
+            addLog('info', '🚀 Using backend for validation and processing...');
+            handleProceed(mapping);
+            return;
+        }
+
+        // Client-side validation (offline mode only)
+        setIsValidating(true);
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         const result = validateColumnConfiguration(rows, mapping, (level, message) => {
             addLog(level, message);
@@ -142,23 +347,7 @@ export default function ConfigurePage() {
         } else if (result.isValid) {
             handleProceed(mapping);
         }
-    }, [caseId, activity, timestamp, resource, cost, rows, addLog]);
-
-    // Handle proceeding to next step
-    const handleProceed = useCallback((mapping?: ColumnMapping) => {
-        const config = mapping || {
-            caseId: caseId!,
-            activity: activity!,
-            timestamp: timestamp!,
-            resource: resource || undefined,
-            cost: cost || undefined,
-        };
-
-        setColumnConfig(config);
-        setCurrentStep(3);
-        addLog('success', '✅ Configuration saved. Proceeding to process mining...');
-        router.push('/process-map');
-    }, [caseId, activity, timestamp, resource, cost, setColumnConfig, setCurrentStep, addLog, router]);
+    }, [caseId, activity, timestamp, resource, cost, rows, addLog, useBackend, uploadId, handleProceed]);
 
     return (
         <NavigationGuard>
@@ -289,7 +478,7 @@ export default function ConfigurePage() {
                             <Button
                                 size="lg"
                                 className="w-full"
-                                disabled={!isFormValid || isValidating}
+                                disabled={!isFormValid || isValidating || isProcessing}
                                 onClick={handleValidate}
                             >
                                 {isValidating ? (
@@ -297,10 +486,35 @@ export default function ConfigurePage() {
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                         Validating...
                                     </>
+                                ) : isProcessing ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Processing with PM4Py...
+                                    </>
+                                ) : useBackend ? (
+                                    <>
+                                        <Wifi className="mr-2 h-4 w-4" />
+                                        Validate & Process
+                                    </>
                                 ) : (
                                     'Validate & Continue'
                                 )}
                             </Button>
+
+                            {/* Processing Progress */}
+                            {isProcessing && (
+                                <Card className="mt-4">
+                                    <CardContent className="pt-4">
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between text-sm">
+                                                <span>{jobMessage || 'Processing...'}</span>
+                                                <span>{jobProgress}%</span>
+                                            </div>
+                                            <Progress value={jobProgress} className="h-2" />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
                         </div>
 
                         {/* Validation Results */}

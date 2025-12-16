@@ -1,0 +1,11 @@
+case_id,activity,timestamp,resource
+case1,Start,2024-01-01 09:00:00,Alice
+case1,Process,2024-01-01 10:00:00,Bob
+case1,Complete,2024-01-01 11:00:00,Alice
+case2,Start,2024-01-01 09:30:00,Bob
+case2,Process,2024-01-01 10:30:00,Charlie
+case2,Review,2024-01-01 11:30:00,Bob
+case2,Complete,2024-01-01 12:00:00,Alice
+case3,Start,2024-01-01 10:00:00,Charlie
+case3,Process,2024-01-01 11:00:00,Alice
+case3,Complete,2024-01-01 12:00:00,Bob

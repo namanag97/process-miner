@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { RefreshCw, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAppStore } from '@/lib/stores/useAppStore';
@@ -19,6 +20,7 @@ import { ExportDropdown } from '@/components/features/export';
 const logger = createLogger('process-map-page');
 
 export function ProcessMapPage() {
+    const router = useRouter();
     const { parsedData, columnConfig, miningResults, setMiningResults } = useAppStore();
 
     const { mine, isProcessing, progress, results, error, warnings, reset } = useMining(
@@ -116,6 +118,13 @@ export function ProcessMapPage() {
                         Re-run Analysis
                     </Button>
                     {currentResults && <ExportDropdown model={currentResults} />}
+                    <Button
+                        size="sm"
+                        onClick={() => router.push('/insights')}
+                    >
+                        <BarChart3 className="h-4 w-4 mr-2" />
+                        View Insights
+                    </Button>
                 </div>
 
                 {warnings.length > 0 && (
