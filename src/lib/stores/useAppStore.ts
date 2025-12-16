@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { ProcessModel } from '../mining/types';
 
 export interface UploadedFile {
     name: string;
@@ -21,10 +22,8 @@ export interface ColumnConfig {
     cost?: string;
 }
 
-export interface ProcessMiningResults {
-    // Define this type later based on actual mining results structure
-    [key: string]: unknown;
-}
+// ProcessMiningResults is now the ProcessModel from the mining module
+export type ProcessMiningResults = ProcessModel;
 
 interface AppState {
     uploadedFile: UploadedFile | null;

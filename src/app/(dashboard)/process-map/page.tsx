@@ -1,25 +1,33 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { NavigationGuard } from '@/components/navigation';
-import { InDevState } from '@/components/states';
+import { ProcessMapPage } from '@/components/features/process-map';
+import { useAppStore } from '@/lib/stores/useAppStore';
 
-export default function ProcessMapPage() {
-    const router = useRouter();
+export default function ProcessMapRoute() {
+    const { uploadedFile } = useAppStore();
 
     return (
         <NavigationGuard>
             <div className="flex flex-col h-full">
-                <Header title="Process Map" />
+                <Header
+                    title="Process Analysis"
+                    showBackButton
+                    backHref="/configure"
+                    backLabel="Back to Configure"
+                />
 
-                <div className="flex-1 flex items-center justify-center p-6">
-                    <InDevState
-                        featureName="Process Map Visualization"
-                        description="We're building an interactive process flow visualization with bottleneck detection and variant analysis."
-                        onBack={() => router.push('/configure')}
-                    />
-                </div>
+                {/* Subtitle with file name */}
+                {uploadedFile && (
+                    <div className="px-4 md:px-6 pb-2">
+                        <p className="text-sm text-muted-foreground">
+                            Analyzing: <span className="font-medium">{uploadedFile.name}</span>
+                        </p>
+                    </div>
+                )}
+
+                <ProcessMapPage />
             </div>
         </NavigationGuard>
     );
