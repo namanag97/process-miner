@@ -6,15 +6,8 @@ import { useAppStore } from '@/lib/stores/useAppStore';
 import { useLogStore } from '@/lib/stores/useLogStore';
 import { ROUTES } from '@/lib/constants';
 import { formatFileSize } from '@/lib/utils';
-import {
-    uploadFile as apiUploadFile,
-    createMapping,
-    startProcessing,
-    waitForJob,
-    getFullAnalysis,
-    type UploadResponse,
-    type MappingCreate,
-} from '@/lib/api';
+import { useUploadFile } from '@/lib/api/queries/useUploads';
+import type { UploadResponse } from '@/lib/api';
 import { createLogger } from '@/lib/debug-logger';
 
 const logger = createLogger('backend-upload');
@@ -27,7 +20,7 @@ interface UseBackendUploadOptions {
 /**
  * Hook for uploading files to the backend API.
  * 
- * This replaces client-side parsing with backend processing.
+ * Uses React Query mutations for proper state management and caching.
  * The backend detects columns and types, which are then used
  * for the column mapping step.
  */
@@ -48,63 +41,14 @@ export function useBackendUpload(options: UseBackendUploadOptions = {}) {
     } = useAppStore();
 
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [isUploading, setIsUploading] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState(0);
-    const [error, setError] = useState<string | null>(null);
-    const [uploadResponse, setUploadResponse] = useState<UploadResponse | null>(null);
 
-    // Handle file selection
-    const handleFileSelected = useCallback((file: File) => {
-        setSelectedFile(file);
-        setError(null);
-        setUploadResponse(null);
-
-        // Store file info
-        setUploadedFile({
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            rawData: null,
-        });
-
-        logger.info('File selected', {
-            sessionId,
-            fileName: file.name,
-            fileSize: file.size,
-            fileType: file.type,
-        });
-        addLog('info', `📁 [Session: ${sessionId.slice(0, 8)}] File selected: ${file.name} (${formatFileSize(file.size)})`);
-    }, [setUploadedFile, addLog]);
-
-    // Handle file upload to backend
-    const handleUpload = useCallback(async () => {
-        if (!selectedFile) {
-            addLog('error', '❌ No file selected');
-            return;
-        }
-
-        setIsUploading(true);
-        setError(null);
-        setJobStatus('uploading');
-        setJobProgress(0, 'Uploading file...');
-
-        logger.info('Starting upload', {
-            sessionId,
-            fileName: selectedFile.name,
-            fileSize: selectedFile.size,
-        });
-        addLog('info', `📤 [Session: ${sessionId.slice(0, 8)}] Uploading: ${selectedFile.name}`);
-
-        try {
-            // Upload to backend
-            const response = await apiUploadFile(selectedFile);
-
-            setUploadResponse(response);
+    // React Query mutation for upload
+    const uploadMutation = useUploadFile({
+        onSuccess: (response) => {
             setUploadId(response.upload_id);
             setBackendColumns(response.columns);
 
             // Create proper preview rows from column sample values
-            // Transpose column samples into row format for DataPreview
             const maxSamples = Math.max(...response.columns.map(c => c.sample_values.length), 0);
             const previewRows: Record<string, string>[] = [];
 
@@ -138,39 +82,70 @@ export function useBackendUpload(options: UseBackendUploadOptions = {}) {
             addLog('info', `📊 Detected columns: ${response.columns.map(c => c.name).join(', ')}`);
 
             options.onUploadSuccess?.(response);
-
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Upload failed';
-            setError(message);
+        },
+        onError: (error) => {
+            const message = error.message || 'Upload failed';
             setJobStatus('error');
             addLog('error', `❌ Upload failed: ${message}`);
             options.onUploadError?.(message);
-        } finally {
-            setIsUploading(false);
+        },
+    });
+
+    // Handle file selection
+    const handleFileSelected = useCallback((file: File) => {
+        setSelectedFile(file);
+        uploadMutation.reset();
+
+        // Store file info
+        setUploadedFile({
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            rawData: null,
+        });
+
+        logger.info('File selected', {
+            sessionId,
+            fileName: file.name,
+            fileSize: file.size,
+            fileType: file.type,
+        });
+        addLog('info', `📁 [Session: ${sessionId.slice(0, 8)}] File selected: ${file.name} (${formatFileSize(file.size)})`);
+    }, [setUploadedFile, addLog, sessionId, uploadMutation]);
+
+    // Handle file upload to backend
+    const handleUpload = useCallback(() => {
+        console.log('[useBackendUpload] handleUpload called');
+        if (!selectedFile) {
+            console.error('[useBackendUpload] No file selected');
+            addLog('error', '❌ No file selected');
+            return;
         }
-    }, [
-        selectedFile,
-        addLog,
-        setUploadId,
-        setBackendColumns,
-        setParsedData,
-        setCurrentStep,
-        setJobStatus,
-        setJobProgress,
-        options
-    ]);
+
+        setJobStatus('uploading');
+        setJobProgress(0, 'Uploading file...');
+
+        console.log('[useBackendUpload] Starting upload mutation for file:', selectedFile.name);
+        logger.info('Starting upload', {
+            sessionId,
+            fileName: selectedFile.name,
+            fileSize: selectedFile.size,
+        });
+        addLog('info', `📤 [Session: ${sessionId.slice(0, 8)}] Uploading: ${selectedFile.name}`);
+
+        uploadMutation.mutate(selectedFile);
+    }, [selectedFile, addLog, setJobStatus, setJobProgress, sessionId, uploadMutation]);
 
     // Handle file removal
     const handleRemove = useCallback(() => {
         setSelectedFile(null);
-        setError(null);
-        setUploadResponse(null);
+        uploadMutation.reset();
         setUploadedFile(null);
         setUploadId(null);
         setBackendColumns([]);
         setParsedData(null);
         clearLogs();
-    }, [setUploadedFile, setUploadId, setBackendColumns, setParsedData, clearLogs]);
+    }, [setUploadedFile, setUploadId, setBackendColumns, setParsedData, clearLogs, uploadMutation]);
 
     // Handle reset
     const handleReset = useCallback(() => {
@@ -183,12 +158,12 @@ export function useBackendUpload(options: UseBackendUploadOptions = {}) {
     }, [router]);
 
     return {
-        // State
+        // State from React Query
         selectedFile,
-        isUploading,
-        uploadProgress,
-        error,
-        uploadResponse,
+        isUploading: uploadMutation.isPending,
+        uploadProgress: uploadMutation.isPending ? 50 : (uploadMutation.isSuccess ? 100 : 0),
+        error: uploadMutation.error?.message ?? null,
+        uploadResponse: uploadMutation.data ?? null,
 
         // Actions
         handleFileSelected,
@@ -199,7 +174,7 @@ export function useBackendUpload(options: UseBackendUploadOptions = {}) {
 
         // Computed
         hasFile: !!selectedFile,
-        hasUploadResponse: !!uploadResponse,
-        canUpload: !!selectedFile && !isUploading,
+        hasUploadResponse: !!uploadMutation.data,
+        canUpload: !!selectedFile && !uploadMutation.isPending,
     };
 }

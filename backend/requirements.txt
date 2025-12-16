@@ -28,6 +28,10 @@ structlog>=24.1.0
 # Error tracking and APM
 sentry-sdk[fastapi]>=1.39.0
 
+# Celery for background tasks
+celery[redis]>=5.3.0
+redis>=5.0.0
+
 # Utilities
 python-dateutil>=2.8.0
 httpx>=0.25.0
@@ -36,4 +40,3 @@ httpx>=0.25.0
 pytest>=7.4.0
 pytest-asyncio>=0.21.0
 pytest-env>=1.1.0
-

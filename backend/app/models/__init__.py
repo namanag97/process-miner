@@ -2,26 +2,40 @@
 Models package - Using SQLModel for unified ORM + Pydantic schemas.
 """
 
-from .models import (
-    # User
+from .common import generate_uuid
+
+from .user import (
     User,
+    UserBase,
     UserResponse,
-    # Upload
+)
+
+from .upload import (
     Upload,
+    UploadBase,
     UploadResponse,
     ColumnMetadata,
-    # Mapping
+)
+
+from .mapping import (
     Mapping,
+    MappingBase,
     MappingCreate,
     MappingResponse,
-    # Job
+)
+
+from .job import (
     Job,
     JobResponse,
     ProcessingRequest,
-    # Dataset
+)
+
+from .dataset import (
     Dataset,
     DatasetSummary,
-    # Analysis
+)
+
+from .analysis import (
     DFGNode,
     DFGEdge,
     DFGSummary,
@@ -34,25 +48,62 @@ from .models import (
     ActivityStat,
     Deviation,
     ProcessStats,
-    # Validation
+)
+
+from .validation import (
     ValidationError,
     ValidationWarning,
     ValidationStats,
     ValidationResult,
-    # Error
-    ErrorResponse,
+)
+
+from .error import ErrorResponse
+
+from .organization import (
+    Organization,
+    OrganizationBase,
+    OrganizationCreate,
+    OrganizationResponse,
+)
+
+from .process import (
+    Process,
+    ProcessBase,
+    ProcessCreate,
+    ProcessUpdate,
+    ProcessResponse,
+    ProcessWithStats,
+)
+
+from .audit_log import (
+    AuditLog,
+    AuditLogCreate,
+    AuditLogResponse,
+    AuditLogFilter,
+)
+
+from .insight import (
+    Insight,
+    InsightCreate,
+    InsightResponse,
+    InsightSummary,
 )
 
 __all__ = [
+    # Common
+    "generate_uuid",
     # User
     "User",
+    "UserBase",
     "UserResponse",
     # Upload
     "Upload",
+    "UploadBase",
     "UploadResponse",
     "ColumnMetadata",
     # Mapping
     "Mapping",
+    "MappingBase",
     "MappingCreate",
     "MappingResponse",
     # Job
@@ -82,4 +133,26 @@ __all__ = [
     "ValidationResult",
     # Error
     "ErrorResponse",
+    # Organization
+    "Organization",
+    "OrganizationBase",
+    "OrganizationCreate",
+    "OrganizationResponse",
+    # Process
+    "Process",
+    "ProcessBase",
+    "ProcessCreate",
+    "ProcessUpdate",
+    "ProcessResponse",
+    "ProcessWithStats",
+    # AuditLog
+    "AuditLog",
+    "AuditLogCreate",
+    "AuditLogResponse",
+    "AuditLogFilter",
+    # Insight
+    "Insight",
+    "InsightCreate",
+    "InsightResponse",
+    "InsightSummary",
 ]

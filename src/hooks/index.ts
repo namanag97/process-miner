@@ -1,12 +1,11 @@
 export { useToast, toast } from './use-toast';
-export { useFileUpload } from './useFileUpload';
 export { useBackendUpload } from './useBackendUpload';
-export { useBackendMining } from './useBackendMining';
 export { useColumnConfig } from './useColumnConfig';
+export { useUser } from './useUser';
+export { useKeyboardShortcuts } from './useKeyboardShortcuts';
 export {
     useNavigationGuard,
     getRouteAccessibility,
     getCompletedSteps,
     type NavigationGuardResult,
 } from './useNavigationGuard';
-

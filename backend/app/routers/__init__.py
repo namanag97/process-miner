@@ -5,4 +5,5 @@ from .processing import router as processing_router
 from .analysis import router as analysis_router
 from .users import router as users_router
 from .admin import router as admin_router
-
+from .organizations import router as organizations_router
+from .processes import router as processes_router

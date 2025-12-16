@@ -33,7 +33,11 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "sqlite+aiosqlite:///./process_miner.db"
 
-    # Optional: Redis for async job processing
+    # Celery for background task processing
+    celery_broker_url: str = "redis://localhost:6379/0"
+    celery_result_backend: str = "redis://localhost:6379/0"
+
+    # Optional: Redis for caching (uses same Redis as Celery by default)
     redis_url: str | None = None
 
     # Sentry for error tracking (get DSN from sentry.io)

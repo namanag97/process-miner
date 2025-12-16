@@ -26,6 +26,8 @@ from .routers import (
     processing_router,
     analysis_router,
     admin_router,
+    organizations_router,
+    processes_router,
 )
 
 # Initialize Sentry before anything else (if configured)
@@ -120,6 +122,8 @@ app.include_router(mappings_router, prefix="/api")
 app.include_router(processing_router, prefix="/api")
 app.include_router(analysis_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
+app.include_router(organizations_router, prefix="/api")
+app.include_router(processes_router, prefix="/api")
 
 
 @app.get("/")

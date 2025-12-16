@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     Hash,
@@ -43,15 +43,15 @@ import {
     type ColumnMapping,
 } from '@/lib/validation';
 import {
-    createMapping,
-    validateMapping as apiValidateMapping,
-    startProcessing,
-    waitForJob,
-    getFullAnalysis,
-} from '@/lib/api';
+    useCreateMapping,
+    useStartProcessing,
+    useJobStatus,
+    useFullAnalysis,
+} from '@/lib/api/queries';
 import { createLogger } from '@/lib/debug-logger';
 
 const logger = createLogger('configure-page');
+
 
 export default function ConfigurePage() {
     const router = useRouter();
@@ -60,7 +60,6 @@ export default function ConfigurePage() {
         uploadedFile,
         setColumnConfig,
         setCurrentStep,
-        useBackend,
         uploadId,
         sessionId,
         setMappingId,
@@ -73,16 +72,28 @@ export default function ConfigurePage() {
     } = useAppStore();
     const addLog = useLogStore((state) => state.addLog);
 
+    // React Query mutations
+    const createMappingMutation = useCreateMapping();
+    const startProcessingMutation = useStartProcessing();
+
+    // Track current job for polling
+    const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+
+    // Poll job status when we have a job ID
+    const { data: jobData } = useJobStatus(currentJobId, {
+        refetchInterval: currentJobId ? 1000 : false,
+        enabled: !!currentJobId,
+    });
+
     // Log session info on mount
     useEffect(() => {
         logger.info('Configure page mounted', {
             sessionId,
             uploadId,
-            useBackend,
             hasData: !!parsedData,
             columns: parsedData?.headers?.length ?? 0,
         });
-    }, [sessionId, uploadId, useBackend, parsedData]);
+    }, [sessionId, uploadId, parsedData]);
 
     // Column mapping state
     const [caseId, setCaseId] = useState<string | null>(null);
@@ -94,13 +105,38 @@ export default function ConfigurePage() {
     // UI state
     const [optionalOpen, setOptionalOpen] = useState(true);
     const [isValidating, setIsValidating] = useState(false);
-    const [isProcessing, setIsProcessing] = useState(false);
     const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
     const [showWarningDialog, setShowWarningDialog] = useState(false);
+
+    // Derived processing state from mutations
+    const isProcessing = createMappingMutation.isPending ||
+        startProcessingMutation.isPending ||
+        (!!currentJobId && jobData?.status === 'processing') ||
+        (!!currentJobId && jobData?.status === 'queued');
 
     // Get columns and rows from parsed data
     const columns = parsedData?.headers || [];
     const rows = (parsedData?.rows || []) as Record<string, unknown>[];
+
+    // Effect to handle job completion and navigation
+    useEffect(() => {
+        if (jobData?.status === 'completed' && jobData.dataset_id) {
+            const datasetId = jobData.dataset_id;
+            setDatasetId(datasetId);
+            setCurrentJobId(null); // Stop polling
+
+            addLog('success', `✅ [${datasetId.slice(0, 8)}] Mining complete`);
+            logger.info('Processing complete, navigating', { datasetId });
+
+            router.push('/process-map');
+        } else if (jobData?.status === 'failed') {
+            setCurrentJobId(null); // Stop polling
+            addLog('error', `❌ Processing failed: ${jobData.error || 'Unknown error'}`);
+            logger.error('Processing failed', { error: jobData.error });
+        } else if (jobData?.progress !== undefined) {
+            setJobProgress(jobData.progress, jobData.progress_message || '');
+        }
+    }, [jobData, setDatasetId, addLog, router, setJobProgress]);
 
     // Auto-detection on mount
     useEffect(() => {
@@ -152,7 +188,7 @@ export default function ConfigurePage() {
         return caseId && activity && timestamp && Object.keys(errors).length === 0;
     }, [caseId, activity, timestamp, errors]);
 
-    // Handle proceeding to next step (must be defined before handleValidate)
+    // Handle proceeding to next step using React Query mutations
     const handleProceed = useCallback(async (mapping?: ColumnMapping) => {
         const config = mapping || {
             caseId: caseId!,
@@ -165,152 +201,63 @@ export default function ConfigurePage() {
         setColumnConfig(config);
         setCurrentStep(3);
 
-        // If using backend, create mapping and start processing
-        if (useBackend && uploadId) {
-            setIsProcessing(true);
-            setJobStatus('processing');
+        // Backend processing
+        if (!uploadId) {
+            addLog('error', 'No upload ID found');
+            return;
+        }
 
-            logger.info('Starting backend processing', {
-                sessionId: useAppStore.getState().sessionId,
+        setJobProgress(0, 'Starting processing...');
+
+        logger.info('Starting backend processing', {
+            sessionId: useAppStore.getState().sessionId,
+            uploadId,
+            config,
+        });
+
+        try {
+            // Create mapping on backend using React Query mutation
+            addLog('info', `📤 [${uploadId.slice(0, 8)}] Creating column mapping...`);
+            logger.info('Creating mapping', { uploadId, config });
+
+            const mappingResponse = await createMappingMutation.mutateAsync({
                 uploadId,
-                config,
-            });
-
-            try {
-                // Create mapping on backend
-                addLog('info', `📤 [${uploadId.slice(0, 8)}] Creating column mapping...`);
-                logger.info('Creating mapping', { uploadId, config });
-
-                const mappingResponse = await createMapping(uploadId, {
+                mapping: {
                     case_id_column: config.caseId,
                     activity_column: config.activity,
                     timestamp_column: config.timestamp,
                     resource_column: config.resource,
                     cost_column: config.cost,
-                });
-                setMappingId(mappingResponse.mapping_id);
-                addLog('success', `✅ [${uploadId.slice(0, 8)}] Mapping created: ${mappingResponse.mapping_id.slice(0, 8)}`);
-                logger.info('Mapping created', { mappingId: mappingResponse.mapping_id });
-
-                // Start processing
-                addLog('info', `⚙️ [${uploadId.slice(0, 8)}] Starting PM4Py processing...`);
-                logger.info('Starting processing', { mappingId: mappingResponse.mapping_id });
-
-                const job = await startProcessing(mappingResponse.mapping_id);
-                logger.info('Job started', { jobId: job.job_id });
-
-                // Wait for job completion with progress updates
-                const completedJob = await waitForJob(
-                    job.job_id,
-                    (progress, message) => {
-                        setJobProgress(progress, message || '');
-                        if (message) {
-                            addLog('info', `⏳ [${job.job_id.slice(0, 8)}] ${message} (${progress}%)`);
-                        }
-                    }
-                );
-
-                logger.info('Job completed', {
-                    jobId: job.job_id,
-                    status: completedJob.status,
-                    datasetId: completedJob.dataset_id
-                });
-
-                if (completedJob.status === 'failed') {
-                    logger.error('Processing failed', { error: completedJob.error });
-                    throw new Error(completedJob.error || 'Processing failed');
-                }
-
-                // Get full analysis results
-                const datasetId = completedJob.dataset_id!;
-                setDatasetId(datasetId);
-                addLog('info', `📊 [${datasetId.slice(0, 8)}] Fetching analysis results...`);
-                logger.info('Fetching analysis', { datasetId });
-
-                const analysis = await getFullAnalysis(datasetId);
-                logger.info('Analysis received', {
-                    cases: analysis.stats.total_cases,
-                    events: analysis.stats.total_events,
-                    variants: analysis.stats.total_variants,
-                });
-
-                // Transform backend response to frontend ProcessModel format
-                setMiningResults({
-                    activities: analysis.dfg.nodes.map(n => ({
-                        name: n.data.label,
-                        frequency: n.data.frequency,
-                        avgDuration: n.data.avgDuration,
-                        isStart: n.data.isStart,
-                        isEnd: n.data.isEnd,
-                    })),
-                    edges: analysis.dfg.edges.map(e => ({
-                        source: analysis.dfg.nodes.find(n => n.id === e.source)?.data.label || e.source,
-                        target: analysis.dfg.nodes.find(n => n.id === e.target)?.data.label || e.target,
-                        frequency: e.data.frequency,
-                        avgDuration: e.data.avgDuration,
-                        cases: [],
-                    })),
-                    variants: analysis.variants.variants.map(v => ({
-                        id: v.id,
-                        sequence: v.sequence,
-                        caseCount: v.case_count,
-                        percentage: v.percentage,
-                        avgDuration: v.avg_duration_ms,
-                        isHappyPath: v.is_happy_path,
-                        caseIds: v.case_ids,
-                    })),
-                    deviations: analysis.deviations.map(d => ({
-                        type: d.type,
-                        description: d.description,
-                        affectedCases: d.affected_cases,
-                        frequency: d.frequency,
-                    })),
-                    stats: {
-                        totalCases: analysis.stats.total_cases,
-                        totalEvents: analysis.stats.total_events,
-                        avgCaseDuration: analysis.stats.avg_case_duration_ms,
-                        medianCaseDuration: analysis.stats.median_case_duration_ms,
-                        startActivities: analysis.stats.start_activities,
-                        endActivities: analysis.stats.end_activities,
-                    },
-                });
-
-                setJobStatus('complete');
-                addLog('success', `✅ [${datasetId.slice(0, 8)}] Mining complete: ${analysis.stats.total_cases} cases, ${analysis.stats.total_variants} variants`);
-
-                logger.info('Navigating to process-map', {
-                    sessionId: useAppStore.getState().sessionId,
-                    datasetId,
-                    cases: analysis.stats.total_cases,
-                });
-
-                router.push('/process-map');
-
-            } catch (error) {
-                const message = error instanceof Error ? error.message : 'Processing failed';
-                setJobStatus('error');
-                addLog('error', `❌ [${uploadId?.slice(0, 8) || 'unknown'}] Processing failed: ${message}`);
-                logger.error('Processing failed', { error: message, uploadId });
-            } finally {
-                setIsProcessing(false);
-            }
-        } else {
-            // Client-side mode - navigate to process map for local processing
-            logger.info('Client-side mode - navigating to process-map', {
-                sessionId: useAppStore.getState().sessionId,
-                useBackend,
-                uploadId,
-                hasData: !!parsedData,
+                },
             });
-            addLog('success', '✅ Configuration saved. Proceeding to process mining...');
-            router.push('/process-map');
+
+            setMappingId(mappingResponse.mapping_id);
+            addLog('success', `✅ [${uploadId.slice(0, 8)}] Mapping created: ${mappingResponse.mapping_id.slice(0, 8)}`);
+            logger.info('Mapping created', { mappingId: mappingResponse.mapping_id });
+
+            // Start processing using React Query mutation
+            addLog('info', `⚙️ [${uploadId.slice(0, 8)}] Starting PM4Py processing...`);
+            logger.info('Starting processing', { mappingId: mappingResponse.mapping_id });
+
+            const job = await startProcessingMutation.mutateAsync(mappingResponse.mapping_id);
+            logger.info('Job started', { jobId: job.job_id });
+
+            // Set job ID to trigger polling via useJobStatus
+            setCurrentJobId(job.job_id);
+            addLog('info', `⏳ [${job.job_id.slice(0, 8)}] Processing started...`);
+
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Processing failed';
+            addLog('error', `❌ [${uploadId?.slice(0, 8) || 'unknown'}] Processing failed: ${message}`);
+            logger.error('Processing failed', { error: message, uploadId });
         }
     }, [
         caseId, activity, timestamp, resource, cost,
-        setColumnConfig, setCurrentStep, addLog, router,
-        useBackend, uploadId, setMappingId, setDatasetId, setMiningResults,
-        setJobProgress, setJobStatus
+        setColumnConfig, setCurrentStep, addLog,
+        uploadId, setMappingId, setJobProgress,
+        createMappingMutation, startProcessingMutation,
     ]);
+
 
     // Handle validation
     const handleValidate = useCallback(async () => {
@@ -324,9 +271,9 @@ export default function ConfigurePage() {
             cost: cost || undefined,
         };
 
-        // In backend mode, skip client-side validation and go directly to backend processing
-        if (useBackend && uploadId) {
-            addLog('info', '🚀 Using backend for validation and processing...');
+        // Backend processing
+        if (uploadId) {
+            addLog('info', '🚀 Starting backend validation and processing...');
             handleProceed(mapping);
             return;
         }
@@ -347,7 +294,7 @@ export default function ConfigurePage() {
         } else if (result.isValid) {
             handleProceed(mapping);
         }
-    }, [caseId, activity, timestamp, resource, cost, rows, addLog, useBackend, uploadId, handleProceed]);
+    }, [caseId, activity, timestamp, resource, cost, rows, addLog, uploadId, handleProceed]);
 
     return (
         <NavigationGuard>
@@ -491,13 +438,11 @@ export default function ConfigurePage() {
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                         Processing with PM4Py...
                                     </>
-                                ) : useBackend ? (
+                                ) : (
                                     <>
                                         <Wifi className="mr-2 h-4 w-4" />
                                         Validate & Process
                                     </>
-                                ) : (
-                                    'Validate & Continue'
                                 )}
                             </Button>
 

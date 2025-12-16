@@ -35,7 +35,11 @@ async def create_user(
     
     log.info("user_created", user_id=new_user.id)
     
-    return UserResponse(id=new_user.id, created_at=new_user.created_at)
+    return UserResponse(
+        id=new_user.id,
+        created_at=new_user.created_at,
+        last_active_at=new_user.last_active_at,
+    )
 
 
 @router.get("/me", response_model=UserResponse)
@@ -45,4 +49,9 @@ async def get_current_user_info(
 ):
     """Verify if a user exists."""
     user = await user_repo.get_or_404(user_id)
-    return UserResponse(id=user.id, created_at=user.created_at)
+    return UserResponse(
+        id=user.id,
+        created_at=user.created_at,
+        last_active_at=user.last_active_at,
+    )
+

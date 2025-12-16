@@ -9,6 +9,8 @@ from .file_service import (
 from .pm4py_service import pm4py_service, PM4PyService
 from .storage_service import storage_service, StorageService
 from .repository import BaseRepository, get_repository
+from .audit_service import audit_service, AuditService
+from .insight_service import insight_service, InsightService
 
 __all__ = [
     "parse_file",
@@ -21,5 +23,8 @@ __all__ = [
     "StorageService",
     "BaseRepository",
     "get_repository",
+    "audit_service",
+    "AuditService",
+    "insight_service",
+    "InsightService",
 ]
-

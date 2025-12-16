@@ -10,7 +10,7 @@ from ..services import parse_file, pm4py_service
 from ..database import engine
 from ..core import get_logger
 
-log = get_logger(__name__)
+logger = get_logger(__name__)
 
 # Create a new session factory for background tasks since they run outside request scope
 # Dependencies like 'get_db' are for requests and might close the session too early/late differently.
@@ -26,7 +26,7 @@ async def run_mining_job(job_id: str, mapping_id: str):
     """
     Background task to run the process mining job.
     """
-    log.info(f"Starting background job: {job_id}")
+    logger.info(f"Starting background job: {job_id}")
     
     async with AsyncSessionLocal() as db:
         try:
@@ -35,7 +35,7 @@ async def run_mining_job(job_id: str, mapping_id: str):
             job = result.scalar_one_or_none()
             
             if not job:
-                log.error(f"Job {job_id} not found!")
+                logger.error(f"Job {job_id} not found!")
                 return
             
             result = await db.execute(select(Mapping).where(Mapping.id == mapping_id))
@@ -58,7 +58,7 @@ async def run_mining_job(job_id: str, mapping_id: str):
             
             # 3. Load File
             file_path = Path(upload.file_path)
-            log.info(f"Loading file: {file_path}")
+            logger.info(f"Loading file: {file_path}")
             
             job.progress = 10
             job.progress_message = "Loading file..."
@@ -74,7 +74,7 @@ async def run_mining_job(job_id: str, mapping_id: str):
             job.progress_message = "Creating event log..."
             await db.commit()
             
-            log = pm4py_service.create_event_log(
+            event_log = pm4py_service.create_event_log(
                 df=df,
                 case_id_col=mapping.case_id_column,
                 activity_col=mapping.activity_column,
@@ -91,31 +91,31 @@ async def run_mining_job(job_id: str, mapping_id: str):
             await db.commit()
             
             # These can be slow, ideally we'd yield control or run in executor
-            dfg_data = pm4py_service.discover_dfg(log)
+            dfg_data = pm4py_service.discover_dfg(event_log)
             
             # Stats
             job.progress = 60
             job.progress_message = "Calculating statistics..."
             await db.commit()
-            stats = pm4py_service.get_statistics(log)
+            stats = pm4py_service.get_statistics(event_log)
             
             # Variants
             job.progress = 70
             job.progress_message = "Extracting variants..."
             await db.commit()
-            variants = pm4py_service.get_variants(log)
+            variants = pm4py_service.get_variants(event_log)
             
             # Activity Stats
             job.progress = 80
             job.progress_message = "Analyzing activities..."
             await db.commit()
-            activity_stats = pm4py_service.get_activity_stats(log)
+            activity_stats = pm4py_service.get_activity_stats(event_log)
             
             # Deviations
             job.progress = 90
             job.progress_message = "Detecting deviations..."
             await db.commit()
-            deviations = pm4py_service.detect_deviations(log, variants)
+            deviations = pm4py_service.detect_deviations(event_log, variants)
             
             # Transforms
             dfg_response = pm4py_service.transform_dfg_for_react_flow(dfg_data, stats)
@@ -147,10 +147,10 @@ async def run_mining_job(job_id: str, mapping_id: str):
             job.completed_at = datetime.utcnow()
             await db.commit()
             
-            log.info(f"Job {job_id} completed successfully")
+            logger.info(f"Job {job_id} completed successfully")
 
         except Exception as e:
-            log.error(f"Job {job_id} failed: {e}", exc_info=True)
+            logger.error(f"Job {job_id} failed: {e}", exc_info=True)
             # Re-fetch job in case of transaction rollback issues (safeguard)
             try:
                 # We need to ensure we can write the error state
@@ -161,4 +161,4 @@ async def run_mining_job(job_id: str, mapping_id: str):
                 job.completed_at = datetime.utcnow()
                 await db.commit()
             except Exception as inner_e:
-                log.error(f"Failed to update job failure status: {inner_e}")
+                logger.error(f"Failed to update job failure status: {inner_e}")

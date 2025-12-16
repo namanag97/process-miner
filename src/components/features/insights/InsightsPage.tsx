@@ -65,9 +65,9 @@ export function InsightsPage() {
             const variant = c.events.map((e) => e.activity).join(' → ');
 
             // Check if case has deviation
-            const hasDeviation = miningResults.deviations.some((d) =>
-                d.affectedCases.includes(c.caseId)
-            );
+            const hasDeviation = miningResults.deviations?.some((d: any) =>
+                d.affectedCases?.includes(c.caseId)
+            ) ?? false;
 
             return {
                 caseId: c.caseId,
@@ -141,7 +141,7 @@ export function InsightsPage() {
 
                             <div className="flex items-center gap-2">
                                 <ExportDropdown
-                                    model={miningResults}
+                                    model={miningResults as any}
                                     cases={caseData.map((c) => ({
                                         caseId: c.caseId,
                                         startTime: c.startTime,
@@ -168,12 +168,12 @@ export function InsightsPage() {
 
                             <TabsContent value="dashboard" className="mt-6 space-y-6">
                                 {/* Key Metrics */}
-                                <MetricsGrid model={miningResults} />
+                                <MetricsGrid model={miningResults as any} />
 
                                 {/* Charts Row */}
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                    <DurationChart model={miningResults} />
-                                    <ActivityFrequencyChart model={miningResults} />
+                                    <DurationChart model={miningResults as any} />
+                                    <ActivityFrequencyChart model={miningResults as any} />
                                 </div>
 
                                 {/* Timeline - only show if we have case data */}
@@ -186,9 +186,8 @@ export function InsightsPage() {
                                     />
                                 )}
 
-                                {/* Top Lists */}
                                 <TopLists
-                                    model={miningResults}
+                                    model={miningResults as any}
                                     cases={caseData.length > 0 ? caseData.map((c) => ({
                                         caseId: c.caseId,
                                         duration: c.duration,
@@ -200,7 +199,7 @@ export function InsightsPage() {
                                 {caseData.length > 0 ? (
                                     <CaseExplorer
                                         cases={caseData}
-                                        model={miningResults}
+                                        model={miningResults as any}
                                     />
                                 ) : (
                                     <Alert className="max-w-md mx-auto">

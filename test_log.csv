@@ -1,0 +1,6 @@
+case_id,activity,timestamp
+c1,register,2023-01-01T10:00:00
+c1,examine,2023-01-01T10:05:00
+c1,check,2023-01-01T10:10:00
+c1,decide,2023-01-01T10:15:00
+c2,register,2023-01-01T11:00:00

@@ -1,108 +1,91 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { RefreshCw, BarChart3 } from 'lucide-react';
+import { RefreshCw, BarChart3, Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAppStore } from '@/lib/stores/useAppStore';
-import { useMining } from '@/lib/mining/useMining';
-import { createLogger } from '@/lib/debug-logger';
+import { getFullAnalysis } from '@/lib/api';
 
-import { AnalysisReadyCard } from './AnalysisReadyCard';
-import { AnalysisProgressCard } from './AnalysisProgressCard';
 import { AnalysisSummary } from './AnalysisSummary';
 import { ProcessMapViewer } from './ProcessMapViewer';
 import { VariantsTab } from './VariantsTab';
 import { DeviationsTab } from './DeviationsTab';
 import { ExportDropdown } from '@/components/features/export';
 
-const logger = createLogger('process-map-page');
-
+/**
+ * ProcessMapPage - Displays analysis results from backend.
+ * Data is fetched via React Query using the datasetId from app store.
+ */
 export function ProcessMapPage() {
     const router = useRouter();
-    const { parsedData, columnConfig, miningResults, setMiningResults } = useAppStore();
+    const { datasetId } = useAppStore();
 
-    const { mine, isProcessing, progress, results, error, warnings, reset } = useMining(
-        parsedData,
-        columnConfig
-    );
-
-    // Calculate event and case counts for the ready card
-    const eventCount = parsedData?.rowCount || 0;
-    const caseCount = useMemo(() => {
-        if (!parsedData || !columnConfig) return 0;
-        const rows = parsedData.rows as Array<Record<string, unknown>>;
-        const caseIds = new Set(rows.map((row) => row[columnConfig.caseId]));
-        return caseIds.size;
-    }, [parsedData, columnConfig]);
-
-    // Handle run analysis
-    const handleRunAnalysis = useCallback(async () => {
-        logger.info('Starting process mining analysis...');
-        const result = await mine();
-
-        if (result.success && result.model) {
-            logger.info('Analysis complete, storing results in app store');
-            setMiningResults(result.model);
-        } else {
-            logger.error(`Analysis failed: ${result.error}`);
+    // Redirect if no dataset
+    useEffect(() => {
+        if (!datasetId) {
+            router.push('/upload');
         }
-    }, [mine, setMiningResults]);
+    }, [datasetId, router]);
 
-    // Handle re-run analysis
-    const handleRerunAnalysis = useCallback(() => {
-        logger.info('Re-running analysis...');
-        reset();
-        setMiningResults(null);
-        // Start analysis after a short delay to allow state to update
-        setTimeout(() => {
-            handleRunAnalysis();
-        }, 100);
-    }, [reset, setMiningResults, handleRunAnalysis]);
+    // Fetch analysis data from backend
+    const { data: analysis, isLoading, error, refetch } = useQuery({
+        queryKey: ['analysis', datasetId],
+        queryFn: () => getFullAnalysis(datasetId!),
+        enabled: !!datasetId,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+    });
 
-    // Use stored results if available, otherwise use hook results
-    const currentResults = miningResults || results;
-    const hasResults = !!currentResults;
-
-    // Show pre-analysis state
-    if (!hasResults && !isProcessing) {
+    // Loading state
+    if (isLoading) {
         return (
             <div className="flex-1 flex items-center justify-center p-6">
-                <AnalysisReadyCard
-                    eventCount={eventCount}
-                    caseCount={caseCount}
-                    onRunAnalysis={handleRunAnalysis}
-                    isLoading={isProcessing}
-                />
+                <div className="text-center space-y-4">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                    <p className="text-muted-foreground">Loading analysis...</p>
+                </div>
             </div>
         );
     }
 
-    // Show processing state
-    if (isProcessing) {
-        return (
-            <div className="flex-1 flex items-center justify-center p-6">
-                <AnalysisProgressCard
-                    stage={progress.stage}
-                    progress={progress.progress}
-                />
-            </div>
-        );
-    }
-
-    // Show error state
-    if (error && !hasResults) {
+    // Error state
+    if (error) {
         return (
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-                <div className="text-red-500 text-lg mb-4">❌ Analysis Failed</div>
-                <p className="text-muted-foreground mb-4">{error}</p>
-                <Button onClick={handleRerunAnalysis}>Try Again</Button>
+                <div className="text-red-500 text-lg mb-4">❌ Failed to load analysis</div>
+                <p className="text-muted-foreground mb-4">{error.message}</p>
+                <Button onClick={() => refetch()}>Retry</Button>
             </div>
         );
     }
 
-    // Show results
+    // No data state
+    if (!analysis) {
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+                <p className="text-muted-foreground mb-4">No analysis data available.</p>
+                <Button onClick={() => router.push('/upload')}>Upload Data</Button>
+            </div>
+        );
+    }
+
+    // Convert backend analysis to display format
+    const displayModel = {
+        stats: {
+            totalCases: analysis.stats.total_cases,
+            totalEvents: analysis.stats.total_events,
+            totalActivities: analysis.stats.total_activities,
+            totalVariants: analysis.stats.total_variants,
+            avgCaseDuration: analysis.stats.avg_case_duration_ms,
+            medianCaseDuration: analysis.stats.median_case_duration_ms,
+        },
+        dfg: analysis.dfg,
+        variants: analysis.variants.variants,
+        deviations: analysis.deviations,
+    };
+
     return (
         <div className="flex-1 flex flex-col p-6 space-y-6">
             {/* Action buttons */}
@@ -111,13 +94,12 @@ export function ProcessMapPage() {
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={handleRerunAnalysis}
-                        disabled={isProcessing}
+                        onClick={() => refetch()}
                     >
                         <RefreshCw className="h-4 w-4 mr-2" />
-                        Re-run Analysis
+                        Refresh
                     </Button>
-                    {currentResults && <ExportDropdown model={currentResults} />}
+                    <ExportDropdown model={displayModel as any} />
                     <Button
                         size="sm"
                         onClick={() => router.push('/insights')}
@@ -126,39 +108,31 @@ export function ProcessMapPage() {
                         View Insights
                     </Button>
                 </div>
-
-                {warnings.length > 0 && (
-                    <p className="text-sm text-yellow-600">
-                        ⚠️ {warnings.length} warning{warnings.length !== 1 ? 's' : ''} during analysis
-                    </p>
-                )}
             </div>
 
             {/* Summary stats */}
-            {currentResults && <AnalysisSummary model={currentResults} />}
+            <AnalysisSummary model={displayModel as any} />
 
             {/* Tabs */}
-            {currentResults && (
-                <Tabs defaultValue="process-map" className="flex-1">
-                    <TabsList>
-                        <TabsTrigger value="process-map">Process Map</TabsTrigger>
-                        <TabsTrigger value="variants">Variants</TabsTrigger>
-                        <TabsTrigger value="deviations">Deviations</TabsTrigger>
-                    </TabsList>
+            <Tabs defaultValue="process-map" className="flex-1">
+                <TabsList>
+                    <TabsTrigger value="process-map">Process Map</TabsTrigger>
+                    <TabsTrigger value="variants">Variants</TabsTrigger>
+                    <TabsTrigger value="deviations">Deviations</TabsTrigger>
+                </TabsList>
 
-                    <TabsContent value="process-map" className="mt-4">
-                        <ProcessMapViewer model={currentResults} />
-                    </TabsContent>
+                <TabsContent value="process-map" className="mt-4">
+                    <ProcessMapViewer model={displayModel as any} />
+                </TabsContent>
 
-                    <TabsContent value="variants" className="mt-4">
-                        <VariantsTab model={currentResults} />
-                    </TabsContent>
+                <TabsContent value="variants" className="mt-4">
+                    <VariantsTab model={displayModel as any} />
+                </TabsContent>
 
-                    <TabsContent value="deviations" className="mt-4">
-                        <DeviationsTab model={currentResults} />
-                    </TabsContent>
-                </Tabs>
-            )}
+                <TabsContent value="deviations" className="mt-4">
+                    <DeviationsTab model={displayModel as any} />
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }
