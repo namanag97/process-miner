@@ -3,10 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "setup": "./scripts/setup.sh",
     "dev": "next dev",
+    "dev:backend": "cd backend && source .venv/bin/activate && uvicorn app.main:app --reload",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint --dir src",
+    "test": "npm run lint && npm run test:backend",
+    "test:backend": "cd backend && source .venv/bin/activate && PYTHONPATH=. pytest"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

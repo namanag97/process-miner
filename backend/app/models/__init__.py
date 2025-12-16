@@ -1,56 +1,85 @@
-"""Models package."""
+"""
+Models package - Using SQLModel for unified ORM + Pydantic schemas.
+"""
 
-from .schemas import (
+from .models import (
+    # User
+    User,
+    UserResponse,
     # Upload
-    ColumnMetadata,
+    Upload,
     UploadResponse,
-    UploadInfo,
+    ColumnMetadata,
     # Mapping
+    Mapping,
     MappingCreate,
     MappingResponse,
-    ValidationError,
-    ValidationWarning,
-    ValidationStats,
-    ValidationResult,
     # Job
-    ProcessingRequest,
+    Job,
     JobResponse,
+    ProcessingRequest,
+    # Dataset
+    Dataset,
+    DatasetSummary,
     # Analysis
     DFGNode,
     DFGEdge,
-    DFGResponse,
     DFGSummary,
+    DFGResponse,
+    NodePosition,
+    ActivityNodeData,
+    EdgeData,
     VariantItem,
     VariantsResponse,
     ActivityStat,
     Deviation,
     ProcessStats,
-    DatasetSummary,
+    # Validation
+    ValidationError,
+    ValidationWarning,
+    ValidationStats,
+    ValidationResult,
     # Error
     ErrorResponse,
 )
 
 __all__ = [
-    "ColumnMetadata",
+    # User
+    "User",
+    "UserResponse",
+    # Upload
+    "Upload",
     "UploadResponse",
-    "UploadInfo",
+    "ColumnMetadata",
+    # Mapping
+    "Mapping",
     "MappingCreate",
     "MappingResponse",
-    "ValidationError",
-    "ValidationWarning",
-    "ValidationStats",
-    "ValidationResult",
-    "ProcessingRequest",
+    # Job
+    "Job",
     "JobResponse",
+    "ProcessingRequest",
+    # Dataset
+    "Dataset",
+    "DatasetSummary",
+    # Analysis
     "DFGNode",
     "DFGEdge",
-    "DFGResponse",
     "DFGSummary",
+    "DFGResponse",
+    "NodePosition",
+    "ActivityNodeData",
+    "EdgeData",
     "VariantItem",
     "VariantsResponse",
     "ActivityStat",
     "Deviation",
     "ProcessStats",
-    "DatasetSummary",
+    # Validation
+    "ValidationError",
+    "ValidationWarning",
+    "ValidationStats",
+    "ValidationResult",
+    # Error
     "ErrorResponse",
 ]

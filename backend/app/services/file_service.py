@@ -5,24 +5,23 @@ Uses pandas for CSV/Excel parsing and provides column metadata
 for the frontend column mapping interface.
 """
 
-import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 import pandas as pd
 from dateutil import parser as date_parser
 
-from ..models.schemas import (
+from ..models import (
     ColumnMetadata,
     ValidationResult,
     ValidationError,
     ValidationWarning,
     ValidationStats,
+    MappingCreate,
 )
-from ..models.schemas import MappingCreate
+from ..core import get_logger
 
-logger = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 # Common datetime formats to try
 DATETIME_FORMATS = [
@@ -62,18 +61,18 @@ def parse_file(file_path: Path, max_rows: int | None = None) -> pd.DataFrame:
             try:
                 df = pd.read_csv(file_path, nrows=max_rows)
             except UnicodeDecodeError:
-                logger.warning("UTF-8 decode failed, trying latin-1")
+                log.warning("UTF-8 decode failed, trying latin-1")
                 df = pd.read_csv(file_path, nrows=max_rows, encoding="latin-1")
         elif suffix in (".xlsx", ".xls"):
             df = pd.read_excel(file_path, nrows=max_rows, engine="openpyxl")
         else:
             raise ValueError(f"Unsupported file type: {suffix}")
         
-        logger.info(f"Parsed file: {len(df)} rows, {len(df.columns)} columns")
+        log.info("file_parsed", row_count=len(df), column_count=len(df.columns))
         return df
         
     except Exception as e:
-        logger.error(f"Failed to parse file: {e}")
+        log.error("file_parse_failed", error=str(e))
         raise
 
 
@@ -201,7 +200,7 @@ def detect_columns(df: pd.DataFrame) -> list[ColumnMetadata]:
             detected_format=detected_format,
         ))
     
-    logger.info(f"Detected {len(columns)} columns")
+    log.info("columns_detected", column_count=len(columns))
     return columns
 
 

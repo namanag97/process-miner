@@ -10,6 +10,13 @@ interface ProvidersProps {
     children: React.ReactNode;
 }
 
+import { useUser } from '@/hooks/useUser';
+
+function UserInitializer() {
+    useUser();
+    return null;
+}
+
 export function Providers({ children }: ProvidersProps) {
     const [queryClient] = useState(
         () =>
@@ -25,6 +32,7 @@ export function Providers({ children }: ProvidersProps) {
 
     return (
         <QueryClientProvider client={queryClient}>
+            <UserInitializer />
             <ThemeProvider
                 attribute="class"
                 defaultTheme="light"

@@ -1,35 +1,35 @@
 """
 Process Mining Platform - FastAPI Backend
 
-Main application entry point. Sets up:
-- CORS middleware for frontend access
+Main application entry point with:
+- Structured logging configuration
+- CORS middleware
 - All API routers
-- Error handlers
-- Logging configuration
+- Global error handling
 """
 
-import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlmodel import SQLModel
 
 from .config import get_settings
+from .database import engine
+from .core import get_logger, configure_logging
 from .routers import (
     health_router,
+    users_router,
     uploads_router,
     mappings_router,
     processing_router,
     analysis_router,
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+# Configure structured logging
+configure_logging()
+log = get_logger(__name__)
 
 
 @asynccontextmanager
@@ -37,18 +37,22 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     settings = get_settings()
     
-    # Startup
-    logger.info("=" * 50)
-    logger.info("Process Mining API Starting...")
-    logger.info(f"Debug mode: {settings.debug}")
-    logger.info(f"Upload directory: {settings.upload_path}")
-    logger.info(f"Frontend URL: {settings.frontend_url}")
-    logger.info("=" * 50)
+    # Create all tables on startup
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+    
+    # Log startup info
+    log.info(
+        "api_starting",
+        debug_mode=settings.debug,
+        upload_dir=str(settings.upload_path),
+        frontend_url=settings.frontend_url,
+    )
     
     yield
     
     # Shutdown
-    logger.info("Process Mining API Shutting down...")
+    log.info("api_shutting_down")
 
 
 # Create FastAPI app
@@ -76,11 +80,16 @@ app.add_middleware(
 )
 
 
-# Global exception handler
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Handle uncaught exceptions."""
-    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    """Handle uncaught exceptions with structured logging."""
+    log.error(
+        "unhandled_exception",
+        error=str(exc),
+        path=request.url.path,
+        method=request.method,
+        exc_info=True,
+    )
     return JSONResponse(
         status_code=500,
         content={
@@ -90,15 +99,15 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-# Include routers
+# Include routers - all under /api prefix
 app.include_router(health_router, prefix="/api")
+app.include_router(users_router, prefix="/api")
 app.include_router(uploads_router, prefix="/api")
 app.include_router(mappings_router, prefix="/api")
 app.include_router(processing_router, prefix="/api")
 app.include_router(analysis_router, prefix="/api")
 
 
-# Root endpoint
 @app.get("/")
 async def root():
     """Root endpoint with API info."""

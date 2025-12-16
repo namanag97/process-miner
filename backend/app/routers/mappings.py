@@ -3,51 +3,67 @@ Mappings router - Handles column mapping and validation.
 
 After file upload, users map their columns to process mining fields:
 - Case ID (required)
-- Activity (required)
+- Activity (required)  
 - Timestamp (required)
 - Resource (optional)
 - Cost (optional)
-
-This router validates mappings and stores them for processing.
 """
 
-import logging
-from datetime import datetime, timezone
+import json
 from pathlib import Path
-from fastapi import APIRouter, HTTPException
 
-from ..models.schemas import (
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from ..models import (
+    Mapping,
     MappingCreate,
     MappingResponse,
+    Upload,
+    ColumnMetadata,
     ValidationResult,
 )
-from ..services import parse_file, validate_mapping
-from .uploads import get_upload_info
+from ..database import get_db
+from ..services import parse_file, validate_mapping as validate_mapping_fn
+from ..services.repository import BaseRepository
+from ..core import get_logger
 
-logger = logging.getLogger(__name__)
+log = get_logger(__name__)
 router = APIRouter(prefix="/mappings", tags=["mappings"])
 
-# In-memory storage for MVP
-mappings_store: dict[str, dict] = {}
+
+async def get_mapping_repo(db: AsyncSession = Depends(get_db)) -> BaseRepository[Mapping]:
+    """Dependency for Mapping repository."""
+    return BaseRepository(Mapping, db)
+
+
+async def get_upload_repo(db: AsyncSession = Depends(get_db)) -> BaseRepository[Upload]:
+    """Dependency for Upload repository."""
+    return BaseRepository(Upload, db)
 
 
 @router.post("/uploads/{upload_id}/mappings", response_model=MappingResponse)
-async def create_mapping(upload_id: str, mapping: MappingCreate):
+async def create_mapping(
+    upload_id: str, 
+    mapping: MappingCreate,
+    db: AsyncSession = Depends(get_db),
+    upload_repo: BaseRepository[Upload] = Depends(get_upload_repo),
+):
     """
     Create a column mapping for an upload.
-    
     Maps user's column names to standard process mining fields.
-    Validates that columns exist and have appropriate data.
     """
-    # Get upload info
-    upload_info = get_upload_info(upload_id)
-    if not upload_info:
-        raise HTTPException(status_code=404, detail="Upload not found")
+    # Get upload
+    upload = await upload_repo.get_or_404(upload_id)
     
-    # Get column names from upload
-    column_names = [c["name"] for c in upload_info["columns"]]
+    # Get column names from cached columns
+    if not upload.columns_json:
+        raise HTTPException(status_code=500, detail="Upload has no column metadata")
     
-    # Validate columns exist
+    columns = [ColumnMetadata(**c) for c in json.loads(upload.columns_json)]
+    column_names = [c.name for c in columns]
+    
+    # Validate required columns exist
     required = {
         "case_id": mapping.case_id_column,
         "activity": mapping.activity_column,
@@ -61,7 +77,7 @@ async def create_mapping(upload_id: str, mapping: MappingCreate):
                 detail=f"Column '{col_name}' not found for {field}"
             )
     
-    # Optional columns
+    # Validate optional columns
     if mapping.resource_column and mapping.resource_column not in column_names:
         raise HTTPException(
             status_code=400,
@@ -74,83 +90,89 @@ async def create_mapping(upload_id: str, mapping: MappingCreate):
             detail=f"Cost column '{mapping.cost_column}' not found"
         )
     
-    # Generate mapping ID
-    import uuid
-    mapping_id = str(uuid.uuid4())
+    # Create mapping
+    new_mapping = Mapping(
+        upload_id=upload_id,
+        case_id_column=mapping.case_id_column,
+        activity_column=mapping.activity_column,
+        timestamp_column=mapping.timestamp_column,
+        timestamp_format=mapping.timestamp_format,
+        resource_column=mapping.resource_column,
+        cost_column=mapping.cost_column,
+    )
     
-    # Store mapping
-    mapping_data = {
-        "mapping_id": mapping_id,
-        "upload_id": upload_id,
-        "case_id_column": mapping.case_id_column,
-        "activity_column": mapping.activity_column,
-        "timestamp_column": mapping.timestamp_column,
-        "timestamp_format": mapping.timestamp_format,
-        "resource_column": mapping.resource_column,
-        "cost_column": mapping.cost_column,
-        "created_at": datetime.now(timezone.utc),
-    }
-    mappings_store[mapping_id] = mapping_data
+    db.add(new_mapping)
+    await db.commit()
+    await db.refresh(new_mapping)
     
-    logger.info(f"Created mapping {mapping_id} for upload {upload_id}")
+    log.info("mapping_created", mapping_id=new_mapping.id, upload_id=upload_id)
     
-    return MappingResponse(**mapping_data)
+    return MappingResponse(
+        mapping_id=new_mapping.id,
+        upload_id=new_mapping.upload_id,
+        case_id_column=new_mapping.case_id_column,
+        activity_column=new_mapping.activity_column,
+        timestamp_column=new_mapping.timestamp_column,
+        timestamp_format=new_mapping.timestamp_format,
+        resource_column=new_mapping.resource_column,
+        cost_column=new_mapping.cost_column,
+        created_at=new_mapping.created_at,
+    )
 
 
 @router.get("/{mapping_id}", response_model=MappingResponse)
-async def get_mapping(mapping_id: str):
+async def get_mapping(
+    mapping_id: str,
+    mapping_repo: BaseRepository[Mapping] = Depends(get_mapping_repo),
+):
     """Get mapping details by ID."""
-    if mapping_id not in mappings_store:
-        raise HTTPException(status_code=404, detail="Mapping not found")
+    mapping = await mapping_repo.get_or_404(mapping_id)
     
-    return MappingResponse(**mappings_store[mapping_id])
+    return MappingResponse(
+        mapping_id=mapping.id,
+        upload_id=mapping.upload_id,
+        case_id_column=mapping.case_id_column,
+        activity_column=mapping.activity_column,
+        timestamp_column=mapping.timestamp_column,
+        timestamp_format=mapping.timestamp_format,
+        resource_column=mapping.resource_column,
+        cost_column=mapping.cost_column,
+        created_at=mapping.created_at,
+    )
 
 
 @router.post("/{mapping_id}/validate", response_model=ValidationResult)
-async def validate_mapping_endpoint(mapping_id: str):
-    """
-    Validate a mapping against the actual data.
-    
-    Checks:
-    - No null values in required columns
-    - Timestamps are parseable
-    - Case ID has reasonable cardinality
-    - Activity count is reasonable
-    
-    Returns errors, warnings, and statistics.
-    """
-    if mapping_id not in mappings_store:
-        raise HTTPException(status_code=404, detail="Mapping not found")
-    
-    mapping_data = mappings_store[mapping_id]
-    upload_info = get_upload_info(mapping_data["upload_id"])
-    
-    if not upload_info:
-        raise HTTPException(status_code=404, detail="Upload not found")
+async def validate_mapping_endpoint(
+    mapping_id: str,
+    mapping_repo: BaseRepository[Mapping] = Depends(get_mapping_repo),
+    upload_repo: BaseRepository[Upload] = Depends(get_upload_repo),
+):
+    """Validate a mapping against the actual data."""
+    mapping = await mapping_repo.get_or_404(mapping_id)
+    upload = await upload_repo.get_or_404(mapping.upload_id)
     
     # Load data
-    file_path = Path(upload_info["file_path"])
+    file_path = Path(upload.file_path)
     df = parse_file(file_path, max_rows=10000)
     
-    # Create mapping object
-    mapping = MappingCreate(
-        case_id_column=mapping_data["case_id_column"],
-        activity_column=mapping_data["activity_column"],
-        timestamp_column=mapping_data["timestamp_column"],
-        timestamp_format=mapping_data.get("timestamp_format"),
-        resource_column=mapping_data.get("resource_column"),
-        cost_column=mapping_data.get("cost_column"),
+    # Create MappingCreate for validation function
+    mapping_for_validation = MappingCreate(
+        case_id_column=mapping.case_id_column,
+        activity_column=mapping.activity_column,
+        timestamp_column=mapping.timestamp_column,
+        timestamp_format=mapping.timestamp_format,
+        resource_column=mapping.resource_column,
+        cost_column=mapping.cost_column,
     )
     
     # Run validation
-    result = validate_mapping(df, mapping)
+    result = validate_mapping_fn(df, mapping_for_validation)
     
-    logger.info(f"Validation result for {mapping_id}: valid={result.is_valid}")
+    log.info(
+        "mapping_validated",
+        mapping_id=mapping_id,
+        is_valid=result.is_valid,
+        error_count=len(result.errors),
+    )
     
     return result
-
-
-# Export for use by other routers
-def get_mapping_info(mapping_id: str) -> dict | None:
-    """Get mapping info for internal use."""
-    return mappings_store.get(mapping_id)

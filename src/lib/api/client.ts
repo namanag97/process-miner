@@ -6,6 +6,7 @@
  */
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const USER_ID_KEY = 'process_miner_user_id';
 
 /**
  * Custom error class for API errors
@@ -22,7 +23,7 @@ export class ApiError extends Error {
 }
 
 /**
- * Base fetch wrapper with error handling
+ * Base fetch wrapper with error handling and auth injection
  */
 async function apiFetch<T>(
     path: string,
@@ -30,12 +31,22 @@ async function apiFetch<T>(
 ): Promise<T> {
     const url = `${API_URL}${path}`;
 
+    // Inject User ID header
+    const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers,
+    } as Record<string, string>;
+
+    if (typeof window !== 'undefined') {
+        const userId = localStorage.getItem(USER_ID_KEY);
+        if (userId) {
+            headers['X-User-ID'] = userId;
+        }
+    }
+
     const response = await fetch(url, {
         ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers,
-        },
+        headers,
     });
 
     if (!response.ok) {
@@ -384,4 +395,22 @@ export async function getDeviations(datasetId: string): Promise<{ deviations: De
  */
 export async function healthCheck(): Promise<{ status: string }> {
     return apiFetch('/api/health');
+}
+
+/**
+ * Create a new user
+ */
+export async function createUser(): Promise<{ id: string }> {
+    return apiFetch('/api/users', { method: 'POST' });
+}
+
+/**
+ * Verify current user
+ */
+export async function getCurrentUser(userId: string): Promise<{ id: string; created_at: string }> {
+    // We pass userId manually here usually, or let the header handle it.
+    // The endpoint expects ?user_id= query param for now based on my implementation 
+    // Wait, let's check routers/users.py implementation:
+    // @router.get("/me") async def get_current_user_info(user_id: str
+    return apiFetch(`/api/users/me?user_id=${userId}`);
 }

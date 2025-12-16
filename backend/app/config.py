@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     # Server configuration
     host: str = "0.0.0.0"
     port: int = 8000
-    debug: bool = True
+    debug: bool = False  # Default to False for production safety
 
     # CORS
     frontend_url: str = "http://localhost:3000"

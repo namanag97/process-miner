@@ -5,7 +5,6 @@ This is the heart of the backend. It wraps PM4Py functions and transforms
 output into React Flow compatible format for the frontend.
 """
 
-import logging
 from typing import Any
 from collections import defaultdict
 
@@ -13,7 +12,7 @@ import pandas as pd
 import pm4py
 from pm4py.objects.log.obj import EventLog
 
-from ..models.schemas import (
+from ..models import (
     DFGNode,
     DFGEdge,
     DFGResponse,
@@ -27,8 +26,9 @@ from ..models.schemas import (
     ProcessStats,
     Deviation,
 )
+from ..core import get_logger
 
-logger = logging.getLogger(__name__)
+_log = get_logger(__name__)
 
 
 class PM4PyService:
@@ -64,7 +64,7 @@ class PM4PyService:
         Returns:
             PM4Py EventLog object
         """
-        logger.info(f"Creating event log from {len(df)} rows")
+        __log.info(f"Creating event log from {len(df)} rows")
         
         # Make a copy to avoid modifying original
         df = df.copy()
@@ -82,7 +82,7 @@ class PM4PyService:
         # Drop rows with null timestamps
         null_ts = df[timestamp_col].isna().sum()
         if null_ts > 0:
-            logger.warning(f"Dropping {null_ts} rows with null timestamps")
+            _log.warning(f"Dropping {null_ts} rows with null timestamps")
             df = df.dropna(subset=[timestamp_col])
         
         # Format for PM4Py
@@ -100,7 +100,7 @@ class PM4PyService:
         # Convert to event log
         log = pm4py.convert_to_event_log(df)
         
-        logger.info(f"Created event log with {len(log)} cases")
+        __log.info(f"Created event log with {len(log)} cases")
         return log
     
     def discover_dfg(self, log: EventLog) -> dict[str, Any]:
@@ -113,7 +113,7 @@ class PM4PyService:
         Returns:
             Dict with DFG data for transformation
         """
-        logger.info("Discovering DFG...")
+        __log.info("Discovering DFG...")
         
         # Basic DFG
         dfg, start_activities, end_activities = pm4py.discover_dfg(log)
@@ -122,10 +122,10 @@ class PM4PyService:
         try:
             perf_dfg, _, _ = pm4py.discover_performance_dfg(log)
         except Exception as e:
-            logger.warning(f"Could not get performance DFG: {e}")
+            _log.warning(f"Could not get performance DFG: {e}")
             perf_dfg = {}
         
-        logger.info(f"DFG discovered: {len(dfg)} edges")
+        __log.info(f"DFG discovered: {len(dfg)} edges")
         
         return {
             "dfg": dfg,
@@ -145,7 +145,7 @@ class PM4PyService:
         Returns:
             List of variant dictionaries
         """
-        logger.info("Extracting variants...")
+        __log.info("Extracting variants...")
         
         # Get variants with counts
         variants = pm4py.get_variants(log)
@@ -200,7 +200,7 @@ class PM4PyService:
                 "case_ids": case_ids[:100],  # Limit case IDs
             })
         
-        logger.info(f"Found {len(result)} variants")
+        __log.info(f"Found {len(result)} variants")
         return result
     
     def get_statistics(self, log: EventLog) -> dict[str, Any]:
@@ -213,7 +213,7 @@ class PM4PyService:
         Returns:
             Dictionary of statistics
         """
-        logger.info("Calculating statistics...")
+        _log.info("Calculating statistics...")
         
         # Basic counts
         total_cases = len(log)
