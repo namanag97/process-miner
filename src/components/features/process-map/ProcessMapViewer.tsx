@@ -13,8 +13,6 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
-import type { ProcessModel } from '@/lib/mining/types';
-import { useProcessMapFlow } from './useProcessMapFlow';
 import { ActivityNode } from './nodes/ActivityNode';
 import { ProcessEdge } from './edges/ProcessEdge';
 import { ProcessMapLegend } from './ProcessMapLegend';
@@ -24,7 +22,11 @@ import { createLogger } from '@/lib/debug-logger';
 const logger = createLogger('process-map-viewer');
 
 interface ProcessMapViewerProps {
-    model: ProcessModel;
+    dfg: {
+        nodes: any[];
+        edges: any[];
+        summary?: any;
+    };
 }
 
 // Define custom node types - use type assertion for ReactFlow compatibility
@@ -37,8 +39,10 @@ const edgeTypes = {
     processEdge: ProcessEdge,
 } as const;
 
-export function ProcessMapViewer({ model }: ProcessMapViewerProps) {
-    const { nodes: initialNodes, edges: initialEdges } = useProcessMapFlow(model);
+export function ProcessMapViewer({ dfg }: ProcessMapViewerProps) {
+    // Use DFG nodes and edges directly from backend (already in ReactFlow format)
+    const initialNodes = dfg?.nodes || [];
+    const initialEdges = dfg?.edges || [];
 
     // Cast to any to avoid ReactFlow v12 strict typing issues with custom data
     const [nodes, , onNodesChange] = useNodesState(initialNodes as any);
@@ -46,6 +50,44 @@ export function ProcessMapViewer({ model }: ProcessMapViewerProps) {
 
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+
+    // Transform DFG nodes to activity format for NodeDetailPanel
+    const activities = useMemo(() => {
+        return (dfg?.nodes || []).map((node: any) => ({
+            name: node.data?.label || node.id,
+            frequency: node.data?.frequency || 0,
+            avgDuration: node.data?.avgDuration || 0,
+            isStart: node.data?.isStart || false,
+            isEnd: node.data?.isEnd || false,
+        }));
+    }, [dfg?.nodes]);
+
+    // Transform DFG edges for NodeDetailPanel
+    const dfgEdges = useMemo(() => {
+        return (dfg?.edges || []).map((edge: any) => ({
+            source: edge.source,
+            target: edge.target,
+            frequency: edge.data?.frequency || 0,
+            avgDuration: edge.data?.avgDuration || 0,
+            cases: [], // DFG response doesn't include case IDs
+        }));
+    }, [dfg?.edges]);
+
+    // Create a compatible model for NodeDetailPanel
+    const panelModel = useMemo(() => ({
+        activities,
+        edges: dfgEdges,
+        variants: [],
+        deviations: [],
+        stats: {
+            totalCases: 0,
+            totalEvents: 0,
+            avgCaseDuration: 0,
+            medianCaseDuration: 0,
+            startActivities: [],
+            endActivities: [],
+        },
+    }), [activities, dfgEdges]);
 
     // Handle node click
     const onNodeClick: NodeMouseHandler = useCallback((_event, node) => {
@@ -139,7 +181,7 @@ export function ProcessMapViewer({ model }: ProcessMapViewerProps) {
 
             {/* Detail Panel */}
             <NodeDetailPanel
-                model={model}
+                model={panelModel as any}
                 selectedNodeId={selectedNodeId}
                 selectedEdgeId={selectedEdgeId}
                 onClose={handleClosePanel}

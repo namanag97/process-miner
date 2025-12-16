@@ -122,7 +122,7 @@ export function ProcessMapPage() {
                 </TabsList>
 
                 <TabsContent value="process-map" className="mt-4">
-                    <ProcessMapViewer model={displayModel as any} />
+                    <ProcessMapViewer dfg={analysis.dfg} />
                 </TabsContent>
 
                 <TabsContent value="variants" className="mt-4">

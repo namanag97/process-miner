@@ -34,12 +34,11 @@ function ProcessEdgeComponent({
     selected,
 }: EdgeProps) {
     const edgeData = data as ProcessEdgeData | undefined;
-    const { frequency, avgDuration, caseCount, maxFrequency } = edgeData || {
-        frequency: 1,
-        avgDuration: 0,
-        caseCount: 1,
-        maxFrequency: 1,
-    };
+    // Backend DFG edges only have frequency and avgDuration - caseCount and maxFrequency may be undefined
+    const frequency = edgeData?.frequency ?? 1;
+    const avgDuration = edgeData?.avgDuration ?? 0;
+    const caseCount = edgeData?.caseCount ?? frequency; // Fallback to frequency if caseCount not available
+    const maxFrequency = edgeData?.maxFrequency ?? 1;
 
     // Calculate edge thickness based on frequency (1-8px)
     const normalizedFreq = maxFrequency > 0 ? frequency / maxFrequency : 0;
