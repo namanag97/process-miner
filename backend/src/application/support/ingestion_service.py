@@ -115,20 +115,78 @@ class IngestionService:
     ) -> EventLogAggregate:
         """
         Ingest a file automatically detecting format.
+        If no column_mapping is provided for CSV files, auto-detect columns.
         """
         extension = Path(filename).suffix.lower()
         
         if extension == ".xes":
             return await self.ingest_xes(file_content, filename, name)
         elif extension in [".csv", ".txt"]:
+            # Build or auto-detect column mapping
             mapping = None
+            placeholder_values = ["string", "null", "none", ""]
+            
             if column_mapping:
+                # Filter out placeholder values from Swagger UI
+                filtered_mapping = {}
+                for key in ["case_id", "activity", "timestamp", "resource"]:
+                    value = column_mapping.get(key)
+                    if value and value.lower() not in placeholder_values:
+                        filtered_mapping[key] = value
+                
+                # Only use explicit mapping if valid values were provided
+                if filtered_mapping:
+                    # Auto-detect missing required columns
+                    if len(filtered_mapping) < 3:  # Need at least case_id, activity, timestamp
+                        detection = self.detect_columns(file_content)
+                        suggestions = detection.get("suggestions", {})
+                        
+                        if "case_id" not in filtered_mapping and suggestions.get("case_id"):
+                            filtered_mapping["case_id"] = suggestions["case_id"]
+                        if "activity" not in filtered_mapping and suggestions.get("activity"):
+                            filtered_mapping["activity"] = suggestions["activity"]
+                        if "timestamp" not in filtered_mapping and suggestions.get("timestamp"):
+                            filtered_mapping["timestamp"] = suggestions["timestamp"]
+                        if "resource" not in filtered_mapping and suggestions.get("resource"):
+                            filtered_mapping["resource"] = suggestions["resource"]
+                    
+                    mapping = ColumnMapping(
+                        case_id=filtered_mapping.get("case_id", "case:concept:name"),
+                        activity=filtered_mapping.get("activity", "concept:name"),
+                        timestamp=filtered_mapping.get("timestamp", "time:timestamp"),
+                        resource=filtered_mapping.get("resource"),
+                    )
+            
+            # If no mapping, auto-detect from file
+            if mapping is None:
+                detection = self.detect_columns(file_content)
+                suggestions = detection.get("suggestions", {})
+                columns = detection.get("columns", [])
+                
+                # Check if we detected required columns
+                if not suggestions.get("case_id"):
+                    raise ValueError(
+                        f"Could not auto-detect case_id column. Please specify case_id_column. "
+                        f"Available columns: {columns}"
+                    )
+                if not suggestions.get("activity"):
+                    raise ValueError(
+                        f"Could not auto-detect activity column. Please specify activity_column. "
+                        f"Available columns: {columns}"
+                    )
+                if not suggestions.get("timestamp"):
+                    raise ValueError(
+                        f"Could not auto-detect timestamp column. Please specify timestamp_column. "
+                        f"Available columns: {columns}"
+                    )
+                
                 mapping = ColumnMapping(
-                    case_id=column_mapping.get("case_id", "case:concept:name"),
-                    activity=column_mapping.get("activity", "concept:name"),
-                    timestamp=column_mapping.get("timestamp", "time:timestamp"),
-                    resource=column_mapping.get("resource"),
+                    case_id=suggestions.get("case_id", "case:concept:name"),
+                    activity=suggestions.get("activity", "concept:name"),
+                    timestamp=suggestions.get("timestamp", "time:timestamp"),
+                    resource=suggestions.get("resource"),
                 )
+            
             return await self.ingest_csv(file_content, filename, name, mapping)
         else:
             raise ValueError(f"Unsupported file format: {extension}")
@@ -160,11 +218,11 @@ class IngestionService:
             "resource": None,
         }
         
-        # Common column name patterns
-        case_patterns = ["case", "case_id", "case:concept:name", "caseid", "trace"]
-        activity_patterns = ["activity", "concept:name", "event", "action", "task"]
-        timestamp_patterns = ["timestamp", "time:timestamp", "time", "date", "datetime"]
-        resource_patterns = ["resource", "org:resource", "user", "actor", "agent"]
+        # Common column name patterns (order matters - more specific patterns first)
+        case_patterns = ["case_id", "case:concept:name", "caseid", "case-id", "case", "trace_id", "traceid", "trace", "process_id", "processid"]
+        activity_patterns = ["activity_name", "activityname", "concept:name", "activity", "event_name", "eventname", "event", "action", "task", "step"]
+        timestamp_patterns = ["time:timestamp", "timestamp", "start_time", "starttime", "event_time", "eventtime", "time", "datetime", "date"]
+        resource_patterns = ["org:resource", "resource", "user_name", "username", "user", "actor", "agent", "worker", "performer", "assigned_to"]
         
         for col in columns:
             col_lower = col.lower()
@@ -243,16 +301,71 @@ class IngestionService:
         text = content.decode("utf-8")
         reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
         
+        columns = reader.fieldnames or []
+        
+        # Validate that required columns exist in the CSV
+        missing_columns = []
+        placeholder_values = ["string", "null", "none", ""]
+        
+        # Check for placeholder values that Swagger UI sends
+        if mapping.case_id.lower() in placeholder_values:
+            raise ValueError(
+                f"Invalid case_id_column value: '{mapping.case_id}'. "
+                f"Please specify an actual column name from your CSV. Available columns: {columns}"
+            )
+        if mapping.activity.lower() in placeholder_values:
+            raise ValueError(
+                f"Invalid activity_column value: '{mapping.activity}'. "
+                f"Please specify an actual column name from your CSV. Available columns: {columns}"
+            )
+        if mapping.timestamp.lower() in placeholder_values:
+            raise ValueError(
+                f"Invalid timestamp_column value: '{mapping.timestamp}'. "
+                f"Please specify an actual column name from your CSV. Available columns: {columns}"
+            )
+        
+        # Validate columns exist in CSV
+        if mapping.case_id not in columns:
+            missing_columns.append(f"case_id_column '{mapping.case_id}'")
+        if mapping.activity not in columns:
+            missing_columns.append(f"activity_column '{mapping.activity}'")
+        if mapping.timestamp not in columns:
+            missing_columns.append(f"timestamp_column '{mapping.timestamp}'")
+        if mapping.resource and mapping.resource.lower() not in placeholder_values and mapping.resource not in columns:
+            missing_columns.append(f"resource_column '{mapping.resource}'")
+        
+        if missing_columns:
+            raise ValueError(
+                f"Column(s) not found in CSV: {', '.join(missing_columns)}. "
+                f"Available columns: {columns}"
+            )
+        
         events = []
+        row_number = 1  # Start at 1 for header row
         for row in reader:
+            row_number += 1
+            case_id = row.get(mapping.case_id, "").strip()
+            activity = row.get(mapping.activity, "").strip()
+            timestamp = row.get(mapping.timestamp, "").strip()
+            
+            # Skip rows with empty required fields and collect warnings
+            if not case_id:
+                continue  # Skip rows without case_id
+            if not activity:
+                continue  # Skip rows without activity
+            if not timestamp:
+                continue  # Skip rows without timestamp
+            
             event = {
-                "case_id": row.get(mapping.case_id, ""),
-                "activity": row.get(mapping.activity, ""),
-                "timestamp": row.get(mapping.timestamp, ""),
+                "case_id": case_id,
+                "activity": activity,
+                "timestamp": timestamp,
             }
             
             if mapping.resource and mapping.resource in row:
-                event["resource"] = row[mapping.resource]
+                resource_val = row[mapping.resource]
+                if resource_val and resource_val.strip():
+                    event["resource"] = resource_val.strip()
             
             # Add other columns as attributes
             for key, value in row.items():
@@ -260,6 +373,13 @@ class IngestionService:
                     event[key] = value
             
             events.append(event)
+        
+        if not events:
+            raise ValueError(
+                f"No valid events found in CSV. Please check that your column mappings are correct. "
+                f"Mapped columns: case_id='{mapping.case_id}', activity='{mapping.activity}', "
+                f"timestamp='{mapping.timestamp}'"
+            )
         
         return events
     

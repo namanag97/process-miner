@@ -78,7 +78,12 @@ class TestLogEndpoints:
         """Test listing logs when empty."""
         response = await client.get("/api/v1/logs/")
         assert response.status_code == 200
-        assert response.json() == []
+        data = response.json()
+        # Paginated response format
+        assert data["items"] == []
+        assert data["total"] == 0
+        assert "page" in data
+        assert "page_size" in data
     
     @pytest.mark.asyncio
     async def test_upload_log(self, client: AsyncClient, sample_csv_content: bytes):

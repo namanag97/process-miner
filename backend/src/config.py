@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     models_dir: Path = Path("./data/models")
     exports_dir: Path = Path("./data/exports")
     
+    # Logging Configuration
+    logs_dir: Path = Path("./data/logs")
+    api_log_level: str = "INFO"
+    log_request_body: bool = True
+    log_response_body: bool = False
+    
     # Auth (Mock)
     jwt_secret: str = "dev-secret-key-change-in-production"
     jwt_algorithm: str = "HS256"
@@ -43,6 +49,7 @@ class Settings(BaseSettings):
         self.upload_dir.mkdir(parents=True, exist_ok=True)
         self.models_dir.mkdir(parents=True, exist_ok=True)
         self.exports_dir.mkdir(parents=True, exist_ok=True)
+        self.logs_dir.mkdir(parents=True, exist_ok=True)
         Path("./data/db").mkdir(parents=True, exist_ok=True)
 
 

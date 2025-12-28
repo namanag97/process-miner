@@ -30,6 +30,7 @@ class EventLogModel(Base):
     __tablename__ = "event_logs"
     
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    project_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("projects.id"), nullable=True, index=True)  # Multi-tenancy
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     source_file: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     state: Mapped[str] = mapped_column(String(50), default="draft", nullable=False)  # EventLogState
@@ -44,6 +45,7 @@ class EventLogModel(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
+    project: Mapped[Optional["ProjectModel"]] = relationship("ProjectModel", back_populates="event_logs", foreign_keys=[project_id])
     cases: Mapped[list["ProcessCaseModel"]] = relationship(
         "ProcessCaseModel",
         back_populates="event_log",
@@ -893,4 +895,901 @@ class KPIAlertModel(Base):
     
     # Relationships
     kpi: Mapped["ProcessKPIModel"] = relationship("ProcessKPIModel", back_populates="alerts")
+
+
+# =============================================================================
+# PHASE 5: OBJECT-CENTRIC PROCESS MINING (OCPM) / OCEL 2.0
+# =============================================================================
+
+class OCELLogModel(Base):
+    """ORM model for Object-Centric Event Logs (OCEL 2.0)."""
+    __tablename__ = "ocel_logs"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    source_file: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    source_format: Mapped[str] = mapped_column(String(50), default="jsonocel")  # jsonocel, sqlite, xml
+    total_events: Mapped[int] = mapped_column(Integer, default=0)
+    total_objects: Mapped[int] = mapped_column(Integer, default=0)
+    total_object_types: Mapped[int] = mapped_column(Integer, default=0)
+    metadata_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    object_types: Mapped[list["OCELObjectTypeModel"]] = relationship(
+        "OCELObjectTypeModel", back_populates="log", cascade="all, delete-orphan"
+    )
+    objects: Mapped[list["OCELObjectModel"]] = relationship(
+        "OCELObjectModel", back_populates="log", cascade="all, delete-orphan"
+    )
+    events: Mapped[list["OCELEventModel"]] = relationship(
+        "OCELEventModel", back_populates="log", cascade="all, delete-orphan"
+    )
+    relationships: Mapped[list["OCELObjectRelationshipModel"]] = relationship(
+        "OCELObjectRelationshipModel", back_populates="log", cascade="all, delete-orphan"
+    )
+    petri_nets: Mapped[list["OCPetriNetModel"]] = relationship(
+        "OCPetriNetModel", back_populates="log", cascade="all, delete-orphan"
+    )
+
+
+class OCELObjectTypeModel(Base):
+    """ORM model for OCEL Object Types."""
+    __tablename__ = "ocel_object_types"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    log_id: Mapped[str] = mapped_column(String(36), ForeignKey("ocel_logs.id"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    attributes_schema_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # {attr_name: data_type}
+    object_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    log: Mapped["OCELLogModel"] = relationship("OCELLogModel", back_populates="object_types")
+    objects: Mapped[list["OCELObjectModel"]] = relationship(
+        "OCELObjectModel", back_populates="object_type", cascade="all, delete-orphan"
+    )
+
+
+class OCELObjectModel(Base):
+    """ORM model for OCEL Object Instances."""
+    __tablename__ = "ocel_objects"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    log_id: Mapped[str] = mapped_column(String(36), ForeignKey("ocel_logs.id"), nullable=False, index=True)
+    object_type_id: Mapped[str] = mapped_column(String(36), ForeignKey("ocel_object_types.id"), nullable=False, index=True)
+    object_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)  # Business ID (e.g., "ORD-123")
+    attributes_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    log: Mapped["OCELLogModel"] = relationship("OCELLogModel", back_populates="objects")
+    object_type: Mapped["OCELObjectTypeModel"] = relationship("OCELObjectTypeModel", back_populates="objects")
+    event_links: Mapped[list["OCELEventObjectModel"]] = relationship(
+        "OCELEventObjectModel", back_populates="object", cascade="all, delete-orphan"
+    )
+
+
+class OCELEventModel(Base):
+    """ORM model for OCEL Events."""
+    __tablename__ = "ocel_events"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    log_id: Mapped[str] = mapped_column(String(36), ForeignKey("ocel_logs.id"), nullable=False, index=True)
+    ocel_event_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)  # Original OCEL event ID
+    activity: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    attributes_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    # Relationships
+    log: Mapped["OCELLogModel"] = relationship("OCELLogModel", back_populates="events")
+    object_links: Mapped[list["OCELEventObjectModel"]] = relationship(
+        "OCELEventObjectModel", back_populates="event", cascade="all, delete-orphan"
+    )
+
+
+class OCELEventObjectModel(Base):
+    """ORM model for Event-to-Object relationships (many-to-many junction table)."""
+    __tablename__ = "ocel_event_objects"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    event_id: Mapped[str] = mapped_column(String(36), ForeignKey("ocel_events.id"), nullable=False, index=True)
+    object_id: Mapped[str] = mapped_column(String(36), ForeignKey("ocel_objects.id"), nullable=False, index=True)
+    qualifier: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # Role qualifier (e.g., "primary", "related")
+    
+    # Relationships
+    event: Mapped["OCELEventModel"] = relationship("OCELEventModel", back_populates="object_links")
+    object: Mapped["OCELObjectModel"] = relationship("OCELObjectModel", back_populates="event_links")
+
+
+class OCELObjectRelationshipModel(Base):
+    """ORM model for Object-to-Object relationships."""
+    __tablename__ = "ocel_object_relationships"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    log_id: Mapped[str] = mapped_column(String(36), ForeignKey("ocel_logs.id"), nullable=False, index=True)
+    source_object_id: Mapped[str] = mapped_column(String(36), ForeignKey("ocel_objects.id"), nullable=False, index=True)
+    target_object_id: Mapped[str] = mapped_column(String(36), ForeignKey("ocel_objects.id"), nullable=False, index=True)
+    relationship_type: Mapped[str] = mapped_column(String(100), nullable=False)  # e.g., "order_contains_item"
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    log: Mapped["OCELLogModel"] = relationship("OCELLogModel", back_populates="relationships")
+
+
+class OCPetriNetModel(Base):
+    """ORM model for Object-Centric Petri Nets discovered from OCEL."""
+    __tablename__ = "oc_petri_nets"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    log_id: Mapped[str] = mapped_column(String(36), ForeignKey("ocel_logs.id"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    serialized_model: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)  # Pickled OC-PN
+    visualization_svg: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    object_types_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # List of object types included
+    discovery_algorithm: Mapped[str] = mapped_column(String(100), default="oc_petri_net")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    log: Mapped["OCELLogModel"] = relationship("OCELLogModel", back_populates="petri_nets")
+
+
+# =============================================================================
+# PHASE 6: MULTI-TENANCY & FILTERING FOUNDATION
+# =============================================================================
+
+class WorkspaceModel(Base):
+    """ORM model for Workspaces - top-level organization unit for multi-tenancy."""
+    __tablename__ = "workspaces"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    slug: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)  # URL-friendly identifier
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    logo_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    settings_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Workspace-level settings
+    is_active: Mapped[bool] = mapped_column(Integer, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    projects: Mapped[list["ProjectModel"]] = relationship(
+        "ProjectModel", back_populates="workspace", cascade="all, delete-orphan"
+    )
+    members: Mapped[list["WorkspaceMemberModel"]] = relationship(
+        "WorkspaceMemberModel", back_populates="workspace", cascade="all, delete-orphan"
+    )
+    shared_assets: Mapped[list["SharedAssetModel"]] = relationship(
+        "SharedAssetModel", back_populates="workspace", cascade="all, delete-orphan"
+    )
+
+
+class ProjectModel(Base):
+    """ORM model for Projects - containers for event logs and analyses within a workspace."""
+    __tablename__ = "projects"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    key: Mapped[str] = mapped_column(String(20), nullable=False, index=True)  # Short project key like "PM-1"
+    status: Mapped[str] = mapped_column(String(50), default="active")  # active, archived, deleted
+    color: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # HEX color for UI
+    icon: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # Icon identifier
+    settings_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Project-level settings
+    created_by: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)  # User ID
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    workspace: Mapped["WorkspaceModel"] = relationship("WorkspaceModel", back_populates="projects")
+    event_logs: Mapped[list["EventLogModel"]] = relationship(
+        "EventLogModel", back_populates="project", foreign_keys="EventLogModel.project_id"
+    )
+    saved_filters: Mapped[list["SavedFilterModel"]] = relationship(
+        "SavedFilterModel", back_populates="project", cascade="all, delete-orphan"
+    )
+    dashboards: Mapped[list["DashboardModel"]] = relationship(
+        "DashboardModel", back_populates="project", cascade="all, delete-orphan"
+    )
+
+
+class WorkspaceMemberModel(Base):
+    """ORM model for Workspace Members - user memberships in workspaces."""
+    __tablename__ = "workspace_members"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)  # External user ID
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[str] = mapped_column(String(50), nullable=False, default="member")  # owner, admin, member, viewer
+    status: Mapped[str] = mapped_column(String(50), default="active")  # active, invited, suspended
+    invited_by: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    invited_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    joined_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_active_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
+    # Relationships
+    workspace: Mapped["WorkspaceModel"] = relationship("WorkspaceModel", back_populates="members")
+
+
+class SharedAssetModel(Base):
+    """ORM model for Shared Assets - reusable assets shared within a workspace."""
+    __tablename__ = "shared_assets"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False, index=True)
+    asset_type: Mapped[str] = mapped_column(String(50), nullable=False)  # filter, dashboard, report_template, kpi_definition
+    asset_id: Mapped[str] = mapped_column(String(36), nullable=False)  # FK to actual asset
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    shared_by: Mapped[str] = mapped_column(String(36), nullable=False)  # User ID
+    shared_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    workspace: Mapped["WorkspaceModel"] = relationship("WorkspaceModel", back_populates="shared_assets")
+
+
+# =============================================================================
+# FILTERING & SEGMENTATION
+# =============================================================================
+
+class SavedFilterModel(Base):
+    """ORM model for Saved Filters - reusable filter configurations."""
+    __tablename__ = "saved_filters"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    project_id: Mapped[str] = mapped_column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
+    log_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("event_logs.id"), nullable=True, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_quick_filter: Mapped[bool] = mapped_column(Integer, default=False)  # Show in quick filter bar
+    is_shared: Mapped[bool] = mapped_column(Integer, default=False)  # Shared with workspace
+    matched_case_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Last computed count
+    matched_event_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    last_applied: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_by: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    project: Mapped["ProjectModel"] = relationship("ProjectModel", back_populates="saved_filters")
+    conditions: Mapped[list["FilterConditionModel"]] = relationship(
+        "FilterConditionModel", back_populates="saved_filter", cascade="all, delete-orphan"
+    )
+
+
+class FilterConditionModel(Base):
+    """ORM model for Filter Conditions - individual filter rules."""
+    __tablename__ = "filter_conditions"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    filter_id: Mapped[str] = mapped_column(String(36), ForeignKey("saved_filters.id"), nullable=False, index=True)
+    condition_order: Mapped[int] = mapped_column(Integer, default=0)  # Order of evaluation
+    filter_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    # Types: temporal, attribute, variant, performance, conformance, activity, path, endpoint, resource
+    field: Mapped[str] = mapped_column(String(255), nullable=False)  # Field or attribute name
+    operator: Mapped[str] = mapped_column(String(50), nullable=False)
+    # Operators: eq, neq, gt, gte, lt, lte, contains, not_contains, starts_with, ends_with, in, not_in, between, is_null, is_not_null
+    value_json: Mapped[str] = mapped_column(Text, nullable=False)  # JSON-encoded value(s)
+    logical_group: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # Group name for AND/OR logic
+    logical_operator: Mapped[str] = mapped_column(String(10), default="AND")  # AND, OR
+    is_negated: Mapped[bool] = mapped_column(Integer, default=False)  # NOT operator
+    
+    # Relationships
+    saved_filter: Mapped["SavedFilterModel"] = relationship("SavedFilterModel", back_populates="conditions")
+
+
+# =============================================================================
+# DASHBOARDS (Forward declaration for Project relationship)
+# =============================================================================
+
+class DashboardModel(Base):
+    """ORM model for Dashboards - customizable views of process data."""
+    __tablename__ = "dashboards"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    project_id: Mapped[str] = mapped_column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    layout_config_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Grid layout config
+    is_default: Mapped[bool] = mapped_column(Integer, default=False)  # Default dashboard for project
+    is_shared: Mapped[bool] = mapped_column(Integer, default=False)
+    created_by: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    project: Mapped["ProjectModel"] = relationship("ProjectModel", back_populates="dashboards")
+    widgets: Mapped[list["DashboardWidgetModel"]] = relationship(
+        "DashboardWidgetModel", back_populates="dashboard", cascade="all, delete-orphan"
+    )
+
+
+class DashboardWidgetModel(Base):
+    """ORM model for Dashboard Widgets - individual components on a dashboard."""
+    __tablename__ = "dashboard_widgets"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    dashboard_id: Mapped[str] = mapped_column(String(36), ForeignKey("dashboards.id"), nullable=False, index=True)
+    widget_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    # Types: kpi_card, bar_chart, line_chart, pie_chart, heatmap, table, process_map, variant_list, activity_list
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    configuration_json: Mapped[str] = mapped_column(Text, nullable=False)  # Widget-specific config
+    position_json: Mapped[str] = mapped_column(Text, nullable=False)  # {x, y, w, h} grid position
+    data_source_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # log, analysis, kpi
+    data_source_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    filter_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("saved_filters.id"), nullable=True)
+    refresh_interval_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Auto-refresh interval
+    
+    # Relationships
+    dashboard: Mapped["DashboardModel"] = relationship("DashboardModel", back_populates="widgets")
+
+
+# =============================================================================
+# PHASE 7: TEMPORAL ANALYSIS & COMPARISONS
+# =============================================================================
+
+class TimeSeriesModel(Base):
+    """ORM model for Time Series - metric trends over time."""
+    __tablename__ = "time_series"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    log_id: Mapped[str] = mapped_column(String(36), ForeignKey("event_logs.id"), nullable=False, index=True)
+    metric_name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    # Metrics: case_count, avg_duration, throughput, variant_count, etc.
+    granularity: Mapped[str] = mapped_column(String(20), nullable=False)  # hour, day, week, month, quarter, year
+    data_points_json: Mapped[str] = mapped_column(Text, nullable=False)  # [{timestamp, value}, ...]
+    start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    end_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    trend_direction: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # increasing, decreasing, stable
+    trend_slope: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    trend_analysis_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Additional trend metrics
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class DriftDetectionModel(Base):
+    """ORM model for Drift Detection - process drift over time."""
+    __tablename__ = "drift_detections"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    log_id: Mapped[str] = mapped_column(String(36), ForeignKey("event_logs.id"), nullable=False, index=True)
+    baseline_start: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    baseline_end: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    comparison_start: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    comparison_end: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    drift_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    # Types: control_flow, resource, performance, data_attribute
+    drift_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    detected_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    affected_aspects_json: Mapped[str] = mapped_column(Text, nullable=False)  # Which activities/resources changed
+    severity: Mapped[str] = mapped_column(String(20), default="medium")  # low, medium, high, critical
+    is_significant: Mapped[bool] = mapped_column(Integer, default=False)
+    p_value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Statistical significance
+
+
+class PeriodComparisonModel(Base):
+    """ORM model for Period Comparisons - comparing two time periods."""
+    __tablename__ = "period_comparisons"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    log_id: Mapped[str] = mapped_column(String(36), ForeignKey("event_logs.id"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    period_a_start: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    period_a_end: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    period_b_start: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    period_b_end: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    period_a_case_count: Mapped[int] = mapped_column(Integer, default=0)
+    period_b_case_count: Mapped[int] = mapped_column(Integer, default=0)
+    comparison_results_json: Mapped[str] = mapped_column(Text, nullable=False)  # Metrics for both periods
+    significant_changes_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Significant differences
+    created_by: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class SeasonalityPatternModel(Base):
+    """ORM model for Seasonality Patterns - recurring temporal patterns."""
+    __tablename__ = "seasonality_patterns"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    log_id: Mapped[str] = mapped_column(String(36), ForeignKey("event_logs.id"), nullable=False, index=True)
+    metric: Mapped[str] = mapped_column(String(100), nullable=False)  # What metric shows seasonality
+    pattern_type: Mapped[str] = mapped_column(String(50), nullable=False)  # daily, weekly, monthly, yearly
+    pattern_data_json: Mapped[str] = mapped_column(Text, nullable=False)  # Pattern values
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    period_length: Mapped[int] = mapped_column(Integer, nullable=False)  # Length in hours
+    amplitude: Mapped[float] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class ComparisonModel(Base):
+    """ORM model for Cohort Comparisons - comparing filtered segments."""
+    __tablename__ = "comparisons"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    log_id: Mapped[str] = mapped_column(String(36), ForeignKey("event_logs.id"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    segment_a_filter_id: Mapped[str] = mapped_column(String(36), ForeignKey("saved_filters.id"), nullable=False)
+    segment_b_filter_id: Mapped[str] = mapped_column(String(36), ForeignKey("saved_filters.id"), nullable=False)
+    segment_a_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    segment_b_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    summary_stats_json: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    dimensions: Mapped[list["ComparisonDimensionModel"]] = relationship(
+        "ComparisonDimensionModel", back_populates="comparison", cascade="all, delete-orphan"
+    )
+
+
+class ComparisonDimensionModel(Base):
+    """ORM model for Comparison Dimensions - individual metrics compared."""
+    __tablename__ = "comparison_dimensions"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    comparison_id: Mapped[str] = mapped_column(String(36), ForeignKey("comparisons.id"), nullable=False, index=True)
+    dimension_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    # Types: duration, variant_distribution, activity_frequency, resource_workload
+    segment_a_value_json: Mapped[str] = mapped_column(Text, nullable=False)
+    segment_b_value_json: Mapped[str] = mapped_column(Text, nullable=False)
+    difference_absolute: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    difference_percentage: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    difference_significance: Mapped[float] = mapped_column(Float, default=0.0)  # p-value
+    is_significant: Mapped[bool] = mapped_column(Integer, default=False)
+    
+    # Relationships
+    comparison: Mapped["ComparisonModel"] = relationship("ComparisonModel", back_populates="dimensions")
+
+
+class RootCauseAnalysisModel(Base):
+    """ORM model for Root Cause Analysis - identifying drivers of outcomes."""
+    __tablename__ = "root_cause_analyses"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    log_id: Mapped[str] = mapped_column(String(36), ForeignKey("event_logs.id"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    outcome_definition: Mapped[str] = mapped_column(Text, nullable=False)  # e.g., "duration > 5 days"
+    outcome_metric: Mapped[str] = mapped_column(String(100), nullable=False)  # duration, cost, rework, etc.
+    analysis_method: Mapped[str] = mapped_column(String(50), nullable=False)
+    # Methods: decision_tree, correlation, regression, feature_importance
+    status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, running, completed, failed
+    total_cases_analyzed: Mapped[int] = mapped_column(Integer, default=0)
+    positive_outcome_count: Mapped[int] = mapped_column(Integer, default=0)
+    run_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    factors: Mapped[list["RootCauseFactorModel"]] = relationship(
+        "RootCauseFactorModel", back_populates="analysis", cascade="all, delete-orphan"
+    )
+
+
+class RootCauseFactorModel(Base):
+    """ORM model for Root Cause Factors - individual drivers identified."""
+    __tablename__ = "root_cause_factors"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    analysis_id: Mapped[str] = mapped_column(String(36), ForeignKey("root_cause_analyses.id"), nullable=False, index=True)
+    factor_rank: Mapped[int] = mapped_column(Integer, nullable=False)  # Importance ranking
+    factor_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    # Types: attribute, activity_presence, activity_sequence, resource, variant, timing
+    factor_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    factor_value: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    correlation: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    importance_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    statistical_significance: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)  # p-value
+    affected_cases: Mapped[int] = mapped_column(Integer, default=0)
+    impact_on_outcome: Mapped[str] = mapped_column(String(20), default="positive")  # positive, negative
+    impact_metrics_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    # Relationships
+    analysis: Mapped["RootCauseAnalysisModel"] = relationship("RootCauseAnalysisModel", back_populates="factors")
+
+
+class CorrelationAnalysisModel(Base):
+    """ORM model for Correlation Analysis - feature correlations with target."""
+    __tablename__ = "correlation_analyses"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    log_id: Mapped[str] = mapped_column(String(36), ForeignKey("event_logs.id"), nullable=False, index=True)
+    target_variable: Mapped[str] = mapped_column(String(100), nullable=False)  # duration, cost, etc.
+    feature_correlations_json: Mapped[str] = mapped_column(Text, nullable=False)  # {feature: correlation}
+    significant_features_json: Mapped[str] = mapped_column(Text, nullable=False)  # Significant only
+    method: Mapped[str] = mapped_column(String(50), default="pearson")  # pearson, spearman, kendall
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+# =============================================================================
+# PHASE 8: ADVANCED VARIANT & PATH ANALYSIS
+# =============================================================================
+
+class VariantClusterModel(Base):
+    """ORM model for Variant Clusters - groups of similar variants."""
+    __tablename__ = "variant_clusters"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    log_id: Mapped[str] = mapped_column(String(36), ForeignKey("event_logs.id"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    clustering_method: Mapped[str] = mapped_column(String(50), nullable=False)  # kmeans, hierarchical, dbscan
+    variant_count: Mapped[int] = mapped_column(Integer, default=0)
+    case_count: Mapped[int] = mapped_column(Integer, default=0)
+    centroid_sequence_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Representative sequence
+    cluster_characteristics_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Avg duration, etc.
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class LoopPatternModel(Base):
+    """ORM model for Loop Patterns - detected rework/repetition patterns."""
+    __tablename__ = "loop_patterns"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    log_id: Mapped[str] = mapped_column(String(36), ForeignKey("event_logs.id"), nullable=False, index=True)
+    activity_sequence_json: Mapped[str] = mapped_column(Text, nullable=False)  # Activities in the loop
+    loop_type: Mapped[str] = mapped_column(String(50), nullable=False)  # self_loop, tandem, nested, long_distance
+    entry_activity: Mapped[str] = mapped_column(String(255), nullable=False)
+    exit_activity: Mapped[str] = mapped_column(String(255), nullable=False)
+    occurrence_count: Mapped[int] = mapped_column(Integer, default=0)
+    affected_case_count: Mapped[int] = mapped_column(Integer, default=0)
+    affected_case_percentage: Mapped[float] = mapped_column(Float, default=0.0)
+    avg_iterations: Mapped[float] = mapped_column(Float, default=0.0)
+    max_iterations: Mapped[int] = mapped_column(Integer, default=0)
+    added_duration_seconds: Mapped[float] = mapped_column(Float, default=0.0)
+    cost_impact: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    severity: Mapped[str] = mapped_column(String(20), default="medium")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    instances: Mapped[list["LoopInstanceModel"]] = relationship(
+        "LoopInstanceModel", back_populates="pattern", cascade="all, delete-orphan"
+    )
+
+
+class LoopInstanceModel(Base):
+    """ORM model for Loop Instances - individual loop occurrences in cases."""
+    __tablename__ = "loop_instances"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    loop_pattern_id: Mapped[str] = mapped_column(String(36), ForeignKey("loop_patterns.id"), nullable=False, index=True)
+    case_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    iteration_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    total_duration_seconds: Mapped[float] = mapped_column(Float, default=0.0)
+    start_event_index: Mapped[int] = mapped_column(Integer, nullable=True)
+    end_event_index: Mapped[int] = mapped_column(Integer, nullable=True)
+    
+    # Relationships
+    pattern: Mapped["LoopPatternModel"] = relationship("LoopPatternModel", back_populates="instances")
+
+
+class PathQueryModel(Base):
+    """ORM model for Path Queries - saved pattern matching queries."""
+    __tablename__ = "path_queries"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    log_id: Mapped[str] = mapped_column(String(36), ForeignKey("event_logs.id"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    pattern_json: Mapped[str] = mapped_column(Text, nullable=False)  # Activity pattern to match
+    pattern_type: Mapped[str] = mapped_column(String(50), default="sequence")  # sequence, eventually_follows, parallel
+    matched_count: Mapped[int] = mapped_column(Integer, default=0)
+    matched_case_ids_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    last_run: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_by: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class SequencePatternModel(Base):
+    """ORM model for Sequence Patterns - frequent subsequences discovered."""
+    __tablename__ = "sequence_patterns"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    log_id: Mapped[str] = mapped_column(String(36), ForeignKey("event_logs.id"), nullable=False, index=True)
+    activity_sequence_json: Mapped[str] = mapped_column(Text, nullable=False)
+    pattern_length: Mapped[int] = mapped_column(Integer, nullable=False)
+    support: Mapped[float] = mapped_column(Float, nullable=False)  # Fraction of cases containing pattern
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    occurrence_count: Mapped[int] = mapped_column(Integer, default=0)
+    is_closed: Mapped[bool] = mapped_column(Integer, default=False)  # Closed frequent pattern
+    is_maximal: Mapped[bool] = mapped_column(Integer, default=False)  # Maximal frequent pattern
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+# =============================================================================
+# PHASE 9: COLLABORATION & ANALYSIS SESSIONS
+# =============================================================================
+
+class AnalysisSessionModel(Base):
+    """ORM model for Analysis Sessions - guided analysis workflows."""
+    __tablename__ = "analysis_sessions"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    project_id: Mapped[str] = mapped_column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
+    log_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("event_logs.id"), nullable=True, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(50), default="draft")  # draft, in_progress, completed, archived
+    analysis_type: Mapped[str] = mapped_column(String(50), default="exploratory")
+    # Types: exploratory, root_cause, conformance, performance, comparison
+    configuration_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_by: Mapped[str] = mapped_column(String(36), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    steps: Mapped[list["AnalysisStepModel"]] = relationship(
+        "AnalysisStepModel", back_populates="session", cascade="all, delete-orphan"
+    )
+    findings: Mapped[list["AnalysisFindingModel"]] = relationship(
+        "AnalysisFindingModel", back_populates="session", cascade="all, delete-orphan"
+    )
+    comments: Mapped[list["AnalysisCommentModel"]] = relationship(
+        "AnalysisCommentModel", back_populates="session", cascade="all, delete-orphan"
+    )
+
+
+class AnalysisStepModel(Base):
+    """ORM model for Analysis Steps - individual steps in an analysis."""
+    __tablename__ = "analysis_steps"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    session_id: Mapped[str] = mapped_column(String(36), ForeignKey("analysis_sessions.id"), nullable=False, index=True)
+    step_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    step_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    # Types: filter, discovery, conformance, performance, comparison, root_cause, visualization
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    parameters_json: Mapped[str] = mapped_column(Text, nullable=False)
+    results_summary_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source_filter_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("saved_filters.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, running, completed, failed
+    executed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
+    # Relationships
+    session: Mapped["AnalysisSessionModel"] = relationship("AnalysisSessionModel", back_populates="steps")
+
+
+class AnalysisFindingModel(Base):
+    """ORM model for Analysis Findings - insights discovered during analysis."""
+    __tablename__ = "analysis_findings"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    session_id: Mapped[str] = mapped_column(String(36), ForeignKey("analysis_sessions.id"), nullable=False, index=True)
+    step_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("analysis_steps.id"), nullable=True)
+    finding_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    # Types: bottleneck, deviation, pattern, anomaly, trend, correlation, recommendation
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    severity: Mapped[str] = mapped_column(String(20), default="medium")  # info, low, medium, high, critical
+    impact_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    supporting_data_json: Mapped[str] = mapped_column(Text, nullable=False)  # Evidence/metrics
+    linked_elements_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Related activities, cases
+    is_actionable: Mapped[bool] = mapped_column(Integer, default=True)
+    status: Mapped[str] = mapped_column(String(50), default="open")  # open, acknowledged, resolved, dismissed
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    session: Mapped["AnalysisSessionModel"] = relationship("AnalysisSessionModel", back_populates="findings")
+
+
+class AnalysisCommentModel(Base):
+    """ORM model for Analysis Comments - collaborative discussion on analysis."""
+    __tablename__ = "analysis_comments"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    session_id: Mapped[str] = mapped_column(String(36), ForeignKey("analysis_sessions.id"), nullable=False, index=True)
+    finding_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("analysis_findings.id"), nullable=True)
+    parent_comment_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("analysis_comments.id"), nullable=True)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    session: Mapped["AnalysisSessionModel"] = relationship("AnalysisSessionModel", back_populates="comments")
+
+
+class CaseAnnotationModel(Base):
+    """ORM model for Case Annotations - notes on specific cases."""
+    __tablename__ = "case_annotations"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    case_db_id: Mapped[str] = mapped_column(String(36), ForeignKey("process_cases.id"), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    annotation_type: Mapped[str] = mapped_column(String(50), default="note")  # note, question, decision, todo
+    is_resolved: Mapped[bool] = mapped_column(Integer, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class CaseFlagModel(Base):
+    """ORM model for Case Flags - flagged cases for review."""
+    __tablename__ = "case_flags"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    case_db_id: Mapped[str] = mapped_column(String(36), ForeignKey("process_cases.id"), nullable=False, index=True)
+    flag_type: Mapped[str] = mapped_column(String(50), nullable=False)  # review, escalate, investigate, outlier
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    flagged_by: Mapped[str] = mapped_column(String(36), nullable=False)
+    priority: Mapped[str] = mapped_column(String(20), default="medium")  # low, medium, high, critical
+    status: Mapped[str] = mapped_column(String(50), default="open")  # open, in_progress, resolved, dismissed
+    resolved_by: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class InvestigationModel(Base):
+    """ORM model for Investigations - structured case investigations."""
+    __tablename__ = "investigations"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    log_id: Mapped[str] = mapped_column(String(36), ForeignKey("event_logs.id"), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    hypothesis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(50), default="open")  # open, investigating, concluded
+    conclusion: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_by: Mapped[str] = mapped_column(String(36), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    concluded_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
+    # Relationships
+    threads: Mapped[list["InvestigationThreadModel"]] = relationship(
+        "InvestigationThreadModel", back_populates="investigation", cascade="all, delete-orphan"
+    )
+
+
+class InvestigationThreadModel(Base):
+    """ORM model for Investigation Threads - lines of inquiry in investigations."""
+    __tablename__ = "investigation_threads"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    investigation_id: Mapped[str] = mapped_column(String(36), ForeignKey("investigations.id"), nullable=False, index=True)
+    thread_type: Mapped[str] = mapped_column(String(50), nullable=False)  # pattern, outlier, comparison, timeline
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    linked_cases_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Case IDs
+    linked_findings_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Finding IDs
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(50), default="open")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    investigation: Mapped["InvestigationModel"] = relationship("InvestigationModel", back_populates="threads")
+
+
+# =============================================================================
+# PHASE 10: REPORTS
+# =============================================================================
+
+class ReportModel(Base):
+    """ORM model for Reports - structured report definitions."""
+    __tablename__ = "reports"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    project_id: Mapped[str] = mapped_column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    template_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    # Types: executive_summary, technical_analysis, compliance, performance, custom
+    configuration_json: Mapped[str] = mapped_column(Text, nullable=False)
+    is_template: Mapped[bool] = mapped_column(Integer, default=False)
+    created_by: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    sections: Mapped[list["ReportSectionModel"]] = relationship(
+        "ReportSectionModel", back_populates="report", cascade="all, delete-orphan"
+    )
+    scheduled_runs: Mapped[list["ScheduledReportRunModel"]] = relationship(
+        "ScheduledReportRunModel", back_populates="report", cascade="all, delete-orphan"
+    )
+
+
+class ReportSectionModel(Base):
+    """ORM model for Report Sections - individual sections in a report."""
+    __tablename__ = "report_sections"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    report_id: Mapped[str] = mapped_column(String(36), ForeignKey("reports.id"), nullable=False, index=True)
+    section_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    section_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    # Types: overview, kpi_summary, variant_analysis, conformance, bottlenecks, recommendations, custom
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_config_json: Mapped[str] = mapped_column(Text, nullable=False)  # Section-specific config
+    filter_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("saved_filters.id"), nullable=True)
+    
+    # Relationships
+    report: Mapped["ReportModel"] = relationship("ReportModel", back_populates="sections")
+
+
+class ScheduledReportRunModel(Base):
+    """ORM model for Scheduled Report Runs - automated report generation."""
+    __tablename__ = "scheduled_report_runs"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    report_id: Mapped[str] = mapped_column(String(36), ForeignKey("reports.id"), nullable=False, index=True)
+    schedule_cron: Mapped[str] = mapped_column(String(100), nullable=False)  # Cron expression
+    output_format: Mapped[str] = mapped_column(String(20), nullable=False)  # pdf, excel, html, json
+    recipients_json: Mapped[str] = mapped_column(Text, nullable=False)  # Email list
+    is_active: Mapped[bool] = mapped_column(Integer, default=True)
+    last_run: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_run_status: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    next_run: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    report: Mapped["ReportModel"] = relationship("ReportModel", back_populates="scheduled_runs")
+
+
+# =============================================================================
+# PHASE 11: SYSTEM INFRASTRUCTURE
+# =============================================================================
+
+class AuditLogModel(Base):
+    """ORM model for Audit Logs - tracking all user actions."""
+    __tablename__ = "audit_logs"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    workspace_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
+    user_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
+    action_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    # Types: create, read, update, delete, export, login, logout, share, analyze
+    entity_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)  # EventLog, ProcessModel, etc.
+    entity_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    entity_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    changes_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Before/after diff
+    metadata_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Additional context
+    ip_address: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    user_agent: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
+class ExportModel(Base):
+    """ORM model for Exports - tracking data exports."""
+    __tablename__ = "exports"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    workspace_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    export_type: Mapped[str] = mapped_column(String(50), nullable=False)  # log, model, report, analysis, data
+    format: Mapped[str] = mapped_column(String(20), nullable=False)  # csv, xes, pnml, bpmn, pdf, xlsx, json
+    status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, processing, completed, failed, expired
+    source_type: Mapped[str] = mapped_column(String(100), nullable=False)  # Entity type being exported
+    source_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    file_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    file_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    file_size_bytes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    download_count: Mapped[int] = mapped_column(Integer, default=0)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
+class AsyncJobModel(Base):
+    """ORM model for Async Jobs - enhanced background job tracking (replaces BackgroundJobModel)."""
+    __tablename__ = "async_jobs"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    workspace_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
+    user_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
+    job_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    # Types: log_ingestion, discovery, conformance, performance, export, report_generation, drift_detection
+    job_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(50), default="queued", index=True)
+    # Status: queued, running, completed, failed, cancelled, paused
+    priority: Mapped[int] = mapped_column(Integer, default=5)  # 1-10, lower = higher priority
+    progress_percent: Mapped[int] = mapped_column(Integer, default=0)
+    progress_message: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    parameters_json: Mapped[str] = mapped_column(Text, nullable=False)
+    result_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    result_entity_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # Created entity type
+    result_entity_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)  # Created entity ID
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    error_stack_trace: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    retry_count: Mapped[int] = mapped_column(Integer, default=0)
+    max_retries: Mapped[int] = mapped_column(Integer, default=3)
+    queued_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 

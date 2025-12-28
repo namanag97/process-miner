@@ -1,7 +1,7 @@
 """Mock Authentication Service."""
 
 from typing import Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
@@ -57,9 +57,9 @@ class AuthService:
     ) -> str:
         """Create a JWT access token."""
         if expires_delta:
-            expire = datetime.utcnow() + expires_delta
+            expire = datetime.now(timezone.utc) + expires_delta
         else:
-            expire = datetime.utcnow() + timedelta(minutes=self.settings.jwt_expire_minutes)
+            expire = datetime.now(timezone.utc) + timedelta(minutes=self.settings.jwt_expire_minutes)
         
         to_encode = {
             "sub": str(user.id),
@@ -67,7 +67,7 @@ class AuthService:
             "name": user.name,
             "role": user.role,
             "exp": expire,
-            "iat": datetime.utcnow(),
+            "iat": datetime.now(timezone.utc),
         }
         
         return jwt.encode(
