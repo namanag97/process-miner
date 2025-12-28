@@ -1,0 +1,458 @@
+{
+  "metadata": {
+    "analysis_timestamp": "2025-12-28T19:30:46.326007",
+    "pm4py_version": "2.7.19.5",
+    "total_cases": 30000,
+    "total_events": 180000
+  },
+  "analyses": {
+    "event_data_statistics": {
+      "concept": "Event Log Statistics",
+      "description": "Basic statistics about the event log",
+      "data": {
+        "start_activities": {
+          "status": "success",
+          "result": {
+            "First Notification of Loss (FNOL)": 30000
+          }
+        },
+        "end_activities": {
+          "status": "success",
+          "result": {
+            "Close Claim": 30000
+          }
+        },
+        "case_duration_stats": {
+          "status": "success",
+          "result": {
+            "min_duration_seconds": 1362998.9360368252,
+            "max_duration_seconds": 4676330.2653980255,
+            "avg_duration_seconds": 3024994.595438341,
+            "median_duration_seconds": 3026242.3092861176
+          }
+        },
+        "activity_frequencies": {
+          "status": "success",
+          "result": {
+            "First Notification of Loss (FNOL)": 30000,
+            "Assign Claim": 30000,
+            "Claim Decision": 30000,
+            "Set Reserve": 30000,
+            "Payment Sent": 30000,
+            "Close Claim": 30000
+          }
+        }
+      }
+    },
+    "directly_follows_graph": {
+      "concept": "Directly-Follows Graph (DFG)",
+      "description": "Shows frequency of activity sequences",
+      "reference": "van der Aalst - A practitioner's guide to process mining",
+      "data": {
+        "dfg_edges": {
+          "First Notification of Loss (FNOL) -> Assign Claim": 30000,
+          "Assign Claim -> Claim Decision": 30000,
+          "Claim Decision -> Set Reserve": 30000,
+          "Set Reserve -> Payment Sent": 30000,
+          "Payment Sent -> Close Claim": 30000
+        },
+        "num_edges": 5,
+        "start_activities": {
+          "First Notification of Loss (FNOL)": 30000
+        },
+        "end_activities": {
+          "Close Claim": 30000
+        }
+      }
+    },
+    "alpha_miner": {
+      "concept": "Alpha Miner",
+      "description": "Discovers Petri net from event log",
+      "reference": "van der Aalst et al. - Workflow Mining: Discovering Process Models from Event Logs",
+      "data": {
+        "places": [
+          "start",
+          "({'Assign Claim'}, {'Claim Decision'})",
+          "({'Claim Decision'}, {'Set Reserve'})",
+          "({'Payment Sent'}, {'Close Claim'})",
+          "({'First Notification of Loss (FNOL)'}, {'Assign Claim'})",
+          "end",
+          "({'Set Reserve'}, {'Payment Sent'})"
+        ],
+        "transitions": [
+          "(Close Claim, 'Close Claim')",
+          "(Assign Claim, 'Assign Claim')",
+          "(First Notification of Loss (FNOL), 'First Notification of Loss (FNOL)')",
+          "(Claim Decision, 'Claim Decision')",
+          "(Set Reserve, 'Set Reserve')",
+          "(Payment Sent, 'Payment Sent')"
+        ],
+        "arcs": [
+          "start -> (First Notification of Loss (FNOL), 'First Notification of Loss (FNOL)')",
+          "({'Claim Decision'}, {'Set Reserve'}) -> (Set Reserve, 'Set Reserve')",
+          "({'Payment Sent'}, {'Close Claim'}) -> (Close Claim, 'Close Claim')",
+          "({'First Notification of Loss (FNOL)'}, {'Assign Claim'}) -> (Assign Claim, 'Assign Claim')",
+          "(First Notification of Loss (FNOL), 'First Notification of Loss (FNOL)') -> ({'First Notification of Loss (FNOL)'}, {'Assign Claim'})",
+          "(Assign Claim, 'Assign Claim') -> ({'Assign Claim'}, {'Claim Decision'})",
+          "(Close Claim, 'Close Claim') -> end",
+          "({'Assign Claim'}, {'Claim Decision'}) -> (Claim Decision, 'Claim Decision')",
+          "(Claim Decision, 'Claim Decision') -> ({'Claim Decision'}, {'Set Reserve'})",
+          "(Set Reserve, 'Set Reserve') -> ({'Set Reserve'}, {'Payment Sent'})",
+          "({'Set Reserve'}, {'Payment Sent'}) -> (Payment Sent, 'Payment Sent')",
+          "(Payment Sent, 'Payment Sent') -> ({'Payment Sent'}, {'Close Claim'})"
+        ],
+        "initial_marking": "['start:1']",
+        "final_marking": "['end:1']"
+      }
+    },
+    "inductive_miner": {
+      "concept": "Inductive Miner",
+      "description": "Discovers block-structured process models",
+      "reference": "Leemans et al. - Discovering block-structured process models from event logs",
+      "data": {
+        "places": [
+          "source",
+          "p_3",
+          "sink",
+          "p_4",
+          "p_5",
+          "p_6",
+          "p_7"
+        ],
+        "transitions": [
+          "(879b6a17-7b57-4df5-9080-301f8ec6d650, 'Assign Claim')",
+          "(54b03830-6c79-4cb4-b920-b80a6639f977, 'Payment Sent')",
+          "(d32bfccc-9317-4059-8007-74c95bf03be2, 'First Notification of Loss (FNOL)')",
+          "(0f18e82d-4968-4b92-ab6e-5f3ee09bd78b, 'Claim Decision')",
+          "(24ece19b-3cb7-441e-bff1-88c396292cd1, 'Set Reserve')",
+          "(bb431708-b053-49c0-8ba2-0551cb502364, 'Close Claim')"
+        ],
+        "arcs": [
+          "(0f18e82d-4968-4b92-ab6e-5f3ee09bd78b, 'Claim Decision') -> p_5",
+          "source -> (d32bfccc-9317-4059-8007-74c95bf03be2, 'First Notification of Loss (FNOL)')",
+          "(d32bfccc-9317-4059-8007-74c95bf03be2, 'First Notification of Loss (FNOL)') -> p_3",
+          "p_4 -> (0f18e82d-4968-4b92-ab6e-5f3ee09bd78b, 'Claim Decision')",
+          "(879b6a17-7b57-4df5-9080-301f8ec6d650, 'Assign Claim') -> p_4",
+          "p_3 -> (879b6a17-7b57-4df5-9080-301f8ec6d650, 'Assign Claim')",
+          "p_5 -> (24ece19b-3cb7-441e-bff1-88c396292cd1, 'Set Reserve')",
+          "(24ece19b-3cb7-441e-bff1-88c396292cd1, 'Set Reserve') -> p_6",
+          "p_6 -> (54b03830-6c79-4cb4-b920-b80a6639f977, 'Payment Sent')",
+          "(54b03830-6c79-4cb4-b920-b80a6639f977, 'Payment Sent') -> p_7",
+          "p_7 -> (bb431708-b053-49c0-8ba2-0551cb502364, 'Close Claim')",
+          "(bb431708-b053-49c0-8ba2-0551cb502364, 'Close Claim') -> sink"
+        ],
+        "initial_marking": "['source:1']",
+        "final_marking": "['sink:1']"
+      }
+    },
+    "inductive_miner_infrequent": {
+      "concept": "Inductive Miner Infrequent (IMf)",
+      "description": "Handles infrequent behavior in process discovery",
+      "reference": "Leemans et al. - Discovering block-structured process models from event logs containing infrequent behaviour",
+      "data": {
+        "places": [
+          "source",
+          "p_4",
+          "p_5",
+          "sink",
+          "p_3",
+          "p_6",
+          "p_7"
+        ],
+        "transitions": [
+          "(40223287-d88f-4555-9554-9290d9e52077, 'Claim Decision')",
+          "(2309e312-db79-4d4c-aee0-3dc77997fc5a, 'Close Claim')",
+          "(736fb3f3-9dca-4eb5-9ab1-a50cf5657af5, 'First Notification of Loss (FNOL)')",
+          "(b5289209-cbb2-4403-afc7-d824b1d26d59, 'Assign Claim')",
+          "(d6b26042-8e69-4ecb-979c-a951e9e68097, 'Payment Sent')",
+          "(cf944bdb-b6b0-46d9-a3cf-cc89279410ba, 'Set Reserve')"
+        ],
+        "num_arcs": 12
+      }
+    },
+    "heuristics_miner": {
+      "concept": "Heuristics Miner",
+      "description": "Flexible heuristics-based process discovery",
+      "reference": "Weijters et al. - Flexible heuristics miner (FHM)",
+      "data": {
+        "nodes": [
+          "First Notification of Loss (FNOL)",
+          "Assign Claim",
+          "Claim Decision",
+          "Set Reserve",
+          "Payment Sent",
+          "Close Claim"
+        ],
+        "status": "Heuristics net discovered successfully"
+      }
+    },
+    "process_tree": {
+      "concept": "Process Tree",
+      "description": "Hierarchical process model representation",
+      "data": {
+        "tree_string": "->( 'First Notification of Loss (FNOL)', 'Assign Claim', 'Claim Decision', 'Set Reserve', 'Payment Sent', 'Close Claim' )",
+        "operator": "->",
+        "label": null
+      }
+    },
+    "bpmn_model": {
+      "concept": "Business Process Model and Notation (BPMN)",
+      "description": "Standard business process modeling notation",
+      "reference": "Object Management Group (OMG)",
+      "data": {
+        "nodes": 8,
+        "flows": 7,
+        "status": "BPMN model created successfully"
+      }
+    },
+    "token_based_replay": {
+      "concept": "Token-Based Replay",
+      "description": "Conformance checking using token replay",
+      "reference": "Berti et al. - A novel token-based replay technique",
+      "data": {
+        "total_traces": 30000,
+        "total_produced_tokens": 210000,
+        "total_consumed_tokens": 210000,
+        "total_missing_tokens": 0,
+        "total_remaining_tokens": 0,
+        "trace_fitness_available": true
+      }
+    },
+    "alignments": {
+      "concept": "Alignments",
+      "description": "Optimal alignment between log and model",
+      "reference": "Adriansyah et al. - Conformance checking using cost-based fitness analysis",
+      "data": {
+        "total_traces_aligned": 30000,
+        "average_alignment_cost": 0.0,
+        "min_cost": 0,
+        "max_cost": 0
+      }
+    },
+    "fitness_evaluation": {
+      "concept": "Fitness Evaluation",
+      "description": "Measures how well the model reproduces the log",
+      "reference": "Token-based replay fitness",
+      "data": {
+        "perc_fit_traces": 100.0,
+        "average_trace_fitness": 1.0,
+        "log_fitness": 1.0,
+        "percentage_of_fitting_traces": 100.0
+      }
+    },
+    "precision_evaluation": {
+      "concept": "Precision Evaluation",
+      "description": "Measures model precision (avoids underfitting)",
+      "reference": "Munoz-Gama et al. - A fresh look at precision in process conformance",
+      "data": {
+        "precision": 1.0
+      }
+    },
+    "generalization_evaluation": {
+      "concept": "Generalization Evaluation",
+      "description": "Measures model generalization capability",
+      "reference": "Buijs et al. - Quality dimensions in process discovery",
+      "data": {
+        "generalization": 0.9942264973081038
+      }
+    },
+    "simplicity_evaluation": {
+      "concept": "Simplicity Evaluation",
+      "description": "Measures structural simplicity of the model",
+      "reference": "V\u00e1zquez-Barreiros et al. - ProDiGen",
+      "data": {
+        "simplicity": 1.0
+      }
+    },
+    "social_network_handover": {
+      "concept": "Social Network Analysis - Handover of Work",
+      "description": "Analyzes resource handover patterns",
+      "reference": "van der Aalst et al. - Discovering social networks from event logs",
+      "data": {
+        "matrix_shape": "N/A",
+        "status": "Handover network computed"
+      }
+    },
+    "organizational_roles": {
+      "concept": "Organizational Roles",
+      "description": "Discovers roles based on activity-resource patterns",
+      "reference": "Burattin et al. - Business models enhancement through discovery of roles",
+      "data": {
+        "roles": [
+          {
+            "role": "Activities: ['Assign Claim', 'Claim Decision', 'Close Claim', 'First Notification of Loss (FNOL)', 'Payment Sent', 'Set Reserve'] Originators importance {'RPA': 63600, 'Human': 116400}"
+          }
+        ],
+        "total_roles": 1
+      }
+    },
+    "footprints": {
+      "concept": "Footprints",
+      "error": "'list' object has no attribute 'get'"
+    },
+    "temporal_statistics": {
+      "concept": "Temporal Statistics",
+      "description": "Time-based process statistics",
+      "data": {
+        "average_case_arrival_seconds": 3180.325654917564,
+        "log_timespan": {
+          "start": "2020-04-06T07:50:45.322658",
+          "end": "2023-05-26T01:49:58.261710"
+        }
+      }
+    },
+    "filtering_variants": {
+      "concept": "Variant Filtering",
+      "description": "Filter log by top variants covering 80% of cases",
+      "data": {
+        "original_cases": 30000,
+        "filtered_cases": 30000,
+        "reduction_percentage": 0.0
+      }
+    },
+    "log_skeleton": {
+      "concept": "Log Skeleton",
+      "description": "Declarative process model constraints",
+      "reference": "Verbeek - The log skeleton visualizer in ProM 6.9",
+      "data": {
+        "equivalence_relations": 30,
+        "always_after": 15,
+        "always_before": 15,
+        "never_together": 0
+      }
+    },
+    "batch_detection": {
+      "concept": "Batch Detection",
+      "description": "Identifies batch processing patterns",
+      "reference": "Martin et al. - Batch processing: Definition and event log identification",
+      "data": {
+        "total_batch_patterns": 12,
+        "batch_summary": [
+          {
+            "activity": "Assign Claim",
+            "resource": "RPA",
+            "batch_type_count": 3,
+            "batch_types": {
+              "Concurrent batching": 3
+            }
+          },
+          {
+            "activity": "Set Reserve",
+            "resource": "RPA",
+            "batch_type_count": 2,
+            "batch_types": {
+              "Concurrent batching": 2
+            }
+          },
+          {
+            "activity": "Set Reserve",
+            "resource": "Human",
+            "batch_type_count": 2,
+            "batch_types": {
+              "Concurrent batching": 2
+            }
+          },
+          {
+            "activity": "Payment Sent",
+            "resource": "RPA",
+            "batch_type_count": 2,
+            "batch_types": {
+              "Concurrent batching": 2
+            }
+          },
+          {
+            "activity": "Payment Sent",
+            "resource": "Human",
+            "batch_type_count": 2,
+            "batch_types": {
+              "Concurrent batching": 2
+            }
+          },
+          {
+            "activity": "First Notification of Loss (FNOL)",
+            "resource": "RPA",
+            "batch_type_count": 2,
+            "batch_types": {
+              "Concurrent batching": 2
+            }
+          },
+          {
+            "activity": "First Notification of Loss (FNOL)",
+            "resource": "Human",
+            "batch_type_count": 2,
+            "batch_types": {
+              "Concurrent batching": 2
+            }
+          },
+          {
+            "activity": "Close Claim",
+            "resource": "RPA",
+            "batch_type_count": 2,
+            "batch_types": {
+              "Concurrent batching": 2
+            }
+          },
+          {
+            "activity": "Close Claim",
+            "resource": "Human",
+            "batch_type_count": 2,
+            "batch_types": {
+              "Concurrent batching": 2
+            }
+          },
+          {
+            "activity": "Claim Decision",
+            "resource": "RPA",
+            "batch_type_count": 2,
+            "batch_types": {
+              "Concurrent batching": 2
+            }
+          }
+        ]
+      }
+    },
+    "transition_system": {
+      "concept": "Transition System",
+      "description": "State-based process representation",
+      "reference": "van der Aalst - Process Mining: Data Science in Action",
+      "data": {
+        "states": 7,
+        "transitions": 6
+      }
+    },
+    "prefix_tree": {
+      "concept": "Prefix Tree",
+      "error": "No module named 'pm4py.algo.discovery.prefix_tree'"
+    }
+  },
+  "summary": {
+    "total_analyses": 23,
+    "successful": 21,
+    "failed": 2,
+    "analyses_performed": [
+      "event_data_statistics",
+      "directly_follows_graph",
+      "alpha_miner",
+      "inductive_miner",
+      "inductive_miner_infrequent",
+      "heuristics_miner",
+      "process_tree",
+      "bpmn_model",
+      "token_based_replay",
+      "alignments",
+      "fitness_evaluation",
+      "precision_evaluation",
+      "generalization_evaluation",
+      "simplicity_evaluation",
+      "social_network_handover",
+      "organizational_roles",
+      "footprints",
+      "temporal_statistics",
+      "filtering_variants",
+      "log_skeleton",
+      "batch_detection",
+      "transition_system",
+      "prefix_tree"
+    ]
+  }
+}
