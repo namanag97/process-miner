@@ -1,0 +1,32 @@
+# Redocly configuration for enhanced API documentation
+
+theme:
+  openapi:
+    schemaExpansion: "all"
+    expandResponses: "200,201"
+    sortEnumValuesAlphabetically: true
+    hideDownloadButton: false
+    hideTryItPanel: false
+
+lint:
+  extends:
+    - recommended
+  rules:
+    operation-summary: warn
+    operation-description: warn
+    tag-description: warn
+    info-description: error
+
+features:
+  openapi:
+    # Enable search
+    showConsole: true
+    hideHostname: false
+    # Code samples
+    generateCodeSamples:
+      languages:
+        - lang: curl
+        - lang: Python
+          label: Python (requests)
+        - lang: JavaScript
+          label: JavaScript (fetch)

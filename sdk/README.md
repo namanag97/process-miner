@@ -94,12 +94,38 @@ try {
 }
 ```
 
-## Building
+## Development
+
+### Building
 
 ```bash
 cd sdk
 npm install
 npm run build
+```
+
+### Development Tooling
+
+Run all quality checks:
+
+```bash
+npm run check   # Runs lint + typecheck + format:check
+```
+
+| Command             | Description                    |
+|---------------------|--------------------------------|
+| `npm run lint`      | Run ESLint                     |
+| `npm run lint:fix`  | Run ESLint with auto-fix       |
+| `npm run format`    | Format with Prettier           |
+| `npm run typecheck` | Run TypeScript type checker    |
+| `npm run test`      | Run Vitest tests               |
+| `npm run build`     | Build the SDK                  |
+
+### Using Make
+
+```bash
+make check   # Runs lint + typecheck + format check
+make test    # Runs tests
 ```
 
 ## License
