@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Process Mining API Test Console</title>
+    <style>
+      :root {
+        --bg-dark: #0f0f23;
+        --bg-card: #1a1a2e;
+        --bg-input: #16213e;
+        --text-primary: #e4e4e7;
+        --text-secondary: #a1a1aa;
+        --accent: #6366f1;
+        --accent-hover: #818cf8;
+        --success: #22c55e;
+        --error: #ef4444;
+        --warning: #f59e0b;
+        --border: #27272a;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        background: var(--bg-dark);
+        color: var(--text-primary);
+        line-height: 1.6;
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 0;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 30px;
+      }
+
+      h1 {
+        font-size: 1.8rem;
+        font-weight: 600;
+        background: linear-gradient(135deg, var(--accent), #a855f7);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .status-badge {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: var(--bg-card);
+        border-radius: 20px;
+        font-size: 0.85rem;
+      }
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--success);
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+      }
+
+      .tab {
+        padding: 10px 20px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 0.9rem;
+      }
+
+      .tab:hover {
+        border-color: var(--accent);
+      }
+
+      .tab.active {
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+
+      .panel {
+        display: none;
+      }
+
+      .panel.active {
+        display: block;
+      }
+
+      .card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 20px;
+      }
+
+      .card h2 {
+        font-size: 1.1rem;
+        margin-bottom: 16px;
+        color: var(--text-primary);
+      }
+
+      .form-group {
+        margin-bottom: 16px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+      }
+
+      input[type="text"],
+      input[type="file"],
+      select,
+      textarea {
+        width: 100%;
+        padding: 10px 14px;
+        background: var(--bg-input);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        transition: border-color 0.2s;
+      }
+
+      input:focus,
+      select:focus,
+      textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+
+      button {
+        padding: 10px 20px;
+        background: var(--accent);
+        border: none;
+        border-radius: 8px;
+        color: white;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      button:hover {
+        background: var(--accent-hover);
+      }
+
+      button.secondary {
+        background: var(--bg-input);
+        border: 1px solid var(--border);
+      }
+
+      button.danger {
+        background: var(--error);
+      }
+
+      .btn-group {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .response-area {
+        margin-top: 20px;
+      }
+
+      .response-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .status-code {
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+
+      .status-code.success {
+        background: rgba(34, 197, 94, 0.2);
+        color: var(--success);
+      }
+
+      .status-code.error {
+        background: rgba(239, 68, 68, 0.2);
+        color: var(--error);
+      }
+
+      pre {
+        background: var(--bg-input);
+        padding: 16px;
+        border-radius: 8px;
+        overflow-x: auto;
+        font-size: 0.85rem;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 16px;
+      }
+
+      .list-item {
+        background: var(--bg-input);
+        padding: 16px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .list-item:hover {
+        border-color: var(--accent);
+        transform: translateY(-2px);
+      }
+
+      .list-item h3 {
+        font-size: 1rem;
+        margin-bottom: 8px;
+      }
+
+      .list-item .meta {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+      }
+
+      .loader {
+        display: none;
+        width: 20px;
+        height: 20px;
+        border: 2px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .loading .loader {
+        display: inline-block;
+      }
+
+      .inline-form {
+        display: flex;
+        gap: 10px;
+        align-items: flex-end;
+      }
+
+      .inline-form .form-group {
+        flex: 1;
+        margin-bottom: 0;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: var(--text-secondary);
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      .stat-card {
+        background: var(--bg-input);
+        padding: 16px;
+        border-radius: 8px;
+        text-align: center;
+      }
+
+      .stat-value {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--accent);
+      }
+
+      .stat-label {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+      }
+
+      @media (max-width: 768px) {
+        .stats-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>⚡ Process Mining API Console</h1>
+        <div class="status-badge">
+          <div class="status-dot" id="statusDot"></div>
+          <span id="statusText">Connecting...</span>
+        </div>
+      </header>
+
+      <div class="tabs">
+        <button class="tab active" data-panel="logs">📂 Event Logs</button>
+        <button class="tab" data-panel="discovery">🔍 Discovery</button>
+        <button class="tab" data-panel="models">📊 Models</button>
+        <button class="tab" data-panel="conformance">✅ Conformance</button>
+        <button class="tab" data-panel="analytics">📈 Analytics</button>
+        <button class="tab" data-panel="api">🔧 API Explorer</button>
+      </div>
+
+      <!-- Event Logs Panel -->
+      <div id="logs" class="panel active">
+        <div class="card">
+          <h2>Upload Event Log</h2>
+          <form id="uploadForm">
+            <div class="inline-form">
+              <div class="form-group">
+                <label>Select File (CSV/XES)</label>
+                <input type="file" id="logFile" accept=".csv,.xes,.xlsx" />
+              </div>
+              <div class="form-group">
+                <label>Log Name (optional)</label>
+                <input type="text" id="logName" placeholder="My Event Log" />
+              </div>
+              <button type="submit">Upload</button>
+            </div>
+          </form>
+          <div id="uploadResponse" class="response-area"></div>
+        </div>
+
+        <div class="card">
+          <h2>Event Logs</h2>
+          <div class="inline-form" style="margin-bottom: 16px">
+            <div class="form-group">
+              <input type="text" id="logSearch" placeholder="Search logs..." />
+            </div>
+            <button onclick="loadLogs()">🔄 Refresh</button>
+          </div>
+          <div id="logsList" class="grid">
+            <div class="empty-state">Loading...</div>
+          </div>
+        </div>
+
+        <div id="logDetails" class="card" style="display: none">
+          <h2>Log Details</h2>
+          <div id="logDetailsContent"></div>
+        </div>
+      </div>
+
+      <!-- Discovery Panel -->
+      <div id="discovery" class="panel">
+        <div class="card">
+          <h2>Discover Process Model</h2>
+          <div class="inline-form">
+            <div class="form-group">
+              <label>Select Event Log</label>
+              <select id="discoveryLogSelect"></select>
+            </div>
+            <div class="form-group">
+              <label>Mining Algorithm</label>
+              <select id="minerSelect">
+                <option value="inductive">Inductive Miner</option>
+                <option value="alpha">Alpha Miner</option>
+                <option value="heuristics">Heuristics Miner</option>
+                <option value="dfg">DFG Only</option>
+              </select>
+            </div>
+            <button onclick="runDiscovery()">🚀 Discover</button>
+          </div>
+          <div id="discoveryResponse" class="response-area"></div>
+        </div>
+
+        <div class="card">
+          <h2>DFG Visualization</h2>
+          <div class="inline-form" style="margin-bottom: 16px">
+            <div class="form-group">
+              <label>Select Log for DFG</label>
+              <select id="dfgLogSelect"></select>
+            </div>
+            <button onclick="loadDFG()">📊 Load DFG</button>
+          </div>
+          <div id="dfgContent"></div>
+        </div>
+      </div>
+
+      <!-- Models Panel -->
+      <div id="models" class="panel">
+        <div class="card">
+          <h2>Process Models</h2>
+          <button onclick="loadModels()" style="margin-bottom: 16px">
+            🔄 Refresh
+          </button>
+          <div id="modelsList" class="grid">
+            <div class="empty-state">Loading...</div>
+          </div>
+        </div>
+
+        <div id="modelVisualization" class="card" style="display: none">
+          <h2>Model Visualization</h2>
+          <div id="modelSvgContent"></div>
+        </div>
+      </div>
+
+      <!-- Conformance Panel -->
+      <div id="conformance" class="panel">
+        <div class="card">
+          <h2>Conformance Checking</h2>
+          <div class="inline-form">
+            <div class="form-group">
+              <label>Event Log</label>
+              <select id="conformanceLogSelect"></select>
+            </div>
+            <div class="form-group">
+              <label>Process Model</label>
+              <select id="conformanceModelSelect"></select>
+            </div>
+            <button onclick="runConformance()">✅ Check</button>
+          </div>
+          <div id="conformanceResponse" class="response-area"></div>
+        </div>
+
+        <div id="conformanceResults" class="card" style="display: none">
+          <h2>Conformance Results</h2>
+          <div class="stats-grid" id="conformanceStats"></div>
+          <div id="conformanceDetails"></div>
+        </div>
+      </div>
+
+      <!-- Analytics Panel -->
+      <div id="analytics" class="panel">
+        <div class="card">
+          <h2>Analytics Dashboard</h2>
+          <div class="inline-form" style="margin-bottom: 16px">
+            <div class="form-group">
+              <label>Select Event Log</label>
+              <select id="analyticsLogSelect"></select>
+            </div>
+            <button onclick="loadAnalytics()">📈 Load Analytics</button>
+          </div>
+        </div>
+
+        <div id="analyticsContent" style="display: none">
+          <div class="stats-grid" id="analyticsStats"></div>
+
+          <div class="card">
+            <h2>Performance Metrics</h2>
+            <div id="performanceContent"></div>
+          </div>
+
+          <div class="card">
+            <h2>KPIs</h2>
+            <div id="kpiContent"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- API Explorer Panel -->
+      <div id="api" class="panel">
+        <div class="card">
+          <h2>API Explorer</h2>
+          <div class="form-group">
+            <label>HTTP Method</label>
+            <select id="apiMethod">
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+              <option value="PATCH">PATCH</option>
+              <option value="DELETE">DELETE</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Endpoint</label>
+            <input type="text" id="apiEndpoint" placeholder="/api/v1/logs" />
+          </div>
+          <div class="form-group">
+            <label>Request Body (JSON)</label>
+            <textarea
+              id="apiBody"
+              rows="5"
+              placeholder='{"key": "value"}'
+            ></textarea>
+          </div>
+          <button onclick="executeApiCall()">🚀 Execute</button>
+          <div id="apiResponse" class="response-area"></div>
+        </div>
+
+        <div class="card">
+          <h2>Quick Endpoints</h2>
+          <div class="btn-group">
+            <button onclick="quickApi('GET', '/api/v1/logs')">List Logs</button>
+            <button onclick="quickApi('GET', '/api/v1/models')">
+              List Models
+            </button>
+            <button onclick="quickApi('GET', '/api/v1/discovery/miners')">
+              List Miners
+            </button>
+            <button onclick="quickApi('GET', '/health')">Health Check</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const API_BASE = "";
+      let currentLogs = [];
+      let currentModels = [];
+
+      // Tab Navigation
+      document.querySelectorAll(".tab").forEach((tab) => {
+        tab.addEventListener("click", () => {
+          document
+            .querySelectorAll(".tab")
+            .forEach((t) => t.classList.remove("active"));
+          document
+            .querySelectorAll(".panel")
+            .forEach((p) => p.classList.remove("active"));
+          tab.classList.add("active");
+          document.getElementById(tab.dataset.panel).classList.add("active");
+        });
+      });
+
+      // Health Check
+      async function checkHealth() {
+        try {
+          const res = await fetch("/health");
+          const data = await res.json();
+          document.getElementById("statusDot").style.background =
+            data.status === "healthy" ? "var(--success)" : "var(--error)";
+          document.getElementById("statusText").textContent =
+            data.status === "healthy" ? "Connected" : "Error";
+        } catch (e) {
+          document.getElementById("statusDot").style.background =
+            "var(--error)";
+          document.getElementById("statusText").textContent = "Disconnected";
+        }
+      }
+
+      // Fetch wrapper
+      async function apiCall(
+        method,
+        endpoint,
+        body = null,
+        isFormData = false
+      ) {
+        const options = {
+          method,
+          headers: isFormData ? {} : { "Content-Type": "application/json" },
+        };
+        if (body) {
+          options.body = isFormData ? body : JSON.stringify(body);
+        }
+        const res = await fetch(endpoint, options);
+        const data = await res.json();
+        return { status: res.status, data };
+      }
+
+      // Render response
+      function renderResponse(containerId, status, data) {
+        const container = document.getElementById(containerId);
+        const isSuccess = status >= 200 && status < 300;
+        container.innerHTML = `
+                <div class="response-header">
+                    <span>Response</span>
+                    <span class="status-code ${
+                      isSuccess ? "success" : "error"
+                    }">${status}</span>
+                </div>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+      }
+
+      // Upload Form
+      document
+        .getElementById("uploadForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const fileInput = document.getElementById("logFile");
+          const nameInput = document.getElementById("logName");
+
+          if (!fileInput.files[0]) {
+            alert("Please select a file");
+            return;
+          }
+
+          const formData = new FormData();
+          formData.append("file", fileInput.files[0]);
+          if (nameInput.value) {
+            formData.append("name", nameInput.value);
+          }
+
+          try {
+            const { status, data } = await apiCall(
+              "POST",
+              "/api/v1/logs/upload",
+              formData,
+              true
+            );
+            renderResponse("uploadResponse", status, data);
+            if (status >= 200 && status < 300) {
+              loadLogs();
+            }
+          } catch (e) {
+            renderResponse("uploadResponse", 500, { error: e.message });
+          }
+        });
+
+      // Load Logs
+      async function loadLogs() {
+        try {
+          const search = document.getElementById("logSearch").value;
+          const url = search
+            ? `/api/v1/logs?search=${encodeURIComponent(search)}`
+            : "/api/v1/logs";
+          const { status, data } = await apiCall("GET", url);
+
+          currentLogs = data.items || data;
+          const container = document.getElementById("logsList");
+
+          if (!currentLogs.length) {
+            container.innerHTML =
+              '<div class="empty-state">No event logs found. Upload one to get started!</div>';
+            return;
+          }
+
+          container.innerHTML = currentLogs
+            .map(
+              (log) => `
+                    <div class="list-item" onclick="showLogDetails('${
+                      log.id
+                    }')">
+                        <h3>📂 ${log.name}</h3>
+                        <div class="meta">
+                            Cases: ${log.total_cases || 0} | Events: ${
+                log.total_events || 0
+              }
+                        </div>
+                        <div class="meta">${new Date(
+                          log.created_at
+                        ).toLocaleDateString()}</div>
+                    </div>
+                `
+            )
+            .join("");
+
+          // Update selects
+          updateLogSelects(currentLogs);
+        } catch (e) {
+          document.getElementById(
+            "logsList"
+          ).innerHTML = `<div class="empty-state">Error: ${e.message}</div>`;
+        }
+      }
+
+      function updateLogSelects(logs) {
+        const options = logs
+          .map((l) => `<option value="${l.id}">${l.name}</option>`)
+          .join("");
+        [
+          "discoveryLogSelect",
+          "dfgLogSelect",
+          "conformanceLogSelect",
+          "analyticsLogSelect",
+        ].forEach((id) => {
+          const el = document.getElementById(id);
+          if (el)
+            el.innerHTML =
+              options || '<option value="">No logs available</option>';
+        });
+      }
+
+      // Show Log Details
+      async function showLogDetails(logId) {
+        try {
+          const { status, data } = await apiCall(
+            "GET",
+            `/api/v1/logs/${logId}`
+          );
+          const statsRes = await apiCall(
+            "GET",
+            `/api/v1/logs/${logId}/statistics`
+          );
+
+          const container = document.getElementById("logDetails");
+          container.style.display = "block";
+
+          document.getElementById("logDetailsContent").innerHTML = `
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value">${data.total_cases}</div>
+                            <div class="stat-label">Cases</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${data.total_events}</div>
+                            <div class="stat-label">Events</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${
+                              data.unique_activities || 0
+                            }</div>
+                            <div class="stat-label">Activities</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${
+                              data.variant_count || 0
+                            }</div>
+                            <div class="stat-label">Variants</div>
+                        </div>
+                    </div>
+                    <div class="btn-group" style="margin-top: 16px;">
+                        <button onclick="deleteLog('${logId}')">🗑️ Delete</button>
+                        <button class="secondary" onclick="document.getElementById('logDetails').style.display='none'">Close</button>
+                    </div>
+                    <pre style="margin-top: 16px;">${JSON.stringify(
+                      statsRes.data,
+                      null,
+                      2
+                    )}</pre>
+                `;
+        } catch (e) {
+          alert("Error loading log details: " + e.message);
+        }
+      }
+
+      async function deleteLog(logId) {
+        if (!confirm("Delete this log?")) return;
+        const { status } = await apiCall("DELETE", `/api/v1/logs/${logId}`);
+        if (status >= 200 && status < 300) {
+          loadLogs();
+          document.getElementById("logDetails").style.display = "none";
+        }
+      }
+
+      // Discovery
+      async function runDiscovery() {
+        const logId = document.getElementById("discoveryLogSelect").value;
+        const miner = document.getElementById("minerSelect").value;
+
+        if (!logId) {
+          alert("Please select an event log");
+          return;
+        }
+
+        try {
+          const { status, data } = await apiCall(
+            "POST",
+            "/api/v1/discovery/discover",
+            {
+              log_id: logId,
+              miner_type: miner,
+            }
+          );
+          renderResponse("discoveryResponse", status, data);
+          loadModels();
+        } catch (e) {
+          renderResponse("discoveryResponse", 500, { error: e.message });
+        }
+      }
+
+      async function loadDFG() {
+        const logId = document.getElementById("dfgLogSelect").value;
+        if (!logId) return;
+
+        try {
+          const { status, data } = await apiCall(
+            "GET",
+            `/api/v1/discovery/dfg/${logId}/detailed`
+          );
+          document.getElementById(
+            "dfgContent"
+          ).innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        } catch (e) {
+          document.getElementById(
+            "dfgContent"
+          ).innerHTML = `<div class="empty-state">Error: ${e.message}</div>`;
+        }
+      }
+
+      // Models
+      async function loadModels() {
+        try {
+          const { status, data } = await apiCall("GET", "/api/v1/models");
+          currentModels = data;
+          const container = document.getElementById("modelsList");
+
+          if (!data.length) {
+            container.innerHTML =
+              '<div class="empty-state">No models found. Run discovery first!</div>';
+            return;
+          }
+
+          container.innerHTML = data
+            .map(
+              (model) => `
+                    <div class="list-item" onclick="visualizeModel('${
+                      model.id
+                    }')">
+                        <h3>📊 ${model.name}</h3>
+                        <div class="meta">Format: ${model.format} | Miner: ${
+                model.miner_type || "N/A"
+              }</div>
+                        <div class="meta">${new Date(
+                          model.created_at
+                        ).toLocaleDateString()}</div>
+                    </div>
+                `
+            )
+            .join("");
+
+          // Update model select
+          const options = data
+            .map((m) => `<option value="${m.id}">${m.name}</option>`)
+            .join("");
+          document.getElementById("conformanceModelSelect").innerHTML =
+            options || '<option value="">No models</option>';
+        } catch (e) {
+          document.getElementById(
+            "modelsList"
+          ).innerHTML = `<div class="empty-state">Error: ${e.message}</div>`;
+        }
+      }
+
+      async function visualizeModel(modelId) {
+        try {
+          const container = document.getElementById("modelVisualization");
+          container.style.display = "block";
+
+          const res = await fetch(`/api/v1/models/${modelId}/visualize`);
+          if (res.ok) {
+            const svg = await res.text();
+            document.getElementById("modelSvgContent").innerHTML = svg;
+          } else {
+            document.getElementById("modelSvgContent").innerHTML =
+              '<div class="empty-state">Visualization failed</div>';
+          }
+        } catch (e) {
+          document.getElementById(
+            "modelSvgContent"
+          ).innerHTML = `<div class="empty-state">Error: ${e.message}</div>`;
+        }
+      }
+
+      // Conformance
+      async function runConformance() {
+        const logId = document.getElementById("conformanceLogSelect").value;
+        const modelId = document.getElementById("conformanceModelSelect").value;
+
+        if (!logId || !modelId) {
+          alert("Please select both log and model");
+          return;
+        }
+
+        try {
+          const { status, data } = await apiCall(
+            "POST",
+            "/api/v1/conformance/check",
+            {
+              log_id: logId,
+              model_id: modelId,
+            }
+          );
+          renderResponse("conformanceResponse", status, data);
+
+          // Load fitness
+          const fitness = await apiCall(
+            "GET",
+            `/api/v1/conformance/fitness/${logId}/${modelId}`
+          );
+          const precision = await apiCall(
+            "GET",
+            `/api/v1/conformance/precision/${logId}/${modelId}`
+          );
+
+          document.getElementById("conformanceResults").style.display = "block";
+          document.getElementById("conformanceStats").innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-value">${(
+                          (fitness.data.fitness || 0) * 100
+                        ).toFixed(1)}%</div>
+                        <div class="stat-label">Fitness</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${(
+                          (precision.data.precision || 0) * 100
+                        ).toFixed(1)}%</div>
+                        <div class="stat-label">Precision</div>
+                    </div>
+                `;
+        } catch (e) {
+          renderResponse("conformanceResponse", 500, { error: e.message });
+        }
+      }
+
+      // Analytics
+      async function loadAnalytics() {
+        const logId = document.getElementById("analyticsLogSelect").value;
+        if (!logId) return;
+
+        try {
+          document.getElementById("analyticsContent").style.display = "block";
+
+          const kpis = await apiCall(
+            "GET",
+            `/api/v1/enhancement/kpis/${logId}`
+          );
+          const perf = await apiCall(
+            "GET",
+            `/api/v1/enhancement/performance/${logId}`
+          );
+
+          const k = kpis.data;
+          document.getElementById("analyticsStats").innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-value">${k.total_cases || 0}</div>
+                        <div class="stat-label">Cases</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${k.total_events || 0}</div>
+                        <div class="stat-label">Events</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${
+                          k.unique_activities || 0
+                        }</div>
+                        <div class="stat-label">Activities</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${k.variant_count || 0}</div>
+                        <div class="stat-label">Variants</div>
+                    </div>
+                `;
+
+          document.getElementById(
+            "kpiContent"
+          ).innerHTML = `<pre>${JSON.stringify(k, null, 2)}</pre>`;
+          document.getElementById(
+            "performanceContent"
+          ).innerHTML = `<pre>${JSON.stringify(perf.data, null, 2)}</pre>`;
+        } catch (e) {
+          alert("Error loading analytics: " + e.message);
+        }
+      }
+
+      // API Explorer
+      async function executeApiCall() {
+        const method = document.getElementById("apiMethod").value;
+        const endpoint = document.getElementById("apiEndpoint").value;
+        const bodyStr = document.getElementById("apiBody").value;
+
+        let body = null;
+        if (bodyStr && method !== "GET") {
+          try {
+            body = JSON.parse(bodyStr);
+          } catch (e) {
+            alert("Invalid JSON");
+            return;
+          }
+        }
+
+        try {
+          const { status, data } = await apiCall(method, endpoint, body);
+          renderResponse("apiResponse", status, data);
+        } catch (e) {
+          renderResponse("apiResponse", 500, { error: e.message });
+        }
+      }
+
+      function quickApi(method, endpoint) {
+        document.getElementById("apiMethod").value = method;
+        document.getElementById("apiEndpoint").value = endpoint;
+        document.getElementById("apiBody").value = "";
+        executeApiCall();
+      }
+
+      // Init
+      checkHealth();
+      loadLogs();
+      loadModels();
+      setInterval(checkHealth, 30000);
+    </script>
+  </body>
+</html>
