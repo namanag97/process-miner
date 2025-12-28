@@ -1,0 +1,11 @@
+case:concept:name,concept:name,time:timestamp,org:resource
+1,Register Request,2023-01-01 09:00:00,John
+1,Examine Casually,2023-01-01 09:30:00,Sarah
+1,Check Ticket,2023-01-01 10:00:00,Mike
+1,Decide,2023-01-01 11:00:00,Sarah
+1,Pay Compensation,2023-01-01 12:00:00,John
+2,Register Request,2023-01-01 09:15:00,Sarah
+2,Examine Thoroughly,2023-01-01 10:00:00,Sarah
+2,Check Ticket,2023-01-01 11:00:00,John
+2,Decide,2023-01-01 12:00:00,Mike
+2,Reject Request,2023-01-01 13:00:00,Sarah
