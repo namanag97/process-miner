@@ -57,11 +57,19 @@ class PM4PyService:
     def get_variants(self, event_log: EventLog, top_n: int = 20) -> Dict[str, Any]:
         """Get process variants with counts."""
         pm4py_log = discovery_service._to_pm4py_log(event_log)
-        variants = get_variants(pm4py_log)
+        
+        # Use pm4py direct function instead of module import
+        variants = pm4py.get_variants(pm4py_log)
+        
+        # Handle different return formats - value can be int or list
+        def get_count(v):
+            if isinstance(v, (list, tuple)):
+                return len(v)
+            return v
         
         variant_list = [
-            {"variant": str(k), "count": v}
-            for k, v in sorted(variants.items(), key=lambda x: -x[1])[:top_n]
+            {"variant": " -> ".join(k) if isinstance(k, tuple) else str(k), "count": get_count(v)}
+            for k, v in sorted(variants.items(), key=lambda x: -get_count(x[1]))[:top_n]
         ]
         
         return {
@@ -88,20 +96,57 @@ class PM4PyService:
         }
     
     def discover_footprints(self, event_log: EventLog) -> Dict[str, Any]:
-        """Compute footprints (behavioral relations between activities)."""
+        """Compute footprints (behavioral relations between activities).
+        
+        Footprints analysis shows behavioral relations:
+        - Sequence: Activity A always precedes B
+        - Parallel: Activities A and B can occur in any order
+        - Activities: All activities in the log
+        - Start/End activities: Process entry/exit points
+        """
         pm4py_log = discovery_service._to_pm4py_log(event_log)
         
         try:
             from pm4py.algo.discovery.footprints import algorithm as footprints_discovery
-            fp_log = footprints_discovery.apply(pm4py_log)
             
-            return {
-                "sequence": [f"{k[0]} -> {k[1]}" for k in list(fp_log.get('sequence', set()))[:50]],
-                "parallel": [f"{k[0]} || {k[1]}" for k in list(fp_log.get('parallel', set()))[:50]],
-                "activities": list(fp_log.get('activities', set())),
-                "start_activities": list(fp_log.get('start_activities', set())),
-                "end_activities": list(fp_log.get('end_activities', set())),
-            }
+            # Apply footprints discovery - result structure depends on PM4Py version
+            fp_result = footprints_discovery.apply(pm4py_log)
+            
+            # Handle both list (per-trace) and dict (aggregate) return types
+            if isinstance(fp_result, list):
+                # Merge trace footprints into aggregate
+                sequence = set()
+                parallel = set()
+                activities = set()
+                start_activities = set()
+                end_activities = set()
+                
+                for fp in fp_result:
+                    if isinstance(fp, dict):
+                        sequence.update(fp.get('sequence', set()))
+                        parallel.update(fp.get('parallel', set()))
+                        activities.update(fp.get('activities', set()))
+                        start_activities.update(fp.get('start_activities', set()))
+                        end_activities.update(fp.get('end_activities', set()))
+                
+                return {
+                    "sequence": [f"{k[0]} -> {k[1]}" for k in list(sequence)[:50]],
+                    "parallel": [f"{k[0]} || {k[1]}" for k in list(parallel)[:50]],
+                    "activities": list(activities),
+                    "start_activities": list(start_activities),
+                    "end_activities": list(end_activities),
+                }
+            elif isinstance(fp_result, dict):
+                # Already aggregate footprints
+                return {
+                    "sequence": [f"{k[0]} -> {k[1]}" for k in list(fp_result.get('sequence', set()))[:50]],
+                    "parallel": [f"{k[0]} || {k[1]}" for k in list(fp_result.get('parallel', set()))[:50]],
+                    "activities": list(fp_result.get('activities', set())),
+                    "start_activities": list(fp_result.get('start_activities', set())),
+                    "end_activities": list(fp_result.get('end_activities', set())),
+                }
+            else:
+                return {"error": f"Unexpected footprints result type: {type(fp_result).__name__}"}
         except Exception as e:
             return {"error": str(e)}
     
@@ -346,52 +391,78 @@ class PM4PyService:
             return 0.0
     
     def get_comprehensive_analysis(self, event_log: EventLog) -> Dict[str, Any]:
-        """Run comprehensive PM4Py analysis (similar to demo file)."""
+        """Run comprehensive PM4Py analysis (similar to demo file).
+        
+        Runs multiple analyses and returns aggregated results.
+        Individual analysis failures don't prevent other analyses from running.
+        """
         results = {
             "metadata": {
+                "log_id": str(event_log.id),
                 "total_cases": event_log.total_cases,
                 "total_events": event_log.total_events,
             },
             "analyses": {}
         }
         
+        # Helper to safely run an analysis
+        def safe_run(name: str, func):
+            try:
+                return func()
+            except Exception as e:
+                return {"error": f"{name} failed: {str(e)}"}
+        
         # Start/End activities
-        results["analyses"]["start_activities"] = self.get_start_activities(event_log)
-        results["analyses"]["end_activities"] = self.get_end_activities(event_log)
+        results["analyses"]["start_activities"] = safe_run(
+            "start_activities", lambda: self.get_start_activities(event_log))
+        results["analyses"]["end_activities"] = safe_run(
+            "end_activities", lambda: self.get_end_activities(event_log))
         
         # Variants
-        results["analyses"]["variants"] = self.get_variants(event_log)
+        results["analyses"]["variants"] = safe_run(
+            "variants", lambda: self.get_variants(event_log))
         
         # DFG
-        results["analyses"]["dfg"] = self.discover_dfg(event_log)
+        results["analyses"]["dfg"] = safe_run(
+            "dfg", lambda: self.discover_dfg(event_log))
         
         # Footprints
-        results["analyses"]["footprints"] = self.discover_footprints(event_log)
+        results["analyses"]["footprints"] = safe_run(
+            "footprints", lambda: self.discover_footprints(event_log))
         
         # Log skeleton
-        results["analyses"]["log_skeleton"] = self.discover_log_skeleton(event_log)
+        results["analyses"]["log_skeleton"] = safe_run(
+            "log_skeleton", lambda: self.discover_log_skeleton(event_log))
         
         # Organizational roles
-        results["analyses"]["organizational_roles"] = self.discover_organizational_roles(event_log)
+        results["analyses"]["organizational_roles"] = safe_run(
+            "organizational_roles", lambda: self.discover_organizational_roles(event_log))
         
         # SNA
-        results["analyses"]["sna_handover"] = self.calculate_sna_handover(event_log)
-        results["analyses"]["sna_working_together"] = self.calculate_sna_working_together(event_log)
+        results["analyses"]["sna_handover"] = safe_run(
+            "sna_handover", lambda: self.calculate_sna_handover(event_log))
+        results["analyses"]["sna_working_together"] = safe_run(
+            "sna_working_together", lambda: self.calculate_sna_working_together(event_log))
         
         # Batches
-        results["analyses"]["batches"] = self.detect_batches(event_log)
+        results["analyses"]["batches"] = safe_run(
+            "batches", lambda: self.detect_batches(event_log))
         
         # Transition system
-        results["analyses"]["transition_system"] = self.build_transition_system(event_log)
+        results["analyses"]["transition_system"] = safe_run(
+            "transition_system", lambda: self.build_transition_system(event_log))
         
         # Process tree
-        results["analyses"]["process_tree"] = self.discover_process_tree(event_log)
+        results["analyses"]["process_tree"] = safe_run(
+            "process_tree", lambda: self.discover_process_tree(event_log))
         
         # Case duration stats
-        results["analyses"]["case_duration_statistics"] = self.get_case_duration_statistics(event_log)
+        results["analyses"]["case_duration_statistics"] = safe_run(
+            "case_duration_statistics", lambda: self.get_case_duration_statistics(event_log))
         
         # Case arrival rate
-        results["analyses"]["case_arrival_rate"] = self.get_case_arrival_rate(event_log)
+        results["analyses"]["case_arrival_rate"] = safe_run(
+            "case_arrival_rate", lambda: self.get_case_arrival_rate(event_log))
         
         # Summary
         successful = sum(1 for a in results["analyses"].values() 

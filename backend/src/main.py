@@ -3,9 +3,14 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.staticfiles import StaticFiles
+import os
 
 from src.config import get_settings
 from src.infrastructure.persistence.database import init_database
+from src.infrastructure.logging import setup_logging, RequestResponseLoggingMiddleware
 from src.presentation.api.routers import (
     logs,
     discovery,
@@ -19,6 +24,18 @@ from src.presentation.api.routers import (
     integrations,
     process_mining,
     transitions,
+    performance,
+    org,
+    ocpm,
+    processes,
+    miners,
+)
+from src.presentation.api.errors import (
+    http_exception_handler,
+    validation_exception_handler,
+    generic_exception_handler,
+    domain_exception_handler,
+    DomainError,
 )
 
 
@@ -44,6 +61,19 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
     )
     
+    # Initialize logging
+    setup_logging(
+        logs_dir=settings.logs_dir,
+        log_level=settings.api_log_level,
+    )
+    
+    # Request/Response Logging Middleware (must be added first to wrap all requests)
+    app.add_middleware(
+        RequestResponseLoggingMiddleware,
+        log_request_body=settings.log_request_body,
+        log_response_body=settings.log_response_body,
+    )
+    
     # CORS Middleware
     app.add_middleware(
         CORSMiddleware,
@@ -52,6 +82,12 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    
+    # Register RFC 7807 Exception Handlers
+    app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+    app.add_exception_handler(RequestValidationError, validation_exception_handler)
+    app.add_exception_handler(DomainError, domain_exception_handler)
+    app.add_exception_handler(Exception, generic_exception_handler)
     
     # Register API Routers
     api_prefix = settings.api_prefix
@@ -68,6 +104,16 @@ def create_app() -> FastAPI:
     app.include_router(integrations.router, prefix=api_prefix, tags=["Integrations"])
     app.include_router(process_mining.router, prefix=api_prefix, tags=["Process Mining"])
     app.include_router(transitions.router, prefix=api_prefix, tags=["Transitions"])
+    app.include_router(performance.router, prefix=api_prefix, tags=["Performance Analysis"])
+    app.include_router(org.router, prefix=api_prefix, tags=["Organizational Mining"])
+    app.include_router(ocpm.router, prefix=api_prefix, tags=["Object-Centric Process Mining"])
+    app.include_router(processes.router, prefix=api_prefix, tags=["Processes"])
+    app.include_router(miners.router, prefix=api_prefix, tags=["Miners"])
+    
+    # Serve static files for test UI
+    static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
+    if os.path.exists(static_dir):
+        app.mount("/static", StaticFiles(directory=static_dir), name="static")
     
     @app.get("/", tags=["Health"])
     async def root():
@@ -76,6 +122,12 @@ def create_app() -> FastAPI:
             "status": "healthy",
             "app": settings.app_name,
             "version": settings.app_version,
+            "_links": {
+                "docs": {"href": "/docs", "title": "API Documentation"},
+                "redoc": {"href": "/redoc", "title": "ReDoc"},
+                "health": {"href": "/health", "title": "Health Check"},
+                "test-ui": {"href": "/static/index.html", "title": "API Test UI"},
+            }
         }
     
     @app.get("/health", tags=["Health"])

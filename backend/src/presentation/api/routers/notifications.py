@@ -108,6 +108,27 @@ async def list_notifications(
     return [NotificationResponse(**n) for n in notifications]
 
 
+@router.get("/channels")
+async def list_channels(user: User = Depends(require_auth)):
+    """
+    List available notification channels.
+    
+    Returns the supported notification delivery channels:
+    - **email**: Traditional email notifications
+    - **slack**: Slack workspace notifications
+    - **webhook**: Custom webhook integrations
+    - **in_app**: In-application notification center
+    """
+    return {
+        "channels": [
+            {"id": "email", "name": "Email", "description": "Email notifications"},
+            {"id": "slack", "name": "Slack", "description": "Slack channel notifications"},
+            {"id": "webhook", "name": "Webhook", "description": "Custom webhook notifications"},
+            {"id": "in_app", "name": "In-App", "description": "In-application notifications"},
+        ]
+    }
+
+
 @router.get("/{notification_id}", response_model=NotificationResponse)
 async def get_notification(
     notification_id: UUID,
@@ -160,14 +181,4 @@ async def configure_channel(
     return {"message": f"Channel {request.channel} configured"}
 
 
-@router.get("/channels")
-async def list_channels(user: User = Depends(require_auth)):
-    """List available notification channels."""
-    return {
-        "channels": [
-            {"id": "email", "name": "Email", "description": "Email notifications"},
-            {"id": "slack", "name": "Slack", "description": "Slack channel notifications"},
-            {"id": "webhook", "name": "Webhook", "description": "Custom webhook notifications"},
-            {"id": "in_app", "name": "In-App", "description": "In-application notifications"},
-        ]
-    }
+

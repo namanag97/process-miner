@@ -121,6 +121,7 @@ flowchart TB
 
 | Date       | Version | Changes                                                                                      |
 | ---------- | ------- | -------------------------------------------------------------------------------------------- |
+| 2024-12-29 | 0.6.0   | **Gap Analysis Complete**: 26% coverage of 237 business activities. UAT scope defined.       |
 | 2024-12-28 | 0.5.0   | **API Layer Complete**: 14 new endpoints for all 3 flows (ingestion, discovery, conformance) |
 | 2024-12-28 | 0.4.0   | **Phase 2-4 ERD Complete**: Added 25 ORM models (8 discovery, 8 conformance, 9 performance)  |
 | 2024-12-28 | 0.3.0   | Phase 2 partial: `Transition`, `ResourceProfile`, model versioning                           |
@@ -129,26 +130,37 @@ flowchart TB
 
 ---
 
-## Current State (v0.5.0)
+## Current State (v0.6.0)
 
-### ✅ Backend Ready
+### ✅ UAT Ready (Core Features)
 
-| Component                | Status | Details                                              |
-| ------------------------ | ------ | ---------------------------------------------------- |
-| **Event Log Ingestion**  | ✅     | CSV/XES upload, preview, statistics, quality reports |
-| **Process Discovery**    | ✅     | Alpha, Inductive, Heuristics, DFG miners via PM4Py   |
-| **Conformance Checking** | ✅     | Token Replay, Alignments, deviation patterns         |
-| **API Layer**            | ✅     | 27 endpoints across 3 routers                        |
-| **Domain Model**         | ✅     | DDD with entities, value objects, aggregates         |
-| **ORM Models**           | ✅     | 25 SQLAlchemy models                                 |
+| Component                | Status | Coverage | Details                                         |
+| ------------------------ | ------ | -------- | ----------------------------------------------- |
+| **Event Log Ingestion**  | ✅     | 90%      | CSV/XES upload, preview, statistics, quality    |
+| **Process Discovery**    | 🟡     | 53%      | Miners work; missing export, params, comparison |
+| **Conformance Checking** | 🟡     | 45%      | Core checks work; missing reports, scheduling   |
+| **Performance Analysis** | 🟡     | 40%      | Duration/bottlenecks; missing KPI dashboards    |
+| **Org Mining**           | 🟡     | 47%      | SNA networks; missing resource timeline         |
+| **Variant Analysis**     | 🔴     | 33%      | Basic only; missing filtering, drill-down       |
 
-### 🔜 Frontend Pending
+### ❌ Not Implemented (Deferred)
 
-| Component          | Status | Next Step                        |
-| ------------------ | ------ | -------------------------------- |
-| **Dashboard UI**   | 🔜     | Build React/Next.js frontend     |
-| **Visualizations** | 🔜     | D3/React Flow for process graphs |
-| **Reports**        | 🔜     | PDF/CSV export functionality     |
+| Use Case            | Status | Coverage |
+| ------------------- | ------ | -------- |
+| Drift Detection     | ❌     | 0%       |
+| OCEL Support        | ❌     | 0%       |
+| Simulation          | ❌     | 0%       |
+| Root Cause Analysis | ❌     | 8%       |
+| RPA Discovery       | ❌     | 14%      |
+
+### 📊 Business Activity Coverage
+
+```
+Total Defined:   237 activities (from businessusecase.md)
+Implemented:      61 (26%)
+Partial:          41 (17%)
+Missing:         135 (57%)
+```
 
 ### API Endpoints Summary
 
@@ -156,6 +168,8 @@ flowchart TB
 /api/v1/logs        → 11 routes (upload, preview, stats, quality, variants)
 /api/v1/discovery   →  8 routes (miners, discover, DFG, Petri net, model quality)
 /api/v1/conformance →  8 routes (check, alignments, patterns, quality metrics)
+/api/v1/performance →  6 routes (analyze, summary, bottlenecks, histogram)
+/api/v1/org         →  5 routes (resources, handover, working-together, roles)
 ```
 
 See [routers/README.md](../backend/src/presentation/api/routers/README.md) for endpoint details.
