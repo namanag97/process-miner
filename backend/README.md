@@ -21,21 +21,70 @@ cd backend
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Install package
-pip install -e ".[dev]"
+# Install package with all dependencies
+pip install -e ".[dev,observability]"
 ```
 
 ### 2. Run the Server
 
 ```bash
-uvicorn src.main:app --reload
+uvicorn src.main:app --reload --port 8001
 ```
 
 ### 3. Access the API
 
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-- **Health Check**: http://localhost:8000/health
+- **Swagger UI**: http://localhost:8001/docs
+- **ReDoc**: http://localhost:8001/redoc
+- **Health Check**: http://localhost:8001/health
+- **Prometheus Metrics**: http://localhost:8001/metrics
+
+---
+
+## Development Tooling
+
+Run all quality checks with a single command:
+
+```bash
+make check   # Runs lint + typecheck + security
+make all     # Runs check + tests (full CI)
+```
+
+### Individual Commands
+
+| Command          | Description                    |
+| ---------------- | ------------------------------ |
+| `make lint`      | Run Ruff linter                |
+| `make format`    | Format code with Ruff          |
+| `make typecheck` | Run mypy type checker          |
+| `make security`  | Run Bandit security scanner    |
+| `make test`      | Run pytest tests               |
+| `make test-cov`  | Run tests with coverage report |
+| `make run`       | Start development server       |
+
+### Pre-commit Hooks
+
+Install pre-commit hooks to run checks on every commit:
+
+```bash
+# From project root
+make pre-commit
+```
+
+---
+
+## Observability
+
+### Metrics
+
+Prometheus metrics are exposed at `/metrics`.
+
+### Health Probes
+
+- `/health/live` - Kubernetes liveness probe
+- `/health/ready` - Kubernetes readiness probe
+- `/health/detailed` - Full health status with component checks
+
+---
 
 ## API Endpoints
 

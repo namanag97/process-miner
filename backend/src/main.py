@@ -6,11 +6,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.staticfiles import StaticFiles
+from fastapi.openapi.utils import get_openapi
 import os
 
 from src.config import get_settings
 from src.infrastructure.persistence.database import init_database
 from src.infrastructure.logging import setup_logging, RequestResponseLoggingMiddleware
+from src.infrastructure.observability import (
+    PrometheusMiddleware,
+    setup_tracing,
+    set_app_info,
+)
 from src.presentation.api.routers import (
     logs,
     discovery,
@@ -29,6 +35,7 @@ from src.presentation.api.routers import (
     ocpm,
     processes,
     miners,
+    metrics,
 )
 from src.presentation.api.errors import (
     http_exception_handler,
@@ -39,12 +46,41 @@ from src.presentation.api.errors import (
 )
 
 
+# OpenAPI tag metadata for enhanced documentation
+OPENAPI_TAGS = [
+    {"name": "Health", "description": "Health check and readiness probes"},
+    {"name": "Authentication", "description": "User authentication and session management"},
+    {"name": "Event Logs", "description": "Upload, manage, and analyze event logs (CSV, XES)"},
+    {"name": "Processes", "description": "Unified process data management (recommended API)"},
+    {"name": "Process Discovery", "description": "Discover process models using Alpha, Heuristic, or Inductive miners"},
+    {"name": "Conformance Checking", "description": "Check conformance between event logs and process models"},
+    {"name": "Performance Analysis", "description": "Analyze performance, detect bottlenecks, measure cycle times"},
+    {"name": "Analytics", "description": "Dashboard, insights, anomaly detection, and variant analysis"},
+    {"name": "Organizational Mining", "description": "Resource profiling, handover networks, role discovery"},
+    {"name": "Process Mining", "description": "Advanced PM4Py capabilities: footprints, SNA, log skeleton"},
+    {"name": "Object-Centric Process Mining", "description": "OCEL 2.0 support for multi-object process analysis"},
+    {"name": "Process Models", "description": "Manage discovered process models"},
+    {"name": "Miners", "description": "Available mining algorithm catalog"},
+    {"name": "Workflows", "description": "Automated analysis pipelines"},
+    {"name": "Notifications", "description": "Alert and notification management"},
+    {"name": "Integrations", "description": "External system connectors (SAP, databases)"},
+    {"name": "Transitions", "description": "DFG edge and gateway analysis"},
+    {"name": "Process Enhancement", "description": "Process enhancement and KPI calculation"},
+    {"name": "Observability", "description": "Prometheus metrics and health probes"},
+]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     settings = get_settings()
     settings.ensure_directories()
     await init_database()
+    
+    # Initialize observability
+    setup_tracing(service_name="process-mining-api")
+    set_app_info(version=settings.app_version, name=settings.app_name)
+    
     yield
 
 
@@ -55,10 +91,45 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
-        description="Process Mining SaaS API - Powered by PM4Py",
+        description="""
+## Process Mining SaaS API
+
+A comprehensive Process Mining platform powered by **PM4Py**.
+
+### Key Features
+
+- **Event Log Management**: Upload CSV/XES files, auto-detect columns, quality assessment
+- **Process Discovery**: Alpha Miner, Heuristic Miner, Inductive Miner algorithms
+- **Conformance Checking**: Fitness, precision, alignments, deviation detection
+- **Performance Analysis**: Bottleneck detection, cycle time analysis, KPIs
+- **Object-Centric PM**: OCEL 2.0 support for multi-object processes
+- **Organizational Mining**: Resource profiling, SNA, role discovery
+
+### Quick Start
+
+1. Upload an event log via `POST /api/v1/logs/upload`
+2. Discover a process model via `POST /api/v1/discovery/discover`
+3. Check conformance via `POST /api/v1/conformance/check`
+4. Analyze performance via `POST /api/v1/performance/analyze/{log_id}`
+
+### API Standards
+
+- **RFC 7807**: Problem Details for HTTP APIs (error responses)
+- **HATEOAS**: Hypermedia links in responses
+- **OpenAPI 3.1**: Full API specification
+        """,
         lifespan=lifespan,
         docs_url="/docs",
         redoc_url="/redoc",
+        openapi_tags=OPENAPI_TAGS,
+        license_info={
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT",
+        },
+        contact={
+            "name": "Process Mining API Support",
+            "email": "support@example.com",
+        },
     )
     
     # Initialize logging
@@ -82,6 +153,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    
+    # Prometheus Metrics Middleware
+    app.add_middleware(PrometheusMiddleware)
     
     # Register RFC 7807 Exception Handlers
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
@@ -110,6 +184,9 @@ def create_app() -> FastAPI:
     app.include_router(processes.router, prefix=api_prefix, tags=["Processes"])
     app.include_router(miners.router, prefix=api_prefix, tags=["Miners"])
     
+    # Observability endpoints (no prefix)
+    app.include_router(metrics.router)
+    
     # Serve static files for test UI
     static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
     if os.path.exists(static_dir):
@@ -126,6 +203,9 @@ def create_app() -> FastAPI:
                 "docs": {"href": "/docs", "title": "API Documentation"},
                 "redoc": {"href": "/redoc", "title": "ReDoc"},
                 "health": {"href": "/health", "title": "Health Check"},
+                "health_live": {"href": "/health/live", "title": "Liveness Probe"},
+                "health_ready": {"href": "/health/ready", "title": "Readiness Probe"},
+                "metrics": {"href": "/metrics", "title": "Prometheus Metrics"},
                 "test-ui": {"href": "/static/index.html", "title": "API Test UI"},
             }
         }
