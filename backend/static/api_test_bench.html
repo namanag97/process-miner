@@ -1,0 +1,1585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API Test Bench - Process Mining</title>
+  <style>
+    :root {
+      --bg-dark: #0a0a1a;
+      --bg-sidebar: #0f0f23;
+      --bg-card: #1a1a2e;
+      --bg-input: #16213e;
+      --text-primary: #e4e4e7;
+      --text-secondary: #a1a1aa;
+      --text-muted: #71717a;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --success: #22c55e;
+      --error: #ef4444;
+      --warning: #f59e0b;
+      --info: #3b82f6;
+      --border: #27272a;
+      --method-get: #22c55e;
+      --method-post: #3b82f6;
+      --method-patch: #f59e0b;
+      --method-delete: #ef4444;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      line-height: 1.5;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .app-container {
+      display: grid;
+      grid-template-columns: 300px 1fr 400px;
+      height: 100vh;
+    }
+
+    /* Sidebar - Endpoint Catalog */
+    .sidebar {
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--bg-sidebar);
+      z-index: 10;
+    }
+
+    .sidebar-header h1 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      background: linear-gradient(135deg, var(--accent), #a855f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
+    }
+
+    .search-box {
+      width: 100%;
+      padding: 8px 12px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 0.85rem;
+    }
+
+    .search-box:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .endpoint-category {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .category-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+    }
+
+    .category-header:hover {
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    .category-header .count {
+      background: var(--bg-input);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .category-endpoints {
+      display: none;
+      padding-bottom: 8px;
+    }
+
+    .category-endpoints.open {
+      display: block;
+    }
+
+    .endpoint-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px 8px 24px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+
+    .endpoint-item:hover {
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    .endpoint-item.active {
+      background: rgba(99, 102, 241, 0.2);
+      border-left: 2px solid var(--accent);
+    }
+
+    .method-badge {
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      min-width: 45px;
+      text-align: center;
+    }
+
+    .method-badge.get { background: rgba(34, 197, 94, 0.2); color: var(--method-get); }
+    .method-badge.post { background: rgba(59, 130, 246, 0.2); color: var(--method-post); }
+    .method-badge.patch { background: rgba(245, 158, 11, 0.2); color: var(--method-patch); }
+    .method-badge.delete { background: rgba(239, 68, 68, 0.2); color: var(--method-delete); }
+
+    .endpoint-path {
+      color: var(--text-secondary);
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 0.75rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Main Panel */
+    .main-panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .main-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .main-header h2 {
+      font-size: 1rem;
+      font-weight: 500;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .request-builder {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+
+    .form-section {
+      margin-bottom: 24px;
+    }
+
+    .form-section h3 {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .form-group {
+      flex: 1;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .form-group textarea {
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 0.85rem;
+      resize: vertical;
+      min-height: 120px;
+    }
+
+    .url-preview {
+      background: var(--bg-input);
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .url-preview .method {
+      font-weight: 600;
+    }
+
+    .url-preview .method.get { color: var(--method-get); }
+    .url-preview .method.post { color: var(--method-post); }
+    .url-preview .method.patch { color: var(--method-patch); }
+    .url-preview .method.delete { color: var(--method-delete); }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background: var(--bg-input);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--accent);
+    }
+
+    .btn-danger {
+      background: var(--error);
+      color: white;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    /* Response Panel */
+    .response-section {
+      border-top: 1px solid var(--border);
+      padding: 24px;
+      max-height: 50%;
+      overflow-y: auto;
+    }
+
+    .response-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .response-meta {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .status-badge.success { background: rgba(34, 197, 94, 0.2); color: var(--success); }
+    .status-badge.error { background: rgba(239, 68, 68, 0.2); color: var(--error); }
+
+    .response-time {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    pre.response-body {
+      background: var(--bg-input);
+      padding: 16px;
+      border-radius: 6px;
+      overflow: auto;
+      font-size: 0.8rem;
+      max-height: 300px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* History Panel */
+    .history-panel {
+      background: var(--bg-sidebar);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .history-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .history-header h3 {
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+
+    .history-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .history-actions button {
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .history-actions button:hover {
+      border-color: var(--accent);
+      color: var(--text-primary);
+    }
+
+    .history-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .history-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .history-item:hover {
+      border-color: var(--accent);
+    }
+
+    .history-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .history-item-method {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    .history-item-status {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 3px;
+    }
+
+    .history-item-path {
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .history-item-time {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+
+    /* Parameter hints */
+    .param-hint {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+    .tab { padding: 10px 20px; cursor: pointer; font-size: 0.85rem; color: var(--text-muted); border-bottom: 2px solid transparent; transition: all 0.2s; }
+    .tab:hover { color: var(--text-primary); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Bulk Operations */
+    .bulk-bar { background: var(--bg-card); border: 1px solid var(--accent); border-radius: 6px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+    .bulk-bar .count { font-weight: 600; color: var(--accent); }
+    .bulk-results { display: grid; gap: 8px; }
+    .bulk-result-item { background: var(--bg-input); padding: 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
+
+    /* Chain Builder */
+    .chain-container { background: var(--bg-card); border-radius: 8px; padding: 16px; }
+    .chain-steps { display: flex; flex-direction: column; gap: 8px; }
+    .chain-step { background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 12px; display: flex; align-items: center; gap: 12px; }
+    .chain-step.executing { border-color: var(--warning); }
+    .chain-step.completed { border-color: var(--success); }
+    .chain-step.failed { border-color: var(--error); }
+    .chain-step-num { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; flex-shrink: 0; }
+    .chain-arrow { text-align: center; color: var(--text-muted); font-size: 1.2rem; }
+    .chain-mapping { background: var(--bg-dark); padding: 8px 12px; border-radius: 4px; font-family: monospace; font-size: 0.75rem; color: var(--warning); margin-top: 8px; }
+    .chain-actions { display: flex; gap: 8px; margin-top: 16px; }
+
+    /* cURL display */
+    .curl-section { margin-top: 16px; }
+    .curl-display { background: var(--bg-dark); padding: 12px; border-radius: 6px; font-family: monospace; font-size: 0.75rem; white-space: pre-wrap; word-break: break-all; position: relative; }
+    .curl-copy { position: absolute; top: 8px; right: 8px; padding: 4px 8px; font-size: 0.7rem; background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; color: var(--text-secondary); }
+    .curl-copy:hover { border-color: var(--accent); color: var(--text-primary); }
+
+    /* Multi-select */
+    .endpoint-item.selected { background: rgba(99, 102, 241, 0.3); border-left: 2px solid var(--accent); }
+
+    /* Templates */
+    .template-list { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .template-btn { padding: 6px 12px; font-size: 0.75rem; background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; color: var(--text-secondary); }
+    .template-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .quick-fill {
+      display: flex;
+      gap: 4px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+
+    .quick-fill button {
+      padding: 4px 8px;
+      font-size: 0.7rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .quick-fill button:hover {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    /* File upload */
+    .file-input-wrapper {
+      position: relative;
+    }
+
+    .file-input-wrapper input[type="file"] {
+      opacity: 0;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+
+    .file-input-display {
+      padding: 10px 12px;
+      background: var(--bg-input);
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .file-input-display.has-file {
+      border-style: solid;
+      border-color: var(--success);
+      color: var(--success);
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      z-index: 1000;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar - Endpoint Catalog -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1>🧪 API Test Bench</h1>
+        <input type="text" class="search-box" id="endpointSearch" placeholder="Search endpoints..." />
+      </div>
+      <div id="endpointCatalog"></div>
+    </aside>
+
+    <!-- Main Panel -->
+    <main class="main-panel">
+      <header class="main-header">
+        <h2 id="currentEndpointTitle">Select an endpoint to test</h2>
+        <div class="status-indicator">
+          <div class="status-dot" id="statusDot"></div>
+          <span id="statusText">Checking...</span>
+        </div>
+      </header>
+
+      <div class="request-builder" id="requestBuilder">
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab('single')">🔧 Single Request</div>
+          <div class="tab" onclick="switchTab('bulk')">📦 Bulk Execute</div>
+          <div class="tab" onclick="switchTab('chain')">🔗 Chain Builder</div>
+        </div>
+
+        <div id="singleTab" class="tab-content active">
+          <div class="empty-state" id="singleEmptyState">
+            <p>👈 Select an endpoint from the sidebar to start testing</p>
+            <p style="margin-top: 12px; font-size: 0.85rem;">
+              <strong>Tip:</strong> Hold Ctrl/Cmd + Click to multi-select for bulk operations
+            </p>
+          </div>
+          <div id="singleRequestForm"></div>
+        </div>
+
+        <div id="bulkTab" class="tab-content">
+          <div id="bulkBar" class="bulk-bar" style="display:none;">
+            <span><span class="count" id="bulkCount">0</span> endpoints selected</span>
+            <div class="btn-group">
+              <button class="btn btn-primary" onclick="executeBulkRequests()">🚀 Execute All</button>
+              <button class="btn btn-secondary" onclick="clearBulkSelection()">Clear</button>
+            </div>
+          </div>
+          <div id="bulkEmpty" class="empty-state">
+            <p>📦 Select multiple endpoints using Ctrl/Cmd + Click in sidebar</p>
+            <p style="margin-top: 8px; font-size: 0.8rem; color: var(--text-muted);">All selected endpoints will execute in parallel</p>
+          </div>
+          <div id="bulkResults" class="bulk-results"></div>
+        </div>
+
+        <div id="chainTab" class="tab-content">
+          <div class="template-list">
+            <span style="font-size:0.8rem;color:var(--text-muted);margin-right:8px;">Templates:</span>
+            <button class="template-btn" onclick="loadChainTemplate('discovery')">📊 Discovery Flow</button>
+            <button class="template-btn" onclick="loadChainTemplate('conformance')">✅ Conformance Flow</button>
+            <button class="template-btn" onclick="loadChainTemplate('full')">🎯 Full Analysis</button>
+          </div>
+          <div class="chain-container">
+            <div id="chainSteps" class="chain-steps">
+              <div class="empty-state" id="chainEmpty">
+                <p>🔗 Build a chain of sequential API calls</p>
+                <p style="margin-top: 8px; font-size: 0.8rem; color: var(--text-muted);">Click "Add to Chain" button after configuring each endpoint</p>
+              </div>
+            </div>
+            <div class="chain-actions" id="chainActions" style="display:none;">
+              <button class="btn btn-primary" onclick="executeChain()">▶️ Run Chain</button>
+              <button class="btn btn-secondary" onclick="clearChain()">🗑️ Clear</button>
+              <button class="btn btn-secondary" onclick="saveChain()">💾 Save</button>
+            </div>
+          </div>
+          <div id="chainResults" style="margin-top:16px;"></div>
+        </div>
+      </div>
+
+      <section class="response-section" id="responseSection" style="display: none;">
+        <div class="response-header">
+          <h3>Response</h3>
+          <div class="response-meta">
+            <span class="status-badge" id="responseStatus"></span>
+            <span class="response-time" id="responseTime"></span>
+            <button class="btn-secondary" onclick="copyResponse()" style="padding: 4px 10px; font-size: 0.75rem;">📋 Copy</button>
+          </div>
+        </div>
+        <pre class="response-body" id="responseBody"></pre>
+      </section>
+    </main>
+
+    <!-- History Panel -->
+    <aside class="history-panel">
+      <header class="history-header">
+        <h3>📜 Request History</h3>
+        <div class="history-actions">
+          <button onclick="exportHistory()">💾 Export</button>
+          <button onclick="clearHistory()">🗑️ Clear</button>
+        </div>
+      </header>
+      <div class="history-list" id="historyList">
+        <div class="empty-state">No requests yet</div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    // ========================
+    // ENDPOINT DEFINITIONS
+    // ========================
+    const ENDPOINTS = {
+      "Health": [
+        { method: "GET", path: "/", description: "Root health check" },
+        { method: "GET", path: "/health", description: "Detailed health" },
+      ],
+      "Authentication": [
+        { method: "POST", path: "/api/v1/auth/login", description: "Login", body: { email: "user@example.com", password: "password" } },
+        { method: "GET", path: "/api/v1/auth/me", description: "Current user" },
+        { method: "POST", path: "/api/v1/auth/logout", description: "Logout" },
+      ],
+      "Event Logs": [
+        { method: "GET", path: "/api/v1/logs", description: "List logs", query: ["search", "page", "page_size", "sort_by", "sort_order", "state"] },
+        { method: "POST", path: "/api/v1/logs/upload", description: "Upload log", file: true },
+        { method: "POST", path: "/api/v1/logs/preview", description: "Preview file", file: true },
+        { method: "POST", path: "/api/v1/logs/detect-columns", description: "Detect columns", file: true },
+        { method: "GET", path: "/api/v1/logs/{log_id}", description: "Get log details", pathParams: ["log_id"] },
+        { method: "PATCH", path: "/api/v1/logs/{log_id}", description: "Update log", pathParams: ["log_id"], body: { name: "", description: "" } },
+        { method: "DELETE", path: "/api/v1/logs/{log_id}", description: "Delete log", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/logs/{log_id}/statistics", description: "Log statistics", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/logs/{log_id}/quality", description: "Quality report", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/logs/{log_id}/variants", description: "Variants", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/logs/{log_id}/variants/enhanced", description: "Enhanced variants", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/logs/{log_id}/activities", description: "Activities", pathParams: ["log_id"] },
+      ],
+      "Discovery": [
+        { method: "GET", path: "/api/v1/discovery/miners", description: "List miners" },
+        { method: "POST", path: "/api/v1/discovery/discover", description: "Run discovery", body: { log_id: "", miner_type: "inductive" } },
+        { method: "GET", path: "/api/v1/discovery/dfg/{log_id}", description: "Get DFG", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/discovery/dfg/{log_id}/detailed", description: "Detailed DFG", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/discovery/petri-net/{model_id}", description: "Petri Net", pathParams: ["model_id"] },
+        { method: "GET", path: "/api/v1/discovery/process-tree/{model_id}", description: "Process Tree", pathParams: ["model_id"] },
+        { method: "GET", path: "/api/v1/discovery/model/{model_id}/quality", description: "Model quality", pathParams: ["model_id"] },
+        { method: "GET", path: "/api/v1/discovery/visualize/{model_id}", description: "Visualize model", pathParams: ["model_id"] },
+      ],
+      "Models": [
+        { method: "GET", path: "/api/v1/models", description: "List models" },
+        { method: "GET", path: "/api/v1/models/{model_id}", description: "Get model", pathParams: ["model_id"] },
+        { method: "PATCH", path: "/api/v1/models/{model_id}", description: "Update model", pathParams: ["model_id"], body: { name: "", description: "" } },
+        { method: "DELETE", path: "/api/v1/models/{model_id}", description: "Delete model", pathParams: ["model_id"] },
+        { method: "GET", path: "/api/v1/models/{model_id}/visualize", description: "Visualize", pathParams: ["model_id"] },
+      ],
+      "Conformance": [
+        { method: "POST", path: "/api/v1/conformance/check", description: "Check conformance", body: { log_id: "", model_id: "" } },
+        { method: "GET", path: "/api/v1/conformance/fitness", description: "Fitness", query: ["log_id", "model_id"] },
+        { method: "GET", path: "/api/v1/conformance/precision", description: "Precision", query: ["log_id", "model_id"] },
+        { method: "GET", path: "/api/v1/conformance/diagnostics", description: "Diagnostics", query: ["log_id", "model_id"] },
+        { method: "GET", path: "/api/v1/conformance/deviations", description: "Deviations", query: ["log_id", "model_id"] },
+        { method: "POST", path: "/api/v1/conformance/alignment", description: "Alignment", body: { log_id: "", model_id: "" } },
+        { method: "GET", path: "/api/v1/conformance/deviation-patterns", description: "Deviation patterns", query: ["log_id", "model_id"] },
+        { method: "GET", path: "/api/v1/conformance/quality-metrics", description: "Quality metrics", query: ["log_id", "model_id"] },
+      ],
+      "Performance": [
+        { method: "POST", path: "/api/v1/performance/analyze/{log_id}", description: "Run analysis", pathParams: ["log_id"], body: { analysis_type: "duration" } },
+        { method: "GET", path: "/api/v1/performance/summary/{log_id}", description: "Summary", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/performance/bottlenecks/{log_id}", description: "Bottlenecks", pathParams: ["log_id"], query: ["min_severity"] },
+        { method: "GET", path: "/api/v1/performance/duration-histogram/{log_id}", description: "Duration histogram", pathParams: ["log_id"], query: ["bins"] },
+        { method: "GET", path: "/api/v1/performance/activities/{log_id}", description: "Activity metrics", pathParams: ["log_id"], query: ["sort_by", "limit"] },
+        { method: "GET", path: "/api/v1/performance/transitions/{log_id}", description: "Transition metrics", pathParams: ["log_id"], query: ["limit"] },
+      ],
+      "Analytics": [
+        { method: "GET", path: "/api/v1/analytics/dashboard/{log_id}", description: "Dashboard", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/analytics/variants/{log_id}", description: "Variant stats", pathParams: ["log_id"], query: ["top_n"] },
+        { method: "GET", path: "/api/v1/analytics/resources/{log_id}", description: "Resource stats", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/analytics/time/{log_id}", description: "Time analysis", pathParams: ["log_id"], query: ["granularity"] },
+        { method: "GET", path: "/api/v1/analytics/insights/{log_id}", description: "Insights", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/analytics/anomalies/{log_id}", description: "Anomalies", pathParams: ["log_id"], query: ["threshold"] },
+      ],
+      "Enhancement": [
+        { method: "GET", path: "/api/v1/enhancement/performance/{log_id}", description: "Performance", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/enhancement/kpis/{log_id}", description: "KPIs", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/enhancement/activities/{log_id}", description: "Activity stats", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/enhancement/cases/{log_id}", description: "Case stats", pathParams: ["log_id"], query: ["limit"] },
+        { method: "GET", path: "/api/v1/enhancement/bottlenecks/{log_id}", description: "Bottlenecks", pathParams: ["log_id"], query: ["top_n"] },
+      ],
+      "Process Mining": [
+        { method: "GET", path: "/api/v1/process-mining/footprints/{log_id}", description: "Footprints", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/process-mining/log-skeleton/{log_id}", description: "Log skeleton", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/process-mining/sna/{log_id}", description: "Social network", pathParams: ["log_id"], query: ["network_type"] },
+        { method: "GET", path: "/api/v1/process-mining/roles/{log_id}", description: "Org roles", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/process-mining/batches/{log_id}", description: "Batch detection", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/process-mining/transition-system/{log_id}", description: "Transition system", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/process-mining/process-tree/{log_id}", description: "Process tree", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/process-mining/case-duration/{log_id}", description: "Case duration", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/process-mining/case-arrival/{log_id}", description: "Case arrival", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/process-mining/comprehensive/{log_id}", description: "Comprehensive", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/process-mining/variants/{log_id}", description: "Variants", pathParams: ["log_id"], query: ["top_n"] },
+        { method: "GET", path: "/api/v1/process-mining/start-activities/{log_id}", description: "Start activities", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/process-mining/end-activities/{log_id}", description: "End activities", pathParams: ["log_id"] },
+      ],
+      "Org Mining": [
+        { method: "GET", path: "/api/v1/org/resources/{log_id}", description: "Resources", pathParams: ["log_id"], query: ["limit", "sort_by"] },
+        { method: "GET", path: "/api/v1/org/handover-network/{log_id}", description: "Handover network", pathParams: ["log_id"], query: ["min_frequency", "limit"] },
+        { method: "GET", path: "/api/v1/org/working-together/{log_id}", description: "Working together", pathParams: ["log_id"], query: ["min_shared_cases", "limit"] },
+        { method: "GET", path: "/api/v1/org/roles/{log_id}", description: "Discover roles", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/org/workload/{log_id}", description: "Workload analysis", pathParams: ["log_id"] },
+      ],
+      "Transitions": [
+        { method: "GET", path: "/api/v1/transitions/{log_id}", description: "Get transitions", pathParams: ["log_id"], query: ["include_duration", "limit"] },
+        { method: "GET", path: "/api/v1/transitions/{log_id}/gateways", description: "Detect gateways", pathParams: ["log_id"], query: ["threshold"] },
+        { method: "GET", path: "/api/v1/transitions/{log_id}/start-end", description: "Start/End activities", pathParams: ["log_id"] },
+        { method: "GET", path: "/api/v1/transitions/{log_id}/activity/{activity_name}", description: "Activity transitions", pathParams: ["log_id", "activity_name"] },
+      ],
+      "Workflows": [
+        { method: "GET", path: "/api/v1/workflows/pipelines", description: "List pipelines" },
+        { method: "POST", path: "/api/v1/workflows/start", description: "Start pipeline", body: { pipeline_name: "", params: {} } },
+        { method: "GET", path: "/api/v1/workflows/executions", description: "List executions", query: ["status", "limit"] },
+        { method: "GET", path: "/api/v1/workflows/executions/{execution_id}", description: "Get execution", pathParams: ["execution_id"] },
+        { method: "POST", path: "/api/v1/workflows/executions/{execution_id}/cancel", description: "Cancel execution", pathParams: ["execution_id"] },
+      ],
+      "Notifications": [
+        { method: "POST", path: "/api/v1/notifications/send", description: "Send notification", body: { channel: "email", recipient: "", subject: "", body: "" } },
+        { method: "GET", path: "/api/v1/notifications", description: "List notifications", query: ["recipient", "channel", "status", "limit"] },
+        { method: "GET", path: "/api/v1/notifications/channels", description: "List channels" },
+        { method: "GET", path: "/api/v1/notifications/{notification_id}", description: "Get notification", pathParams: ["notification_id"] },
+        { method: "POST", path: "/api/v1/notifications/subscribe", description: "Subscribe", body: { event_type: "", channel: "email", recipient: "" } },
+        { method: "POST", path: "/api/v1/notifications/configure", description: "Configure channel", body: { channel: "email", settings: {}, enabled: true } },
+      ],
+      "Integrations": [
+        { method: "GET", path: "/api/v1/integrations/connector-types", description: "Connector types" },
+        { method: "POST", path: "/api/v1/integrations/connectors", description: "Create connector", body: { name: "", connector_type: "", settings: {} } },
+        { method: "GET", path: "/api/v1/integrations/connectors", description: "List connectors" },
+        { method: "GET", path: "/api/v1/integrations/connectors/{connector_id}", description: "Get connector", pathParams: ["connector_id"] },
+        { method: "DELETE", path: "/api/v1/integrations/connectors/{connector_id}", description: "Delete connector", pathParams: ["connector_id"] },
+        { method: "POST", path: "/api/v1/integrations/connectors/{connector_id}/connect", description: "Connect", pathParams: ["connector_id"] },
+        { method: "POST", path: "/api/v1/integrations/connectors/{connector_id}/disconnect", description: "Disconnect", pathParams: ["connector_id"] },
+        { method: "POST", path: "/api/v1/integrations/connectors/{connector_id}/test", description: "Test connection", pathParams: ["connector_id"] },
+        { method: "POST", path: "/api/v1/integrations/connectors/{connector_id}/sync", description: "Sync data", pathParams: ["connector_id"], body: { query: {} } },
+        { method: "GET", path: "/api/v1/integrations/connectors/{connector_id}/tables", description: "Get tables", pathParams: ["connector_id"] },
+        { method: "POST", path: "/api/v1/integrations/connectors/{connector_id}/fetch", description: "Fetch data", pathParams: ["connector_id"], body: { query: {} } },
+        { method: "GET", path: "/api/v1/integrations/sync-history", description: "Sync history", query: ["connector_id", "limit"] },
+      ],
+    };
+
+    // ========================
+    // STATE
+    // ========================
+    let currentEndpoint = null;
+    let requestHistory = JSON.parse(localStorage.getItem('apiTestHistory') || '[]');
+    let availableLogs = [];
+    let availableModels = [];
+    let lastResponse = null;
+    let bulkSelected = []; // {category, index, endpoint}
+    let chainSteps = []; // {endpoint, mappings: {param: "{{step.N.response.field}}"}, config: {}}
+    let currentTab = 'single';
+
+    // ========================
+    // TAB SWITCHING
+    // ========================
+    function switchTab(tabName) {
+      currentTab = tabName;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelector(`.tab:nth-child(${tabName === 'single' ? 1 : tabName === 'bulk' ? 2 : 3})`).classList.add('active');
+      document.getElementById(`${tabName}Tab`).classList.add('active');
+      if (tabName === 'bulk') renderBulkPanel();
+      if (tabName === 'chain') renderChainBuilder();
+    }
+
+    // ========================
+    // INITIALIZATION
+    // ========================
+    document.addEventListener('DOMContentLoaded', () => {
+      renderEndpointCatalog();
+      renderHistory();
+      checkHealth();
+      loadAvailableResources();
+      
+      document.getElementById('endpointSearch').addEventListener('input', (e) => {
+        filterEndpoints(e.target.value);
+      });
+    });
+
+    async function checkHealth() {
+      try {
+        const res = await fetch('/health');
+        const data = await res.json();
+        document.getElementById('statusDot').style.background = data.status === 'healthy' ? 'var(--success)' : 'var(--error)';
+        document.getElementById('statusText').textContent = data.status === 'healthy' ? 'Connected' : 'Error';
+      } catch (e) {
+        document.getElementById('statusDot').style.background = 'var(--error)';
+        document.getElementById('statusText').textContent = 'Disconnected';
+      }
+    }
+
+    async function loadAvailableResources() {
+      try {
+        const logsRes = await fetch('/api/v1/logs');
+        if (logsRes.ok) {
+          const data = await logsRes.json();
+          availableLogs = data.items || data || [];
+        }
+      } catch (e) {}
+
+      try {
+        const modelsRes = await fetch('/api/v1/models');
+        if (modelsRes.ok) {
+          availableModels = await modelsRes.json();
+        }
+      } catch (e) {}
+    }
+
+    // ========================
+    // ENDPOINT CATALOG
+    // ========================
+    function renderEndpointCatalog() {
+      const container = document.getElementById('endpointCatalog');
+      container.innerHTML = '';
+
+      Object.entries(ENDPOINTS).forEach(([category, endpoints]) => {
+        const categoryEl = document.createElement('div');
+        categoryEl.className = 'endpoint-category';
+        categoryEl.dataset.category = category;
+
+        categoryEl.innerHTML = `
+          <div class="category-header" onclick="toggleCategory(this)">
+            <span>${category}</span>
+            <span class="count">${endpoints.length}</span>
+          </div>
+          <div class="category-endpoints">
+            ${endpoints.map((ep, idx) => `
+              <div class="endpoint-item" data-category="${category}" data-index="${idx}">
+                <span class="method-badge ${ep.method.toLowerCase()}">${ep.method}</span>
+                <span class="endpoint-path" title="${ep.path}">${ep.description}</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+
+        container.appendChild(categoryEl);
+      });
+
+      // Add click handlers
+      document.querySelectorAll('.endpoint-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          const category = item.dataset.category;
+          const index = parseInt(item.dataset.index);
+          
+          // Check for bulk selection (Ctrl/Cmd + Click)
+          if (toggleBulkSelect(category, index, e)) return;
+          
+          selectEndpoint(category, index);
+          document.querySelectorAll('.endpoint-item').forEach(i => i.classList.remove('active'));
+          item.classList.add('active');
+        });
+      });
+    }
+
+    function toggleCategory(header) {
+      const endpoints = header.nextElementSibling;
+      endpoints.classList.toggle('open');
+    }
+
+    function filterEndpoints(query) {
+      const q = query.toLowerCase();
+      document.querySelectorAll('.endpoint-category').forEach(cat => {
+        let hasMatch = false;
+        cat.querySelectorAll('.endpoint-item').forEach(item => {
+          const category = item.dataset.category;
+          const index = item.dataset.index;
+          const ep = ENDPOINTS[category][index];
+          const match = ep.path.toLowerCase().includes(q) || 
+                       ep.description.toLowerCase().includes(q) ||
+                       category.toLowerCase().includes(q);
+          item.style.display = match ? 'flex' : 'none';
+          if (match) hasMatch = true;
+        });
+        cat.style.display = hasMatch ? 'block' : 'none';
+        if (hasMatch && q) {
+          cat.querySelector('.category-endpoints').classList.add('open');
+        }
+      });
+    }
+
+    // ========================
+    // REQUEST BUILDER
+    // ========================
+    function selectEndpoint(category, index) {
+      currentEndpoint = { category, index, ...ENDPOINTS[category][index] };
+      document.getElementById('currentEndpointTitle').textContent = `${currentEndpoint.method} ${currentEndpoint.description}`;
+      renderRequestBuilder();
+    }
+
+    function renderRequestBuilder() {
+      const ep = currentEndpoint;
+      const builder = document.getElementById('singleRequestForm');
+      document.getElementById('singleEmptyState').style.display = 'none';
+
+      let html = `
+        <div class="form-section">
+          <h3>Request URL</h3>
+          <div class="url-preview">
+            <span class="method ${ep.method.toLowerCase()}">${ep.method}</span>
+            <span id="urlPreview">${ep.path}</span>
+          </div>
+        </div>
+      `;
+
+      // Path parameters
+      if (ep.pathParams && ep.pathParams.length > 0) {
+        html += `<div class="form-section"><h3>Path Parameters</h3>`;
+        ep.pathParams.forEach(param => {
+          const suggestions = getParamSuggestions(param);
+          html += `
+            <div class="form-group">
+              <label>${param}</label>
+              <input type="text" id="param_${param}" placeholder="${param}" oninput="updateUrlPreview()" />
+              ${suggestions.length > 0 ? `
+                <div class="quick-fill">
+                  ${suggestions.slice(0, 5).map(s => `<button type="button" onclick="fillParam('${param}', '${s.id}')">${s.name || s.id.slice(0, 8)}</button>`).join('')}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        });
+        html += `</div>`;
+      }
+
+      // Query parameters
+      if (ep.query && ep.query.length > 0) {
+        html += `<div class="form-section"><h3>Query Parameters</h3><div class="form-row" style="flex-wrap: wrap;">`;
+        ep.query.forEach(param => {
+          html += `
+            <div class="form-group" style="min-width: 200px;">
+              <label>${param}</label>
+              <input type="text" id="query_${param}" placeholder="${param}" oninput="updateUrlPreview()" />
+            </div>
+          `;
+        });
+        html += `</div></div>`;
+      }
+
+      // File upload
+      if (ep.file) {
+        html += `
+          <div class="form-section">
+            <h3>File Upload</h3>
+            <div class="form-group">
+              <div class="file-input-wrapper">
+                <div class="file-input-display" id="fileDisplay">Click or drag to select file (CSV/XES)</div>
+                <input type="file" id="fileInput" accept=".csv,.xes,.xlsx" onchange="updateFileDisplay()" />
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // Request body
+      if (ep.body) {
+        html += `
+          <div class="form-section">
+            <h3>Request Body</h3>
+            <div class="form-group">
+              <textarea id="requestBody">${JSON.stringify(ep.body, null, 2)}</textarea>
+            </div>
+          </div>
+        `;
+      }
+
+      html += `
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="executeRequest()">🚀 Send Request</button>
+          <button class="btn btn-secondary" onclick="addToChain()">🔗 Add to Chain</button>
+          <button class="btn btn-secondary" onclick="resetForm()">🔄 Reset</button>
+        </div>
+        <div class="curl-section">
+          <h3 style="font-size:0.85rem;color:var(--text-muted);margin-bottom:8px;">cURL Command</h3>
+          <div class="curl-display" id="curlDisplay">
+            <button class="curl-copy" onclick="copyCurl()">📋 Copy</button>
+            <code id="curlCode"></code>
+          </div>
+        </div>
+      `;
+
+      builder.innerHTML = html;
+      setTimeout(() => {
+        const curlCode = document.getElementById('curlCode');
+        if (curlCode) curlCode.textContent = generateCurl();
+      }, 10);
+    }
+
+    function getParamSuggestions(param) {
+      if (param === 'log_id') return availableLogs;
+      if (param === 'model_id') return availableModels;
+      return [];
+    }
+
+    function fillParam(param, value) {
+      const input = document.getElementById(`param_${param}`);
+      if (input) {
+        input.value = value;
+        updateUrlPreview();
+      }
+    }
+
+    function updateUrlPreview() {
+      if (!currentEndpoint) return;
+      let url = currentEndpoint.path;
+
+      // Replace path params
+      if (currentEndpoint.pathParams) {
+        currentEndpoint.pathParams.forEach(param => {
+          const value = document.getElementById(`param_${param}`)?.value || `{${param}}`;
+          url = url.replace(`{${param}}`, value);
+        });
+      }
+
+      // Add query params
+      if (currentEndpoint.query) {
+        const queryParts = [];
+        currentEndpoint.query.forEach(param => {
+          const value = document.getElementById(`query_${param}`)?.value;
+          if (value) queryParts.push(`${param}=${encodeURIComponent(value)}`);
+        });
+        if (queryParts.length > 0) url += '?' + queryParts.join('&');
+      }
+
+      document.getElementById('urlPreview').textContent = url;
+    }
+
+    function updateFileDisplay() {
+      const input = document.getElementById('fileInput');
+      const display = document.getElementById('fileDisplay');
+      if (input.files.length > 0) {
+        display.textContent = input.files[0].name;
+        display.classList.add('has-file');
+      } else {
+        display.textContent = 'Click or drag to select file';
+        display.classList.remove('has-file');
+      }
+    }
+
+    function resetForm() {
+      renderRequestBuilder();
+    }
+
+    // ========================
+    // REQUEST EXECUTION
+    // ========================
+    async function executeRequest() {
+      if (!currentEndpoint) return;
+
+      let url = currentEndpoint.path;
+
+      // Replace path params
+      if (currentEndpoint.pathParams) {
+        for (const param of currentEndpoint.pathParams) {
+          const value = document.getElementById(`param_${param}`)?.value;
+          if (!value) {
+            showToast(`Missing required parameter: ${param}`);
+            return;
+          }
+          url = url.replace(`{${param}}`, value);
+        }
+      }
+
+      // Add query params
+      if (currentEndpoint.query) {
+        const queryParts = [];
+        currentEndpoint.query.forEach(param => {
+          const value = document.getElementById(`query_${param}`)?.value;
+          if (value) queryParts.push(`${param}=${encodeURIComponent(value)}`);
+        });
+        if (queryParts.length > 0) url += '?' + queryParts.join('&');
+      }
+
+      const startTime = Date.now();
+      let response, data, status;
+
+      try {
+        const options = { method: currentEndpoint.method, headers: {} };
+
+        if (currentEndpoint.file) {
+          const fileInput = document.getElementById('fileInput');
+          if (fileInput.files.length > 0) {
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            options.body = formData;
+          }
+        } else if (currentEndpoint.body) {
+          const bodyText = document.getElementById('requestBody')?.value;
+          if (bodyText) {
+            try {
+              options.body = bodyText;
+              options.headers['Content-Type'] = 'application/json';
+            } catch (e) {
+              showToast('Invalid JSON in request body');
+              return;
+            }
+          }
+        }
+
+        response = await fetch(url, options);
+        status = response.status;
+        
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          data = await response.json();
+        } else {
+          data = await response.text();
+        }
+      } catch (e) {
+        status = 0;
+        data = { error: e.message };
+      }
+
+      const duration = Date.now() - startTime;
+      lastResponse = data;
+
+      // Show response
+      showResponse(status, data, duration);
+
+      // Add to history
+      addToHistory({
+        method: currentEndpoint.method,
+        path: url,
+        description: currentEndpoint.description,
+        status,
+        duration,
+        timestamp: new Date().toISOString(),
+        request: currentEndpoint.body ? document.getElementById('requestBody')?.value : null,
+        response: data
+      });
+
+      // Refresh resources if we modified them
+      if (['POST', 'DELETE'].includes(currentEndpoint.method)) {
+        loadAvailableResources();
+      }
+    }
+
+    function showResponse(status, data, duration) {
+      const section = document.getElementById('responseSection');
+      section.style.display = 'block';
+
+      const statusBadge = document.getElementById('responseStatus');
+      statusBadge.textContent = status || 'Error';
+      statusBadge.className = 'status-badge ' + (status >= 200 && status < 300 ? 'success' : 'error');
+
+      document.getElementById('responseTime').textContent = `${duration}ms`;
+      document.getElementById('responseBody').textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+    }
+
+    function copyResponse() {
+      if (lastResponse) {
+        const text = typeof lastResponse === 'string' ? lastResponse : JSON.stringify(lastResponse, null, 2);
+        navigator.clipboard.writeText(text);
+        showToast('Copied to clipboard!');
+      }
+    }
+
+    // ========================
+    // HISTORY
+    // ========================
+    function addToHistory(entry) {
+      requestHistory.unshift(entry);
+      if (requestHistory.length > 100) requestHistory.pop();
+      localStorage.setItem('apiTestHistory', JSON.stringify(requestHistory));
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const container = document.getElementById('historyList');
+      
+      if (requestHistory.length === 0) {
+        container.innerHTML = '<div class="empty-state">No requests yet</div>';
+        return;
+      }
+
+      container.innerHTML = requestHistory.map((entry, idx) => `
+        <div class="history-item" onclick="showHistoryItem(${idx})">
+          <div class="history-item-header">
+            <span class="history-item-method method-badge ${entry.method.toLowerCase()}">${entry.method}</span>
+            <span class="history-item-status status-badge ${entry.status >= 200 && entry.status < 300 ? 'success' : 'error'}">${entry.status}</span>
+          </div>
+          <div class="history-item-path">${entry.path}</div>
+          <div class="history-item-time">${new Date(entry.timestamp).toLocaleTimeString()} · ${entry.duration}ms</div>
+        </div>
+      `).join('');
+    }
+
+    function showHistoryItem(index) {
+      const entry = requestHistory[index];
+      lastResponse = entry.response;
+      showResponse(entry.status, entry.response, entry.duration);
+    }
+
+    function exportHistory() {
+      const blob = new Blob([JSON.stringify(requestHistory, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `api-test-history-${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('History exported!');
+    }
+
+    function clearHistory() {
+      if (confirm('Clear all request history?')) {
+        requestHistory = [];
+        localStorage.removeItem('apiTestHistory');
+        renderHistory();
+        showToast('History cleared');
+      }
+    }
+
+    // ========================
+    // UTILITIES
+    // ========================
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    // ========================
+    // BULK OPERATIONS
+    // ========================
+    function toggleBulkSelect(category, index, event) {
+      if (event && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        const ep = ENDPOINTS[category][index];
+        const existing = bulkSelected.findIndex(b => b.category === category && b.index === index);
+        if (existing >= 0) {
+          bulkSelected.splice(existing, 1);
+        } else {
+          bulkSelected.push({ category, index, endpoint: ep });
+        }
+        updateBulkUI();
+        return true;
+      }
+      return false;
+    }
+
+    function updateBulkUI() {
+      document.querySelectorAll('.endpoint-item').forEach(el => {
+        const cat = el.dataset.category;
+        const idx = parseInt(el.dataset.index);
+        const isSelected = bulkSelected.some(b => b.category === cat && b.index === idx);
+        el.classList.toggle('selected', isSelected);
+      });
+      document.getElementById('bulkCount').textContent = bulkSelected.length;
+      document.getElementById('bulkBar').style.display = bulkSelected.length > 0 ? 'flex' : 'none';
+      document.getElementById('bulkEmpty').style.display = bulkSelected.length > 0 ? 'none' : 'block';
+    }
+
+    function renderBulkPanel() {
+      updateBulkUI();
+    }
+
+    function clearBulkSelection() {
+      bulkSelected = [];
+      updateBulkUI();
+      document.getElementById('bulkResults').innerHTML = '';
+    }
+
+    async function executeBulkRequests() {
+      if (bulkSelected.length === 0) return showToast('Select endpoints first');
+      const resultsDiv = document.getElementById('bulkResults');
+      resultsDiv.innerHTML = '<div style="color:var(--text-muted)">⏳ Executing...</div>';
+      
+      const results = await Promise.all(bulkSelected.map(async (item) => {
+        const ep = item.endpoint;
+        const start = Date.now();
+        try {
+          const res = await fetch(ep.path);
+          const data = await res.json().catch(() => res.text());
+          return { ep, status: res.status, duration: Date.now() - start, data, error: null };
+        } catch (e) {
+          return { ep, status: 0, duration: Date.now() - start, data: null, error: e.message };
+        }
+      }));
+
+      resultsDiv.innerHTML = results.map(r => `
+        <div class="bulk-result-item">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="method-badge ${r.ep.method.toLowerCase()}">${r.ep.method}</span>
+            <span style="font-size:0.8rem;">${r.ep.description}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span class="status-badge ${r.status >= 200 && r.status < 300 ? 'success' : 'error'}">${r.status || 'ERR'}</span>
+            <span style="font-size:0.75rem;color:var(--text-muted);">${r.duration}ms</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ========================
+    // CHAIN BUILDER
+    // ========================
+    function addToChain() {
+      if (!currentEndpoint) return showToast('Select an endpoint first');
+      chainSteps.push({ 
+        endpoint: { ...currentEndpoint }, 
+        mappings: {},
+        params: {},
+        result: null
+      });
+      showToast(`Added to chain: ${currentEndpoint.description}`);
+      renderChainBuilder();
+    }
+
+    function renderChainBuilder() {
+      const container = document.getElementById('chainSteps');
+      const actions = document.getElementById('chainActions');
+      
+      if (chainSteps.length === 0) {
+        container.innerHTML = '<div class="empty-state" id="chainEmpty"><p>🔗 Build a chain of sequential API calls</p><p style="margin-top:8px;font-size:0.8rem;color:var(--text-muted);">Click "Add to Chain" after configuring each endpoint</p></div>';
+        actions.style.display = 'none';
+        return;
+      }
+      
+      actions.style.display = 'flex';
+      container.innerHTML = chainSteps.map((step, idx) => {
+        const ep = step.endpoint;
+        const hasMapping = Object.keys(step.mappings).length > 0;
+        return `
+          <div class="chain-step ${step.result?.status ? (step.result.status >= 200 && step.result.status < 300 ? 'completed' : 'failed') : ''}" data-step="${idx}">
+            <span class="chain-step-num">${idx + 1}</span>
+            <div style="flex:1;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span class="method-badge ${ep.method.toLowerCase()}">${ep.method}</span>
+                <span style="font-size:0.85rem;">${ep.description}</span>
+                ${step.result ? `<span class="status-badge ${step.result.status >= 200 && step.result.status < 300 ? 'success' : 'error'}" style="margin-left:auto;">${step.result.status}</span>` : ''}
+              </div>
+              <div style="font-family:monospace;font-size:0.7rem;color:var(--text-muted);margin-top:4px;">${ep.path}</div>
+              ${hasMapping ? `<div class="chain-mapping">${Object.entries(step.mappings).map(([k,v]) => `${k}=${v}`).join(', ')}</div>` : ''}
+              ${ep.pathParams ? `<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">${ep.pathParams.map(p => `<input type="text" style="width:120px;padding:4px 8px;font-size:0.75rem;background:var(--bg-dark);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);" placeholder="${p}" value="${step.params[p] || ''}" onchange="updateChainParam(${idx},'${p}',this.value)" />`).join('')}</div>` : ''}
+            </div>
+            <button style="padding:4px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--text-muted);cursor:pointer;" onclick="removeChainStep(${idx})">✕</button>
+          </div>
+          ${idx < chainSteps.length - 1 ? '<div class="chain-arrow">↓</div>' : ''}
+        `;
+      }).join('');
+    }
+
+    function updateChainParam(stepIdx, param, value) {
+      chainSteps[stepIdx].params[param] = value;
+    }
+
+    function removeChainStep(idx) {
+      chainSteps.splice(idx, 1);
+      renderChainBuilder();
+    }
+
+    function clearChain() {
+      chainSteps = [];
+      renderChainBuilder();
+      document.getElementById('chainResults').innerHTML = '';
+    }
+
+    async function executeChain() {
+      if (chainSteps.length === 0) return;
+      const resultsDiv = document.getElementById('chainResults');
+      resultsDiv.innerHTML = '';
+      
+      let chainContext = {};
+      for (let i = 0; i < chainSteps.length; i++) {
+        const step = chainSteps[i];
+        let url = step.endpoint.path;
+        
+        // Replace path params
+        if (step.endpoint.pathParams) {
+          for (const p of step.endpoint.pathParams) {
+            let val = step.params[p] || '';
+            // Check for mapping syntax
+            val = interpolateValue(val, chainContext);
+            url = url.replace(`{${p}}`, val);
+          }
+        }
+        
+        document.querySelector(`[data-step="${i}"]`)?.classList.add('executing');
+        const start = Date.now();
+        
+        try {
+          const opts = { method: step.endpoint.method, headers: {} };
+          if (step.endpoint.body) {
+            let bodyStr = JSON.stringify(step.endpoint.body);
+            bodyStr = interpolateValue(bodyStr, chainContext);
+            opts.body = bodyStr;
+            opts.headers['Content-Type'] = 'application/json';
+          }
+          
+          const res = await fetch(url, opts);
+          const data = await res.json().catch(() => ({}));
+          step.result = { status: res.status, data, duration: Date.now() - start };
+          chainContext[`step${i+1}`] = data;
+        } catch (e) {
+          step.result = { status: 0, error: e.message, duration: Date.now() - start };
+        }
+        
+        document.querySelector(`[data-step="${i}"]`)?.classList.remove('executing');
+        renderChainBuilder();
+      }
+      
+      showToast('Chain execution complete');
+    }
+
+    function interpolateValue(str, context) {
+      return str.replace(/\{\{(step\d+)\.([^}]+)\}\}/g, (match, stepKey, path) => {
+        const data = context[stepKey];
+        if (!data) return match;
+        const parts = path.split('.');
+        let val = data;
+        for (const p of parts) { val = val?.[p]; }
+        return val ?? match;
+      });
+    }
+
+    function saveChain() {
+      const name = prompt('Chain name:');
+      if (!name) return;
+      const saved = JSON.parse(localStorage.getItem('savedChains') || '{}');
+      saved[name] = chainSteps.map(s => ({ endpoint: s.endpoint, mappings: s.mappings, params: s.params }));
+      localStorage.setItem('savedChains', JSON.stringify(saved));
+      showToast('Chain saved!');
+    }
+
+    function loadChainTemplate(type) {
+      const templates = {
+        discovery: [
+          { endpoint: ENDPOINTS['Event Logs'][0], params: {}, mappings: {} },
+          { endpoint: ENDPOINTS['Discovery'][2], params: { log_id: '{{step1.items.0.id}}' }, mappings: {} },
+        ],
+        conformance: [
+          { endpoint: ENDPOINTS['Event Logs'][0], params: {}, mappings: {} },
+          { endpoint: ENDPOINTS['Discovery'][1], params: {}, mappings: {} },
+          { endpoint: ENDPOINTS['Conformance'][0], params: {}, mappings: {} },
+        ],
+        full: [
+          { endpoint: ENDPOINTS['Event Logs'][0], params: {}, mappings: {} },
+          { endpoint: ENDPOINTS['Discovery'][2], params: { log_id: '{{step1.items.0.id}}' }, mappings: {} },
+          { endpoint: ENDPOINTS['Performance'][1], params: { log_id: '{{step1.items.0.id}}' }, mappings: {} },
+        ],
+      };
+      chainSteps = (templates[type] || []).map(t => ({ ...t, result: null }));
+      renderChainBuilder();
+      showToast(`Loaded ${type} template`);
+    }
+
+    // ========================
+    // CURL GENERATION
+    // ========================
+    function generateCurl() {
+      if (!currentEndpoint) return '';
+      let url = window.location.origin + currentEndpoint.path;
+      if (currentEndpoint.pathParams) {
+        currentEndpoint.pathParams.forEach(p => {
+          const val = document.getElementById(`param_${p}`)?.value || `{${p}}`;
+          url = url.replace(`{${p}}`, val);
+        });
+      }
+      if (currentEndpoint.query) {
+        const q = currentEndpoint.query.map(p => {
+          const val = document.getElementById(`query_${p}`)?.value;
+          return val ? `${p}=${encodeURIComponent(val)}` : null;
+        }).filter(Boolean);
+        if (q.length) url += '?' + q.join('&');
+      }
+      
+      let cmd = `curl -X ${currentEndpoint.method} '${url}'`;
+      if (currentEndpoint.body) {
+        const body = document.getElementById('requestBody')?.value || JSON.stringify(currentEndpoint.body);
+        cmd += ` \\\n  -H 'Content-Type: application/json' \\\n  -d '${body.replace(/'/g, "\\'")}'`;
+      }
+      return cmd;
+    }
+
+    function copyCurl() {
+      const curl = generateCurl();
+      navigator.clipboard.writeText(curl);
+      showToast('cURL copied!');
+    }
+  </script>
+</body>
+</html>
