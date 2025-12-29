@@ -40,6 +40,10 @@ htmlcov/
 .dmypy.json
 dmypy.json
 
+# Linters
+.ruff_cache/
+.import_linter_cache/
+
 # ========================
 # Node.js / TypeScript
 # ========================

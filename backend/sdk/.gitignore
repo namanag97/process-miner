@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Generated code (regenerate from OpenAPI spec)
+src/
+
+# Build output
+dist/
+
+# OpenAPI generator artifacts
+.openapi-generator/
+openapi.json
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
