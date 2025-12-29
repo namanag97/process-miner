@@ -1,24 +1,24 @@
 """Domain Value Objects - Immutable types representing domain concepts."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Optional
 from enum import Enum
+from typing import Optional
 
 
 class ProcessMiningError(Exception):
     """Base exception for domain errors."""
-    pass
+
 
 
 class ValidationError(ProcessMiningError):
     """Validation error in domain."""
-    pass
+
 
 
 class ActivityName(str):
     """Value object representing an activity name."""
-    
+
     def __new__(cls, value: str):
         if not value or not value.strip():
             raise ValidationError("Activity name cannot be empty")
@@ -28,7 +28,7 @@ class ActivityName(str):
 
 class ResourceId(str):
     """Value object representing a resource/user identifier."""
-    
+
     def __new__(cls, value: str):
         instance = super().__new__(cls, value.strip() if value else "unknown")
         return instance
@@ -37,20 +37,21 @@ class ResourceId(str):
 @dataclass(frozen=True)
 class Timestamp:
     """Value object representing an event timestamp."""
+
     value: datetime
-    
+
     def __post_init__(self):
         if self.value is None:
             raise ValidationError("Timestamp cannot be None")
-    
+
     @classmethod
     def now(cls) -> "Timestamp":
         return cls(datetime.utcnow())
-    
+
     @classmethod
     def from_string(cls, date_str: str, fmt: str = "%Y-%m-%d %H:%M:%S") -> "Timestamp":
         return cls(datetime.strptime(date_str, fmt))
-    
+
     def to_iso(self) -> str:
         return self.value.isoformat()
 
@@ -58,32 +59,33 @@ class Timestamp:
 @dataclass(frozen=True)
 class Duration:
     """Value object representing a time duration."""
+
     value: timedelta
-    
+
     @property
     def total_seconds(self) -> float:
         return self.value.total_seconds()
-    
+
     @property
     def total_minutes(self) -> float:
         return self.value.total_seconds() / 60
-    
+
     @property
     def total_hours(self) -> float:
         return self.value.total_seconds() / 3600
-    
+
     @property
     def total_days(self) -> float:
         return self.value.days + self.value.seconds / 86400
-    
+
     @classmethod
     def from_seconds(cls, seconds: float) -> "Duration":
         return cls(timedelta(seconds=seconds))
-    
+
     @classmethod
     def between(cls, start: Timestamp, end: Timestamp) -> "Duration":
         return cls(end.value - start.value)
-    
+
     def __str__(self) -> str:
         total = int(self.total_seconds)
         hours, remainder = divmod(total, 3600)
@@ -94,20 +96,21 @@ class Duration:
 @dataclass(frozen=True)
 class FitnessScore:
     """Value object representing conformance fitness (0.0 - 1.0)."""
+
     value: float
-    
+
     def __post_init__(self):
         if not 0.0 <= self.value <= 1.0:
             raise ValidationError(f"Fitness score must be between 0 and 1, got {self.value}")
-    
+
     @property
     def percentage(self) -> float:
         return self.value * 100
-    
+
     @property
     def is_perfect(self) -> bool:
         return self.value == 1.0
-    
+
     def __str__(self) -> str:
         return f"{self.percentage:.1f}%"
 
@@ -115,8 +118,9 @@ class FitnessScore:
 @dataclass(frozen=True)
 class PrecisionScore:
     """Value object representing conformance precision (0.0 - 1.0)."""
+
     value: float
-    
+
     def __post_init__(self):
         if not 0.0 <= self.value <= 1.0:
             raise ValidationError(f"Precision score must be between 0 and 1, got {self.value}")
@@ -125,17 +129,20 @@ class PrecisionScore:
 @dataclass(frozen=True)
 class GeneralizationScore:
     """Value object representing conformance generalization (0.0 - 1.0)."""
+
     value: float
 
 
 @dataclass(frozen=True)
 class SimplicityScore:
     """Value object representing model simplicity (0.0 - 1.0)."""
+
     value: float
 
 
 class MinerType(str, Enum):
     """Types of process discovery miners."""
+
     ALPHA = "alpha"
     ALPHA_PLUS = "alpha_plus"
     INDUCTIVE = "inductive"
@@ -146,6 +153,7 @@ class MinerType(str, Enum):
 
 class ModelFormat(str, Enum):
     """Process model output formats."""
+
     PETRI_NET = "petri_net"
     BPMN = "bpmn"
     PROCESS_TREE = "process_tree"
@@ -154,12 +162,14 @@ class ModelFormat(str, Enum):
 
 class ConformanceMethod(str, Enum):
     """Conformance checking methods."""
+
     TOKEN_REPLAY = "token_replay"
     ALIGNMENT = "alignment"
 
 
 class LogFormat(str, Enum):
     """Supported event log formats."""
+
     CSV = "csv"
     XES = "xes"
     PARQUET = "parquet"
@@ -168,13 +178,14 @@ class LogFormat(str, Enum):
 @dataclass(frozen=True)
 class ColumnMapping:
     """Mapping of CSV columns to event log fields."""
+
     case_id: str = "case:concept:name"
     activity: str = "concept:name"
     timestamp: str = "time:timestamp"
     resource: Optional[str] = None
     cost: Optional[str] = None
     transformation: Optional[str] = None  # Optional transformation rule
-    
+
     def to_dict(self) -> dict:
         return {
             "case:concept:name": self.case_id,
@@ -188,8 +199,10 @@ class ColumnMapping:
 # STATE ENUMS (Phase 2 Enhancement)
 # =============================================================================
 
+
 class EventLogState(str, Enum):
     """State machine for EventLog aggregate."""
+
     DRAFT = "draft"
     PARSING = "parsing"
     VALIDATING = "validating"
@@ -200,6 +213,7 @@ class EventLogState(str, Enum):
 
 class ProcessModelState(str, Enum):
     """State machine for ProcessModel aggregate."""
+
     DISCOVERING = "discovering"
     DISCOVERED = "discovered"
     ANNOTATED = "annotated"
@@ -209,6 +223,7 @@ class ProcessModelState(str, Enum):
 
 class ConformanceResultState(str, Enum):
     """State machine for ConformanceResult aggregate."""
+
     REQUESTED = "requested"
     PROCESSING = "processing"
     COMPLETED = "completed"
@@ -217,14 +232,16 @@ class ConformanceResultState(str, Enum):
 
 class DeviationType(str, Enum):
     """Types of conformance deviations."""
-    MISSING = "missing"           # Expected activity not found
-    UNEXPECTED = "unexpected"     # Activity not in model
-    WRONG_ORDER = "wrong_order"   # Activity in wrong sequence
+
+    MISSING = "missing"  # Expected activity not found
+    UNEXPECTED = "unexpected"  # Activity not in model
+    WRONG_ORDER = "wrong_order"  # Activity in wrong sequence
     WRONG_RESOURCE = "wrong_resource"  # Wrong resource performed activity
 
 
 class Severity(str, Enum):
     """Severity levels for issues and deviations."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -233,6 +250,7 @@ class Severity(str, Enum):
 
 class SourceType(str, Enum):
     """Source types for event logs."""
+
     UPLOAD = "upload"
     CONNECTOR = "connector"
     API = "api"
@@ -242,9 +260,11 @@ class SourceType(str, Enum):
 # NEW VALUE OBJECTS (Phase 2 Enhancement)
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class LogStatistics:
     """Statistics for an event log."""
+
     event_count: int
     case_count: int
     activity_count: int
@@ -253,7 +273,7 @@ class LogStatistics:
     date_range_start: Optional[datetime] = None
     date_range_end: Optional[datetime] = None
     avg_case_duration_seconds: Optional[float] = None
-    
+
     @classmethod
     def empty(cls) -> "LogStatistics":
         return cls(
@@ -267,12 +287,13 @@ class LogStatistics:
 @dataclass(frozen=True)
 class QualityIssue:
     """A single quality issue detected during validation."""
+
     issue_type: str
     message: str
     severity: Severity
     affected_rows: int = 0
     column: Optional[str] = None
-    
+
     def to_dict(self) -> dict:
         return {
             "issue_type": self.issue_type,
@@ -286,22 +307,23 @@ class QualityIssue:
 @dataclass(frozen=True)
 class QualityReport:
     """Quality assessment report for an event log."""
+
     completeness_score: float  # 0.0 - 1.0
-    validity_score: float      # 0.0 - 1.0
+    validity_score: float  # 0.0 - 1.0
     issues: tuple[QualityIssue, ...] = ()
-    
+
     @property
     def overall_score(self) -> float:
         """Calculate overall quality score."""
         return (self.completeness_score + self.validity_score) / 2
-    
+
     @property
     def is_valid(self) -> bool:
         """Check if log passes minimum quality threshold."""
         return self.overall_score >= 0.7 and not any(
             issue.severity == Severity.CRITICAL for issue in self.issues
         )
-    
+
     def to_dict(self) -> dict:
         return {
             "completeness_score": self.completeness_score,
@@ -315,13 +337,14 @@ class QualityReport:
 @dataclass(frozen=True)
 class Deviation:
     """A conformance deviation between log and model."""
+
     case_id: str
     deviation_type: DeviationType
     expected_activity: Optional[str] = None
     actual_activity: Optional[str] = None
     position: int = 0
     severity: Severity = Severity.MEDIUM
-    
+
     def to_dict(self) -> dict:
         return {
             "case_id": self.case_id,
@@ -336,12 +359,13 @@ class Deviation:
 @dataclass(frozen=True)
 class DeviationSummary:
     """Summary of deviations from conformance checking."""
+
     total_deviations: int
     deviations_by_type: dict[str, int]
     deviations_by_activity: dict[str, int]
     deviation_rate: float  # 0.0 - 1.0
     most_deviating_cases: tuple[str, ...] = ()
-    
+
     def to_dict(self) -> dict:
         return {
             "total_deviations": self.total_deviations,
@@ -355,12 +379,13 @@ class DeviationSummary:
 @dataclass(frozen=True)
 class FilterConfig:
     """Configuration for filtering during process discovery."""
+
     variant_threshold: Optional[float] = None  # 0.0 - 1.0, filter rare variants
-    activity_threshold: Optional[int] = None   # Min occurrences to include
-    path_threshold: Optional[int] = None       # Min path occurrences
+    activity_threshold: Optional[int] = None  # Min occurrences to include
+    path_threshold: Optional[int] = None  # Min path occurrences
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
-    
+
     def to_dict(self) -> dict:
         return {
             "variant_threshold": self.variant_threshold,
@@ -375,12 +400,14 @@ class FilterConfig:
 # TRANSITION / DFG VALUE OBJECTS (Process Perspective)
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class Transition:
     """
     Represents an edge in the Directly-Follows Graph (DFG).
     Maps to the Transition concept in the Process Mining Ontology.
     """
+
     source_activity: str
     target_activity: str
     frequency: int
@@ -388,12 +415,12 @@ class Transition:
     avg_duration_seconds: float = 0.0
     min_duration_seconds: float = 0.0
     max_duration_seconds: float = 0.0
-    
+
     @property
     def edge_key(self) -> str:
         """Unique key for this transition."""
         return f"{self.source_activity} -> {self.target_activity}"
-    
+
     def to_dict(self) -> dict:
         return {
             "source_activity": self.source_activity,
@@ -408,15 +435,17 @@ class Transition:
 
 class GatewayType(str, Enum):
     """Types of process gateways (routing logic)."""
-    XOR = "xor"      # Exclusive OR - one path
-    AND = "and"      # Parallel - all paths
-    OR = "or"        # Inclusive OR - one or more paths
+
+    XOR = "xor"  # Exclusive OR - one path
+    AND = "and"  # Parallel - all paths
+    OR = "or"  # Inclusive OR - one or more paths
 
 
 class GatewayDirection(str, Enum):
     """Direction of gateway in process flow."""
+
     SPLIT = "split"  # One input, multiple outputs
-    JOIN = "join"    # Multiple inputs, one output
+    JOIN = "join"  # Multiple inputs, one output
 
 
 @dataclass(frozen=True)
@@ -425,11 +454,12 @@ class Gateway:
     Represents a routing point in the process.
     Maps to the Gateway concept in the Process Mining Ontology.
     """
+
     activity: str  # Activity at which split/join occurs
     gateway_type: GatewayType
     direction: GatewayDirection
     branches: tuple[str, ...] = ()  # Connected activities
-    
+
     def to_dict(self) -> dict:
         return {
             "activity": self.activity,
@@ -441,6 +471,7 @@ class Gateway:
 
 class ActivityTypeEnum(str, Enum):
     """Types of process activities."""
+
     TASK = "task"
     DECISION = "decision"
     START = "start"
@@ -455,6 +486,7 @@ class ActivityTypeInfo:
     Rich activity type information.
     Maps to the ActivityType concept in the Process Mining Ontology.
     """
+
     name: str
     code: Optional[str] = None
     category: Optional[str] = None
@@ -464,7 +496,7 @@ class ActivityTypeInfo:
     occurrence_count: int = 0
     avg_processing_time_seconds: float = 0.0
     avg_cost: float = 0.0
-    
+
     def to_dict(self) -> dict:
         return {
             "name": self.name,
@@ -481,6 +513,7 @@ class ActivityTypeInfo:
 
 class VersionStatus(str, Enum):
     """Status of a version."""
+
     DRAFT = "draft"
     ACTIVE = "active"
     SUPERSEDED = "superseded"
@@ -493,20 +526,23 @@ class LogVersionInfo:
     Event log version metadata.
     Enables versioning of event log datasets.
     """
+
     version_number: int
     label: Optional[str] = None
     notes: Optional[str] = None
     status: VersionStatus = VersionStatus.DRAFT
     observation_start: Optional[datetime] = None
     observation_end: Optional[datetime] = None
-    
+
     def to_dict(self) -> dict:
         return {
             "version_number": self.version_number,
             "label": self.label,
             "notes": self.notes,
             "status": self.status.value,
-            "observation_start": self.observation_start.isoformat() if self.observation_start else None,
+            "observation_start": self.observation_start.isoformat()
+            if self.observation_start
+            else None,
             "observation_end": self.observation_end.isoformat() if self.observation_end else None,
         }
 
@@ -517,6 +553,7 @@ class VariantInfo:
     Enhanced variant information with performance metrics.
     Maps to the ProcessVariant concept in the ERD.
     """
+
     variant_hash: str
     activity_trace: str  # A->B->C->D format
     length: int
@@ -530,10 +567,13 @@ class VariantInfo:
     is_happy_path: bool = False
     is_compliant: bool = True
     rank: int = 0
-    
+
     @classmethod
-    def from_activities(cls, activities: tuple[str, ...], case_count: int, total_cases: int, rank: int = 0) -> "VariantInfo":
+    def from_activities(
+        cls, activities: tuple[str, ...], case_count: int, total_cases: int, rank: int = 0
+    ) -> "VariantInfo":
         import hashlib
+
         trace = "->".join(activities)
         variant_hash = hashlib.md5(trace.encode()).hexdigest()
         return cls(
@@ -544,7 +584,7 @@ class VariantInfo:
             frequency_percent=(case_count / total_cases * 100) if total_cases > 0 else 0.0,
             rank=rank,
         )
-    
+
     def to_dict(self) -> dict:
         return {
             "variant_hash": self.variant_hash,
@@ -567,10 +607,12 @@ class VariantInfo:
 # SLA VALUE OBJECTS (Time Perspective)
 # =============================================================================
 
+
 class SLAScope(str, Enum):
     """Scope of SLA application."""
-    CASE = "case"           # Applies to entire case duration
-    ACTIVITY = "activity"   # Applies to specific activity duration
+
+    CASE = "case"  # Applies to entire case duration
+    ACTIVITY = "activity"  # Applies to specific activity duration
     TRANSITION = "transition"  # Applies to time between activities
 
 
@@ -580,6 +622,7 @@ class SLADefinition:
     Service Level Agreement definition.
     Maps to the SLA concept in the Process Mining Ontology.
     """
+
     name: str
     target_duration_seconds: float
     warning_threshold_seconds: float
@@ -587,13 +630,15 @@ class SLADefinition:
     activity_name: Optional[str] = None  # Required if scope is ACTIVITY
     source_activity: Optional[str] = None  # Required if scope is TRANSITION
     target_activity: Optional[str] = None  # Required if scope is TRANSITION
-    
+
     def __post_init__(self):
         if self.scope == SLAScope.ACTIVITY and not self.activity_name:
             raise ValidationError("Activity name required for activity-scoped SLA")
-        if self.scope == SLAScope.TRANSITION and not (self.source_activity and self.target_activity):
+        if self.scope == SLAScope.TRANSITION and not (
+            self.source_activity and self.target_activity
+        ):
             raise ValidationError("Source and target activities required for transition-scoped SLA")
-    
+
     def to_dict(self) -> dict:
         return {
             "name": self.name,
@@ -609,6 +654,7 @@ class SLADefinition:
 @dataclass(frozen=True)
 class SLAStatus(str, Enum):
     """Status of SLA compliance."""
+
     MET = "met"
     WARNING = "warning"
     BREACHED = "breached"
@@ -617,20 +663,23 @@ class SLAStatus(str, Enum):
 @dataclass(frozen=True)
 class SLAResult:
     """Result of SLA check for a specific case."""
+
     case_id: str
     sla_name: str
     actual_duration_seconds: float
     target_duration_seconds: float
     status: str  # SLAStatus value
     exceeded_by_seconds: float = 0.0
-    
+
     @property
     def compliance_percentage(self) -> float:
         """How close to target (100% = exactly at target)."""
         if self.target_duration_seconds == 0:
             return 0.0
-        return min(100.0, (self.target_duration_seconds / max(self.actual_duration_seconds, 0.001)) * 100)
-    
+        return min(
+            100.0, (self.target_duration_seconds / max(self.actual_duration_seconds, 0.001)) * 100
+        )
+
     def to_dict(self) -> dict:
         return {
             "case_id": self.case_id,
@@ -647,12 +696,14 @@ class SLAResult:
 # RESOURCE PERSPECTIVE VALUE OBJECTS
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class ResourceProfile:
     """
     Profile of a resource/user in the process.
     Enhanced Resource concept from the Process Mining Ontology.
     """
+
     identifier: str
     name: Optional[str] = None
     role: Optional[str] = None
@@ -661,7 +712,7 @@ class ResourceProfile:
     total_cases: int = 0
     avg_activities_per_case: float = 0.0
     most_frequent_activities: tuple[str, ...] = ()
-    
+
     def to_dict(self) -> dict:
         return {
             "identifier": self.identifier,
@@ -681,17 +732,18 @@ class Handoff:
     Represents a resource handoff in the process.
     Maps to the Handoff concept in the Process Mining Ontology.
     """
+
     from_resource: str
     to_resource: str
     activity: str  # Activity at which handoff occurs
     frequency: int
     avg_handoff_time_seconds: float = 0.0
-    
+
     @property
     def handoff_key(self) -> str:
         """Unique key for this handoff."""
         return f"{self.from_resource} -> {self.to_resource} @ {self.activity}"
-    
+
     def to_dict(self) -> dict:
         return {
             "from_resource": self.from_resource,

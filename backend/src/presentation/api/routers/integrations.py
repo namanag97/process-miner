@@ -1,16 +1,17 @@
 """Integrations API Router."""
 
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from src.application.generic.integration_service import (
-    integration_service,
-    ConnectorType,
-)
-from src.presentation.api.routers.auth import require_auth, User
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
+from src.application.generic.integration_service import (
+    ConnectorType,
+    integration_service,
+)
+from src.presentation.api.routers.auth import User, require_auth
+from src.domain.constants import HttpStatus, DisplayLimits, PaginationDefaults
 
 router = APIRouter(prefix="/integrations")
 
@@ -67,16 +68,15 @@ async def create_connector(
         connector_type = ConnectorType(request.connector_type)
     except ValueError:
         raise HTTPException(
-            status_code=400,
-            detail=f"Invalid connector type: {request.connector_type}"
+            status_code=HttpStatus.BAD_REQUEST, detail=f"Invalid connector type: {request.connector_type}"
         )
-    
+
     config = integration_service.create_connector(
         name=request.name,
         connector_type=connector_type,
         settings=request.settings,
     )
-    
+
     return ConnectorResponse(**config.to_dict())
 
 
@@ -95,7 +95,7 @@ async def get_connector(
     """Get connector details."""
     config = integration_service.get_connector(connector_id)
     if not config:
-        raise HTTPException(status_code=404, detail="Connector not found")
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Connector not found")
     return ConnectorResponse(**config.to_dict())
 
 
@@ -107,7 +107,7 @@ async def delete_connector(
     """Delete a connector."""
     deleted = integration_service.delete_connector(connector_id)
     if not deleted:
-        raise HTTPException(status_code=404, detail="Connector not found")
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Connector not found")
     return {"message": "Connector deleted"}
 
 
@@ -119,7 +119,7 @@ async def connect(
     """Connect to external system."""
     success = await integration_service.connect(connector_id)
     if not success:
-        raise HTTPException(status_code=400, detail="Failed to connect")
+        raise HTTPException(status_code=HttpStatus.BAD_REQUEST, detail="Failed to connect")
     return {"message": "Connected"}
 
 
@@ -131,7 +131,7 @@ async def disconnect(
     """Disconnect from external system."""
     success = await integration_service.disconnect(connector_id)
     if not success:
-        raise HTTPException(status_code=400, detail="Failed to disconnect")
+        raise HTTPException(status_code=HttpStatus.BAD_REQUEST, detail="Failed to disconnect")
     return {"message": "Disconnected"}
 
 
@@ -169,7 +169,7 @@ async def get_tables(
         tables = await integration_service.get_available_tables(connector_id)
         return {"tables": tables}
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail=str(e))
 
 
 @router.post("/connectors/{connector_id}/fetch")
@@ -186,7 +186,7 @@ async def fetch_data(
         )
         return {"records": data, "count": len(data)}
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail=str(e))
 
 
 @router.get("/sync-history")

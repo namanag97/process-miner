@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compileOnSave": false,
+  "files": [],
+  "references": [
+    {
+      "path": "./apps/process-mining-e2e"
+    },
+    {
+      "path": "./apps/process-mining"
+    },
+    {
+      "path": "./libs/ui"
+    },
+    {
+      "path": "./libs/process-graph"
+    },
+    {
+      "path": "./libs/api"
+    },
+    {
+      "path": "./libs/design-tokens"
+    }
+  ]
+}

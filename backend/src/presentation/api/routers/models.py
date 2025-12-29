@@ -1,18 +1,18 @@
 """Process Models API Router."""
 
-from fastapi import APIRouter, HTTPException, Depends
-from fastapi.responses import Response
-from pydantic import BaseModel
-from typing import Optional, List
+from typing import List, Optional
 from uuid import UUID
 
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.application.core.discovery_service import discovery_service
 from src.infrastructure.persistence.database import get_session
 from src.infrastructure.persistence.repositories import ProcessModelRepository
-from src.application.core.discovery_service import discovery_service
-from src.presentation.api.routers.auth import require_auth, User
-
+from src.presentation.api.routers.auth import User, require_auth
+from src.domain.constants import HttpStatus, DisplayLimits, PaginationDefaults
 
 router = APIRouter(prefix="/models")
 
@@ -28,6 +28,7 @@ class ProcessModelResponse(BaseModel):
 
 class ModelUpdateRequest(BaseModel):
     """Request body for updating process model metadata."""
+
     name: Optional[str] = None
     description: Optional[str] = None
 
@@ -44,7 +45,7 @@ async def list_models(
     """
     repo = ProcessModelRepository(session)
     models = await repo.list_all(limit=limit, offset=offset)
-    
+
     return [
         ProcessModelResponse(
             id=str(m.id),
@@ -69,10 +70,10 @@ async def get_model(
     """
     repo = ProcessModelRepository(session)
     model = await repo.get_by_id(model_id)
-    
+
     if not model:
-        raise HTTPException(status_code=404, detail="Process model not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Process model not found")
+
     return ProcessModelResponse(
         id=str(model.id),
         name=model.name,
@@ -92,25 +93,25 @@ async def update_model(
 ):
     """
     Update process model metadata.
-    
+
     - **name**: New name for the process model
     - **description**: New description for the process model
     """
     repo = ProcessModelRepository(session)
     model = await repo.get_by_id(model_id)
-    
+
     if not model:
-        raise HTTPException(status_code=404, detail="Process model not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Process model not found")
+
     # Update fields
     if update.name is not None:
         model.name = update.name
     if update.description is not None:
         model.metadata["description"] = update.description
-    
+
     # Save changes
     await repo.save(model)
-    
+
     return ProcessModelResponse(
         id=str(model.id),
         name=model.name,
@@ -132,20 +133,20 @@ async def visualize_model(
     """
     repo = ProcessModelRepository(session)
     model = await repo.get_by_id(model_id)
-    
+
     if not model:
-        raise HTTPException(status_code=404, detail="Process model not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Process model not found")
+
     try:
         svg_bytes = discovery_service.visualize_model(model)
-        
+
         return Response(
             content=svg_bytes,
             media_type="image/svg+xml",
             headers={"Content-Disposition": f"inline; filename=model_{model_id}.svg"},
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Visualization failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"Visualization failed: {str(e)}")
 
 
 @router.delete("/{model_id}")
@@ -159,9 +160,8 @@ async def delete_model(
     """
     repo = ProcessModelRepository(session)
     deleted = await repo.delete(model_id)
-    
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Process model not found")
-    
-    return {"message": "Process model deleted successfully"}
 
+    if not deleted:
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Process model not found")
+
+    return {"message": "Process model deleted successfully"}

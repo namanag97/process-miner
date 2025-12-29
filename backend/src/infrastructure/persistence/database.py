@@ -1,15 +1,16 @@
 """SQLite database configuration and session management."""
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase
 from typing import AsyncGenerator
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
 
 from src.config import get_settings
 
 
 class Base(DeclarativeBase):
     """Base class for all ORM models."""
-    pass
+
 
 
 # Create async engine
@@ -33,6 +34,7 @@ async def init_database() -> None:
     async with engine.begin() as conn:
         # Import all models to register them with Base
         from src.infrastructure.persistence import models  # noqa: F401
+
         await conn.run_sync(Base.metadata.create_all)
 
 

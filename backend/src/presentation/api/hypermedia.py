@@ -4,13 +4,14 @@ This module provides utilities for adding hypermedia links to API responses,
 enabling self-describing APIs.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
+
 from pydantic import BaseModel, Field
 
 
 class Link(BaseModel):
     """Hypermedia link following HAL-like structure."""
-    
+
     href: str = Field(description="The URL of the linked resource")
     method: str = Field(default="GET", description="HTTP method for the link")
     title: Optional[str] = Field(default=None, description="Human-readable title")
@@ -20,11 +21,11 @@ class Link(BaseModel):
 
 class HypermediaLinks:
     """Builder for hypermedia links."""
-    
+
     def __init__(self, base_url: str = "/api/v1"):
         self.base_url = base_url
         self._links: Dict[str, Link] = {}
-    
+
     def add(
         self,
         rel: str,
@@ -41,21 +42,18 @@ class HypermediaLinks:
             templated=templated,
         )
         return self
-    
+
     def self_link(self, href: str) -> "HypermediaLinks":
         """Add self link."""
         return self.add("self", href)
-    
+
     def collection(self, href: str) -> "HypermediaLinks":
         """Add collection link."""
         return self.add("collection", href)
-    
+
     def build(self) -> Dict[str, Dict[str, Any]]:
         """Build links dictionary."""
-        return {
-            rel: link.model_dump(exclude_none=True)
-            for rel, link in self._links.items()
-        }
+        return {rel: link.model_dump(exclude_none=True) for rel, link in self._links.items()}
 
 
 def add_log_links(log_id: str) -> Dict[str, Dict[str, Any]]:
@@ -79,18 +77,27 @@ def add_model_links(model_id: str, log_id: Optional[str] = None) -> Dict[str, Di
     links = (
         HypermediaLinks()
         .self_link(f"/models/{model_id}")
-        .add("visualize", f"/models/{model_id}/visualize", title="Visualize Model", type="image/svg+xml")
+        .add(
+            "visualize",
+            f"/models/{model_id}/visualize",
+            title="Visualize Model",
+            type="image/svg+xml",
+        )
         .add("petri-net", f"/discovery/petri-net/{model_id}", title="Petri Net Structure")
         .add("process-tree", f"/discovery/process-tree/{model_id}", title="Process Tree")
         .add("update", f"/models/{model_id}", method="PATCH", title="Update Model")
         .add("delete", f"/models/{model_id}", method="DELETE", title="Delete Model")
         .collection("/models")
     )
-    
+
     if log_id:
         links.add("conformance", "/conformance/check", method="POST", title="Check Conformance")
-        links.add("quality", f"/discovery/model/{model_id}/quality?log_id={log_id}", title="Quality Metrics")
-    
+        links.add(
+            "quality",
+            f"/discovery/model/{model_id}/quality?log_id={log_id}",
+            title="Quality Metrics",
+        )
+
     return links.build()
 
 
@@ -102,14 +109,14 @@ def add_pagination_links(
 ) -> Dict[str, Dict[str, Any]]:
     """Generate pagination links."""
     links = HypermediaLinks()
-    
+
     links.self_link(f"{base_path}?page={page}&page_size={page_size}")
     links.add("first", f"{base_path}?page=1&page_size={page_size}")
     links.add("last", f"{base_path}?page={total_pages}&page_size={page_size}")
-    
+
     if page > 1:
         links.add("prev", f"{base_path}?page={page - 1}&page_size={page_size}")
     if page < total_pages:
         links.add("next", f"{base_path}?page={page + 1}&page_size={page_size}")
-    
+
     return links.build()

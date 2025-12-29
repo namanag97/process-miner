@@ -1,15 +1,14 @@
 """Pytest configuration and fixtures."""
 
-import pytest
 import asyncio
 from typing import AsyncGenerator
 
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+import pytest
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from src.main import app
 from src.infrastructure.persistence.database import Base, get_session
-
+from src.main import app
 
 # Test database URL (in-memory)
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -27,15 +26,15 @@ def event_loop():
 async def test_engine():
     """Create test database engine."""
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     yield engine
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-    
+
     await engine.dispose()
 
 
@@ -47,7 +46,7 @@ async def test_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
         class_=AsyncSession,
         expire_on_commit=False,
     )
-    
+
     async with session_maker() as session:
         yield session
 
@@ -55,16 +54,16 @@ async def test_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
 @pytest.fixture
 async def client(test_session) -> AsyncGenerator[AsyncClient, None]:
     """Create test client with database session override."""
-    
+
     async def override_get_session():
         yield test_session
-    
+
     app.dependency_overrides[get_session] = override_get_session
-    
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-    
+
     app.dependency_overrides.clear()
 
 
@@ -88,7 +87,7 @@ def sample_csv_content() -> bytes:
 @pytest.fixture
 def sample_csv_with_multiple_variants() -> bytes:
     """Sample CSV with multiple distinct process variants for testing.
-    
+
     Variants:
     1. Happy path: Register -> Examine Casually -> Check -> Decide -> Pay (3 cases)
     2. Rejection path: Register -> Examine Thoroughly -> Check -> Decide -> Reject (2 cases)
@@ -135,7 +134,7 @@ def sample_csv_with_multiple_variants() -> bytes:
 @pytest.fixture
 def sample_csv_with_bottleneck() -> bytes:
     """Sample CSV with clear bottleneck activity (Wait for Approval has long duration).
-    
+
     This data has a clear bottleneck at "Wait for Approval" activity
     with durations of 8+ hours to test bottleneck detection.
     """
@@ -174,11 +173,7 @@ async def discovered_model_id(client: AsyncClient, uploaded_log_id: str) -> str:
     """Discover a model from the uploaded log and return its ID."""
     response = await client.post(
         "/api/v1/discovery/discover",
-        json={
-            "log_id": uploaded_log_id,
-            "miner_type": "inductive",
-            "model_name": "Test Model"
-        }
+        json={"log_id": uploaded_log_id, "miner_type": "inductive", "model_name": "Test Model"},
     )
     assert response.status_code == 200
     return response.json()["model_id"]

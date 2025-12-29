@@ -1,23 +1,24 @@
 """Transitions API Router - DFG Edge Analysis."""
 
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List
 from uuid import UUID
 
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.application.core.transition_service import transition_service
 from src.infrastructure.persistence.database import get_session
 from src.infrastructure.persistence.repositories import EventLogRepository
-from src.application.core.transition_service import transition_service
-from src.presentation.api.routers.auth import require_auth, User
-
+from src.presentation.api.routers.auth import User, require_auth
+from src.domain.constants import HttpStatus, DisplayLimits, PaginationDefaults
 
 router = APIRouter(prefix="/transitions")
 
 
 class TransitionResponse(BaseModel):
     """Response model for a single transition."""
+
     source_activity: str
     target_activity: str
     frequency: int
@@ -29,6 +30,7 @@ class TransitionResponse(BaseModel):
 
 class TransitionsResponse(BaseModel):
     """Response model for transitions list."""
+
     log_id: str
     transitions: List[TransitionResponse]
     statistics: Dict[str, Any]
@@ -36,6 +38,7 @@ class TransitionsResponse(BaseModel):
 
 class GatewayResponse(BaseModel):
     """Response model for a gateway."""
+
     activity: str
     gateway_type: str
     direction: str
@@ -44,6 +47,7 @@ class GatewayResponse(BaseModel):
 
 class StartEndActivitiesResponse(BaseModel):
     """Response model for start/end activities."""
+
     start_activities: Dict[str, int]
     end_activities: Dict[str, int]
 
@@ -58,28 +62,28 @@ async def get_transitions(
 ):
     """
     Get all DFG transitions for an event log.
-    
+
     Returns transitions sorted by frequency (descending).
     """
     repo = EventLogRepository(session)
     log = await repo.get_by_id(log_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Event log not found")
+
     try:
         transitions = transition_service.compute_transitions(
             log,
             include_duration=include_duration,
         )
-        
+
         # Apply limit
         transitions = transitions[:limit]
-        
+
         # Get statistics
         all_transitions = transition_service.compute_transitions(log, include_duration=False)
         stats = transition_service.get_transition_statistics(all_transitions)
-        
+
         return TransitionsResponse(
             log_id=str(log_id),
             transitions=[
@@ -97,7 +101,7 @@ async def get_transitions(
             statistics=stats,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=str(e))
 
 
 @router.get("/{log_id}/gateways", response_model=List[GatewayResponse])
@@ -109,20 +113,20 @@ async def get_gateways(
 ):
     """
     Detect gateways (splits and joins) in the process.
-    
+
     Args:
         threshold: Minimum branches to consider a gateway (default: 2)
     """
     repo = EventLogRepository(session)
     log = await repo.get_by_id(log_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Event log not found")
+
     try:
         transitions = transition_service.compute_transitions(log, include_duration=False)
         gateways = transition_service.detect_gateways(transitions, threshold=threshold)
-        
+
         return [
             GatewayResponse(
                 activity=g.activity,
@@ -133,7 +137,7 @@ async def get_gateways(
             for g in gateways
         ]
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=str(e))
 
 
 @router.get("/{log_id}/start-end", response_model=StartEndActivitiesResponse)
@@ -147,20 +151,20 @@ async def get_start_end_activities(
     """
     repo = EventLogRepository(session)
     log = await repo.get_by_id(log_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Event log not found")
+
     try:
         start_acts = transition_service.get_start_activities(log)
         end_acts = transition_service.get_end_activities(log)
-        
+
         return StartEndActivitiesResponse(
             start_activities=start_acts,
             end_activities=end_acts,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=str(e))
 
 
 @router.get("/{log_id}/activity/{activity_name}")
@@ -175,17 +179,17 @@ async def get_activity_transitions(
     """
     repo = EventLogRepository(session)
     log = await repo.get_by_id(log_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Event log not found")
+
     try:
         all_transitions = transition_service.compute_transitions(log)
-        
+
         # Filter for transitions involving this activity
         incoming = [t.to_dict() for t in all_transitions if t.target_activity == activity_name]
         outgoing = [t.to_dict() for t in all_transitions if t.source_activity == activity_name]
-        
+
         return {
             "activity": activity_name,
             "incoming_transitions": incoming,
@@ -194,4 +198,4 @@ async def get_activity_transitions(
             "total_outgoing": sum(t["frequency"] for t in outgoing),
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=str(e))

@@ -1,13 +1,15 @@
 """Workflow API Router."""
 
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from src.application.generic.workflow_service import workflow_service, PipelineStatus
-from src.presentation.api.routers.auth import require_auth, User
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
+from src.application.generic.workflow_service import PipelineStatus
+from src.infrastructure.container import workflow_service
+from src.presentation.api.routers.auth import User, require_auth
+from src.domain.constants import HttpStatus, DisplayLimits, PaginationDefaults
 
 router = APIRouter(prefix="/workflows")
 
@@ -52,7 +54,7 @@ async def start_pipeline(
         )
         return PipelineResponse(**execution.to_dict())
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=HttpStatus.BAD_REQUEST, detail=str(e))
 
 
 @router.get("/executions", response_model=List[PipelineResponse])
@@ -67,8 +69,8 @@ async def list_executions(
         try:
             pipeline_status = PipelineStatus(status)
         except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
-    
+            raise HTTPException(status_code=HttpStatus.BAD_REQUEST, detail=f"Invalid status: {status}")
+
     executions = workflow_service.list_executions(status=pipeline_status, limit=limit)
     return [PipelineResponse(**e) for e in executions]
 
@@ -81,7 +83,7 @@ async def get_execution(
     """Get execution status."""
     status = workflow_service.get_execution_status(execution_id)
     if not status:
-        raise HTTPException(status_code=404, detail="Execution not found")
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Execution not found")
     return PipelineResponse(**status)
 
 
@@ -93,5 +95,5 @@ async def cancel_execution(
     """Cancel a running execution."""
     cancelled = workflow_service.cancel_execution(execution_id)
     if not cancelled:
-        raise HTTPException(status_code=400, detail="Cannot cancel execution")
+        raise HTTPException(status_code=HttpStatus.BAD_REQUEST, detail="Cannot cancel execution")
     return {"message": "Execution cancelled"}

@@ -1,13 +1,14 @@
 """Authentication API Router."""
 
-from fastapi import APIRouter, HTTPException, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, EmailStr
 from typing import Optional
 
-from src.application.generic.auth_service import auth_service, User
-from src.config import get_settings
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel, EmailStr
 
+from src.application.generic.auth_service import User, auth_service
+from src.config import get_settings
+from src.domain.constants import HttpStatus, DisplayLimits, PaginationDefaults
 
 router = APIRouter(prefix="/auth")
 security = HTTPBearer(auto_error=False)
@@ -33,34 +34,32 @@ class UserResponse(BaseModel):
 
 
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> Optional[User]:
     """Dependency to get current user from token."""
     settings = get_settings()
-    
+
     if not settings.auth_enabled:
         # Return mock user when auth disabled
         return auth_service.get_current_user("")
-    
+
     if not credentials:
         return None
-    
+
     return auth_service.get_user_from_token(credentials.credentials)
 
 
-async def require_auth(
-    user: Optional[User] = Depends(get_current_user)
-) -> User:
+async def require_auth(user: Optional[User] = Depends(get_current_user)) -> User:
     """Dependency that requires authentication."""
     settings = get_settings()
-    
+
     if not settings.auth_enabled:
         # Return mock user when auth disabled
         return auth_service.get_current_user("")
-    
+
     if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
+        raise HTTPException(status_code=HttpStatus.UNAUTHORIZED, detail="Not authenticated")
+
     return user
 
 
@@ -71,10 +70,10 @@ async def login(request: LoginRequest):
     Returns JWT access token.
     """
     result = auth_service.login(request.email, request.password)
-    
+
     if "error" in result:
-        raise HTTPException(status_code=401, detail=result["error"])
-    
+        raise HTTPException(status_code=HttpStatus.UNAUTHORIZED, detail=result["error"])
+
     return LoginResponse(**result)
 
 

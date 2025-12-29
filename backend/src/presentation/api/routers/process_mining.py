@@ -1,17 +1,17 @@
 """Process Mining API Router - Advanced PM4Py Capabilities."""
 
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.application.core.pm4py_service import pm4py_service
 from src.infrastructure.persistence.database import get_session
 from src.infrastructure.persistence.repositories import EventLogRepository
-from src.application.core.pm4py_service import pm4py_service
-from src.presentation.api.routers.auth import require_auth, User
-
+from src.presentation.api.routers.auth import User, require_auth
+from src.domain.constants import HttpStatus, DisplayLimits, PaginationDefaults
 
 router = APIRouter(prefix="/process-mining")
 
@@ -101,19 +101,19 @@ async def get_footprints(
     """
     repo = EventLogRepository(session)
     log = await repo.get_by_id(log_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Event log not found")
+
     try:
         result = pm4py_service.discover_footprints(log)
         if "error" in result:
-            raise HTTPException(status_code=500, detail=result["error"])
+            raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=result["error"])
         return result
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Footprints analysis failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"Footprints analysis failed: {str(e)}")
 
 
 @router.get("/log-skeleton/{log_id}")
@@ -128,19 +128,19 @@ async def get_log_skeleton(
     """
     repo = EventLogRepository(session)
     log = await repo.get_by_id(log_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Event log not found")
+
     try:
         result = pm4py_service.discover_log_skeleton(log)
         if "error" in result:
-            raise HTTPException(status_code=500, detail=result["error"])
+            raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=result["error"])
         return result
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Log skeleton analysis failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"Log skeleton analysis failed: {str(e)}")
 
 
 @router.get("/sna/{log_id}")
@@ -152,16 +152,16 @@ async def get_social_network_analysis(
 ):
     """
     Get Social Network Analysis.
-    
+
     Args:
         network_type: "handover" or "working_together"
     """
     repo = EventLogRepository(session)
     log = await repo.get_by_id(log_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Event log not found")
+
     try:
         if network_type == "handover":
             result = pm4py_service.calculate_sna_handover(log)
@@ -169,17 +169,16 @@ async def get_social_network_analysis(
             result = pm4py_service.calculate_sna_working_together(log)
         else:
             raise HTTPException(
-                status_code=400,
-                detail="Invalid network_type. Use 'handover' or 'working_together'"
+                status_code=HttpStatus.BAD_REQUEST, detail="Invalid network_type. Use 'handover' or 'working_together'"
             )
-        
+
         if "error" in result:
-            raise HTTPException(status_code=500, detail=result["error"])
+            raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=result["error"])
         return result
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"SNA failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"SNA failed: {str(e)}")
 
 
 @router.get("/roles/{log_id}")
@@ -193,19 +192,19 @@ async def get_organizational_roles(
     """
     repo = EventLogRepository(session)
     log = await repo.get_by_id(log_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Event log not found")
+
     try:
         result = pm4py_service.discover_organizational_roles(log)
         if "error" in result:
-            raise HTTPException(status_code=500, detail=result["error"])
+            raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=result["error"])
         return result
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Roles discovery failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"Roles discovery failed: {str(e)}")
 
 
 @router.get("/batches/{log_id}")
@@ -219,19 +218,19 @@ async def detect_batches(
     """
     repo = EventLogRepository(session)
     log = await repo.get_by_id(log_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Event log not found")
+
     try:
         result = pm4py_service.detect_batches(log)
         if "error" in result:
-            raise HTTPException(status_code=500, detail=result["error"])
+            raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=result["error"])
         return result
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Batch detection failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"Batch detection failed: {str(e)}")
 
 
 @router.get("/transition-system/{log_id}")
@@ -245,19 +244,19 @@ async def get_transition_system(
     """
     repo = EventLogRepository(session)
     log = await repo.get_by_id(log_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Event log not found")
+
     try:
         result = pm4py_service.build_transition_system(log)
         if "error" in result:
-            raise HTTPException(status_code=500, detail=result["error"])
+            raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=result["error"])
         return result
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Transition system failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"Transition system failed: {str(e)}")
 
 
 @router.get("/process-tree/{log_id}")
@@ -271,19 +270,19 @@ async def get_process_tree(
     """
     repo = EventLogRepository(session)
     log = await repo.get_by_id(log_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Event log not found")
+
     try:
         result = pm4py_service.discover_process_tree(log)
         if "error" in result:
-            raise HTTPException(status_code=500, detail=result["error"])
+            raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=result["error"])
         return result
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Process tree discovery failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"Process tree discovery failed: {str(e)}")
 
 
 @router.get("/duration-stats/{log_id}")
@@ -297,19 +296,19 @@ async def get_case_duration_statistics(
     """
     repo = EventLogRepository(session)
     log = await repo.get_by_id(log_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Event log not found")
+
     try:
         result = pm4py_service.get_case_duration_statistics(log)
         if "error" in result:
-            raise HTTPException(status_code=500, detail=result["error"])
+            raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=result["error"])
         return result
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Duration stats failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"Duration stats failed: {str(e)}")
 
 
 @router.get("/arrival-rate/{log_id}")
@@ -323,19 +322,19 @@ async def get_case_arrival_rate(
     """
     repo = EventLogRepository(session)
     log = await repo.get_by_id(log_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Event log not found")
+
     try:
         result = pm4py_service.get_case_arrival_rate(log)
         if "error" in result:
-            raise HTTPException(status_code=500, detail=result["error"])
+            raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=result["error"])
         return result
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Arrival rate calculation failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"Arrival rate calculation failed: {str(e)}")
 
 
 @router.get("/comprehensive/{log_id}")
@@ -350,15 +349,15 @@ async def get_comprehensive_analysis(
     """
     repo = EventLogRepository(session)
     log = await repo.get_by_id(log_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Event log not found")
+
     try:
         result = pm4py_service.get_comprehensive_analysis(log)
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Comprehensive analysis failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"Comprehensive analysis failed: {str(e)}")
 
 
 @router.get("/variants/{log_id}")
@@ -373,15 +372,15 @@ async def get_variants(
     """
     repo = EventLogRepository(session)
     log = await repo.get_by_id(log_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Event log not found")
+
     try:
         result = pm4py_service.get_variants(log, top_n)
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Variants analysis failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"Variants analysis failed: {str(e)}")
 
 
 @router.get("/start-activities/{log_id}")
@@ -395,15 +394,15 @@ async def get_start_activities(
     """
     repo = EventLogRepository(session)
     log = await repo.get_by_id(log_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Event log not found")
+
     try:
         result = pm4py_service.get_start_activities(log)
         return {"start_activities": result}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Start activities failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"Start activities failed: {str(e)}")
 
 
 @router.get("/end-activities/{log_id}")
@@ -417,12 +416,12 @@ async def get_end_activities(
     """
     repo = EventLogRepository(session)
     log = await repo.get_by_id(log_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Event log not found")
+
     try:
         result = pm4py_service.get_end_activities(log)
         return {"end_activities": result}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"End activities failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"End activities failed: {str(e)}")

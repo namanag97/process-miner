@@ -102,3 +102,49 @@ exclude = [
 [tool.bandit]
 exclude_dirs = ["tests", ".venv"]
 skips = ["B101"]  # Skip assert warnings in tests
+
+# =============================================================================
+# Import Linter - Clean Architecture Enforcement
+# =============================================================================
+# Architecture Layers (inner → outer, dependencies flow outward only):
+#   domain       → Pure business logic, entities, value objects (NO external deps)
+#   application  → Use cases, services (depends on domain)
+#   infrastructure → DB, external APIs, messaging (depends on domain, application)  
+#   presentation → API routers, DTOs (depends on all layers)
+# =============================================================================
+
+[tool.importlinter]
+root_package = "src"
+include_external_packages = false
+
+# Contract 1: Layered Architecture - Dependencies must flow outward
+[[tool.importlinter.contracts]]
+name = "Layered Architecture"
+type = "layers"
+layers = [
+    "src.presentation",
+    "src.infrastructure", 
+    "src.application",
+    "src.domain",
+]
+# Outer layers can import from inner layers, but not vice versa
+
+# Contract 2: Domain layer must be pure (no infrastructure dependencies)
+[[tool.importlinter.contracts]]
+name = "Domain Independence"
+type = "forbidden"
+source_modules = ["src.domain"]
+forbidden_modules = [
+    "src.infrastructure",
+    "src.presentation",
+    "sqlalchemy",
+    "fastapi",
+    "httpx",
+]
+
+# Contract 3: Application layer cannot depend on presentation
+[[tool.importlinter.contracts]]
+name = "Application Independence from Presentation"
+type = "forbidden"
+source_modules = ["src.application"]
+forbidden_modules = ["src.presentation"]

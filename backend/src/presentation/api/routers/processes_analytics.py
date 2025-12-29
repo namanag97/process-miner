@@ -1,15 +1,18 @@
 """Processes Analytics Sub-Router."""
 
-from fastapi import APIRouter, HTTPException, Depends, Query
-from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.application.core.prediction_service import prediction_service
+from src.application.support.analytics_service import analytics_service
 from src.infrastructure.persistence.database import get_session
 from src.infrastructure.persistence.repositories import EventLogRepository
-from src.application.support.analytics_service import analytics_service
-from src.application.core.prediction_service import prediction_service
-from src.presentation.api.routers.auth import require_auth, User
+from src.presentation.api.routers.auth import User, require_auth
+from src.domain.constants import HttpStatus, DisplayLimits, PaginationDefaults
 
 router = APIRouter()
 
@@ -61,7 +64,7 @@ async def get_dashboard(
     repo = EventLogRepository(session)
     log = await repo.get_by_id(process_id)
     if not log:
-        raise HTTPException(status_code=404, detail="Process not found")
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Process not found")
     data = analytics_service.get_dashboard_data(log)
     return DashboardResponse(**data)
 
@@ -76,7 +79,7 @@ async def get_variant_statistics(
     repo = EventLogRepository(session)
     log = await repo.get_by_id(process_id)
     if not log:
-        raise HTTPException(status_code=404, detail="Process not found")
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Process not found")
     stats = analytics_service.get_variant_statistics(log, top_n)
     return VariantStatsResponse(**stats)
 
@@ -90,7 +93,7 @@ async def get_resource_statistics(
     repo = EventLogRepository(session)
     log = await repo.get_by_id(process_id)
     if not log:
-        raise HTTPException(status_code=404, detail="Process not found")
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Process not found")
     stats = analytics_service.get_resource_statistics(log)
     return ResourceStatsResponse(**stats)
 
@@ -105,7 +108,7 @@ async def get_time_analysis(
     repo = EventLogRepository(session)
     log = await repo.get_by_id(process_id)
     if not log:
-        raise HTTPException(status_code=404, detail="Process not found")
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Process not found")
     analysis = analytics_service.get_time_analysis(log, granularity)
     return TimeAnalysisResponse(**analysis)
 
@@ -119,7 +122,7 @@ async def get_insights(
     repo = EventLogRepository(session)
     log = await repo.get_by_id(process_id)
     if not log:
-        raise HTTPException(status_code=404, detail="Process not found")
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Process not found")
     insights = prediction_service.get_process_insights(log)
     return InsightsResponse(**insights)
 
@@ -134,6 +137,6 @@ async def detect_anomalies(
     repo = EventLogRepository(session)
     log = await repo.get_by_id(process_id)
     if not log:
-        raise HTTPException(status_code=404, detail="Process not found")
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Process not found")
     anomalies = prediction_service.detect_anomalies(log, threshold)
     return [AnomalyResponse(**a) for a in anomalies]
