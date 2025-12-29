@@ -1,18 +1,19 @@
 """Notifications API Router."""
 
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+
 from src.application.generic.notification_service import (
-    notification_service,
     NotificationChannel,
     NotificationPriority,
     NotificationStatus,
+    notification_service,
 )
-from src.presentation.api.routers.auth import require_auth, User
-
+from src.presentation.api.routers.auth import User, require_auth
+from src.domain.constants import HttpStatus, DisplayLimits, PaginationDefaults
 
 router = APIRouter(prefix="/notifications")
 
@@ -60,8 +61,8 @@ async def send_notification(
         channel = NotificationChannel(request.channel)
         priority = NotificationPriority(request.priority)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    
+        raise HTTPException(status_code=HttpStatus.BAD_REQUEST, detail=str(e))
+
     notification = await notification_service.send(
         channel=channel,
         recipient=request.recipient,
@@ -70,7 +71,7 @@ async def send_notification(
         priority=priority,
         metadata=request.metadata,
     )
-    
+
     return NotificationResponse(**notification.to_dict())
 
 
@@ -85,26 +86,26 @@ async def list_notifications(
     """List notifications with optional filters."""
     channel_enum = None
     status_enum = None
-    
+
     if channel:
         try:
             channel_enum = NotificationChannel(channel)
         except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid channel: {channel}")
-    
+            raise HTTPException(status_code=HttpStatus.BAD_REQUEST, detail=f"Invalid channel: {channel}")
+
     if status:
         try:
             status_enum = NotificationStatus(status)
         except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
-    
+            raise HTTPException(status_code=HttpStatus.BAD_REQUEST, detail=f"Invalid status: {status}")
+
     notifications = notification_service.get_notifications(
         recipient=recipient,
         channel=channel_enum,
         status=status_enum,
         limit=limit,
     )
-    
+
     return [NotificationResponse(**n) for n in notifications]
 
 
@@ -112,7 +113,7 @@ async def list_notifications(
 async def list_channels(user: User = Depends(require_auth)):
     """
     List available notification channels.
-    
+
     Returns the supported notification delivery channels:
     - **email**: Traditional email notifications
     - **slack**: Slack workspace notifications
@@ -137,7 +138,7 @@ async def get_notification(
     """Get notification by ID."""
     notification = notification_service.get_notification(notification_id)
     if not notification:
-        raise HTTPException(status_code=404, detail="Notification not found")
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Notification not found")
     return NotificationResponse(**notification.to_dict())
 
 
@@ -150,14 +151,14 @@ async def subscribe_to_events(
     try:
         channel = NotificationChannel(request.channel)
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid channel: {request.channel}")
-    
+        raise HTTPException(status_code=HttpStatus.BAD_REQUEST, detail=f"Invalid channel: {request.channel}")
+
     notification_service.subscribe(
         event_type=request.event_type,
         channel=channel,
         recipient=request.recipient,
     )
-    
+
     return {"message": f"Subscribed to {request.event_type}"}
 
 
@@ -170,15 +171,12 @@ async def configure_channel(
     try:
         channel = NotificationChannel(request.channel)
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid channel: {request.channel}")
-    
+        raise HTTPException(status_code=HttpStatus.BAD_REQUEST, detail=f"Invalid channel: {request.channel}")
+
     notification_service.configure_channel(
         channel=channel,
         settings=request.settings,
         enabled=request.enabled,
     )
-    
+
     return {"message": f"Channel {request.channel} configured"}
-
-
-

@@ -3,14 +3,13 @@
 import json
 import time
 import uuid
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Callable, Set
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
-from starlette.types import Message
 
 from src.infrastructure.logging.logger_config import get_api_logger
-
 
 # Sensitive fields to mask in logs
 SENSITIVE_FIELDS: Set[str] = {
@@ -39,10 +38,10 @@ EXCLUDED_PATHS: Set[str] = {
 def mask_sensitive_data(data: Any) -> Any:
     """
     Recursively mask sensitive fields in data.
-    
+
     Args:
         data: Data to mask (dict, list, or primitive)
-    
+
     Returns:
         Data with sensitive fields masked
     """
@@ -70,7 +69,7 @@ def truncate_body(body: str, max_length: int = 2000) -> str:
 class RequestResponseLoggingMiddleware(BaseHTTPMiddleware):
     """
     Middleware that logs all HTTP request/response details.
-    
+
     Features:
     - Logs request method, path, headers, query params, body
     - Logs response status code, duration, body size
@@ -78,7 +77,7 @@ class RequestResponseLoggingMiddleware(BaseHTTPMiddleware):
     - Generates unique request ID for tracing
     - Supports configurable body logging
     """
-    
+
     def __init__(
         self,
         app,
@@ -88,7 +87,7 @@ class RequestResponseLoggingMiddleware(BaseHTTPMiddleware):
     ):
         """
         Initialize the logging middleware.
-        
+
         Args:
             app: The Starlette/FastAPI application
             log_request_body: Whether to log request bodies
@@ -100,28 +99,28 @@ class RequestResponseLoggingMiddleware(BaseHTTPMiddleware):
         self.log_response_body = log_response_body
         self.max_body_length = max_body_length
         self.logger = get_api_logger()
-    
+
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Process the request and log details."""
         # Generate unique request ID
         request_id = str(uuid.uuid4())[:8]
-        
+
         # Skip detailed logging for excluded paths
         if request.url.path in EXCLUDED_PATHS:
             return await call_next(request)
-        
+
         # Start timing
         start_time = time.perf_counter()
-        
+
         # Extract client IP
         client_ip = request.client.host if request.client else "unknown"
-        
+
         # Extract user ID from state if authenticated
         user_id = None
-        
+
         # Extract query parameters
         query_params = dict(request.query_params)
-        
+
         # Extract request body if enabled
         request_body = None
         if self.log_request_body and request.method in ("POST", "PUT", "PATCH"):
@@ -131,8 +130,7 @@ class RequestResponseLoggingMiddleware(BaseHTTPMiddleware):
                     try:
                         body_json = json.loads(body_bytes)
                         request_body = truncate_body(
-                            json.dumps(mask_sensitive_data(body_json)),
-                            self.max_body_length
+                            json.dumps(mask_sensitive_data(body_json)), self.max_body_length
                         )
                     except json.JSONDecodeError:
                         # Not JSON, log as string
@@ -140,7 +138,7 @@ class RequestResponseLoggingMiddleware(BaseHTTPMiddleware):
                         request_body = truncate_body(body_str, self.max_body_length)
             except Exception:
                 request_body = "[Could not read body]"
-        
+
         # Process request
         response = None
         error_msg = None
@@ -152,17 +150,17 @@ class RequestResponseLoggingMiddleware(BaseHTTPMiddleware):
         finally:
             # Calculate duration
             duration_ms = (time.perf_counter() - start_time) * 1000
-            
+
             # Extract response info
             status_code = response.status_code if response else 500
-            
+
             # Extract response body if enabled (requires reading the response)
             response_body = None
             if self.log_response_body and response:
                 # Note: Reading response body is complex and may affect streaming
                 # responses. For simplicity, we skip it unless explicitly needed.
                 pass
-            
+
             # Determine log level based on status code
             if status_code >= 500:
                 log_level = self.logger.error
@@ -170,7 +168,7 @@ class RequestResponseLoggingMiddleware(BaseHTTPMiddleware):
                 log_level = self.logger.warning
             else:
                 log_level = self.logger.info
-            
+
             # Create log record with extra fields
             log_level(
                 f"{request.method} {request.url.path}",
@@ -188,5 +186,5 @@ class RequestResponseLoggingMiddleware(BaseHTTPMiddleware):
                     "error": error_msg,
                 },
             )
-        
+
         return response

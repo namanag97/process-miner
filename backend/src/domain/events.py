@@ -2,16 +2,17 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from uuid import UUID, uuid4
 from typing import Any, Optional
+from uuid import UUID, uuid4
 
 
 @dataclass
 class DomainEvent:
     """Base class for domain events."""
+
     event_id: UUID = field(default_factory=uuid4)
     occurred_at: datetime = field(default_factory=datetime.utcnow)
-    
+
     @property
     def event_type(self) -> str:
         return self.__class__.__name__
@@ -21,9 +22,11 @@ class DomainEvent:
 # EVENT LOG LIFECYCLE EVENTS
 # =============================================================================
 
+
 @dataclass
 class LogUploadStarted(DomainEvent):
     """Event: Log upload has started."""
+
     log_id: UUID = field(default_factory=uuid4)
     log_name: str = ""
     source_type: str = "upload"
@@ -33,6 +36,7 @@ class LogUploadStarted(DomainEvent):
 @dataclass
 class LogUploadCompleted(DomainEvent):
     """Event: Log upload has completed."""
+
     log_id: UUID = field(default_factory=uuid4)
     storage_location: str = ""
 
@@ -40,12 +44,14 @@ class LogUploadCompleted(DomainEvent):
 @dataclass
 class LogParsingStarted(DomainEvent):
     """Event: Log parsing has started."""
+
     log_id: UUID = field(default_factory=uuid4)
 
 
 @dataclass
 class LogParsingCompleted(DomainEvent):
     """Event: Log parsing has completed with statistics."""
+
     log_id: UUID = field(default_factory=uuid4)
     event_count: int = 0
     case_count: int = 0
@@ -56,6 +62,7 @@ class LogParsingCompleted(DomainEvent):
 @dataclass
 class LogIngested(DomainEvent):
     """Event: An event log has been successfully ingested (legacy compatibility)."""
+
     log_id: UUID = field(default_factory=uuid4)
     log_name: str = ""
     total_cases: int = 0
@@ -66,6 +73,7 @@ class LogIngested(DomainEvent):
 @dataclass
 class LogValidationCompleted(DomainEvent):
     """Event: Log validation has completed successfully."""
+
     log_id: UUID = field(default_factory=uuid4)
     completeness_score: float = 1.0
     validity_score: float = 1.0
@@ -75,6 +83,7 @@ class LogValidationCompleted(DomainEvent):
 @dataclass
 class LogValidationFailed(DomainEvent):
     """Event: Log validation has failed."""
+
     log_id: UUID = field(default_factory=uuid4)
     error_message: str = ""
     critical_issues: int = 0
@@ -83,6 +92,7 @@ class LogValidationFailed(DomainEvent):
 @dataclass
 class LogReady(DomainEvent):
     """Event: Log is ready for analysis."""
+
     log_id: UUID = field(default_factory=uuid4)
     log_name: str = ""
     event_count: int = 0
@@ -92,6 +102,7 @@ class LogReady(DomainEvent):
 @dataclass
 class LogArchived(DomainEvent):
     """Event: Log has been archived."""
+
     log_id: UUID = field(default_factory=uuid4)
     log_name: str = ""
 
@@ -99,6 +110,7 @@ class LogArchived(DomainEvent):
 @dataclass
 class LogDeleted(DomainEvent):
     """Event: An event log has been deleted."""
+
     log_id: UUID = field(default_factory=uuid4)
     log_name: str = ""
 
@@ -107,9 +119,11 @@ class LogDeleted(DomainEvent):
 # PROCESS DISCOVERY EVENTS
 # =============================================================================
 
+
 @dataclass
 class DiscoveryRequested(DomainEvent):
     """Event: Process discovery has been requested."""
+
     log_id: UUID = field(default_factory=uuid4)
     algorithm: str = ""
     parameters: dict[str, Any] = field(default_factory=dict)
@@ -118,6 +132,7 @@ class DiscoveryRequested(DomainEvent):
 @dataclass
 class DiscoveryStarted(DomainEvent):
     """Event: Process discovery has started."""
+
     model_id: UUID = field(default_factory=uuid4)
     log_id: UUID = field(default_factory=uuid4)
     algorithm: str = ""
@@ -126,6 +141,7 @@ class DiscoveryStarted(DomainEvent):
 @dataclass
 class ModelDiscovered(DomainEvent):
     """Event: A process model has been discovered from a log."""
+
     model_id: UUID = field(default_factory=uuid4)
     model_name: str = ""
     source_log_id: UUID = field(default_factory=uuid4)
@@ -136,6 +152,7 @@ class ModelDiscovered(DomainEvent):
 @dataclass
 class DiscoveryFailed(DomainEvent):
     """Event: Process discovery has failed."""
+
     model_id: UUID = field(default_factory=uuid4)
     log_id: UUID = field(default_factory=uuid4)
     error_message: str = ""
@@ -144,6 +161,7 @@ class DiscoveryFailed(DomainEvent):
 @dataclass
 class ModelAnnotated(DomainEvent):
     """Event: Model has been annotated with frequency or performance data."""
+
     model_id: UUID = field(default_factory=uuid4)
     annotation_type: str = ""  # frequency, performance
 
@@ -151,6 +169,7 @@ class ModelAnnotated(DomainEvent):
 @dataclass
 class ModelImported(DomainEvent):
     """Event: A process model has been imported from a file."""
+
     model_id: UUID = field(default_factory=uuid4)
     model_name: str = ""
     model_format: str = ""
@@ -160,6 +179,7 @@ class ModelImported(DomainEvent):
 @dataclass
 class ModelExported(DomainEvent):
     """Event: A process model has been exported."""
+
     model_id: UUID = field(default_factory=uuid4)
     export_format: str = ""
     location: str = ""
@@ -169,9 +189,11 @@ class ModelExported(DomainEvent):
 # CONFORMANCE CHECKING EVENTS
 # =============================================================================
 
+
 @dataclass
 class ConformanceCheckRequested(DomainEvent):
     """Event: Conformance check has been requested."""
+
     log_id: UUID = field(default_factory=uuid4)
     model_id: UUID = field(default_factory=uuid4)
     method: str = "token_replay"
@@ -180,12 +202,14 @@ class ConformanceCheckRequested(DomainEvent):
 @dataclass
 class ConformanceCheckStarted(DomainEvent):
     """Event: Conformance check has started."""
+
     result_id: UUID = field(default_factory=uuid4)
 
 
 @dataclass
 class ConformanceChecked(DomainEvent):
     """Event: Conformance checking has been completed."""
+
     result_id: UUID = field(default_factory=uuid4)
     log_id: UUID = field(default_factory=uuid4)
     model_id: UUID = field(default_factory=uuid4)
@@ -196,6 +220,7 @@ class ConformanceChecked(DomainEvent):
 @dataclass
 class ConformanceCheckFailed(DomainEvent):
     """Event: Conformance check has failed."""
+
     result_id: UUID = field(default_factory=uuid4)
     log_id: UUID = field(default_factory=uuid4)
     model_id: UUID = field(default_factory=uuid4)
@@ -205,6 +230,7 @@ class ConformanceCheckFailed(DomainEvent):
 @dataclass
 class DeviationsIdentified(DomainEvent):
     """Event: Deviations have been identified from conformance checking."""
+
     result_id: UUID = field(default_factory=uuid4)
     log_id: UUID = field(default_factory=uuid4)
     model_id: UUID = field(default_factory=uuid4)
@@ -216,6 +242,7 @@ class DeviationsIdentified(DomainEvent):
 @dataclass
 class DeviationDetected(DomainEvent):
     """Event: A deviation from the model has been detected."""
+
     log_id: UUID = field(default_factory=uuid4)
     model_id: UUID = field(default_factory=uuid4)
     case_id: str = ""
@@ -227,9 +254,11 @@ class DeviationDetected(DomainEvent):
 # ANALYTICS EVENTS
 # =============================================================================
 
+
 @dataclass
 class PerformanceAnalyzed(DomainEvent):
     """Event: Performance analysis has been completed."""
+
     log_id: UUID = field(default_factory=uuid4)
     avg_duration_seconds: float = 0.0
     bottleneck_count: int = 0
@@ -238,6 +267,7 @@ class PerformanceAnalyzed(DomainEvent):
 @dataclass
 class BottlenecksIdentified(DomainEvent):
     """Event: Bottlenecks have been identified."""
+
     log_id: UUID = field(default_factory=uuid4)
     bottleneck_activities: list[str] = field(default_factory=list)
     most_severe: Optional[str] = None
@@ -246,6 +276,7 @@ class BottlenecksIdentified(DomainEvent):
 @dataclass
 class SLABreachDetected(DomainEvent):
     """Event: SLA breach has been detected."""
+
     log_id: UUID = field(default_factory=uuid4)
     case_id: str = ""
     sla_name: str = ""
@@ -256,8 +287,8 @@ class SLABreachDetected(DomainEvent):
 @dataclass
 class PredictionCompleted(DomainEvent):
     """Event: A prediction has been made."""
+
     log_id: UUID = field(default_factory=uuid4)
     prediction_type: str = ""
     case_id: Optional[str] = None
     predicted_value: Any = None
-

@@ -3,9 +3,10 @@
 
 .PHONY: help install lint typecheck security test check all clean
 
-# Use the backend's virtual environment Python
-BACKEND_PYTHON = backend/.venv/bin/python
-BACKEND_PIP = backend/.venv/bin/pip
+# Use the backend's virtual environment Python (absolute reference from root)
+BACKEND_VENV = backend/.venv/bin
+BACKEND_PYTHON = $(BACKEND_VENV)/python
+BACKEND_PIP = $(BACKEND_VENV)/pip
 
 # Default target
 help:
@@ -36,14 +37,14 @@ install: backend-install sdk-install
 	@echo "✅ All dependencies installed"
 
 backend-install:
-	cd backend && $(BACKEND_PIP) install -e ".[dev,observability]"
+	$(BACKEND_PIP) install -e "backend/.[dev,observability]"
 
 sdk-install:
 	cd sdk && npm install
 
 pre-commit:
 	$(BACKEND_PIP) install pre-commit
-	$(BACKEND_PYTHON) -m pre_commit install
+	cd backend && ../.venv/bin/python -m pre_commit install || true
 	@echo "✅ Pre-commit hooks installed"
 
 # =============================================================================
@@ -55,8 +56,8 @@ lint: backend-lint sdk-lint
 
 backend-lint:
 	@echo "🔍 Linting backend (Ruff)..."
-	cd backend && ../.venv/bin/python -m ruff check src/ tests/ || $(BACKEND_PYTHON) -m ruff check src/ tests/
-	cd backend && ../.venv/bin/python -m ruff format --check src/ tests/ || $(BACKEND_PYTHON) -m ruff format --check src/ tests/
+	$(BACKEND_PYTHON) -m ruff check backend/src/ backend/tests/
+	$(BACKEND_PYTHON) -m ruff format --check backend/src/ backend/tests/
 
 sdk-lint:
 	@echo "🔍 Linting SDK (ESLint + Prettier)..."
@@ -98,11 +99,11 @@ test: backend-test sdk-test
 
 backend-test:
 	@echo "🧪 Testing backend (pytest)..."
-	cd backend && $(BACKEND_PYTHON) -m pytest tests/ -v --tb=short
+	cd backend && .venv/bin/python -m pytest tests/ -v --tb=short
 
 backend-test-cov:
 	@echo "🧪 Testing backend with coverage..."
-	cd backend && $(BACKEND_PYTHON) -m pytest tests/ -v --cov=src --cov-report=html --cov-report=term
+	cd backend && .venv/bin/python -m pytest tests/ -v --cov=src --cov-report=html --cov-report=term
 
 sdk-test:
 	@echo "🧪 Testing SDK (vitest)..."
@@ -129,10 +130,41 @@ all: check test
 # =============================================================================
 
 dev:
-	cd backend && $(BACKEND_PYTHON) -m uvicorn src.main:app --reload --port 8001
+	cd backend && .venv/bin/python -m uvicorn src.main:app --reload --port 8001
 
 dev-observability:
-	$(BACKEND_PIP) install -e "backend/.[observability]" && cd backend && $(BACKEND_PYTHON) -m uvicorn src.main:app --reload --port 8001
+	$(BACKEND_PIP) install -e "backend/.[observability]" && cd backend && .venv/bin/python -m uvicorn src.main:app --reload --port 8001
+
+# =============================================================================
+# Frontend Commands
+# =============================================================================
+
+frontend-install:
+	cd frontend && npm install
+
+frontend-dev:
+	cd frontend && npx nx dev process-mining
+
+frontend-build:
+	cd frontend && npx nx build process-mining
+
+frontend-lint:
+	@echo "🔍 Linting frontend (ESLint)..."
+	cd frontend && npx nx lint process-mining
+
+frontend-typecheck:
+	@echo "🔍 Type checking frontend (tsc)..."
+	cd frontend && npx nx typecheck process-mining
+
+frontend-test:
+	@echo "🧪 Testing frontend (vitest)..."
+	cd frontend && npx nx test ui
+	cd frontend && npx nx test process-graph
+	cd frontend && npx nx test api
+
+frontend-e2e:
+	@echo "🧪 E2E testing frontend (Playwright)..."
+	cd frontend && npx nx e2e process-mining-e2e
 
 # =============================================================================
 # Cleanup
@@ -141,6 +173,7 @@ dev-observability:
 clean:
 	rm -rf backend/.pytest_cache backend/.mypy_cache backend/.ruff_cache
 	rm -rf sdk/dist sdk/node_modules/.cache
+	rm -rf frontend/dist frontend/node_modules/.cache
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	@echo "✅ Cleaned up cache files"
 

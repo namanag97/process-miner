@@ -1,15 +1,17 @@
 """Miners API Router - Top-level router for mining algorithms."""
 
-from fastapi import APIRouter
-from pydantic import BaseModel
 from typing import List
 
+from fastapi import APIRouter
+from pydantic import BaseModel
+from src.domain.constants import HttpStatus, DisplayLimits, PaginationDefaults
 
 router = APIRouter(prefix="/miners", tags=["Miners"])
 
 
 class MinerInfo(BaseModel):
     """Mining algorithm information."""
+
     id: str
     name: str
     description: str
@@ -26,8 +28,13 @@ AVAILABLE_MINERS = [
         output_format="petri_net",
         supports_ocpm=False,
         parameters=[
-            {"name": "noise_threshold", "type": "float", "default": 0.0, "description": "Filter infrequent behavior"}
-        ]
+            {
+                "name": "noise_threshold",
+                "type": "float",
+                "default": 0.0,
+                "description": "Filter infrequent behavior",
+            }
+        ],
     ),
     MinerInfo(
         id="inductive_imf",
@@ -36,8 +43,13 @@ AVAILABLE_MINERS = [
         output_format="petri_net",
         supports_ocpm=False,
         parameters=[
-            {"name": "noise_threshold", "type": "float", "default": 0.2, "description": "Noise filtering threshold"}
-        ]
+            {
+                "name": "noise_threshold",
+                "type": "float",
+                "default": 0.2,
+                "description": "Noise filtering threshold",
+            }
+        ],
     ),
     MinerInfo(
         id="alpha",
@@ -45,7 +57,7 @@ AVAILABLE_MINERS = [
         description="Classic process mining algorithm. Best for simple structured logs without loops.",
         output_format="petri_net",
         supports_ocpm=False,
-        parameters=[]
+        parameters=[],
     ),
     MinerInfo(
         id="alpha_plus",
@@ -53,7 +65,7 @@ AVAILABLE_MINERS = [
         description="Extension of Alpha miner that handles short loops.",
         output_format="petri_net",
         supports_ocpm=False,
-        parameters=[]
+        parameters=[],
     ),
     MinerInfo(
         id="heuristic",
@@ -62,9 +74,19 @@ AVAILABLE_MINERS = [
         output_format="heuristic_net",
         supports_ocpm=False,
         parameters=[
-            {"name": "dependency_threshold", "type": "float", "default": 0.5, "description": "Minimum dependency to include edge"},
-            {"name": "and_threshold", "type": "float", "default": 0.65, "description": "Threshold for AND splits/joins"}
-        ]
+            {
+                "name": "dependency_threshold",
+                "type": "float",
+                "default": 0.5,
+                "description": "Minimum dependency to include edge",
+            },
+            {
+                "name": "and_threshold",
+                "type": "float",
+                "default": 0.65,
+                "description": "Threshold for AND splits/joins",
+            },
+        ],
     ),
     MinerInfo(
         id="dfg",
@@ -73,8 +95,13 @@ AVAILABLE_MINERS = [
         output_format="dfg",
         supports_ocpm=True,
         parameters=[
-            {"name": "min_frequency", "type": "int", "default": 1, "description": "Minimum edge frequency"}
-        ]
+            {
+                "name": "min_frequency",
+                "type": "int",
+                "default": 1,
+                "description": "Minimum edge frequency",
+            }
+        ],
     ),
     MinerInfo(
         id="oc_dfg",
@@ -82,7 +109,7 @@ AVAILABLE_MINERS = [
         description="DFG for object-centric event logs showing object interactions.",
         output_format="oc_dfg",
         supports_ocpm=True,
-        parameters=[]
+        parameters=[],
     ),
     MinerInfo(
         id="oc_petri",
@@ -90,7 +117,7 @@ AVAILABLE_MINERS = [
         description="Discovers Petri nets for object-centric process mining.",
         output_format="oc_petri_net",
         supports_ocpm=True,
-        parameters=[]
+        parameters=[],
     ),
 ]
 
@@ -122,7 +149,8 @@ async def get_miner(miner_id: str):
         if miner.id == miner_id:
             return miner
     from fastapi import HTTPException
-    raise HTTPException(status_code=404, detail=f"Miner '{miner_id}' not found")
+
+    raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail=f"Miner '{miner_id}' not found")
 
 
 @router.get(
@@ -141,4 +169,7 @@ async def get_miners_for_type(process_type: str):
         return AVAILABLE_MINERS
     else:
         from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail="Invalid process_type. Use 'traditional' or 'object_centric'")
+
+        raise HTTPException(
+            status_code=HttpStatus.BAD_REQUEST, detail="Invalid process_type. Use 'traditional' or 'object_centric'"
+        )

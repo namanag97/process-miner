@@ -1,50 +1,49 @@
 """Process Mining SaaS - FastAPI Application Entry Point."""
 
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.exceptions import RequestValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from fastapi.staticfiles import StaticFiles
-from fastapi.openapi.utils import get_openapi
 import os
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from src.config import get_settings
-from src.infrastructure.persistence.database import init_database
-from src.infrastructure.logging import setup_logging, RequestResponseLoggingMiddleware
+from src.infrastructure.logging import RequestResponseLoggingMiddleware, setup_logging
 from src.infrastructure.observability import (
     PrometheusMiddleware,
-    setup_tracing,
     set_app_info,
+    setup_tracing,
 )
-from src.presentation.api.routers import (
-    logs,
-    discovery,
-    conformance,
-    enhancement,
-    analytics,
-    models,
-    auth,
-    workflows,
-    notifications,
-    integrations,
-    process_mining,
-    transitions,
-    performance,
-    org,
-    ocpm,
-    processes,
-    miners,
-    metrics,
-)
+from src.infrastructure.persistence.database import init_database
 from src.presentation.api.errors import (
+    DomainError,
+    domain_exception_handler,
+    generic_exception_handler,
     http_exception_handler,
     validation_exception_handler,
-    generic_exception_handler,
-    domain_exception_handler,
-    DomainError,
 )
-
+from src.presentation.api.routers import (
+    analytics,
+    auth,
+    conformance,
+    discovery,
+    enhancement,
+    integrations,
+    logs,
+    metrics,
+    miners,
+    models,
+    notifications,
+    ocpm,
+    org,
+    performance,
+    process_mining,
+    processes,
+    transitions,
+    workflows,
+)
 
 # OpenAPI tag metadata for enhanced documentation
 OPENAPI_TAGS = [
@@ -52,13 +51,34 @@ OPENAPI_TAGS = [
     {"name": "Authentication", "description": "User authentication and session management"},
     {"name": "Event Logs", "description": "Upload, manage, and analyze event logs (CSV, XES)"},
     {"name": "Processes", "description": "Unified process data management (recommended API)"},
-    {"name": "Process Discovery", "description": "Discover process models using Alpha, Heuristic, or Inductive miners"},
-    {"name": "Conformance Checking", "description": "Check conformance between event logs and process models"},
-    {"name": "Performance Analysis", "description": "Analyze performance, detect bottlenecks, measure cycle times"},
-    {"name": "Analytics", "description": "Dashboard, insights, anomaly detection, and variant analysis"},
-    {"name": "Organizational Mining", "description": "Resource profiling, handover networks, role discovery"},
-    {"name": "Process Mining", "description": "Advanced PM4Py capabilities: footprints, SNA, log skeleton"},
-    {"name": "Object-Centric Process Mining", "description": "OCEL 2.0 support for multi-object process analysis"},
+    {
+        "name": "Process Discovery",
+        "description": "Discover process models using Alpha, Heuristic, or Inductive miners",
+    },
+    {
+        "name": "Conformance Checking",
+        "description": "Check conformance between event logs and process models",
+    },
+    {
+        "name": "Performance Analysis",
+        "description": "Analyze performance, detect bottlenecks, measure cycle times",
+    },
+    {
+        "name": "Analytics",
+        "description": "Dashboard, insights, anomaly detection, and variant analysis",
+    },
+    {
+        "name": "Organizational Mining",
+        "description": "Resource profiling, handover networks, role discovery",
+    },
+    {
+        "name": "Process Mining",
+        "description": "Advanced PM4Py capabilities: footprints, SNA, log skeleton",
+    },
+    {
+        "name": "Object-Centric Process Mining",
+        "description": "OCEL 2.0 support for multi-object process analysis",
+    },
     {"name": "Process Models", "description": "Manage discovered process models"},
     {"name": "Miners", "description": "Available mining algorithm catalog"},
     {"name": "Workflows", "description": "Automated analysis pipelines"},
@@ -76,18 +96,18 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     settings.ensure_directories()
     await init_database()
-    
+
     # Initialize observability
     setup_tracing(service_name="process-mining-api")
     set_app_info(version=settings.app_version, name=settings.app_name)
-    
+
     yield
 
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     settings = get_settings()
-    
+
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
@@ -131,20 +151,20 @@ A comprehensive Process Mining platform powered by **PM4Py**.
             "email": "support@example.com",
         },
     )
-    
+
     # Initialize logging
     setup_logging(
         logs_dir=settings.logs_dir,
         log_level=settings.api_log_level,
     )
-    
+
     # Request/Response Logging Middleware (must be added first to wrap all requests)
     app.add_middleware(
         RequestResponseLoggingMiddleware,
         log_request_body=settings.log_request_body,
         log_response_body=settings.log_response_body,
     )
-    
+
     # CORS Middleware
     app.add_middleware(
         CORSMiddleware,
@@ -153,19 +173,19 @@ A comprehensive Process Mining platform powered by **PM4Py**.
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     # Prometheus Metrics Middleware
     app.add_middleware(PrometheusMiddleware)
-    
+
     # Register RFC 7807 Exception Handlers
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(DomainError, domain_exception_handler)
     app.add_exception_handler(Exception, generic_exception_handler)
-    
+
     # Register API Routers
     api_prefix = settings.api_prefix
-    
+
     app.include_router(auth.router, prefix=api_prefix, tags=["Authentication"])
     app.include_router(logs.router, prefix=api_prefix, tags=["Event Logs"])
     app.include_router(discovery.router, prefix=api_prefix, tags=["Process Discovery"])
@@ -183,15 +203,15 @@ A comprehensive Process Mining platform powered by **PM4Py**.
     app.include_router(ocpm.router, prefix=api_prefix, tags=["Object-Centric Process Mining"])
     app.include_router(processes.router, prefix=api_prefix, tags=["Processes"])
     app.include_router(miners.router, prefix=api_prefix, tags=["Miners"])
-    
+
     # Observability endpoints (no prefix)
     app.include_router(metrics.router)
-    
+
     # Serve static files for test UI
     static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
     if os.path.exists(static_dir):
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
-    
+
     @app.get("/", tags=["Health"])
     async def root():
         """Health check endpoint."""
@@ -207,9 +227,9 @@ A comprehensive Process Mining platform powered by **PM4Py**.
                 "health_ready": {"href": "/health/ready", "title": "Readiness Probe"},
                 "metrics": {"href": "/metrics", "title": "Prometheus Metrics"},
                 "test-ui": {"href": "/static/index.html", "title": "API Test UI"},
-            }
+            },
         }
-    
+
     @app.get("/health", tags=["Health"])
     async def health_check():
         """Detailed health check."""
@@ -218,7 +238,7 @@ A comprehensive Process Mining platform powered by **PM4Py**.
             "database": "connected",
             "auth_enabled": settings.auth_enabled,
         }
-    
+
     return app
 
 

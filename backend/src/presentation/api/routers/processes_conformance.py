@@ -4,22 +4,22 @@ Provides conformance checking endpoints nested under /processes/{process_id}/con
 This sub-router is included by the main processes router.
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query
-from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from typing import Dict, List, Optional
 from uuid import UUID
 
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.application.core.conformance_service import conformance_service
 from src.infrastructure.persistence.database import get_session
 from src.infrastructure.persistence.repositories import (
+    ConformanceResultRepository,
     EventLogRepository,
     ProcessModelRepository,
-    ConformanceResultRepository,
 )
-from src.application.core.conformance_service import conformance_service
-from src.presentation.api.routers.auth import require_auth, User
-
+from src.presentation.api.routers.auth import User, require_auth
+from src.domain.constants import HttpStatus, DisplayLimits, PaginationDefaults
 
 # =============================================================================
 # SUB-ROUTER DEFINITION
@@ -31,14 +31,17 @@ router = APIRouter()
 # RESPONSE MODELS
 # =============================================================================
 
+
 class ConformanceCheckRequest(BaseModel):
     """Request to check conformance."""
+
     model_id: str
     method: str = "token_replay"
 
 
 class ConformanceCheckResponse(BaseModel):
     """Response from conformance check."""
+
     result_id: str
     process_id: str
     model_id: str
@@ -51,6 +54,7 @@ class ConformanceCheckResponse(BaseModel):
 
 class AlignmentStepResponse(BaseModel):
     """A single step in an alignment."""
+
     step_index: int
     step_type: str  # sync, model_move, log_move
     log_activity: Optional[str]
@@ -60,6 +64,7 @@ class AlignmentStepResponse(BaseModel):
 
 class CaseAlignmentResponse(BaseModel):
     """Alignment result for a single case."""
+
     case_id: str
     fitness: float
     is_fitting: bool
@@ -72,6 +77,7 @@ class CaseAlignmentResponse(BaseModel):
 
 class AlignmentResultResponse(BaseModel):
     """Full alignment results for all cases."""
+
     process_id: str
     model_id: str
     total_traces: int
@@ -83,6 +89,7 @@ class AlignmentResultResponse(BaseModel):
 
 class DeviationResponse(BaseModel):
     """A single deviation."""
+
     case_id: str
     deviation_type: str
     activity: Optional[str]
@@ -91,6 +98,7 @@ class DeviationResponse(BaseModel):
 
 class DeviationPatternResponse(BaseModel):
     """A clustered deviation pattern."""
+
     pattern_id: str
     pattern_type: str
     description: str
@@ -103,6 +111,7 @@ class DeviationPatternResponse(BaseModel):
 
 class DeviationPatternsResponse(BaseModel):
     """Summary of all deviation patterns."""
+
     process_id: str
     model_id: str
     total_deviations: int
@@ -113,6 +122,7 @@ class DeviationPatternsResponse(BaseModel):
 
 class DiagnosticsResponse(BaseModel):
     """Conformance diagnostics."""
+
     total_traces: int
     fitting_traces: int
     non_fitting_traces: int
@@ -122,6 +132,7 @@ class DiagnosticsResponse(BaseModel):
 
 class ComprehensiveQualityResponse(BaseModel):
     """Comprehensive quality metrics."""
+
     process_id: str
     model_id: str
     fitness: float
@@ -140,13 +151,14 @@ class ComprehensiveQualityResponse(BaseModel):
 # ENDPOINTS
 # =============================================================================
 
+
 @router.post(
     "/check",
     response_model=ConformanceCheckResponse,
     summary="Check Conformance",
     description="""
     Check conformance between the event log and a process model.
-    
+
     **Methods:**
     - token_replay: Token-based replay (faster)
     - alignments: Alignment-based checking (more accurate)
@@ -163,30 +175,32 @@ async def check_conformance(
     """
     log_repo = EventLogRepository(session)
     log = await log_repo.get_by_id(process_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Process not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Process not found")
+
     model_repo = ProcessModelRepository(session)
     model = await model_repo.get_by_id(UUID(request.model_id))
-    
+
     if not model:
-        raise HTTPException(status_code=404, detail="Model not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Model not found")
+
     try:
         result = conformance_service.check_conformance(log, model, request.method)
-        
+
         # Store result
         result_repo = ConformanceResultRepository(session)
-        stored = await result_repo.create({
-            "log_id": str(process_id),
-            "model_id": request.model_id,
-            "fitness": result.get("fitness", 0.0),
-            "precision": result.get("precision"),
-            "method": request.method,
-        })
+        stored = await result_repo.create(
+            {
+                "log_id": str(process_id),
+                "model_id": request.model_id,
+                "fitness": result.get("fitness", 0.0),
+                "precision": result.get("precision"),
+                "method": request.method,
+            }
+        )
         await session.commit()
-        
+
         return ConformanceCheckResponse(
             result_id=str(stored.id),
             process_id=str(process_id),
@@ -196,13 +210,19 @@ async def check_conformance(
             is_conformant=result.get("fitness", 0.0) >= 0.8,
             method=request.method,
             _links={
-                "alignments": {"href": f"/api/v1/processes/{process_id}/conformance/alignments?model_id={request.model_id}"},
-                "deviations": {"href": f"/api/v1/processes/{process_id}/conformance/deviations?model_id={request.model_id}"},
-                "diagnostics": {"href": f"/api/v1/processes/{process_id}/conformance/diagnostics?model_id={request.model_id}"},
-            }
+                "alignments": {
+                    "href": f"/api/v1/processes/{process_id}/conformance/alignments?model_id={request.model_id}"
+                },
+                "deviations": {
+                    "href": f"/api/v1/processes/{process_id}/conformance/deviations?model_id={request.model_id}"
+                },
+                "diagnostics": {
+                    "href": f"/api/v1/processes/{process_id}/conformance/diagnostics?model_id={request.model_id}"
+                },
+            },
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Conformance check failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"Conformance check failed: {str(e)}")
 
 
 @router.get(
@@ -221,21 +241,21 @@ async def get_fitness(
     """
     log_repo = EventLogRepository(session)
     log = await log_repo.get_by_id(process_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Process not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Process not found")
+
     model_repo = ProcessModelRepository(session)
     model = await model_repo.get_by_id(model_id)
-    
+
     if not model:
-        raise HTTPException(status_code=404, detail="Model not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Model not found")
+
     try:
         fitness = conformance_service.calculate_fitness(log, model)
         return {"process_id": str(process_id), "model_id": str(model_id), "fitness": fitness}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Fitness calculation failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"Fitness calculation failed: {str(e)}")
 
 
 @router.get(
@@ -254,21 +274,21 @@ async def get_precision(
     """
     log_repo = EventLogRepository(session)
     log = await log_repo.get_by_id(process_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Process not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Process not found")
+
     model_repo = ProcessModelRepository(session)
     model = await model_repo.get_by_id(model_id)
-    
+
     if not model:
-        raise HTTPException(status_code=404, detail="Model not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Model not found")
+
     try:
         precision = conformance_service.calculate_precision(log, model)
         return {"process_id": str(process_id), "model_id": str(model_id), "precision": precision}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Precision calculation failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"Precision calculation failed: {str(e)}")
 
 
 @router.get(
@@ -277,7 +297,7 @@ async def get_precision(
     summary="Get Alignments",
     description="""
     Get detailed alignment results for each case.
-    
+
     Shows synchronous moves, model moves, and log moves.
     """,
 )
@@ -293,19 +313,19 @@ async def get_alignments(
     """
     log_repo = EventLogRepository(session)
     log = await log_repo.get_by_id(process_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Process not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Process not found")
+
     model_repo = ProcessModelRepository(session)
     model = await model_repo.get_by_id(model_id)
-    
+
     if not model:
-        raise HTTPException(status_code=404, detail="Model not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Model not found")
+
     try:
         alignments = conformance_service.compute_alignments(log, model, limit)
-        
+
         return AlignmentResultResponse(
             process_id=str(process_id),
             model_id=str(model_id),
@@ -328,7 +348,7 @@ async def get_alignments(
             ],
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Alignment computation failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"Alignment computation failed: {str(e)}")
 
 
 @router.get(
@@ -348,16 +368,16 @@ async def get_deviations(
     """
     log_repo = EventLogRepository(session)
     log = await log_repo.get_by_id(process_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Process not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Process not found")
+
     model_repo = ProcessModelRepository(session)
     model = await model_repo.get_by_id(model_id)
-    
+
     if not model:
-        raise HTTPException(status_code=404, detail="Model not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Model not found")
+
     try:
         deviations = conformance_service.detect_deviations(log, model, threshold)
         return {
@@ -366,7 +386,7 @@ async def get_deviations(
             "deviations": [DeviationResponse(**d) for d in deviations],
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Deviation detection failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"Deviation detection failed: {str(e)}")
 
 
 @router.get(
@@ -386,19 +406,19 @@ async def get_deviation_patterns(
     """
     log_repo = EventLogRepository(session)
     log = await log_repo.get_by_id(process_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Process not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Process not found")
+
     model_repo = ProcessModelRepository(session)
     model = await model_repo.get_by_id(model_id)
-    
+
     if not model:
-        raise HTTPException(status_code=404, detail="Model not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Model not found")
+
     try:
         patterns = conformance_service.analyze_deviation_patterns(log, model)
-        
+
         return DeviationPatternsResponse(
             process_id=str(process_id),
             model_id=str(model_id),
@@ -408,7 +428,7 @@ async def get_deviation_patterns(
             patterns=[DeviationPatternResponse(**p) for p in patterns.get("patterns", [])],
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Pattern analysis failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"Pattern analysis failed: {str(e)}")
 
 
 @router.get(
@@ -428,19 +448,19 @@ async def get_diagnostics(
     """
     log_repo = EventLogRepository(session)
     log = await log_repo.get_by_id(process_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Process not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Process not found")
+
     model_repo = ProcessModelRepository(session)
     model = await model_repo.get_by_id(model_id)
-    
+
     if not model:
-        raise HTTPException(status_code=404, detail="Model not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Model not found")
+
     try:
         diagnostics = conformance_service.get_diagnostics(log, model)
-        
+
         return DiagnosticsResponse(
             total_traces=diagnostics.get("total_traces", 0),
             fitting_traces=diagnostics.get("fitting_traces", 0),
@@ -449,7 +469,7 @@ async def get_diagnostics(
             deviations=[DeviationResponse(**d) for d in diagnostics.get("deviations", [])],
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Diagnostics failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"Diagnostics failed: {str(e)}")
 
 
 @router.get(
@@ -469,19 +489,19 @@ async def get_comprehensive_quality(
     """
     log_repo = EventLogRepository(session)
     log = await log_repo.get_by_id(process_id)
-    
+
     if not log:
-        raise HTTPException(status_code=404, detail="Process not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Process not found")
+
     model_repo = ProcessModelRepository(session)
     model = await model_repo.get_by_id(model_id)
-    
+
     if not model:
-        raise HTTPException(status_code=404, detail="Model not found")
-    
+        raise HTTPException(status_code=HttpStatus.NOT_FOUND, detail="Model not found")
+
     try:
         quality = conformance_service.get_comprehensive_quality(log, model)
-        
+
         return ComprehensiveQualityResponse(
             process_id=str(process_id),
             model_id=str(model_id),
@@ -497,4 +517,4 @@ async def get_comprehensive_quality(
             overall_quality=quality.get("overall_quality", 0.0),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Quality calculation failed: {str(e)}")
+        raise HTTPException(status_code=HttpStatus.INTERNAL_ERROR, detail=f"Quality calculation failed: {str(e)}")

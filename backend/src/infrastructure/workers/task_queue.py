@@ -1,19 +1,22 @@
 """Background task queue (mock RabbitMQ)."""
 
-from typing import Callable, Dict, Any, Optional
-from dataclasses import dataclass, field
-from datetime import datetime
-from uuid import UUID, uuid4
-from enum import Enum
 import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any, Callable, Dict, Optional
+from uuid import UUID, uuid4
+
+from src.application.ports import TaskQueuePort
 
 logger = logging.getLogger(__name__)
 
 
 class JobStatus(str, Enum):
     """Job execution status."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -23,6 +26,7 @@ class JobStatus(str, Enum):
 @dataclass
 class Job:
     """Background job definition."""
+
     id: UUID
     job_type: str
     payload: Dict[str, Any]
@@ -32,7 +36,7 @@ class Job:
     created_at: datetime = field(default_factory=datetime.utcnow)
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": str(self.id),
@@ -46,12 +50,12 @@ class Job:
         }
 
 
-class BackgroundTaskQueue:
+class BackgroundTaskQueue(TaskQueuePort):
     """
     In-memory background task queue.
     Simulates RabbitMQ-like behavior for local development.
     """
-    
+
     def __init__(self, max_workers: int = 4):
         self._handlers: Dict[str, Callable] = {}
         self._jobs: Dict[UUID, Job] = {}
@@ -59,12 +63,12 @@ class BackgroundTaskQueue:
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self._running = False
         self._worker_task: Optional[asyncio.Task] = None
-    
+
     def register_handler(self, job_type: str, handler: Callable) -> None:
         """Register a handler for a job type."""
         self._handlers[job_type] = handler
         logger.info(f"Handler registered for job type: {job_type}")
-    
+
     async def enqueue(self, job_type: str, payload: Dict[str, Any]) -> UUID:
         """Add a job to the queue."""
         job = Job(
@@ -76,20 +80,20 @@ class BackgroundTaskQueue:
         await self._queue.put(job)
         logger.info(f"Job enqueued: {job.id} ({job_type})")
         return job.id
-    
+
     def get_job(self, job_id: UUID) -> Optional[Job]:
         """Get job status by ID."""
         return self._jobs.get(job_id)
-    
+
     async def start(self) -> None:
         """Start the background worker."""
         if self._running:
             return
-        
+
         self._running = True
         self._worker_task = asyncio.create_task(self._worker_loop())
         logger.info("Background task queue started")
-    
+
     async def stop(self) -> None:
         """Stop the background worker."""
         self._running = False
@@ -101,7 +105,7 @@ class BackgroundTaskQueue:
                 pass
         self._executor.shutdown(wait=True)
         logger.info("Background task queue stopped")
-    
+
     async def _worker_loop(self) -> None:
         """Main worker loop."""
         while self._running:
@@ -112,7 +116,7 @@ class BackgroundTaskQueue:
                 continue
             except Exception as e:
                 logger.error(f"Worker error: {e}")
-    
+
     async def _process_job(self, job: Job) -> None:
         """Process a single job."""
         handler = self._handlers.get(job.job_type)
@@ -122,20 +126,18 @@ class BackgroundTaskQueue:
             job.completed_at = datetime.utcnow()
             logger.error(job.error)
             return
-        
+
         job.status = JobStatus.RUNNING
         job.started_at = datetime.utcnow()
-        
+
         try:
             if asyncio.iscoroutinefunction(handler):
                 result = await handler(job.payload)
             else:
                 # Run sync handler in thread pool
                 loop = asyncio.get_event_loop()
-                result = await loop.run_in_executor(
-                    self._executor, handler, job.payload
-                )
-            
+                result = await loop.run_in_executor(self._executor, handler, job.payload)
+
             job.status = JobStatus.COMPLETED
             job.result = result
             logger.info(f"Job completed: {job.id}")
