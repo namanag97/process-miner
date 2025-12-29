@@ -1,6 +1,6 @@
 /**
  * Process Mining Client - PM4Py Advanced Features
- * 
+ *
  * Business verbs:
  * - analyzeFootprints() - Get behavioral relations matrix
  * - extractLogSkeleton() - Extract declarative constraints
@@ -15,7 +15,7 @@
  * - listEndActivities() - Get end activities
  */
 
-import { HttpClient } from '../client.js';
+import { HttpClient } from "../client.js";
 import {
   FootprintMatrix,
   LogSkeleton,
@@ -25,7 +25,7 @@ import {
   DurationStats,
   ArrivalRate,
   ComprehensiveAnalysis,
-} from '../types/process-mining.js';
+} from "../types/process-mining.js";
 
 export class ProcessMiningClient {
   constructor(private readonly http: HttpClient) {}
@@ -49,14 +49,16 @@ export class ProcessMiningClient {
   /**
    * Perform social network analysis.
    */
-  async analyzeSNA(logId: string, metric = 'handover'): Promise<SNAResult> {
+  async analyzeSNA(logId: string, metric = "handover"): Promise<SNAResult> {
     return this.http.get<SNAResult>(`/process-mining/sna/${logId}`, { metric });
   }
 
   /**
    * Discover organizational roles.
    */
-  async discoverRoles(logId: string): Promise<{ roles: Array<{ roleName: string; resources: string[]; activities: string[] }> }> {
+  async discoverRoles(
+    logId: string
+  ): Promise<{ roles: Array<{ roleName: string; resources: string[]; activities: string[] }> }> {
     return this.http.get(`/process-mining/roles/${logId}`);
   }
 
@@ -110,9 +112,9 @@ export class ProcessMiningClient {
    * Get process variants with counts.
    */
   async listVariants(logId: string): Promise<Array<{ activities: string[]; count: number }>> {
-    const response = await this.http.get<{ variants: Array<{ activities: string[]; count: number }> }>(
-      `/process-mining/variants/${logId}`
-    );
+    const response = await this.http.get<{
+      variants: Array<{ activities: string[]; count: number }>;
+    }>(`/process-mining/variants/${logId}`);
     return response.variants;
   }
 

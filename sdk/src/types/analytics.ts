@@ -2,7 +2,7 @@
  * Analytics Types for Process Mining SDK
  */
 
-import { HypermediaResponse } from './common.js';
+import { HypermediaResponse } from "./common.js";
 
 // =============================================================================
 // DASHBOARD
@@ -35,8 +35,8 @@ export interface DashboardData extends HypermediaResponse {
 // INSIGHTS
 // =============================================================================
 
-export type InsightSeverity = 'info' | 'warning' | 'critical';
-export type InsightCategory = 'performance' | 'conformance' | 'resource' | 'variant';
+export type InsightSeverity = "info" | "warning" | "critical";
+export type InsightCategory = "performance" | "conformance" | "resource" | "variant";
 
 export interface ProcessInsight extends HypermediaResponse {
   id: string;
@@ -125,4 +125,68 @@ export interface TimeAnalysis extends HypermediaResponse {
   }>;
   peakHours?: number[];
   peakDays?: string[];
+}
+
+// =============================================================================
+// PERFORMANCE METRICS (used by AnalyticsClient)
+// =============================================================================
+
+export interface BottleneckListResponse extends HypermediaResponse {
+  logId: string;
+  bottlenecks: Array<{
+    activity: string;
+    waitingTime: number;
+    frequency: number;
+  }>;
+}
+
+export interface ReworkListResponse extends HypermediaResponse {
+  logId: string;
+  rework: Array<{
+    activity: string;
+    reworkCount: number;
+    cases: string[];
+  }>;
+}
+
+export interface ServiceTimeResponse {
+  activity: string;
+  avgServiceTime: number;
+  minServiceTime: number;
+  maxServiceTime: number;
+}
+
+export interface CycleTimeResponse extends HypermediaResponse {
+  logId: string;
+  avgCycleTime: number;
+  medianCycleTime: number;
+  minCycleTime: number;
+  maxCycleTime: number;
+}
+
+export interface ThroughputResponse extends HypermediaResponse {
+  logId: string;
+  casesPerDay: number;
+  eventsPerDay: number;
+}
+
+export interface PatternResponse {
+  pattern: string[];
+  support: number;
+  confidence: number;
+  cases: string[];
+}
+
+export interface PerformanceDashboardResponse extends HypermediaResponse {
+  logId: string;
+  summary: {
+    avgCycleTime: number;
+    avgThroughput: number;
+    bottleneckCount: number;
+    reworkRate: number;
+  };
+  details: {
+    serviceTimes: ServiceTimeResponse[];
+    bottlenecks: Array<{ activity: string; waitingTime: number }>;
+  };
 }

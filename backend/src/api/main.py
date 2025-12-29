@@ -11,10 +11,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.api.routers import (
+    analytics_router,
     conformance_router,
     discovery_router,
+    filtering_router,
     ocpm_router,
+    organizational_router,
+    predictions_router,
     processes_router,
+    simulation_router,
     visualization_router,
     workflows_router,
 )
@@ -135,6 +140,11 @@ def create_app() -> FastAPI:
     app.include_router(conformance_router, prefix=settings.api_prefix)
     app.include_router(ocpm_router, prefix=settings.api_prefix)
     app.include_router(workflows_router, prefix=settings.api_prefix)
+    app.include_router(filtering_router, prefix=settings.api_prefix)
+    app.include_router(analytics_router, prefix=settings.api_prefix)
+    app.include_router(organizational_router, prefix=settings.api_prefix)
+    app.include_router(predictions_router, prefix=settings.api_prefix)
+    app.include_router(simulation_router, prefix=settings.api_prefix)
 
     return app
 

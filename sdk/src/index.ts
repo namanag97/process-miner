@@ -1,53 +1,57 @@
 /**
  * Process Mining SDK
- * 
+ *
  * A TypeScript SDK for the Process Mining Platform API.
  * Uses business verbs following CodeOpinion guidance.
- * 
+ *
  * @example
  * ```typescript
  * import { ProcessMiningSdk } from 'process-mining-sdk';
- * 
+ *
  * const sdk = new ProcessMiningSdk({ baseUrl: 'http://localhost:8001' });
- * 
+ *
  * // Sign in
  * await sdk.auth.signIn({ email: 'user@example.com', password: 'test' });
- * 
+ *
  * // Ingest event log
  * const log = await sdk.logs.ingest(file, { name: 'My Process' });
- * 
+ *
  * // Discover process model
  * const model = await sdk.discovery.discover({ logId: log.id, minerType: 'inductive' });
- * 
+ *
  * // Check conformance
  * const result = await sdk.conformance.check({ logId: log.id, modelId: model.modelId });
- * 
+ *
  * // Find bottlenecks
  * const bottlenecks = await sdk.performance.findBottlenecks(log.id);
  * ```
  */
 
-import { HttpClient } from './client.js';
-import { SdkConfig } from './types/common.js';
+import { HttpClient } from "./client.js";
+import { SdkConfig } from "./types/common.js";
 
 // Import all clients
-import { AuthClient } from './clients/auth.client.js';
-import { LogsClient } from './clients/logs.client.js';
-import { DiscoveryClient } from './clients/discovery.client.js';
-import { ConformanceClient } from './clients/conformance.client.js';
-import { PerformanceClient } from './clients/performance.client.js';
-import { AnalyticsClient } from './clients/analytics.client.js';
-import { OCPMClient } from './clients/ocpm.client.js';
-import { OrgClient } from './clients/org.client.js';
-import { ModelsClient } from './clients/models.client.js';
-import { WorkflowsClient } from './clients/workflows.client.js';
-import { NotificationsClient } from './clients/notifications.client.js';
-import { IntegrationsClient } from './clients/integrations.client.js';
-import { ProcessMiningClient } from './clients/process-mining.client.js';
+import { AuthClient } from "./clients/auth.client.js";
+import { LogsClient } from "./clients/logs.client.js";
+import { DiscoveryClient } from "./clients/discovery.client.js";
+import { ConformanceClient } from "./clients/conformance.client.js";
+import { PerformanceClient } from "./clients/performance.client.js";
+import { AnalyticsClient } from "./clients/analytics.client.js";
+import { OCPMClient } from "./clients/ocpm.client.js";
+import { OrgClient } from "./clients/org.client.js";
+import { ModelsClient } from "./clients/models.client.js";
+import { WorkflowsClient } from "./clients/workflows.client.js";
+import { NotificationsClient } from "./clients/notifications.client.js";
+import { IntegrationsClient } from "./clients/integrations.client.js";
+import { ProcessMiningClient } from "./clients/process-mining.client.js";
+import { FilteringClient } from "./clients/filtering.client.js";
+import { PredictionsClient } from "./clients/predictions.client.js";
+import { SimulationClient } from "./clients/simulation.client.js";
+import { VisualizationClient } from "./clients/visualization.client.js";
 
 /**
  * Process Mining SDK
- * 
+ *
  * Main entry point for all API operations.
  * Provides domain-specific clients with business-focused method names.
  */
@@ -93,6 +97,18 @@ export class ProcessMiningSdk {
   /** PM4Py advanced features (analyzeFootprints, extractLogSkeleton, analyzeSNA) */
   public readonly processMining: ProcessMiningClient;
 
+  /** Event log filtering operations (applyFilter, previewFilter, getFilterOptions) */
+  public readonly filtering: FilteringClient;
+
+  /** ML-based predictions operations (trainPredictor, predict, predictBatch) */
+  public readonly predictions: PredictionsClient;
+
+  /** Process simulation operations (playOut, simulate, capacityPlan) */
+  public readonly simulation: SimulationClient;
+
+  /** Process visualization operations (getDFG, getPetriNet, getModelSVG) */
+  public readonly visualization: VisualizationClient;
+
   constructor(config: SdkConfig) {
     this.http = new HttpClient(config);
 
@@ -110,6 +126,10 @@ export class ProcessMiningSdk {
     this.notifications = new NotificationsClient(this.http);
     this.integrations = new IntegrationsClient(this.http);
     this.processMining = new ProcessMiningClient(this.http);
+    this.filtering = new FilteringClient(this.http);
+    this.predictions = new PredictionsClient(this.http);
+    this.simulation = new SimulationClient(this.http);
+    this.visualization = new VisualizationClient(this.http);
   }
 
   /**
@@ -124,19 +144,23 @@ export class ProcessMiningSdk {
 export type { SdkConfig };
 
 // Re-export all types
-export * from './types/index.js';
+export * from "./types/index.js";
 
 // Re-export individual clients for advanced usage
-export { AuthClient } from './clients/auth.client.js';
-export { LogsClient } from './clients/logs.client.js';
-export { DiscoveryClient } from './clients/discovery.client.js';
-export { ConformanceClient } from './clients/conformance.client.js';
-export { PerformanceClient } from './clients/performance.client.js';
-export { AnalyticsClient } from './clients/analytics.client.js';
-export { OCPMClient } from './clients/ocpm.client.js';
-export { OrgClient } from './clients/org.client.js';
-export { ModelsClient } from './clients/models.client.js';
-export { WorkflowsClient } from './clients/workflows.client.js';
-export { NotificationsClient } from './clients/notifications.client.js';
-export { IntegrationsClient } from './clients/integrations.client.js';
-export { ProcessMiningClient } from './clients/process-mining.client.js';
+export { AuthClient } from "./clients/auth.client.js";
+export { LogsClient } from "./clients/logs.client.js";
+export { DiscoveryClient } from "./clients/discovery.client.js";
+export { ConformanceClient } from "./clients/conformance.client.js";
+export { PerformanceClient } from "./clients/performance.client.js";
+export { AnalyticsClient } from "./clients/analytics.client.js";
+export { OCPMClient } from "./clients/ocpm.client.js";
+export { OrgClient } from "./clients/org.client.js";
+export { ModelsClient } from "./clients/models.client.js";
+export { WorkflowsClient } from "./clients/workflows.client.js";
+export { NotificationsClient } from "./clients/notifications.client.js";
+export { IntegrationsClient } from "./clients/integrations.client.js";
+export { ProcessMiningClient } from "./clients/process-mining.client.js";
+export { FilteringClient } from "./clients/filtering.client.js";
+export { PredictionsClient } from "./clients/predictions.client.js";
+export { SimulationClient } from "./clients/simulation.client.js";
+export { VisualizationClient } from "./clients/visualization.client.js";

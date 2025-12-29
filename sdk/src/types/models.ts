@@ -2,7 +2,7 @@
  * Process Models Types
  */
 
-import { HypermediaResponse } from './common.js';
+import { HypermediaResponse } from "./common.js";
 
 export interface ProcessModelSummary extends HypermediaResponse {
   id: string;

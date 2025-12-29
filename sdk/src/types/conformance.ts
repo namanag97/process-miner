@@ -3,13 +3,13 @@
  * Business-focused types for conformance analysis operations
  */
 
-import { HypermediaResponse } from './common.js';
+import { HypermediaResponse } from "./common.js";
 
 // =============================================================================
 // BUSINESS OPERATION INPUTS
 // =============================================================================
 
-export type ConformanceMethod = 'token_replay' | 'alignments';
+export type ConformanceMethod = "token_replay" | "alignments";
 
 export interface CheckConformanceOptions {
   logId: string;
@@ -45,7 +45,7 @@ export interface ConformanceDiagnostics extends HypermediaResponse {
 
 export interface Deviation {
   caseId: string;
-  deviationType: 'missing_activity' | 'unexpected_activity' | 'wrong_order';
+  deviationType: "missing_activity" | "unexpected_activity" | "wrong_order";
   details: string;
   activity?: string;
 }
@@ -58,7 +58,7 @@ export interface DeviationPattern extends HypermediaResponse {
   occurrenceCount: number;
   occurrenceRate: number;
   affectedCases: string[];
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  severity: "low" | "medium" | "high" | "critical";
 }
 
 export interface DeviationAnalysis extends HypermediaResponse {
@@ -74,7 +74,7 @@ export interface DeviationAnalysis extends HypermediaResponse {
 // ALIGNMENTS
 // =============================================================================
 
-export type AlignmentStepType = 'sync' | 'model_move' | 'log_move';
+export type AlignmentStepType = "sync" | "model_move" | "log_move";
 
 export interface AlignmentStep {
   stepIndex: number;

@@ -20,6 +20,24 @@
     },
     {
       "path": "./libs/design-tokens"
+    },
+    {
+      "path": "./libs/shared/design-system"
+    },
+    {
+      "path": "./apps/lumina"
+    },
+    {
+      "path": "./libs/domains/process-explorer"
+    },
+    {
+      "path": "./libs/domains/data-hub"
+    },
+    {
+      "path": "./libs/domains/analytics"
+    },
+    {
+      "path": "./libs/domains/variants"
     }
   ]
 }

@@ -1,9 +1,9 @@
 /**
  * Logs Client - Event Log Operations
- * 
+ *
  * Business verbs (following CodeOpinion guidance):
  * - ingest() - Import event log file into system
- * - preview() - Preview file before ingestion  
+ * - preview() - Preview file before ingestion
  * - detectColumns() - Auto-detect CSV column mappings
  * - analyze() - Get log statistics
  * - assessQuality() - Run quality assessment
@@ -12,8 +12,8 @@
  * - remove() - Delete event log
  */
 
-import { HttpClient } from '../client.js';
-import { PaginationOptions } from '../types/common.js';
+import { HttpClient } from "../client.js";
+import { PaginationOptions } from "../types/common.js";
 import {
   EventLog,
   EventLogDetails,
@@ -26,12 +26,12 @@ import {
   ProcessVariant,
   PaginatedLogs,
   UpdateLogMetadata,
-} from '../types/logs.js';
+} from "../types/logs.js";
 
 export interface ListLogsOptions extends PaginationOptions {
   search?: string;
-  sortBy?: 'created_at' | 'name' | 'total_cases' | 'total_events';
-  sortOrder?: 'asc' | 'desc';
+  sortBy?: "created_at" | "name" | "total_cases" | "total_events";
+  sortOrder?: "asc" | "desc";
 }
 
 export class LogsClient {
@@ -43,13 +43,13 @@ export class LogsClient {
    */
   async ingest(file: File | Blob, options?: IngestLogOptions): Promise<IngestionResult> {
     const formData = new FormData();
-    formData.append('file', file);
-    
-    if (options?.name) formData.append('name', options.name);
-    if (options?.caseIdColumn) formData.append('case_id_column', options.caseIdColumn);
-    if (options?.activityColumn) formData.append('activity_column', options.activityColumn);
-    if (options?.timestampColumn) formData.append('timestamp_column', options.timestampColumn);
-    if (options?.resourceColumn) formData.append('resource_column', options.resourceColumn);
+    formData.append("file", file);
+
+    if (options?.name) formData.append("name", options.name);
+    if (options?.caseIdColumn) formData.append("case_id_column", options.caseIdColumn);
+    if (options?.activityColumn) formData.append("activity_column", options.activityColumn);
+    if (options?.timestampColumn) formData.append("timestamp_column", options.timestampColumn);
+    if (options?.resourceColumn) formData.append("resource_column", options.resourceColumn);
 
     const response = await this.http.postForm<{
       id: string;
@@ -57,7 +57,7 @@ export class LogsClient {
       total_cases: number;
       total_events: number;
       validation: { is_valid: boolean; errors: string[]; warnings: string[] };
-    }>('/logs/upload', formData);
+    }>("/api/v1/processes/upload", formData);
 
     return {
       id: response.id,
@@ -78,8 +78,8 @@ export class LogsClient {
    */
   async preview(file: File | Blob): Promise<FilePreview> {
     const formData = new FormData();
-    formData.append('file', file);
-    return this.http.postForm<FilePreview>('/logs/preview', formData);
+    formData.append("file", file);
+    return this.http.postForm<FilePreview>("/api/v1/processes/preview", formData);
   }
 
   /**
@@ -88,15 +88,15 @@ export class LogsClient {
    */
   async detectColumns(file: File | Blob): Promise<ColumnDetection> {
     const formData = new FormData();
-    formData.append('file', file);
-    return this.http.postForm<ColumnDetection>('/logs/detect-columns', formData);
+    formData.append("file", file);
+    return this.http.postForm<ColumnDetection>("/api/v1/processes/detect-columns", formData);
   }
 
   /**
    * List all event logs with optional filtering and pagination.
    */
   async list(options?: ListLogsOptions): Promise<PaginatedLogs> {
-    return this.http.get<PaginatedLogs>('/logs/', {
+    return this.http.get<PaginatedLogs>("/api/v1/processes", {
       page: options?.page,
       page_size: options?.pageSize,
       search: options?.search,
@@ -109,21 +109,21 @@ export class LogsClient {
    * Get detailed information about a specific event log.
    */
   async get(logId: string): Promise<EventLogDetails> {
-    return this.http.get<EventLogDetails>(`/logs/${logId}`);
+    return this.http.get<EventLogDetails>(`/api/v1/processes/${logId}`);
   }
 
   /**
    * Update event log metadata.
    */
   async updateMetadata(logId: string, updates: UpdateLogMetadata): Promise<EventLog> {
-    return this.http.patch<EventLog>(`/logs/${logId}`, updates);
+    return this.http.patch<EventLog>(`/api/v1/processes/${logId}`, updates);
   }
 
   /**
    * Analyze event log and get detailed statistics.
    */
   async analyze(logId: string): Promise<LogStatistics> {
-    return this.http.get<LogStatistics>(`/logs/${logId}/statistics`);
+    return this.http.get<LogStatistics>(`/api/v1/processes/${logId}/statistics`);
   }
 
   /**
@@ -131,21 +131,21 @@ export class LogsClient {
    * Returns completeness, validity scores, and issues found.
    */
   async assessQuality(logId: string): Promise<QualityReport> {
-    return this.http.get<QualityReport>(`/logs/${logId}/quality`);
+    return this.http.get<QualityReport>(`/api/v1/processes/${logId}/quality`);
   }
 
   /**
    * List process variants in an event log.
    */
   async listVariants(logId: string, limit = 50): Promise<ProcessVariant[]> {
-    return this.http.get<ProcessVariant[]>(`/logs/${logId}/variants`, { limit });
+    return this.http.get<ProcessVariant[]>(`/api/v1/processes/${logId}/variants`, { limit });
   }
 
   /**
    * List all unique activities in an event log.
    */
   async listActivities(logId: string): Promise<string[]> {
-    const response = await this.http.get<{ activities: string[] }>(`/logs/${logId}/activities`);
+    const response = await this.http.get<{ activities: string[] }>(`/api/v1/processes/${logId}/activities`);
     return response.activities;
   }
 
@@ -153,6 +153,6 @@ export class LogsClient {
    * Remove an event log from the system.
    */
   async remove(logId: string): Promise<void> {
-    await this.http.delete(`/logs/${logId}`);
+    await this.http.delete(`/api/v1/processes/${logId}`);
   }
 }

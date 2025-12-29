@@ -3,13 +3,13 @@
  * Business-focused types for model discovery operations
  */
 
-import { HypermediaResponse } from './common.js';
+import { HypermediaResponse } from "./common.js";
 
 // =============================================================================
 // MINING ALGORITHMS
 // =============================================================================
 
-export type MinerType = 'alpha' | 'alpha_plus' | 'heuristics' | 'inductive' | 'dfg';
+export type MinerType = "alpha" | "alpha_plus" | "heuristics" | "inductive" | "dfg";
 
 export interface MinerInfo extends HypermediaResponse {
   id: string;
@@ -21,7 +21,7 @@ export interface MinerInfo extends HypermediaResponse {
 
 export interface MinerParameter {
   name: string;
-  type: 'number' | 'string' | 'boolean';
+  type: "number" | "string" | "boolean";
   default?: unknown;
   description?: string;
 }
@@ -105,8 +105,8 @@ export interface PetriNetTransition {
 export interface PetriNetArc {
   source: string;
   target: string;
-  sourceType: 'place' | 'transition';
-  targetType: 'place' | 'transition';
+  sourceType: "place" | "transition";
+  targetType: "place" | "transition";
 }
 
 export interface PetriNet extends HypermediaResponse {
@@ -124,7 +124,7 @@ export interface PetriNet extends HypermediaResponse {
 // =============================================================================
 
 export interface ProcessTreeNode {
-  operator?: 'sequence' | 'choice' | 'parallel' | 'loop';
+  operator?: "sequence" | "choice" | "parallel" | "loop";
   label?: string;
   children: ProcessTreeNode[];
 }

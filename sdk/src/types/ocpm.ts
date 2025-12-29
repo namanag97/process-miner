@@ -2,7 +2,7 @@
  * OCPM (Object-Centric Process Mining) Types
  */
 
-import { HypermediaResponse } from './common.js';
+import { HypermediaResponse } from "./common.js";
 
 // =============================================================================
 // OCEL LOG

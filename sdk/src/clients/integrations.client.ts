@@ -1,6 +1,6 @@
 /**
  * Integrations Client - External System Connectors
- * 
+ *
  * Business verbs:
  * - listConnectorTypes() - Get available connector types
  * - createConnector() - Create new connector
@@ -15,13 +15,13 @@
  * - fetchData() - Fetch event data from connector
  */
 
-import { HttpClient } from '../client.js';
+import { HttpClient } from "../client.js";
 import {
   ConnectorTypeInfo,
   Connector,
   CreateConnectorOptions,
   SyncResult,
-} from '../types/workflows.js';
+} from "../types/workflows.js";
 
 export class IntegrationsClient {
   constructor(private readonly http: HttpClient) {}
@@ -30,14 +30,14 @@ export class IntegrationsClient {
    * List available connector types.
    */
   async listConnectorTypes(): Promise<ConnectorTypeInfo[]> {
-    return this.http.get<ConnectorTypeInfo[]>('/integrations/connector-types');
+    return this.http.get<ConnectorTypeInfo[]>("/integrations/connector-types");
   }
 
   /**
    * Create a new connector configuration.
    */
   async createConnector(options: CreateConnectorOptions): Promise<Connector> {
-    return this.http.post<Connector>('/integrations/connectors', {
+    return this.http.post<Connector>("/integrations/connectors", {
       name: options.name,
       connector_type: options.connectorType,
       settings: options.settings,
@@ -48,7 +48,7 @@ export class IntegrationsClient {
    * List all configured connectors.
    */
   async listConnectors(): Promise<Connector[]> {
-    return this.http.get<Connector[]>('/integrations/connectors');
+    return this.http.get<Connector[]>("/integrations/connectors");
   }
 
   /**
@@ -121,6 +121,6 @@ export class IntegrationsClient {
    * Get synchronization history.
    */
   async getSyncHistory(): Promise<SyncResult[]> {
-    return this.http.get<SyncResult[]>('/integrations/sync-history');
+    return this.http.get<SyncResult[]>("/integrations/sync-history");
   }
 }

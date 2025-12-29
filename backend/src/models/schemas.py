@@ -535,3 +535,392 @@ class DeviationResponse(BaseModel):
     activity: Optional[str]
     deviation_type: str
     details: str
+
+
+# =============================================================================
+# Filtering
+# =============================================================================
+
+
+class FilterConfig(BaseModel):
+    """Single filter configuration."""
+
+    type: str = Field(..., description="Filter type: time_range, variants_top_k, etc.")
+    params: dict[str, Any] = Field(default_factory=dict, description="Filter parameters")
+
+
+class FilterRequest(BaseModel):
+    """Request to apply filters to an event log."""
+
+    name: Optional[str] = Field(None, description="Name for the filtered log")
+    filters: list[FilterConfig] = Field(..., description="List of filters to apply")
+    save_result: bool = Field(default=True, description="Whether to save the filtered log")
+
+
+class FilterPreviewRequest(BaseModel):
+    """Request to preview filter impact without saving."""
+
+    filters: list[FilterConfig] = Field(..., description="List of filters to apply")
+
+
+class FilterStatistics(BaseModel):
+    """Statistics comparing original and filtered logs."""
+
+    original_cases: int
+    filtered_cases: int
+    cases_removed: int
+    cases_retained_pct: float
+    original_events: int
+    filtered_events: int
+    events_removed: int
+    events_retained_pct: float
+    original_activities: int
+    filtered_activities: int
+    activities_removed: int
+
+
+class FilterPreviewResponse(BaseModel):
+    """Response for filter preview."""
+
+    would_retain_cases: int
+    would_retain_events: int
+    statistics: FilterStatistics
+    filters_applied: list[FilterConfig]
+
+
+class FilteredLogResponse(BaseModel):
+    """Response for a filtered log."""
+
+    id: str
+    name: str
+    source_log_id: str
+    is_filtered: bool = True
+    filter_config: list[FilterConfig]
+    total_events: int
+    total_cases: int
+    total_activities: int
+    statistics: Optional[FilterStatistics]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class FilteredLogListResponse(BaseModel):
+    """List of filtered logs derived from a source log."""
+
+    source_log_id: str
+    source_log_name: str
+    filtered_logs: list[FilteredLogResponse]
+    total: int
+
+
+class FilterOptionsResponse(BaseModel):
+    """Available filter options based on log contents."""
+
+    activities: list[str]
+    resources: list[str]
+    start_activities: dict[str, int]
+    end_activities: dict[str, int]
+    total_variants: int
+    time_range: dict[str, Optional[str]]
+    case_size_range: dict[str, float]
+
+
+class FilterTemplateResponse(BaseModel):
+    """Pre-built filter template."""
+
+    id: str
+    name: str
+    description: str
+    filters: list[FilterConfig]
+
+
+class FilterTemplateListResponse(BaseModel):
+    """List of available filter templates."""
+
+    templates: list[FilterTemplateResponse]
+
+
+# =============================================================================
+# Analytics
+# =============================================================================
+
+
+class BottleneckResponse(BaseModel):
+    """Bottleneck detection result."""
+
+    activity: str
+    avg_waiting_time_seconds: float
+    avg_service_time_seconds: float
+    frequency: int
+    is_bottleneck: bool
+    severity: str  # 'low', 'medium', 'high'
+
+
+class BottleneckListResponse(BaseModel):
+    """List of detected bottlenecks."""
+
+    log_id: str
+    bottlenecks: list[BottleneckResponse]
+    total_bottlenecks: int
+
+
+class ReworkResponse(BaseModel):
+    """Rework analysis result."""
+
+    activity: str
+    rework_count: int
+    cases_with_rework: int
+    rework_percentage: float
+
+
+class ReworkListResponse(BaseModel):
+    """Rework analysis results."""
+
+    log_id: str
+    rework_activities: list[ReworkResponse]
+    total_rework_cases: int
+    rework_percentage: float
+
+
+class ServiceTimeResponse(BaseModel):
+    """Service time per activity."""
+
+    activity: str
+    min_seconds: float
+    max_seconds: float
+    avg_seconds: float
+    median_seconds: float
+    std_dev_seconds: float
+
+
+class CycleTimeResponse(BaseModel):
+    """Cycle time statistics."""
+
+    log_id: str
+    min_seconds: float
+    max_seconds: float
+    avg_seconds: float
+    median_seconds: float
+    percentile_25_seconds: float
+    percentile_75_seconds: float
+    percentile_95_seconds: float
+
+
+class ThroughputResponse(BaseModel):
+    """Throughput metrics."""
+
+    log_id: str
+    total_cases: int
+    completed_cases: int
+    cases_per_day: float
+    cases_per_week: float
+    cases_per_month: float
+    time_range_days: float
+
+
+class PatternResponse(BaseModel):
+    """Frequent pattern/subsequence."""
+
+    pattern: str
+    frequency: int
+    support: float
+
+
+class PerformanceDashboardResponse(BaseModel):
+    """Performance summary dashboard."""
+
+    log_id: str
+    cycle_time: CycleTimeResponse
+    throughput: ThroughputResponse
+    top_bottlenecks: list[BottleneckResponse]
+    rework_summary: dict[str, Any]
+
+
+# =============================================================================
+# Organizational Mining
+# =============================================================================
+
+
+class NetworkNode(BaseModel):
+    """Node in a social network graph."""
+
+    id: str
+    label: str
+    type: str = "resource"
+    weight: float = 1.0
+
+
+class NetworkEdge(BaseModel):
+    """Edge in a social network graph."""
+
+    source: str
+    target: str
+    weight: float
+    label: Optional[str] = None
+
+
+class SocialNetworkResponse(BaseModel):
+    """Social network response."""
+
+    log_id: str
+    network_type: str
+    nodes: list[NetworkNode]
+    edges: list[NetworkEdge]
+    metrics: dict[str, Any]
+
+
+class ResourceRoleResponse(BaseModel):
+    """Discovered organizational role."""
+
+    role_id: str
+    resources: list[str]
+    activities: list[str]
+
+
+class ResourceProfileResponse(BaseModel):
+    """Resource profile details."""
+
+    resource: str
+    total_events: int
+    activities: dict[str, int]
+    avg_processing_time_seconds: float
+    first_activity: Optional[datetime]
+    last_activity: Optional[datetime]
+
+
+class ResourceWorkloadResponse(BaseModel):
+    """Resource workload distribution."""
+
+    log_id: str
+    workload: dict[str, int]
+    avg_events_per_resource: float
+
+
+# =============================================================================
+# Predictions
+# =============================================================================
+
+
+class TrainPredictorRequest(BaseModel):
+    """Request to train a prediction model."""
+
+    target_type: str = Field(
+        ...,
+        description="Prediction target: 'next_activity', 'remaining_time', 'outcome'",
+    )
+    algorithm: str = Field(
+        default="random_forest",
+        description="ML algorithm: 'random_forest', 'xgboost', 'gradient_boosting'",
+    )
+    outcome_attribute: Optional[str] = Field(
+        None,
+        description="Attribute to predict for outcome models",
+    )
+
+
+class PredictorResponse(BaseModel):
+    """Prediction model response."""
+
+    id: str
+    log_id: str
+    target_type: str
+    algorithm: str
+    metrics: dict[str, float]
+    trained_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PredictorListResponse(BaseModel):
+    """List of prediction models."""
+
+    log_id: str
+    predictors: list[PredictorResponse]
+    total: int
+
+
+class PredictionRequest(BaseModel):
+    """Request for a single prediction."""
+
+    case_prefix: list[str] = Field(..., description="Activity sequence so far")
+    case_attributes: Optional[dict[str, Any]] = None
+
+
+class PredictionResponse(BaseModel):
+    """Prediction result."""
+
+    predictor_id: str
+    case_prefix: list[str]
+    prediction: Any
+    confidence: Optional[float]
+    alternatives: Optional[list[dict[str, Any]]] = None
+
+
+class BatchPredictionRequest(BaseModel):
+    """Request for batch predictions."""
+
+    cases: list[PredictionRequest]
+
+
+class BatchPredictionResponse(BaseModel):
+    """Batch prediction results."""
+
+    predictor_id: str
+    predictions: list[PredictionResponse]
+
+
+class JobStatusResponse(BaseModel):
+    """Async job status."""
+
+    id: str
+    job_type: str
+    status: str
+    progress: int
+    result: Optional[dict[str, Any]] = None
+    error: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# =============================================================================
+# Simulation
+# =============================================================================
+
+
+class PlayOutRequest(BaseModel):
+    """Request to generate synthetic log from model."""
+
+    num_traces: int = Field(default=100, ge=1, le=10000)
+
+
+class PlayOutResponse(BaseModel):
+    """Play-out result."""
+
+    model_id: str
+    generated_log_id: str
+    traces_generated: int
+    events_generated: int
+
+
+class SimulationRequest(BaseModel):
+    """What-if simulation request."""
+
+    modifications: list[dict[str, Any]] = Field(
+        ...,
+        description="Modifications to simulate",
+    )
+
+
+class SimulationResponse(BaseModel):
+    """Simulation result."""
+
+    log_id: str
+    scenario: str
+    original_metrics: dict[str, float]
+    simulated_metrics: dict[str, float]
+    impact: dict[str, float]

@@ -24,8 +24,7 @@
           "buildDepsName": "build-deps",
           "watchDepsName": "watch-deps"
         }
-      },
-      "exclude": ["libs/design-tokens/*"]
+      }
     },
     {
       "plugin": "@nx/rsbuild",
@@ -57,15 +56,6 @@
       "plugin": "@nx/playwright/plugin",
       "options": {
         "targetName": "e2e"
-      }
-    },
-    {
-      "plugin": "@nx/js/typescript",
-      "include": ["libs/design-tokens/*"],
-      "options": {
-        "typecheck": {
-          "targetName": "typecheck"
-        }
       }
     }
   ],

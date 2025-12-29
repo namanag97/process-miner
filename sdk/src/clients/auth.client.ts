@@ -1,14 +1,14 @@
 /**
  * Auth Client - Authentication Operations
- * 
+ *
  * Business verbs:
  * - signIn() - Authenticate user and start session
  * - signOut() - End session
  * - whoAmI() - Get current user profile
  */
 
-import { HttpClient } from '../client.js';
-import { AuthToken, LoginCredentials, UserProfile } from '../types/auth.js';
+import { HttpClient } from "../client.js";
+import { AuthToken, LoginCredentials, UserProfile } from "../types/auth.js";
 
 export class AuthClient {
   constructor(private readonly http: HttpClient) {}
@@ -21,7 +21,7 @@ export class AuthClient {
     const response = await this.http.post<{
       access_token: string;
       token_type: string;
-    }>('/auth/login', credentials);
+    }>("/auth/login", credentials);
 
     // Store token in client
     this.http.setAuth(response.access_token, response.token_type);
@@ -36,7 +36,7 @@ export class AuthClient {
    * Sign out and clear session.
    */
   async signOut(): Promise<void> {
-    await this.http.post('/auth/logout');
+    await this.http.post("/auth/logout");
     this.http.clearAuth();
   }
 
@@ -44,7 +44,7 @@ export class AuthClient {
    * Get the current authenticated user's profile.
    */
   async whoAmI(): Promise<UserProfile> {
-    return this.http.get<UserProfile>('/auth/me');
+    return this.http.get<UserProfile>("/auth/me");
   }
 
   /**

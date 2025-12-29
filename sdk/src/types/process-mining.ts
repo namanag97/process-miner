@@ -2,7 +2,7 @@
  * Process Mining Types - PM4Py Advanced Features
  */
 
-import { HypermediaResponse } from './common.js';
+import { HypermediaResponse } from "./common.js";
 
 // =============================================================================
 // FOOTPRINTS
@@ -59,7 +59,7 @@ export interface SNAResult extends HypermediaResponse {
 
 export interface BatchPattern extends HypermediaResponse {
   activity: string;
-  batchType: 'simultaneous' | 'sequential' | 'concurrent';
+  batchType: "simultaneous" | "sequential" | "concurrent";
   caseCount: number;
   avgBatchSize: number;
 }
