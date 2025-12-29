@@ -1,0 +1,51 @@
+{
+  "name": "@process-mining-saas/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for Process Mining API",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "generate": "bash scripts/generate.sh",
+    "build": "tsc",
+    "clean": "rm -rf dist src .openapi-generator openapi.json",
+    "prebuild": "npm run clean && npm run generate",
+    "prepare": "npm run build",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "process-mining",
+    "api-client",
+    "typescript",
+    "sdk"
+  ],
+  "author": "Process Mining SaaS",
+  "license": "MIT",
+  "devDependencies": {
+    "openapi-typescript-codegen": "^0.27.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "peerDependencies": {
+    "axios": ">=1.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/process-mining-saas"
+  }
+}
