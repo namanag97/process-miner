@@ -2,7 +2,7 @@
  * Workflows, Notifications, and Integrations Types
  */
 
-import { HypermediaResponse } from './common.js';
+import { HypermediaResponse } from "./common.js";
 
 // =============================================================================
 // WORKFLOWS
@@ -17,7 +17,7 @@ export interface WorkflowPipeline extends HypermediaResponse {
 export interface WorkflowExecution extends HypermediaResponse {
   id: string;
   pipelineName: string;
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  status: "pending" | "running" | "completed" | "failed" | "cancelled";
   startedAt: string;
   completedAt?: string;
   result?: unknown;
@@ -34,7 +34,7 @@ export interface StartWorkflowOptions {
 // NOTIFICATIONS
 // =============================================================================
 
-export type NotificationChannel = 'email' | 'webhook' | 'slack';
+export type NotificationChannel = "email" | "webhook" | "slack";
 
 export interface SendNotificationOptions {
   channel: NotificationChannel;
@@ -48,7 +48,7 @@ export interface Notification extends HypermediaResponse {
   channel: NotificationChannel;
   recipient: string;
   subject: string;
-  status: 'pending' | 'sent' | 'failed';
+  status: "pending" | "sent" | "failed";
   createdAt: string;
 }
 
@@ -63,7 +63,7 @@ export interface NotificationChannelInfo {
 // INTEGRATIONS
 // =============================================================================
 
-export type ConnectorType = 'sap' | 'salesforce' | 'servicenow' | 'database' | 'file';
+export type ConnectorType = "sap" | "salesforce" | "servicenow" | "database" | "file";
 
 export interface ConnectorTypeInfo extends HypermediaResponse {
   type: ConnectorType;
@@ -76,7 +76,7 @@ export interface Connector extends HypermediaResponse {
   id: string;
   name: string;
   connectorType: ConnectorType;
-  status: 'connected' | 'disconnected' | 'error';
+  status: "connected" | "disconnected" | "error";
   settings: Record<string, unknown>;
   createdAt: string;
   lastSyncAt?: string;
@@ -90,7 +90,7 @@ export interface CreateConnectorOptions {
 
 export interface SyncResult extends HypermediaResponse {
   connectorId: string;
-  status: 'success' | 'failed';
+  status: "success" | "failed";
   recordsImported: number;
   syncedAt: string;
   error?: string;

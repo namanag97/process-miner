@@ -22,8 +22,8 @@ export class ApiError extends Error {
     public readonly problem: ProblemDetails,
     message?: string
   ) {
-    super(message || problem.title);
-    this.name = 'ApiError';
+    super(message ?? problem.title);
+    this.name = "ApiError";
   }
 }
 
@@ -38,7 +38,7 @@ export class ApiError extends Error {
 export interface ResourceAction {
   name: string;
   href: string;
-  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   title?: string;
 }
 

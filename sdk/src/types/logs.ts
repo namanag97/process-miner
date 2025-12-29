@@ -3,7 +3,7 @@
  * Business-focused types following CodeOpinion guidance
  */
 
-import { HypermediaResponse, PaginatedResponse, DateRange } from './common.js';
+import { HypermediaResponse, PaginatedResponse, DateRange } from "./common.js";
 
 // =============================================================================
 // CORE ENTITIES
@@ -134,7 +134,7 @@ export interface LogStatistics extends HypermediaResponse {
 export interface QualityIssue {
   issueType: string;
   message: string;
-  severity: 'error' | 'warning' | 'info';
+  severity: "error" | "warning" | "info";
   affectedRows: number;
   column?: string;
 }

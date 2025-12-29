@@ -2,7 +2,7 @@
  * Auth Types for Process Mining SDK
  */
 
-import { HypermediaResponse } from './common.js';
+import { HypermediaResponse } from "./common.js";
 
 // =============================================================================
 // REQUEST TYPES

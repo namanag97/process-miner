@@ -39,6 +39,19 @@ class Settings(BaseSettings):
     log_level: str = "DEBUG"  # DEBUG, INFO, WARNING, ERROR
     log_json: bool = False  # Force JSON output even in dev
 
+    # Redis Configuration
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    redis_db: int = 0
+
+    # Celery Configuration
+    celery_broker_url: str = "redis://localhost:6379/0"
+    celery_result_backend: str = "redis://localhost:6379/1"
+
+    # Cache Configuration
+    cache_enabled: bool = True
+    cache_default_ttl: int = 3600  # 1 hour
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

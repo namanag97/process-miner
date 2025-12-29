@@ -1,6 +1,6 @@
 /**
  * OCPM Client - Object-Centric Process Mining Operations
- * 
+ *
  * Business verbs:
  * - ingest() - Import OCEL file
  * - listLogs() - List all OCEL logs
@@ -13,14 +13,14 @@
  * - getModel() - Get OC-PN details
  */
 
-import { HttpClient } from '../client.js';
+import { HttpClient } from "../client.js";
 import {
   OCELLog,
   ObjectType,
   OCELStatistics,
   OCPetriNet,
   IngestOCELOptions,
-} from '../types/ocpm.js';
+} from "../types/ocpm.js";
 
 export class OCPMClient {
   constructor(private readonly http: HttpClient) {}
@@ -31,16 +31,16 @@ export class OCPMClient {
    */
   async ingest(file: File | Blob, options?: IngestOCELOptions): Promise<OCELLog> {
     const formData = new FormData();
-    formData.append('file', file);
-    if (options?.name) formData.append('name', options.name);
-    return this.http.postForm<OCELLog>('/ocpm/upload', formData);
+    formData.append("file", file);
+    if (options?.name) formData.append("name", options.name);
+    return this.http.postForm<OCELLog>("/ocpm/upload", formData);
   }
 
   /**
    * List all OCEL logs.
    */
   async listLogs(): Promise<OCELLog[]> {
-    const response = await this.http.get<{ logs: OCELLog[]; total: number }>('/ocpm/logs');
+    const response = await this.http.get<{ logs: OCELLog[]; total: number }>("/ocpm/logs");
     return response.logs;
   }
 
@@ -79,7 +79,7 @@ export class OCPMClient {
    * Discover an Object-Centric Petri Net from an OCEL log.
    */
   async discoverOCPN(logId: string, modelName?: string): Promise<OCPetriNet> {
-    return this.http.post<OCPetriNet>('/ocpm/discover', {
+    return this.http.post<OCPetriNet>("/ocpm/discover", {
       log_id: logId,
       model_name: modelName,
     });
@@ -89,7 +89,7 @@ export class OCPMClient {
    * List all discovered Object-Centric Petri Nets.
    */
   async listModels(): Promise<OCPetriNet[]> {
-    const response = await this.http.get<{ models: OCPetriNet[] }>('/ocpm/models');
+    const response = await this.http.get<{ models: OCPetriNet[] }>("/ocpm/models");
     return response.models;
   }
 

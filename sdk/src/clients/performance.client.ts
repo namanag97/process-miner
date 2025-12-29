@@ -1,6 +1,6 @@
 /**
  * Performance Client - Performance Analysis Operations
- * 
+ *
  * Business verbs:
  * - analyze() - Run performance analysis on event log
  * - summarize() - Get performance summary
@@ -10,14 +10,14 @@
  * - buildDurationHistogram() - Build case duration distribution
  */
 
-import { HttpClient } from '../client.js';
+import { HttpClient } from "../client.js";
 import {
   PerformanceSummary,
   BottleneckAnalysis,
   ActivityPerformance,
   TransitionPerformance,
   DurationHistogram,
-} from '../types/performance.js';
+} from "../types/performance.js";
 
 export class PerformanceClient {
   constructor(private readonly http: HttpClient) {}

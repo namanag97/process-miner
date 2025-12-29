@@ -2,7 +2,7 @@
  * Organizational Mining Types
  */
 
-import { HypermediaResponse } from './common.js';
+import { HypermediaResponse } from "./common.js";
 
 // =============================================================================
 // RESOURCES
@@ -37,7 +37,7 @@ export interface SocialNetwork extends HypermediaResponse {
   logId: string;
   nodes: NetworkNode[];
   edges: NetworkEdge[];
-  networkType: 'handover' | 'working_together' | 'similar_activities';
+  networkType: "handover" | "working_together" | "similar_activities";
 }
 
 // =============================================================================

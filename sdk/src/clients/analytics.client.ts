@@ -1,74 +1,86 @@
 /**
- * Analytics Client - Process Analytics Operations
- * 
+ * Analytics Client - Performance Analytics Operations
+ *
  * Business verbs:
- * - getDashboard() - Get comprehensive dashboard data
- * - discoverInsights() - Find process insights
- * - detectAnomalies() - Identify anomalous cases
- * - analyzeVariants() - Analyze variant distribution
- * - analyzeResources() - Analyze resource utilization
- * - analyzeTime() - Analyze temporal patterns
+ * - getBottlenecks() - Detect process bottlenecks
+ * - getRework() - Analyze rework patterns
+ * - getServiceTimes() - Get service time statistics per activity
+ * - getCycleTime() - Get cycle time (case duration) statistics
+ * - getThroughput() - Get throughput metrics
+ * - getPatterns() - Get frequent activity patterns
+ * - getPerformanceDashboard() - Get comprehensive performance dashboard
  */
 
-import { HttpClient } from '../client.js';
+import { HttpClient } from "../client.js";
 import {
-  DashboardData,
-  ProcessInsight,
-  AnomalyAnalysis,
-  VariantStatistics,
-  ResourceStatistics,
-  TimeAnalysis,
-} from '../types/analytics.js';
+  BottleneckListResponse,
+  ReworkListResponse,
+  ServiceTimeResponse,
+  CycleTimeResponse,
+  ThroughputResponse,
+  PatternResponse,
+  PerformanceDashboardResponse,
+} from "../types/analytics.js";
 
 export class AnalyticsClient {
   constructor(private readonly http: HttpClient) {}
 
   /**
-   * Get comprehensive dashboard data for an event log.
-   * Includes overview metrics, top variants, and distributions.
+   * Detect process bottlenecks based on waiting times.
+   * Returns activities with highest waiting times.
    */
-  async getDashboard(logId: string): Promise<DashboardData> {
-    return this.http.get<DashboardData>(`/analytics/dashboard/${logId}`);
+  async getBottlenecks(logId: string): Promise<BottleneckListResponse> {
+    return this.http.get<BottleneckListResponse>(`/api/v1/analytics/logs/${logId}/bottlenecks`);
   }
 
   /**
-   * Discover process insights from the event log.
-   * Returns actionable findings with recommendations.
+   * Analyze rework (repeated activities) in cases.
+   * Identifies activities that are repeated within cases.
    */
-  async discoverInsights(logId: string): Promise<ProcessInsight[]> {
-    const response = await this.http.get<{ insights: ProcessInsight[] }>(
-      `/analytics/insights/${logId}`
-    );
-    return response.insights;
+  async getRework(logId: string): Promise<ReworkListResponse> {
+    return this.http.get<ReworkListResponse>(`/api/v1/analytics/logs/${logId}/rework`);
   }
 
   /**
-   * Detect anomalous cases in the event log.
-   * Identifies cases that deviate from normal behavior.
+   * Get service time statistics per activity.
+   * Returns mean, median, min, max service times for each activity.
    */
-  async detectAnomalies(logId: string): Promise<AnomalyAnalysis> {
-    return this.http.get<AnomalyAnalysis>(`/analytics/anomalies/${logId}`);
+  async getServiceTimes(logId: string): Promise<ServiceTimeResponse[]> {
+    return this.http.get<ServiceTimeResponse[]>(`/api/v1/analytics/logs/${logId}/service-times`);
   }
 
   /**
-   * Analyze variant distribution and statistics.
+   * Get cycle time (case duration) statistics.
+   * Returns mean, median, min, max duration across all cases.
    */
-  async analyzeVariants(logId: string): Promise<VariantStatistics> {
-    return this.http.get<VariantStatistics>(`/analytics/variants/${logId}`);
+  async getCycleTime(logId: string): Promise<CycleTimeResponse> {
+    return this.http.get<CycleTimeResponse>(`/api/v1/analytics/logs/${logId}/cycle-time`);
   }
 
   /**
-   * Analyze resource utilization and workload.
+   * Get throughput metrics (cases per day/week/month).
+   * Returns cases completed per time unit.
    */
-  async analyzeResources(logId: string): Promise<ResourceStatistics> {
-    return this.http.get<ResourceStatistics>(`/analytics/resources/${logId}`);
+  async getThroughput(logId: string): Promise<ThroughputResponse> {
+    return this.http.get<ThroughputResponse>(`/api/v1/analytics/logs/${logId}/throughput`);
   }
 
   /**
-   * Analyze temporal patterns in the process.
-   * Returns cases over time, peak hours, and duration trends.
+   * Get frequent activity patterns/subsequences.
+   * @param logId - Event log ID
+   * @param minSupport - Minimum support threshold (default: 0.1 = 10%)
    */
-  async analyzeTime(logId: string): Promise<TimeAnalysis> {
-    return this.http.get<TimeAnalysis>(`/analytics/time/${logId}`);
+  async getPatterns(logId: string, minSupport: number = 0.1): Promise<PatternResponse[]> {
+    return this.http.get<PatternResponse[]>(`/api/v1/analytics/logs/${logId}/patterns`, {
+      min_support: minSupport,
+    });
+  }
+
+  /**
+   * Get comprehensive performance dashboard.
+   * Combines cycle time, throughput, bottlenecks, and rework summary.
+   */
+  async getPerformanceDashboard(logId: string): Promise<PerformanceDashboardResponse> {
+    return this.http.get<PerformanceDashboardResponse>(`/api/v1/analytics/logs/${logId}/performance`);
   }
 }

@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import uuid4
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, LargeBinary, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -38,6 +38,14 @@ class EventLog(Base):
     activities_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     statistics_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # Filtering support
+    source_log_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=True
+    )
+    filter_config_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_filtered: Mapped[bool] = mapped_column(Boolean, default=False)
+    filter_stats_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
@@ -49,6 +57,18 @@ class EventLog(Base):
     )
     models: Mapped[list["ProcessModel"]] = relationship(
         back_populates="source_log",
+        lazy="selectin",
+    )
+    source_log: Mapped[Optional["EventLog"]] = relationship(
+        "EventLog",
+        remote_side="EventLog.id",
+        foreign_keys=[source_log_id],
+        lazy="selectin",
+    )
+    filtered_logs: Mapped[list["EventLog"]] = relationship(
+        "EventLog",
+        back_populates="source_log",
+        foreign_keys=[source_log_id],
         lazy="selectin",
     )
 
@@ -301,3 +321,109 @@ class OCPetriNet(Base):
 
     # Relationships
     ocel_log: Mapped["OCELLog"] = relationship(back_populates="petri_nets")
+
+
+# =============================================================================
+# Analytics & Caching
+# =============================================================================
+
+
+class AnalyticsCache(Base):
+    """Cached analytics results for event logs."""
+
+    __tablename__ = "analytics_cache"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+    log_id: Mapped[str] = mapped_column(
+        ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=False
+    )
+    metric_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    result_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    computed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    ttl_seconds: Mapped[int] = mapped_column(Integer, default=3600)
+
+
+# =============================================================================
+# Social Networks (Organizational Mining)
+# =============================================================================
+
+
+class SocialNetwork(Base):
+    """Social network discovered from event log."""
+
+    __tablename__ = "social_networks"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+    log_id: Mapped[str] = mapped_column(
+        ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=False
+    )
+    network_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    graph_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    metrics_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+# =============================================================================
+# Prediction Models
+# =============================================================================
+
+
+class PredictionModel(Base):
+    """ML prediction model for process outcomes."""
+
+    __tablename__ = "prediction_models"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+    log_id: Mapped[str] = mapped_column(
+        ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=False
+    )
+    target_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    algorithm: Mapped[str] = mapped_column(String(50), nullable=False)
+    model_binary: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    metrics_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    trained_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class Prediction(Base):
+    """Individual prediction record."""
+
+    __tablename__ = "predictions"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+    model_id: Mapped[str] = mapped_column(
+        ForeignKey("prediction_models.id", ondelete="CASCADE"), nullable=False
+    )
+    case_prefix_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    prediction_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    predicted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+# =============================================================================
+# Async Jobs
+# =============================================================================
+
+
+class AsyncJob(Base):
+    """Async job tracking for long-running operations."""
+
+    __tablename__ = "async_jobs"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+    job_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    progress: Mapped[int] = mapped_column(Integer, default=0)
+    result_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

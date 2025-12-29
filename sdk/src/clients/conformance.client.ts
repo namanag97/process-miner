@@ -1,6 +1,6 @@
 /**
  * Conformance Client - Conformance Checking Operations
- * 
+ *
  * Business verbs:
  * - check() - Check conformance between log and model
  * - measureFitness() - Calculate fitness score
@@ -12,7 +12,7 @@
  * - evaluateComprehensiveQuality() - Get all quality metrics
  */
 
-import { HttpClient } from '../client.js';
+import { HttpClient } from "../client.js";
 import {
   CheckConformanceOptions,
   ConformanceResult,
@@ -21,7 +21,7 @@ import {
   DeviationAnalysis,
   AlignmentAnalysis,
   ComprehensiveQuality,
-} from '../types/conformance.js';
+} from "../types/conformance.js";
 
 export class ConformanceClient {
   constructor(private readonly http: HttpClient) {}
@@ -39,10 +39,10 @@ export class ConformanceClient {
       precision?: number;
       is_conformant: boolean;
       method: string;
-    }>('/conformance/check', {
+    }>("/conformance/check", {
       log_id: options.logId,
       model_id: options.modelId,
-      method: options.method ?? 'token_replay',
+      method: options.method ?? "token_replay",
     });
 
     return {
@@ -61,7 +61,7 @@ export class ConformanceClient {
    * Fitness measures how well the log fits the model.
    */
   async measureFitness(logId: string, modelId: string): Promise<number> {
-    const response = await this.http.get<{ fitness: number }>('/conformance/fitness', {
+    const response = await this.http.get<{ fitness: number }>("/conformance/fitness", {
       log_id: logId,
       model_id: modelId,
     });
@@ -73,7 +73,7 @@ export class ConformanceClient {
    * Precision measures how much behavior the model allows beyond the log.
    */
   async measurePrecision(logId: string, modelId: string): Promise<number> {
-    const response = await this.http.get<{ precision: number }>('/conformance/precision', {
+    const response = await this.http.get<{ precision: number }>("/conformance/precision", {
       log_id: logId,
       model_id: modelId,
     });
@@ -85,7 +85,7 @@ export class ConformanceClient {
    * Shows fitting vs non-fitting traces and deviations.
    */
   async diagnose(logId: string, modelId: string): Promise<ConformanceDiagnostics> {
-    return this.http.get<ConformanceDiagnostics>('/conformance/diagnostics', {
+    return this.http.get<ConformanceDiagnostics>("/conformance/diagnostics", {
       log_id: logId,
       model_id: modelId,
     });
@@ -96,7 +96,7 @@ export class ConformanceClient {
    * Returns cases that don't conform and their deviation details.
    */
   async findDeviations(logId: string, modelId: string, threshold = 0.8): Promise<Deviation[]> {
-    const response = await this.http.get<{ deviations: Deviation[] }>('/conformance/deviations', {
+    const response = await this.http.get<{ deviations: Deviation[] }>("/conformance/deviations", {
       log_id: logId,
       model_id: modelId,
       threshold,
@@ -109,7 +109,7 @@ export class ConformanceClient {
    * Shows sync moves, model moves, and log moves for each trace.
    */
   async computeAlignments(logId: string, modelId: string, limit = 100): Promise<AlignmentAnalysis> {
-    return this.http.get<AlignmentAnalysis>('/conformance/alignments', {
+    return this.http.get<AlignmentAnalysis>("/conformance/alignments", {
       log_id: logId,
       model_id: modelId,
       limit,
@@ -121,7 +121,7 @@ export class ConformanceClient {
    * Groups similar deviations and provides occurrence statistics.
    */
   async analyzeDeviationPatterns(logId: string, modelId: string): Promise<DeviationAnalysis> {
-    return this.http.get<DeviationAnalysis>('/conformance/deviation-patterns', {
+    return this.http.get<DeviationAnalysis>("/conformance/deviation-patterns", {
       log_id: logId,
       model_id: modelId,
     });
@@ -131,8 +131,11 @@ export class ConformanceClient {
    * Evaluate comprehensive quality metrics.
    * Combines fitness, precision, generalization, and simplicity.
    */
-  async evaluateComprehensiveQuality(logId: string, modelId: string): Promise<ComprehensiveQuality> {
-    return this.http.get<ComprehensiveQuality>('/conformance/comprehensive-quality', {
+  async evaluateComprehensiveQuality(
+    logId: string,
+    modelId: string
+  ): Promise<ComprehensiveQuality> {
+    return this.http.get<ComprehensiveQuality>("/conformance/comprehensive-quality", {
       log_id: logId,
       model_id: modelId,
     });

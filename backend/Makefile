@@ -51,7 +51,7 @@ check: lint format-check typecheck security
 	@echo "✅ All checks passed"
 
 run:
-	$(PYTHON) -m uvicorn src.main:app --reload --port 8001
+	$(PYTHON) -m uvicorn src.api.main:app --reload --port 8001
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage

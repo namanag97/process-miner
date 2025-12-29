@@ -5,7 +5,7 @@
     "emitDeclarationOnly": true,
     "importHelpers": true,
     "isolatedModules": true,
-    "lib": ["es2022"],
+    "lib": ["es2022", "DOM", "DOM.Iterable"],
     "module": "esnext",
     "moduleResolution": "bundler",
     "noEmitOnError": true,
@@ -16,6 +16,24 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "es2022",
-    "customConditions": ["@frontend/source"]
+    "jsx": "react-jsx",
+    "customConditions": ["@frontend/source"],
+    "baseUrl": ".",
+    "paths": {
+      "@lumina/design-system": ["libs/shared/design-system/src/index.ts"],
+      "@lumina/design-system/*": ["libs/shared/design-system/src/*"],
+      "@lumina/shared/core": ["libs/shared/core/src/index.ts"],
+      "@lumina/shared/state": ["libs/shared/state/src/index.ts"],
+      "@lumina/shared/data-access": ["libs/shared/data-access/src/index.ts"],
+      "@lumina/data-hub": ["libs/domains/data-hub/src/index.ts"],
+      "@lumina/data-hub/*": ["libs/domains/data-hub/src/*"],
+      "@lumina/process-explorer": ["libs/domains/process-explorer/src/index.ts"],
+      "@lumina/process-explorer/*": ["libs/domains/process-explorer/src/*"],
+      "@lumina/variants": ["libs/domains/variants/src/index.ts"],
+      "@lumina/variants/*": ["libs/domains/variants/src/*"],
+      "@lumina/analytics": ["libs/domains/analytics/src/index.ts"],
+      "@lumina/analytics/*": ["libs/domains/analytics/src/*"],
+      "@lumina/process-discovery/*": ["libs/domains/process-discovery/*/src/index.ts"]
+    }
   }
 }

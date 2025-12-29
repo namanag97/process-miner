@@ -1,6 +1,6 @@
 /**
  * Discovery Client - Process Model Discovery Operations
- * 
+ *
  * Business verbs:
  * - discover() - Discover process model from event log
  * - buildDFG() - Build Directly-Follows Graph
@@ -11,7 +11,7 @@
  * - listMiners() - Get available mining algorithms
  */
 
-import { HttpClient } from '../client.js';
+import { HttpClient } from "../client.js";
 import {
   DiscoverModelOptions,
   ProcessModel,
@@ -20,7 +20,7 @@ import {
   ProcessTree,
   ModelQualityMetrics,
   MinerInfo,
-} from '../types/discovery.js';
+} from "../types/discovery.js";
 
 export class DiscoveryClient {
   constructor(private readonly http: HttpClient) {}
@@ -29,7 +29,7 @@ export class DiscoveryClient {
    * List all available mining algorithms.
    */
   async listMiners(): Promise<MinerInfo[]> {
-    return this.http.get<MinerInfo[]>('/discovery/miners');
+    return this.http.get<MinerInfo[]>("/api/v1/discovery/miners");
   }
 
   /**
@@ -43,9 +43,9 @@ export class DiscoveryClient {
       miner_type: string;
       model_format: string;
       source_log_id: string;
-    }>('/discovery/discover', {
+    }>("/api/v1/discovery/discover", {
       log_id: options.logId,
-      miner_type: options.minerType ?? 'inductive',
+      miner_type: options.minerType ?? "inductive",
       model_name: options.modelName,
     });
 
@@ -63,13 +63,18 @@ export class DiscoveryClient {
    * Returns nodes (activities) and edges (transitions) with frequencies.
    */
   async buildDFG(logId: string): Promise<DirectlyFollowsGraph> {
-    return this.http.get<DirectlyFollowsGraph>(`/discovery/dfg/${logId}/detailed`);
+    return this.http.get<DirectlyFollowsGraph>(`/api/v1/discovery/dfg/${logId}/detailed`);
   }
 
   /**
    * Build a simple DFG representation (JSON).
    */
-  async buildSimpleDFG(logId: string): Promise<{ nodes: string[]; edges: Array<{ source: string; target: string; frequency: number }> }> {
+  async buildSimpleDFG(
+    logId: string
+  ): Promise<{
+    nodes: string[];
+    edges: Array<{ source: string; target: string; frequency: number }>;
+  }> {
     return this.http.get(`/discovery/dfg/${logId}`);
   }
 
@@ -78,7 +83,7 @@ export class DiscoveryClient {
    * Returns places, transitions, arcs, and markings.
    */
   async extractPetriNet(modelId: string): Promise<PetriNet> {
-    return this.http.get<PetriNet>(`/discovery/petri-net/${modelId}`);
+    return this.http.get<PetriNet>(`/api/v1/discovery/petri-net/${modelId}`);
   }
 
   /**
@@ -86,15 +91,15 @@ export class DiscoveryClient {
    * Returns hierarchical tree structure.
    */
   async extractProcessTree(modelId: string): Promise<ProcessTree> {
-    return this.http.get<ProcessTree>(`/discovery/process-tree/${modelId}`);
+    return this.http.get<ProcessTree>(`/api/v1/discovery/process-tree/${modelId}`);
   }
 
   /**
    * Generate visual representation of a process model.
    * Returns SVG image by default.
    */
-  async visualize(modelId: string, format: 'svg' | 'png' = 'svg'): Promise<string> {
-    return this.http.get<string>(`/discovery/visualize/${modelId}`, { format });
+  async visualize(modelId: string, format: "svg" | "png" = "svg"): Promise<string> {
+    return this.http.get<string>(`/api/v1/discovery/visualize/${modelId}`, { format });
   }
 
   /**
@@ -104,6 +109,6 @@ export class DiscoveryClient {
   async evaluateQuality(modelId: string, logId?: string): Promise<ModelQualityMetrics> {
     const params: Record<string, string | undefined> = {};
     if (logId) params.log_id = logId;
-    return this.http.get<ModelQualityMetrics>(`/discovery/model/${modelId}/quality`, params);
+    return this.http.get<ModelQualityMetrics>(`/api/v1/discovery/model/${modelId}/quality`, params);
   }
 }

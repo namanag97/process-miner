@@ -1,6 +1,6 @@
 /**
  * Notifications Client - Alert & Notification Management
- * 
+ *
  * Business verbs:
  * - send() - Send a notification
  * - list() - List notifications
@@ -10,12 +10,12 @@
  * - configure() - Configure notification channel
  */
 
-import { HttpClient } from '../client.js';
+import { HttpClient } from "../client.js";
 import {
   Notification,
   NotificationChannelInfo,
   SendNotificationOptions,
-} from '../types/workflows.js';
+} from "../types/workflows.js";
 
 export class NotificationsClient {
   constructor(private readonly http: HttpClient) {}
@@ -23,15 +23,17 @@ export class NotificationsClient {
   /**
    * Send a notification.
    */
-  async send(options: SendNotificationOptions): Promise<{ status: string; notificationId: string }> {
-    return this.http.post('/notifications/send', options);
+  async send(
+    options: SendNotificationOptions
+  ): Promise<{ status: string; notificationId: string }> {
+    return this.http.post("/notifications/send", options);
   }
 
   /**
    * List notifications with optional filtering.
    */
   async list(channel?: string): Promise<Notification[]> {
-    return this.http.get<Notification[]>('/notifications/', { channel });
+    return this.http.get<Notification[]>("/notifications/", { channel });
   }
 
   /**
@@ -46,7 +48,7 @@ export class NotificationsClient {
    */
   async listChannels(): Promise<NotificationChannelInfo[]> {
     const response = await this.http.get<{ channels: NotificationChannelInfo[] }>(
-      '/notifications/channels'
+      "/notifications/channels"
     );
     return response.channels;
   }
@@ -54,8 +56,12 @@ export class NotificationsClient {
   /**
    * Subscribe to event notifications.
    */
-  async subscribe(eventType: string, channel: string, recipient: string): Promise<{ subscriptionId: string }> {
-    return this.http.post('/notifications/subscribe', {
+  async subscribe(
+    eventType: string,
+    channel: string,
+    recipient: string
+  ): Promise<{ subscriptionId: string }> {
+    return this.http.post("/notifications/subscribe", {
       event_type: eventType,
       channel,
       recipient,
@@ -66,6 +72,6 @@ export class NotificationsClient {
    * Configure a notification channel.
    */
   async configure(channel: string, settings: Record<string, unknown>): Promise<void> {
-    await this.http.post('/notifications/configure', { channel, settings });
+    await this.http.post("/notifications/configure", { channel, settings });
   }
 }

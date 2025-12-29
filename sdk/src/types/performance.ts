@@ -2,7 +2,7 @@
  * Performance Analysis Types for Process Mining SDK
  */
 
-import { HypermediaResponse } from './common.js';
+import { HypermediaResponse } from "./common.js";
 
 // =============================================================================
 // PERFORMANCE RESULTS
@@ -45,10 +45,10 @@ export interface TransitionPerformance {
 // BOTTLENECKS
 // =============================================================================
 
-export type BottleneckSeverity = 'low' | 'medium' | 'high' | 'critical';
+export type BottleneckSeverity = "low" | "medium" | "high" | "critical";
 
 export interface Bottleneck extends HypermediaResponse {
-  type: 'activity' | 'transition';
+  type: "activity" | "transition";
   name: string;
   severity: BottleneckSeverity;
   avgDuration: number;
