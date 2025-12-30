@@ -18,7 +18,8 @@
     "process-mining-sdk": "file:../sdk",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router-dom": "^6.29.0"
+    "react-router-dom": "^6.29.0",
+    "reactflow": "^11.11.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.8.0",

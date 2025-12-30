@@ -15,6 +15,8 @@ import {
   EventLogsPage,
   UploadWizardPage,
   LogDetailPage,
+  ProcessExplorerIndexPage,
+  ProcessExplorerPage,
 } from './pages';
 import { createLogger } from './utils/logger';
 
@@ -97,8 +99,8 @@ function AppLayout() {
         <Route path="/logs/:id/*" element={<LogDetailPage />} />
 
         {/* Phase 3: Process Discovery */}
-        <Route path="/explorer" element={<PlaceholderPage title="Process Explorer" phase={3} />} />
-        <Route path="/explorer/:logId/*" element={<PlaceholderPage title="Process Explorer" phase={3} />} />
+        <Route path="/explorer" element={<ProcessExplorerIndexPage />} />
+        <Route path="/explorer/:logId/*" element={<ProcessExplorerPage />} />
 
         {/* Phase 4: Analytics */}
         <Route path="/analytics/*" element={<PlaceholderPage title="Analytics" phase={4} />} />
