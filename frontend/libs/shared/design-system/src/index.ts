@@ -18,6 +18,12 @@ export type { KPICardProps } from './components/KPICard';
 export { DataGrid } from './components/DataGrid';
 export type { DataGridProps, DataGridColumn } from './components/DataGrid';
 
+export { QuickstartCard } from './components/QuickstartCard';
+export type { QuickstartCardProps, VendorType } from './components/QuickstartCard';
+
+export { SectionHeader } from './components/SectionHeader';
+export type { SectionHeaderProps } from './components/SectionHeader';
+
 // Patterns
 export { ResourceListPage, DashboardPage } from './patterns';
 export type { 
@@ -30,3 +36,6 @@ export type {
 
 // Utils
 export { toast, notify, formatDuration, formatDurationFromSeconds, formatCompactNumber, formatPercentage } from './utils';
+
+// Context
+export { SDKProvider, useSDK, queryClient } from './context/SDKContext';

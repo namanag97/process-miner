@@ -2,7 +2,7 @@
  * Filter Hooks - React Query hooks for event log filtering
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSDK } from '../../../../apps/lumina/src/context/SDKContext';
+import { useSDK } from '@lumina/design-system';
 import type { FilterRequest, FilterPreviewRequest } from 'process-mining-sdk';
 
 // Query key factory for filtering

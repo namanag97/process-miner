@@ -44,16 +44,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = useCallback(async (email: string, _password: string) => {
     // Mock authentication - accepts any credentials
+    // Use "admin" / any password for admin role
     setIsLoading(true);
 
     // Simulate network delay
     await new Promise((resolve) => setTimeout(resolve, 500));
 
+    const username = email.includes('@') ? email.split('@')[0] : email;
+    const role = username.toLowerCase() === 'admin' ? 'admin' : 'analyst';
+
     const mockUser: User = {
       id: crypto.randomUUID(),
-      email,
-      name: email.split('@')[0],
-      role: 'analyst',
+      email: email.includes('@') ? email : `${email}@lumina.local`,
+      name: username,
+      role,
     };
 
     const authData: StoredAuth = {

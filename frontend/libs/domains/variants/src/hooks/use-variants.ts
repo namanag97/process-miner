@@ -2,7 +2,7 @@
  * Variant Hooks - React Query hooks for process variant analysis
  */
 import { useQuery } from '@tanstack/react-query';
-import { useSDK } from '../../../../apps/lumina/src/context/SDKContext';
+import { useSDK } from '@lumina/design-system';
 import type { ProcessVariant } from 'process-mining-sdk';
 
 // Query key factory for variants

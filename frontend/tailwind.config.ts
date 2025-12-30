@@ -8,19 +8,19 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Celonis-inspired primary blue
+        // Celonis-inspired primary blue (updated to match reference)
         primary: {
-          DEFAULT: '#0052CC',
-          50: '#E6F0FF',
-          100: '#B3D4FF',
-          200: '#80B8FF',
-          300: '#4D9CFF',
-          400: '#1A80FF',
-          500: '#0052CC',
-          600: '#0747A6',
+          DEFAULT: '#0066FF',
+          50: '#E8F2FF',
+          100: '#C2DBFF',
+          200: '#99C2FF',
+          300: '#66A3FF',
+          400: '#3385FF',
+          500: '#0066FF',
+          600: '#0052CC',
           700: '#003D99',
-          800: '#003380',
-          900: '#002966',
+          800: '#002966',
+          900: '#001433',
         },
         // Semantic colors
         success: {
@@ -65,15 +65,15 @@ export default {
         '10': '40px',
         '12': '48px',
       },
-      // 4px border radius default
+      // 6px border radius default (softer per reference)
       borderRadius: {
         none: '0',
-        sm: '2px',
-        DEFAULT: '4px',
-        md: '6px',
-        lg: '8px',
-        xl: '12px',
-        '2xl': '16px',
+        sm: '4px',
+        DEFAULT: '6px',
+        md: '8px',
+        lg: '12px',
+        xl: '16px',
+        '2xl': '20px',
         full: '9999px',
       },
       fontSize: {

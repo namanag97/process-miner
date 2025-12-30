@@ -3,7 +3,7 @@
  */
 import { useState, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSDK } from '../../../../apps/lumina/src/context/SDKContext';
+import { useSDK } from '@lumina/design-system';
 import { logsKeys } from './use-logs';
 import type { IngestLogOptions, FilePreview, ColumnDetection } from 'process-mining-sdk';
 

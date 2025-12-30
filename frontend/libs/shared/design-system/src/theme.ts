@@ -5,16 +5,16 @@ import type { ThemeConfig } from 'antd';
  * Celonis-inspired design tokens
  */
 export const tokens = {
-  // Primary Blue - Celonis brand
-  colorPrimary: '#0052CC',
-  colorPrimaryHover: '#0065FF',
-  colorPrimaryActive: '#0747A6',
+  // Primary Blue - Celonis brand (updated to match reference)
+  colorPrimary: '#0066FF',
+  colorPrimaryHover: '#338FFF',
+  colorPrimaryActive: '#0052CC',
 
   // Semantic colors
   colorSuccess: '#36B37E',
   colorWarning: '#FAAD14',
   colorError: '#DE350B',
-  colorInfo: '#0052CC',
+  colorInfo: '#0066FF',
 
   // Text colors
   colorText: '#172B4D',
@@ -45,10 +45,10 @@ export const tokens = {
   paddingSM: 12,
   paddingLG: 24,
 
-  // Border radius (4px default)
-  borderRadius: 4,
-  borderRadiusSM: 2,
-  borderRadiusLG: 8,
+  // Border radius (6px default - softer per reference)
+  borderRadius: 6,
+  borderRadiusSM: 4,
+  borderRadiusLG: 12,
 
   // Shadows
   boxShadow: '0 1px 3px rgba(9, 30, 66, 0.08), 0 1px 2px rgba(9, 30, 66, 0.06)',
@@ -81,20 +81,21 @@ export const luminaTheme: ThemeConfig = {
   components: {
     Layout: {
       headerBg: '#FFFFFF',
-      siderBg: '#172B4D',
+      siderBg: '#1B2838',
       bodyBg: tokens.colorBgLayout,
       headerHeight: 56,
     },
     Menu: {
-      darkItemBg: '#172B4D',
-      darkItemSelectedBg: '#0052CC',
+      darkItemBg: '#1B2838',
+      darkItemSelectedBg: '#0066FF',
       darkItemHoverBg: 'rgba(255, 255, 255, 0.1)',
       itemHeight: 40,
       iconSize: 16,
     },
     Card: {
-      paddingLG: 16,
+      paddingLG: 24,
       headerFontSize: 14,
+      borderRadiusLG: 12,
     },
     Table: {
       headerBg: '#FAFBFC',

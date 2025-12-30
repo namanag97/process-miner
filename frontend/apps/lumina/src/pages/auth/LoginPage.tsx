@@ -48,13 +48,12 @@ const LoginPage: React.FC = () => {
           <Form.Item
             name="email"
             rules={[
-              { required: true, message: 'Please enter your email' },
-              { type: 'email', message: 'Please enter a valid email' },
+              { required: true, message: 'Please enter your username or email' },
             ]}
           >
             <Input
               prefix={<UserOutlined />}
-              placeholder="Email"
+              placeholder="Username or Email"
             />
           </Form.Item>
 
@@ -81,7 +80,7 @@ const LoginPage: React.FC = () => {
         </Form>
 
         <Text type="secondary" style={{ display: 'block', textAlign: 'center', fontSize: 12 }}>
-          Demo: Enter any email and password to sign in
+          Demo: Use admin/1234 for admin access or any credentials to sign in
         </Text>
       </Card>
     </div>

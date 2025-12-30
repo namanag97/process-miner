@@ -2,7 +2,7 @@
  * Analytics Hooks - React Query hooks for performance analytics
  */
 import { useQuery } from '@tanstack/react-query';
-import { useSDK } from '../../../../apps/lumina/src/context/SDKContext';
+import { useSDK } from '@lumina/design-system';
 
 interface Bottleneck {
   activity: string;
