@@ -27,26 +27,24 @@ system/
 │   └── tests/        # Test suite (pytest)
 ├── frontend-new/     # React frontend (TypeScript)
 │   ├── src/          # Application code
-│   └── libs/         # Shared libraries
-├── sdk/              # TypeScript SDK
-│   └── src/          # SDK source
+│   └── libs/         # Shared libraries (includes API client modules)
 └── docs/             # Documentation
 ```
 
 ## Development Commands
 
-### Unified Commands (Backend + SDK)
+### Backend Commands
 
-| Command           | Description                     |
-| ----------------- | ------------------------------- |
-| `make install`    | Install all dependencies        |
-| `make lint`       | Run linters (Ruff + ESLint)     |
-| `make typecheck`  | Run type checkers (mypy + tsc)  |
-| `make security`   | Run security scans (Bandit)     |
-| `make test`       | Run all tests (pytest + vitest) |
+| Command           | Description                    |
+| ----------------- | ------------------------------ |
+| `make install`    | Install backend dependencies   |
+| `make lint`       | Run linter (Ruff)              |
+| `make typecheck`  | Run type checker (mypy)        |
+| `make security`   | Run security scan (Bandit)     |
+| `make test`       | Run tests (pytest)             |
 | `make check`      | Run lint + typecheck + security |
-| `make all`        | Run check + test (full CI)      |
-| `make pre-commit` | Install pre-commit hooks        |
+| `make all`        | Run check + test (full CI)     |
+| `make pre-commit` | Install pre-commit hooks       |
 
 ### Frontend Commands
 
@@ -60,11 +58,9 @@ cd frontend-new && npm run test   # Run Jest tests
 
 - **Backend:** `pytest` with async support + coverage (`pytest-cov`)
   - 16 test files in `backend/tests/`
-  - Run: `make backend-test` or `make backend-test-cov`
+  - Run: `make test` or `make test-cov`
 - **Frontend:** `Jest` + React Testing Library
   - Run: `cd frontend-new && npm test`
-- **SDK:** `Vitest`
-  - Run: `make sdk-test`
 
 ## Server URLs
 
