@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation, Routes, Route } from 'react-router-dom';
-import { Row, Col, Card, Tabs, Select, Space, Typography, Skeleton } from 'antd';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { Row, Col, Card, Tabs, Select, Space, Typography, Skeleton, Alert } from 'antd';
 import {
   BarChartOutlined,
   LineChartOutlined,
@@ -8,7 +9,7 @@ import {
   ReloadOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons';
-import { PageHeader, MetricCard, EmptyState, tokens, formatCompactNumber } from '@lumina/design-system';
+import { PageHeader, MetricCard, EmptyState, tokens, formatCompactNumber, useSDK, formatDurationFromSeconds, type EventLog } from '@lumina/design-system';
 import { createLogger } from '../../utils/logger';
 import { PerformanceTab } from './PerformanceTab';
 import { ConformanceTab } from './ConformanceTab';
@@ -17,59 +18,42 @@ import { ReworkTab } from './ReworkTab';
 const { Text } = Typography;
 const log = createLogger('AnalyticsPage');
 
-// Mock available logs for the selector
-const mockLogs = [
-  { id: '1', name: 'Orders_2024.csv', cases: 5340, events: 156000 },
-  { id: '2', name: 'Claims_Process.xes', cases: 2890, events: 78000 },
-  { id: '3', name: 'Purchase_Orders.csv', cases: 8200, events: 245000 },
-];
-
-// Mock summary stats
-const mockSummaryStats = {
-  avgCycleTime: '4.2 days',
-  fitnessScore: 87.5,
-  reworkRate: 23.4,
-  bottlenecks: 5,
-};
-
-const tabItems = [
-  {
-    key: 'performance',
-    label: (
-      <Space>
-        <LineChartOutlined />
-        Performance
-      </Space>
-    ),
-    children: <PerformanceTab />,
-  },
-  {
-    key: 'conformance',
-    label: (
-      <Space>
-        <CheckCircleOutlined />
-        Conformance
-      </Space>
-    ),
-    children: <ConformanceTab />,
-  },
-  {
-    key: 'rework',
-    label: (
-      <Space>
-        <ReloadOutlined />
-        Rework Analysis
-      </Space>
-    ),
-    children: <ReworkTab />,
-  },
-];
-
 export function AnalyticsPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [selectedLogId, setSelectedLogId] = useState<string>(mockLogs[0].id);
-  const [isLoading, setIsLoading] = useState(false);
+  const sdk = useSDK();
+  const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
+
+  // Fetch available logs
+  const { data: logsData, isLoading: logsLoading, error: logsError } = useQuery({
+    queryKey: ['logs'],
+    queryFn: () => sdk.logs.list({ pageSize: 50 }),
+  });
+
+  const logs = logsData?.items ?? [];
+
+  // Auto-select first log if none selected
+  React.useEffect(() => {
+    if (!selectedLogId && logs.length > 0) {
+      setSelectedLogId(logs[0].id);
+    }
+  }, [logs, selectedLogId]);
+
+  // Fetch performance data for selected log
+  const { data: performanceData, isLoading: perfLoading, error: perfError } = useQuery({
+    queryKey: ['analytics', 'performance', selectedLogId],
+    queryFn: () => sdk.analytics.getPerformance(selectedLogId!),
+    enabled: !!selectedLogId,
+  });
+
+  // Fetch rework data for selected log
+  const { data: reworkData, isLoading: reworkLoading } = useQuery({
+    queryKey: ['analytics', 'rework', selectedLogId],
+    queryFn: () => sdk.analytics.getRework(selectedLogId!),
+    enabled: !!selectedLogId,
+  });
+
+  const isLoading = logsLoading || perfLoading || reworkLoading;
 
   // Determine active tab from URL
   const getActiveTab = () => {
@@ -91,15 +75,71 @@ export function AnalyticsPage() {
   const handleLogChange = (logId: string) => {
     log.info('Log selection changed', { logId });
     setSelectedLogId(logId);
-    // Simulate loading new data
-    setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 500);
   };
 
-  const selectedLog = mockLogs.find((l) => l.id === selectedLogId);
+  const selectedLog = logs.find((l: EventLog) => l.id === selectedLogId);
+
+  // Summary stats from performance data
+  const avgCycleTime = performanceData?.cycleTime?.avgSeconds
+    ? formatDurationFromSeconds(performanceData.cycleTime.avgSeconds)
+    : 'N/A';
+
+  const reworkRate = reworkData?.reworkPercentage ?? 0;
+  const bottleneckCount = performanceData?.topBottlenecks?.length ?? 0;
+
+  const tabItems = [
+    {
+      key: 'performance',
+      label: (
+        <Space>
+          <LineChartOutlined />
+          Performance
+        </Space>
+      ),
+      children: <PerformanceTab logId={selectedLogId} data={performanceData} loading={perfLoading} />,
+    },
+    {
+      key: 'conformance',
+      label: (
+        <Space>
+          <CheckCircleOutlined />
+          Conformance
+        </Space>
+      ),
+      children: <ConformanceTab logId={selectedLogId} />,
+    },
+    {
+      key: 'rework',
+      label: (
+        <Space>
+          <ReloadOutlined />
+          Rework Analysis
+        </Space>
+      ),
+      children: <ReworkTab logId={selectedLogId} data={reworkData} loading={reworkLoading} />,
+    },
+  ];
+
+  // Error state
+  if (logsError) {
+    return (
+      <div>
+        <PageHeader
+          title="Analytics"
+          description="Analyze your process performance, conformance, and rework patterns"
+        />
+        <Alert
+          message="Failed to load event logs"
+          description={(logsError as Error).message}
+          type="error"
+          showIcon
+        />
+      </div>
+    );
+  }
 
   // If no logs available, show empty state
-  if (mockLogs.length === 0) {
+  if (!logsLoading && logs.length === 0) {
     return (
       <div>
         <PageHeader
@@ -126,16 +166,18 @@ export function AnalyticsPage() {
           <Space>
             <Text type="secondary">Analyzing:</Text>
             <Select
-              value={selectedLogId}
+              value={selectedLogId ?? undefined}
               onChange={handleLogChange}
               style={{ width: 240 }}
-              options={mockLogs.map((log) => ({
+              loading={logsLoading}
+              placeholder="Select a log..."
+              options={logs.map((log: EventLog) => ({
                 value: log.id,
                 label: (
                   <Space>
                     <span>{log.name}</span>
                     <Text type="secondary" style={{ fontSize: tokens.fontSize.xs }}>
-                      ({formatCompactNumber(log.cases)} cases)
+                      ({formatCompactNumber(log.totalCases)} cases)
                     </Text>
                   </Space>
                 ),
@@ -150,31 +192,31 @@ export function AnalyticsPage() {
         <Col xs={24} sm={6}>
           <MetricCard
             title="Avg Cycle Time"
-            value={mockSummaryStats.avgCycleTime}
+            value={avgCycleTime}
             loading={isLoading}
           />
         </Col>
         <Col xs={24} sm={6}>
           <MetricCard
-            title="Fitness Score"
-            value={`${mockSummaryStats.fitnessScore}%`}
-            status={mockSummaryStats.fitnessScore >= 85 ? 'success' : 'warning'}
+            title="Throughput"
+            value={performanceData?.throughput?.casesPerDay?.toFixed(1) ?? 'N/A'}
+            suffix="cases/day"
             loading={isLoading}
           />
         </Col>
         <Col xs={24} sm={6}>
           <MetricCard
             title="Rework Rate"
-            value={`${mockSummaryStats.reworkRate}%`}
-            status={mockSummaryStats.reworkRate > 20 ? 'warning' : 'success'}
+            value={`${reworkRate.toFixed(1)}%`}
+            status={reworkRate > 20 ? 'warning' : 'success'}
             loading={isLoading}
           />
         </Col>
         <Col xs={24} sm={6}>
           <MetricCard
             title="Bottlenecks"
-            value={mockSummaryStats.bottlenecks}
-            status="warning"
+            value={bottleneckCount}
+            status={bottleneckCount > 3 ? 'warning' : 'default'}
             loading={isLoading}
           />
         </Col>
@@ -190,15 +232,15 @@ export function AnalyticsPage() {
             <InfoCircleOutlined style={{ color: tokens.colors.primary[500] }} />
             <Text>
               Analyzing <Text strong>{selectedLog.name}</Text> with{' '}
-              <Text strong>{formatCompactNumber(selectedLog.cases)}</Text> cases and{' '}
-              <Text strong>{formatCompactNumber(selectedLog.events)}</Text> events
+              <Text strong>{formatCompactNumber(selectedLog.totalCases)}</Text> cases and{' '}
+              <Text strong>{formatCompactNumber(selectedLog.totalEvents)}</Text> events
             </Text>
           </Space>
         </Card>
       )}
 
       {/* Tabs for sub-pages */}
-      {isLoading ? (
+      {isLoading && !performanceData ? (
         <Card>
           <Skeleton active paragraph={{ rows: 10 }} />
         </Card>

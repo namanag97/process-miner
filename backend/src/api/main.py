@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from src.api.routers import (
     analytics_router,
     conformance_router,
+    dev_log_router,
     discovery_router,
     filtering_router,
     ocpm_router,
@@ -145,6 +146,7 @@ def create_app() -> FastAPI:
     app.include_router(organizational_router, prefix=settings.api_prefix)
     app.include_router(predictions_router, prefix=settings.api_prefix)
     app.include_router(simulation_router, prefix=settings.api_prefix)
+    app.include_router(dev_log_router, prefix=settings.api_prefix)
 
     return app
 

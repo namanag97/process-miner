@@ -26,6 +26,14 @@ export {
   formatCompactNumber,
   formatPercentage,
 } from './utils';
+export {
+  devLog,
+  logAction,
+  logRequest,
+  logResponse,
+  logError,
+  flushDevLogs,
+} from './utils/devLogger';
 
 // Context
 export { SDKProvider, useSDK, queryClient } from './context/SDKContext';
@@ -33,3 +41,5 @@ export { SDKProvider, useSDK, queryClient } from './context/SDKContext';
 // API (types and transformers)
 export * from './api/transformers';
 export { APIError } from './api/client';
+export type { ColumnDetectionResponse } from './api/types';
+

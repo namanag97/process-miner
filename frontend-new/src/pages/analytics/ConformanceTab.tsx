@@ -97,8 +97,12 @@ function FitnessGauge({ value, label }: { value: number; label: string }) {
   );
 }
 
-export function ConformanceTab() {
-  log.debug('Rendering ConformanceTab');
+interface ConformanceTabProps {
+  logId: string | null;
+}
+
+export function ConformanceTab({ logId }: ConformanceTabProps) {
+  log.debug('Rendering ConformanceTab', { logId });
 
   const deviationColumns = [
     {
