@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Tabs,
   Card,
@@ -9,9 +10,10 @@ import {
   Dropdown,
   Typography,
   Descriptions,
-  Statistic,
   Space,
   Tag,
+  Spin,
+  Alert,
 } from 'antd';
 import type { MenuProps } from 'antd';
 import {
@@ -23,67 +25,45 @@ import {
   FileOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import { PageHeader, MetricCard, tokens, toast } from '@lumina/design-system';
+import { PageHeader, MetricCard, tokens, toast, useSDK, formatDurationFromSeconds, type EventLog } from '@lumina/design-system';
 import { createLogger } from '../../utils/logger';
 
 const log = createLogger('LogDetailPage');
-const { Text, Title } = Typography;
-
-// Mock log data
-const mockLogDetail = {
-  id: '1',
-  name: 'Orders_2024.csv',
-  sourceFile: 'Orders_2024.csv',
-  totalCases: 1250,
-  totalEvents: 45000,
-  uniqueActivities: 12,
-  uniqueResources: 8,
-  variantCount: 156,
-  createdAt: '2024-12-28T10:30:00Z',
-  dateRange: {
-    start: '2024-01-01',
-    end: '2024-12-15',
-  },
-  avgCaseDuration: '4.2 days',
-};
-
-// Mock sample data
-const mockSampleData = [
-  { case_id: 'C001', activity: 'Register Order', timestamp: '2024-01-15 09:00:00', resource: 'John' },
-  { case_id: 'C001', activity: 'Check Inventory', timestamp: '2024-01-15 09:30:00', resource: 'Sarah' },
-  { case_id: 'C001', activity: 'Prepare Shipment', timestamp: '2024-01-15 11:00:00', resource: 'Mike' },
-  { case_id: 'C001', activity: 'Ship Order', timestamp: '2024-01-15 14:00:00', resource: 'Mike' },
-  { case_id: 'C001', activity: 'Complete', timestamp: '2024-01-16 10:00:00', resource: 'System' },
-  { case_id: 'C002', activity: 'Register Order', timestamp: '2024-01-15 10:00:00', resource: 'John' },
-  { case_id: 'C002', activity: 'Check Inventory', timestamp: '2024-01-15 10:45:00', resource: 'Sarah' },
-  { case_id: 'C002', activity: 'Back Order', timestamp: '2024-01-15 11:00:00', resource: 'Sarah' },
-  { case_id: 'C002', activity: 'Notify Customer', timestamp: '2024-01-15 11:30:00', resource: 'Emma' },
-  { case_id: 'C003', activity: 'Register Order', timestamp: '2024-01-15 11:00:00', resource: 'Lisa' },
-];
-
-// Mock statistics
-const mockStatistics = {
-  activities: [
-    { name: 'Register Order', count: 1250, percent: 100 },
-    { name: 'Check Inventory', count: 1248, percent: 99.8 },
-    { name: 'Prepare Shipment', count: 1100, percent: 88 },
-    { name: 'Ship Order', count: 1050, percent: 84 },
-    { name: 'Complete', count: 980, percent: 78.4 },
-    { name: 'Back Order', count: 150, percent: 12 },
-    { name: 'Notify Customer', count: 150, percent: 12 },
-    { name: 'Cancel Order', count: 45, percent: 3.6 },
-  ],
-  topVariants: [
-    { path: 'Register → Check → Prepare → Ship → Complete', count: 680, percent: 54.4 },
-    { path: 'Register → Check → Back Order → Notify → ...', count: 120, percent: 9.6 },
-    { path: 'Register → Check → Prepare → Back Order → ...', count: 85, percent: 6.8 },
-  ],
-};
+const { Text } = Typography;
 
 export function LogDetailPage() {
   const navigate = useNavigate();
   const { id: logId } = useParams<{ id: string }>();
+  const sdk = useSDK();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Fetch log details
+  const { data: logDetail, isLoading, error } = useQuery({
+    queryKey: ['logs', logId],
+    queryFn: () => sdk.logs.get(logId!),
+    enabled: !!logId,
+  });
+
+  // Fetch log statistics
+  const { data: stats } = useQuery({
+    queryKey: ['logs', logId, 'stats'],
+    queryFn: () => sdk.logs.analyze(logId!),
+    enabled: !!logId,
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => sdk.logs.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['logs'] });
+      toast.success(`"${logDetail?.name}" has been deleted`);
+      navigate('/logs');
+    },
+    onError: (err) => {
+      toast.error(`Failed to delete: ${(err as Error).message}`);
+    },
+  });
 
   log.debug('Rendering LogDetailPage', { logId, activeTab });
 
@@ -93,9 +73,10 @@ export function LogDetailPage() {
   };
 
   const handleDelete = () => {
-    log.info('Deleting log', { logId });
-    toast.success(`"${mockLogDetail.name}" has been deleted`);
-    navigate('/logs');
+    if (logId) {
+      log.info('Deleting log', { logId });
+      deleteMutation.mutate(logId);
+    }
   };
 
   const handleOpenExplorer = () => {
@@ -128,6 +109,45 @@ export function LogDetailPage() {
     },
   ];
 
+  // Error state
+  if (error) {
+    return (
+      <div>
+        <PageHeader
+          title="Event Log"
+          breadcrumb={[{ label: 'Event Logs', href: '/logs' }, { label: 'Error' }]}
+        />
+        <Alert
+          message="Failed to load event log"
+          description={(error as Error).message}
+          type="error"
+          showIcon
+        />
+      </div>
+    );
+  }
+
+  // Loading state
+  if (isLoading || !logDetail) {
+    return (
+      <div>
+        <PageHeader
+          title="Loading..."
+          breadcrumb={[{ label: 'Event Logs', href: '/logs' }, { label: 'Loading' }]}
+        />
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
+          <Spin size="large" tip="Loading event log details..." />
+        </div>
+      </div>
+    );
+  }
+
+  // Get statistics from response
+  const statistics = (stats || logDetail.statistics || {}) as Record<string, unknown>;
+  const totalVariants = (statistics.total_variants ?? statistics.totalVariants ?? 0) as number;
+  const avgCaseDuration = (statistics.avg_case_duration_seconds ?? statistics.avgCaseDurationSeconds) as number | undefined;
+  const dateRange = statistics.date_range as { start?: string; end?: string } | undefined;
+
   // Overview Tab
   const OverviewTab = () => (
     <div>
@@ -136,28 +156,28 @@ export function LogDetailPage() {
         <Col xs={24} sm={12} lg={6}>
           <MetricCard
             title="Total Cases"
-            value={mockLogDetail.totalCases.toLocaleString()}
+            value={logDetail.totalCases.toLocaleString()}
             status="default"
           />
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <MetricCard
             title="Total Events"
-            value={mockLogDetail.totalEvents.toLocaleString()}
+            value={logDetail.totalEvents.toLocaleString()}
             status="default"
           />
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <MetricCard
             title="Unique Activities"
-            value={mockLogDetail.uniqueActivities}
+            value={logDetail.totalActivities ?? logDetail.activities?.length ?? 0}
             status="success"
           />
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <MetricCard
             title="Process Variants"
-            value={mockLogDetail.variantCount}
+            value={totalVariants}
             status="default"
           />
         </Col>
@@ -169,72 +189,46 @@ export function LogDetailPage() {
           <Descriptions.Item label="Source File">
             <Space>
               <FileOutlined />
-              {mockLogDetail.sourceFile}
+              {logDetail.sourceFile ?? 'N/A'}
             </Space>
           </Descriptions.Item>
           <Descriptions.Item label="Uploaded">
-            {new Date(mockLogDetail.createdAt).toLocaleDateString()}
+            {new Date(logDetail.createdAt).toLocaleDateString()}
           </Descriptions.Item>
           <Descriptions.Item label="Date Range">
             <Space>
               <CalendarOutlined />
-              {mockLogDetail.dateRange.start} to {mockLogDetail.dateRange.end}
+              {dateRange?.start && dateRange?.end
+                ? `${dateRange.start} to ${dateRange.end}`
+                : 'N/A'}
             </Space>
           </Descriptions.Item>
           <Descriptions.Item label="Avg. Case Duration">
-            {mockLogDetail.avgCaseDuration}
+            {avgCaseDuration
+              ? formatDurationFromSeconds(avgCaseDuration)
+              : 'N/A'}
           </Descriptions.Item>
-          <Descriptions.Item label="Unique Resources">
-            {mockLogDetail.uniqueResources}
+          <Descriptions.Item label="Format">
+            <Tag>{logDetail.sourceFormat?.toUpperCase() ?? 'N/A'}</Tag>
           </Descriptions.Item>
         </Descriptions>
       </Card>
     </div>
   );
 
-  // Preview Tab
-  const PreviewTab = () => (
-    <Card title="Sample Data (First 10 Events)">
-      <Table
-        dataSource={mockSampleData}
-        columns={[
-          { title: 'Case ID', dataIndex: 'case_id', key: 'case_id' },
-          { title: 'Activity', dataIndex: 'activity', key: 'activity' },
-          { title: 'Timestamp', dataIndex: 'timestamp', key: 'timestamp' },
-          { title: 'Resource', dataIndex: 'resource', key: 'resource' },
-        ]}
-        rowKey={(_, index) => String(index)}
-        pagination={false}
-        size="middle"
-      />
-    </Card>
-  );
-
   // Statistics Tab
   const StatisticsTab = () => (
     <Row gutter={24}>
       <Col xs={24} lg={12}>
-        <Card title="Activity Frequency" style={{ marginBottom: tokens.spacing[4] }}>
+        <Card title="Activities" style={{ marginBottom: tokens.spacing[4] }}>
           <Table
-            dataSource={mockStatistics.activities}
+            dataSource={(logDetail.activities || []).map((name, i) => ({ 
+              name, 
+              index: i + 1,
+            }))}
             columns={[
-              { title: 'Activity', dataIndex: 'name', key: 'name' },
-              {
-                title: 'Cases',
-                dataIndex: 'count',
-                key: 'count',
-                render: (count: number) => count.toLocaleString(),
-              },
-              {
-                title: '% of Cases',
-                dataIndex: 'percent',
-                key: 'percent',
-                render: (percent: number) => (
-                  <Tag color={percent > 50 ? 'green' : percent > 20 ? 'blue' : 'default'}>
-                    {percent}%
-                  </Tag>
-                ),
-              },
+              { title: '#', dataIndex: 'index', key: 'index', width: 50 },
+              { title: 'Activity Name', dataIndex: 'name', key: 'name' },
             ]}
             rowKey="name"
             pagination={false}
@@ -243,43 +237,22 @@ export function LogDetailPage() {
         </Card>
       </Col>
       <Col xs={24} lg={12}>
-        <Card title="Top Variants">
-          <Table
-            dataSource={mockStatistics.topVariants}
-            columns={[
-              {
-                title: 'Path',
-                dataIndex: 'path',
-                key: 'path',
-                render: (path: string) => (
-                  <Text style={{ fontSize: 12 }}>{path}</Text>
-                ),
-              },
-              {
-                title: 'Cases',
-                dataIndex: 'count',
-                key: 'count',
-                width: 80,
-              },
-              {
-                title: '%',
-                dataIndex: 'percent',
-                key: 'percent',
-                width: 60,
-                render: (percent: number) => `${percent}%`,
-              },
-            ]}
-            rowKey="path"
-            pagination={false}
-            size="small"
-          />
-          <Button
-            type="link"
-            style={{ marginTop: tokens.spacing[2], padding: 0 }}
-            onClick={() => navigate(`/explorer/${logId}/variants`)}
-          >
-            View all {mockLogDetail.variantCount} variants →
-          </Button>
+        <Card title="Quick Actions">
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Button 
+              block 
+              icon={<SearchOutlined />}
+              onClick={() => navigate(`/explorer/${logId}`)}
+            >
+              Open Process Explorer
+            </Button>
+            <Button 
+              block 
+              onClick={() => navigate(`/analytics?logId=${logId}`)}
+            >
+              View Analytics
+            </Button>
+          </Space>
         </Card>
       </Col>
     </Row>
@@ -287,18 +260,17 @@ export function LogDetailPage() {
 
   const tabItems = [
     { key: 'overview', label: 'Overview', children: <OverviewTab /> },
-    { key: 'preview', label: 'Preview', children: <PreviewTab /> },
     { key: 'statistics', label: 'Statistics', children: <StatisticsTab /> },
   ];
 
   return (
     <div>
       <PageHeader
-        title={mockLogDetail.name}
-        description={`${mockLogDetail.totalCases.toLocaleString()} cases • ${mockLogDetail.totalEvents.toLocaleString()} events`}
+        title={logDetail.name}
+        description={`${logDetail.totalCases.toLocaleString()} cases • ${logDetail.totalEvents.toLocaleString()} events`}
         breadcrumb={[
           { label: 'Event Logs', href: '/logs' },
-          { label: mockLogDetail.name },
+          { label: logDetail.name },
         ]}
         actions={
           <Space>

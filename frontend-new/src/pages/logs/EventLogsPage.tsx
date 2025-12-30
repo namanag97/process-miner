@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Table,
   Input,
@@ -8,6 +9,8 @@ import {
   Dropdown,
   Typography,
   Tag,
+  Spin,
+  Alert,
 } from 'antd';
 import type { TableProps, MenuProps } from 'antd';
 import {
@@ -21,56 +24,11 @@ import {
   FolderOpenOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { PageHeader, EmptyState, tokens, toast } from '@lumina/design-system';
+import { PageHeader, EmptyState, tokens, toast, useSDK, type EventLog } from '@lumina/design-system';
 import { createLogger } from '../../utils/logger';
 
 const log = createLogger('EventLogsPage');
 const { Text } = Typography;
-
-// Mock data - in a real app this comes from SDK
-const mockEventLogs = [
-  {
-    id: '1',
-    name: 'Orders_2024.csv',
-    totalCases: 1250,
-    totalEvents: 45000,
-    createdAt: '2024-12-28T10:30:00Z',
-    sourceFile: 'Orders_2024.csv',
-  },
-  {
-    id: '2',
-    name: 'Claims_Process.xes',
-    totalCases: 890,
-    totalEvents: 23400,
-    createdAt: '2024-12-27T14:15:00Z',
-    sourceFile: 'Claims_Process.xes',
-  },
-  {
-    id: '3',
-    name: 'Purchase_Orders.csv',
-    totalCases: 3200,
-    totalEvents: 98000,
-    createdAt: '2024-12-25T09:00:00Z',
-    sourceFile: 'Purchase_Orders.csv',
-  },
-  {
-    id: '4',
-    name: 'Support_Tickets.csv',
-    totalCases: 560,
-    totalEvents: 8900,
-    createdAt: '2024-12-20T16:45:00Z',
-    sourceFile: 'Support_Tickets.csv',
-  },
-];
-
-interface EventLog {
-  id: string;
-  name: string;
-  totalCases: number;
-  totalEvents: number;
-  createdAt: string;
-  sourceFile?: string;
-}
 
 function formatRelativeTime(dateString: string): string {
   const date = new Date(dateString);
@@ -87,10 +45,34 @@ function formatRelativeTime(dateString: string): string {
 
 export function EventLogsPage() {
   const navigate = useNavigate();
+  const sdk = useSDK();
+  const queryClient = useQueryClient();
+  
   const [searchText, setSearchText] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [logToDelete, setLogToDelete] = useState<EventLog | null>(null);
-  const [logs, setLogs] = useState<EventLog[]>(mockEventLogs);
+
+  // Fetch logs from API
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['logs'],
+    queryFn: () => sdk.logs.list({ pageSize: 100 }),
+  });
+
+  const logs = data?.items ?? [];
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => sdk.logs.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['logs'] });
+      toast.success(`"${logToDelete?.name}" has been deleted`);
+      setDeleteModalOpen(false);
+      setLogToDelete(null);
+    },
+    onError: (err) => {
+      toast.error(`Failed to delete: ${(err as Error).message}`);
+    },
+  });
 
   log.debug('Rendering EventLogsPage', { logCount: logs.length });
 
@@ -125,10 +107,7 @@ export function EventLogsPage() {
   const handleDeleteConfirm = () => {
     if (logToDelete) {
       log.info('Deleting log', { logId: logToDelete.id, name: logToDelete.name });
-      setLogs((prev) => prev.filter((l) => l.id !== logToDelete.id));
-      toast.success(`"${logToDelete.name}" has been deleted`);
-      setDeleteModalOpen(false);
-      setLogToDelete(null);
+      deleteMutation.mutate(logToDelete.id);
     }
   };
 
@@ -220,6 +199,39 @@ export function EventLogsPage() {
     },
   ];
 
+  // Error state
+  if (error) {
+    return (
+      <div>
+        <PageHeader
+          title="Event Logs"
+          description="Manage your uploaded event log files"
+        />
+        <Alert
+          message="Failed to load event logs"
+          description={(error as Error).message}
+          type="error"
+          showIcon
+        />
+      </div>
+    );
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div>
+        <PageHeader
+          title="Event Logs"
+          description="Manage your uploaded event log files"
+        />
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
+          <Spin size="large" tip="Loading event logs..." />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <PageHeader
@@ -287,7 +299,7 @@ export function EventLogsPage() {
         onOk={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
         okText="Delete"
-        okButtonProps={{ danger: true }}
+        okButtonProps={{ danger: true, loading: deleteMutation.isPending }}
         cancelText="Cancel"
       >
         <p>

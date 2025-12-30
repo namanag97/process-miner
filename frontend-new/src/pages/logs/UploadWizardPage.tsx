@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Steps,
   Button,
@@ -16,37 +17,17 @@ import {
 import type { UploadProps } from 'antd';
 import {
   InboxOutlined,
-  FileOutlined,
   CheckCircleOutlined,
   ArrowLeftOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { PageHeader, tokens, toast } from '@lumina/design-system';
+import { PageHeader, tokens, toast, useSDK } from '@lumina/design-system';
 import { createLogger } from '../../utils/logger';
+import type { ColumnDetectionResponse } from '@lumina/design-system';
 
 const log = createLogger('UploadWizard');
 const { Dragger } = Upload;
 const { Text, Title } = Typography;
-
-// Mock detected columns and sample data
-const mockPreviewData = {
-  columns: ['case_id', 'activity', 'timestamp', 'resource', 'cost'],
-  suggestions: {
-    caseId: 'case_id',
-    activity: 'activity',
-    timestamp: 'timestamp',
-    resource: 'resource',
-  },
-  sampleRows: [
-    { case_id: 'C001', activity: 'Register Order', timestamp: '2024-01-15 09:00:00', resource: 'John', cost: 150 },
-    { case_id: 'C001', activity: 'Check Inventory', timestamp: '2024-01-15 09:30:00', resource: 'Sarah', cost: 50 },
-    { case_id: 'C001', activity: 'Ship Order', timestamp: '2024-01-15 14:00:00', resource: 'Mike', cost: 75 },
-    { case_id: 'C002', activity: 'Register Order', timestamp: '2024-01-15 10:00:00', resource: 'John', cost: 200 },
-    { case_id: 'C002', activity: 'Check Inventory', timestamp: '2024-01-15 10:45:00', resource: 'Sarah', cost: 50 },
-  ],
-  rowCount: 45000,
-  estimatedCaseCount: 1250,
-};
 
 const STEPS = [
   { title: 'Select File', description: 'Upload CSV or XES' },
@@ -57,17 +38,63 @@ const STEPS = [
 
 export function UploadWizardPage() {
   const navigate = useNavigate();
+  const sdk = useSDK();
+  const queryClient = useQueryClient();
+  
   const [currentStep, setCurrentStep] = useState(0);
   const [file, setFile] = useState<File | null>(null);
+  const [previewData, setPreviewData] = useState<ColumnDetectionResponse | null>(null);
   const [columnMapping, setColumnMapping] = useState({
-    caseId: 'case_id',
-    activity: 'activity',
-    timestamp: 'timestamp',
-    resource: 'resource',
+    caseId: '',
+    activity: '',
+    timestamp: '',
+    resource: '',
   });
-  const [processing, setProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [uploadComplete, setUploadComplete] = useState(false);
+  const [uploadedLogId, setUploadedLogId] = useState<string | null>(null);
+
+  // Detect columns mutation
+  const detectColumnsMutation = useMutation({
+    mutationFn: (file: File) => sdk.logs.detectColumns(file),
+    onSuccess: (data) => {
+      setPreviewData(data);
+      // Apply suggestions
+      if (data.suggestions) {
+        setColumnMapping({
+          caseId: data.suggestions.case_id ?? '',
+          activity: data.suggestions.activity ?? '',
+          timestamp: data.suggestions.timestamp ?? '',
+          resource: data.suggestions.resource ?? '',
+        });
+      }
+      setCurrentStep(1);
+    },
+    onError: (err) => {
+      toast.error(`Failed to detect columns: ${(err as Error).message}`);
+    },
+  });
+
+  // Ingest mutation
+  const ingestMutation = useMutation({
+    mutationFn: async () => {
+      if (!file) throw new Error('No file selected');
+      return sdk.logs.ingest(file, {
+        name: file.name,
+        caseIdColumn: columnMapping.caseId,
+        activityColumn: columnMapping.activity,
+        timestampColumn: columnMapping.timestamp,
+        resourceColumn: columnMapping.resource || undefined,
+      });
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['logs'] });
+      setUploadedLogId(data.id);
+      toast.success('Event log processed successfully!');
+    },
+    onError: (err) => {
+      toast.error(`Failed to upload: ${(err as Error).message}`);
+      setCurrentStep(2); // Go back to configure step
+    },
+  });
 
   log.debug('Rendering UploadWizard', { step: currentStep });
 
@@ -97,10 +124,10 @@ export function UploadWizardPage() {
     
     setFile(uploadedFile);
     options.onSuccess?.({});
-    toast.success('File uploaded successfully');
+    toast.success('File selected successfully');
     
-    // Auto-advance to next step
-    setTimeout(() => setCurrentStep(1), 500);
+    // Detect columns
+    detectColumnsMutation.mutate(uploadedFile);
   };
 
   const handleNext = () => {
@@ -108,7 +135,8 @@ export function UploadWizardPage() {
     
     if (currentStep === 2) {
       // Start processing
-      startProcessing();
+      setCurrentStep(3);
+      ingestMutation.mutate();
     } else {
       setCurrentStep((prev) => prev + 1);
     }
@@ -119,40 +147,18 @@ export function UploadWizardPage() {
     setCurrentStep((prev) => prev - 1);
   };
 
-  const startProcessing = () => {
-    log.info('Starting file processing', { fileName: file?.name });
-    setCurrentStep(3);
-    setProcessing(true);
-    setProgress(0);
-
-    // Simulate processing progress
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setProcessing(false);
-          setUploadComplete(true);
-          log.info('Processing complete');
-          toast.success('Event log processed successfully!');
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 300);
-  };
-
   const handleViewLog = () => {
     log.info('Navigating to new log');
-    navigate('/logs/1'); // Would use actual log ID in real app
+    navigate(`/logs/${uploadedLogId}`);
   };
 
   const handleUploadAnother = () => {
     log.info('Resetting wizard');
     setCurrentStep(0);
     setFile(null);
-    setProcessing(false);
-    setProgress(0);
-    setUploadComplete(false);
+    setPreviewData(null);
+    setColumnMapping({ caseId: '', activity: '', timestamp: '', resource: '' });
+    setUploadedLogId(null);
   };
 
   // Step 1: File Upload
@@ -164,12 +170,13 @@ export function UploadWizardPage() {
         customRequest={handleFileUpload}
         showUploadList={false}
         accept=".csv,.xes"
+        disabled={detectColumnsMutation.isPending}
       >
         <p className="ant-upload-drag-icon">
           <InboxOutlined style={{ fontSize: 48, color: tokens.colors.primary[500] }} />
         </p>
         <p className="ant-upload-text" style={{ fontSize: 16, fontWeight: 500 }}>
-          Drag & drop your file here
+          {detectColumnsMutation.isPending ? 'Detecting columns...' : 'Drag & drop your file here'}
         </p>
         <p className="ant-upload-hint">
           or click to browse
@@ -192,13 +199,13 @@ export function UploadWizardPage() {
             <Text strong>File validated: {file?.name}</Text>
           </Space>
         }
-        description={`${mockPreviewData.rowCount.toLocaleString()} rows detected • ~${mockPreviewData.estimatedCaseCount.toLocaleString()} cases estimated`}
+        description={`${previewData?.row_count?.toLocaleString() ?? 0} rows detected`}
         style={{ marginBottom: tokens.spacing[6] }}
       />
 
       <Card title="Detected Columns" style={{ marginBottom: tokens.spacing[4] }}>
         <Space wrap>
-          {mockPreviewData.columns.map((col) => (
+          {previewData?.columns.map((col) => (
             <Text
               key={col}
               code
@@ -214,20 +221,23 @@ export function UploadWizardPage() {
         </Space>
       </Card>
 
-      <Card title="Sample Data (First 5 rows)">
-        <Table
-          dataSource={mockPreviewData.sampleRows}
-          columns={mockPreviewData.columns.map((col) => ({
-            title: col,
-            dataIndex: col,
-            key: col,
-          }))}
-          rowKey={(_, index) => String(index)}
-          pagination={false}
-          size="small"
-          scroll={{ x: true }}
-        />
-      </Card>
+      {previewData?.sample_rows && previewData.sample_rows.length > 0 && (
+        <Card title="Sample Data (First 5 rows)">
+          <Table
+            dataSource={previewData.sample_rows.slice(0, 5)}
+            columns={(previewData.columns || []).map((col) => ({
+              title: col,
+              dataIndex: col,
+              key: col,
+              render: (val) => String(val ?? ''),
+            }))}
+            rowKey={(_, index) => String(index)}
+            pagination={false}
+            size="small"
+            scroll={{ x: true }}
+          />
+        </Card>
+      )}
     </div>
   );
 
@@ -243,7 +253,8 @@ export function UploadWizardPage() {
           <Select
             value={columnMapping.caseId}
             onChange={(value) => setColumnMapping((prev) => ({ ...prev, caseId: value }))}
-            options={mockPreviewData.columns.map((c) => ({ label: c, value: c }))}
+            options={(previewData?.columns || []).map((c) => ({ label: c, value: c }))}
+            placeholder="Select case ID column"
           />
         </Form.Item>
 
@@ -251,7 +262,8 @@ export function UploadWizardPage() {
           <Select
             value={columnMapping.activity}
             onChange={(value) => setColumnMapping((prev) => ({ ...prev, activity: value }))}
-            options={mockPreviewData.columns.map((c) => ({ label: c, value: c }))}
+            options={(previewData?.columns || []).map((c) => ({ label: c, value: c }))}
+            placeholder="Select activity column"
           />
         </Form.Item>
 
@@ -259,7 +271,8 @@ export function UploadWizardPage() {
           <Select
             value={columnMapping.timestamp}
             onChange={(value) => setColumnMapping((prev) => ({ ...prev, timestamp: value }))}
-            options={mockPreviewData.columns.map((c) => ({ label: c, value: c }))}
+            options={(previewData?.columns || []).map((c) => ({ label: c, value: c }))}
+            placeholder="Select timestamp column"
           />
         </Form.Item>
 
@@ -269,9 +282,10 @@ export function UploadWizardPage() {
             onChange={(value) => setColumnMapping((prev) => ({ ...prev, resource: value }))}
             options={[
               { label: '— None —', value: '' },
-              ...mockPreviewData.columns.map((c) => ({ label: c, value: c })),
+              ...(previewData?.columns || []).map((c) => ({ label: c, value: c })),
             ]}
             allowClear
+            placeholder="Select resource column"
           />
         </Form.Item>
       </Form>
@@ -280,7 +294,7 @@ export function UploadWizardPage() {
 
   // Step 4: Processing
   const renderProcessing = () => {
-    if (uploadComplete) {
+    if (uploadedLogId) {
       return (
         <Result
           status="success"
@@ -298,19 +312,35 @@ export function UploadWizardPage() {
       );
     }
 
+    if (ingestMutation.isError) {
+      return (
+        <Result
+          status="error"
+          title="Upload Failed"
+          subTitle={(ingestMutation.error as Error).message}
+          extra={[
+            <Button type="primary" key="retry" onClick={() => ingestMutation.mutate()}>
+              Retry
+            </Button>,
+            <Button key="back" onClick={() => setCurrentStep(2)}>
+              Go Back
+            </Button>,
+          ]}
+        />
+      );
+    }
+
     return (
       <Card>
         <div style={{ textAlign: 'center', padding: tokens.spacing[8] }}>
           <Title level={4}>Processing your data...</Title>
           <Progress
-            percent={progress}
-            status="active"
+            percent={ingestMutation.isPending ? 50 : 100}
+            status={ingestMutation.isPending ? 'active' : 'success'}
             style={{ maxWidth: 400, margin: '0 auto' }}
           />
           <div style={{ marginTop: tokens.spacing[6] }}>
-            {progress < 30 && <Text type="secondary">• Validating rows...</Text>}
-            {progress >= 30 && progress < 60 && <Text type="secondary">✓ Validating rows... Creating event log...</Text>}
-            {progress >= 60 && progress < 100 && <Text type="secondary">✓ Validating rows... ✓ Creating event log... Generating statistics...</Text>}
+            <Text type="secondary">Uploading and analyzing your event log...</Text>
           </div>
         </div>
       </Card>
@@ -335,9 +365,9 @@ export function UploadWizardPage() {
   const canProceed = () => {
     switch (currentStep) {
       case 0:
-        return !!file;
+        return !!file && !detectColumnsMutation.isPending;
       case 1:
-        return true;
+        return !!previewData;
       case 2:
         return !!columnMapping.caseId && !!columnMapping.activity && !!columnMapping.timestamp;
       default:

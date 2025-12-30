@@ -1,24 +1,29 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useMemo, useCallback } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ApiClient } from '../api/client';
+import {
+  createLogsModule,
+  createDiscoveryModule,
+  createAnalyticsModule,
+  createConformanceModule,
+  createAIModule,
+  type LogsModule,
+  type DiscoveryModule,
+  type AnalyticsModule,
+  type ConformanceModule,
+  type AIModule,
+} from '../api/modules';
 
-// SDK type - will be properly typed when SDK is built
-// For now, using a flexible interface
+// SDK type - properly typed with real modules
 interface ProcessMiningSdk {
-  logs: {
-    list: (options?: unknown) => Promise<unknown>;
-    get: (id: string) => Promise<unknown>;
-    ingest: (file: File, metadata?: unknown) => Promise<unknown>;
-    analyze: (logId: string) => Promise<unknown>;
-    delete: (id: string) => Promise<void>;
-  };
-  discovery: {
-    discover: (options: { logId: string; minerType?: string }) => Promise<unknown>;
-    buildDFG: (logId: string, options?: unknown) => Promise<unknown>;
-  };
+  logs: LogsModule;
+  discovery: DiscoveryModule;
+  analytics: AnalyticsModule;
+  conformance: ConformanceModule;
+  ai: AIModule;
   visualization: {
     getDFG: (logId: string) => Promise<unknown>;
   };
-  // Add more clients as needed
 }
 
 // Create SDK context
@@ -42,30 +47,51 @@ export const queryClient = new QueryClient({
 interface SDKProviderProps {
   children: React.ReactNode;
   baseUrl?: string;
+  getAuthToken?: () => string | null;
 }
 
 /**
  * SDKProvider - Wraps app with SDK and React Query contexts
  */
-export function SDKProvider({ children, baseUrl = 'http://localhost:8001' }: SDKProviderProps) {
-  // Create mock SDK instance for now
-  // Replace with actual SDK initialization when backend is ready
-  const sdk = useMemo<ProcessMiningSdk>(() => ({
-    logs: {
-      list: async () => ({ items: [], total: 0 }),
-      get: async (id) => ({ id, name: 'Mock Log' }),
-      ingest: async () => ({ id: 'new-log-id' }),
-      analyze: async () => ({ cases: 0, events: 0 }),
-      delete: async () => {},
-    },
-    discovery: {
-      discover: async () => ({ modelId: 'mock-model' }),
-      buildDFG: async () => ({ nodes: [], edges: [] }),
-    },
-    visualization: {
-      getDFG: async () => ({ nodes: [], edges: [] }),
-    },
-  }), [baseUrl]);
+export function SDKProvider({ 
+  children, 
+  baseUrl = 'http://localhost:8001',
+  getAuthToken,
+}: SDKProviderProps) {
+  // Memoize the auth token getter
+  const memoizedGetAuthToken = useCallback(() => {
+    if (getAuthToken) {
+      return getAuthToken();
+    }
+    // Default: try localStorage
+    return localStorage.getItem('auth_token');
+  }, [getAuthToken]);
+
+  // Create SDK with real API modules
+  const sdk = useMemo<ProcessMiningSdk>(() => {
+    const client = new ApiClient({ 
+      baseUrl, 
+      getAuthToken: memoizedGetAuthToken,
+    });
+
+    const logsModule = createLogsModule(client);
+    const discoveryModule = createDiscoveryModule(client);
+    const analyticsModule = createAnalyticsModule(client);
+    const conformanceModule = createConformanceModule(client);
+    const aiModule = createAIModule(client);
+
+    return {
+      logs: logsModule,
+      discovery: discoveryModule,
+      analytics: analyticsModule,
+      conformance: conformanceModule,
+      ai: aiModule,
+      // Visualization is an alias to discovery.buildDFG for backward compatibility
+      visualization: {
+        getDFG: (logId: string) => discoveryModule.buildDFG(logId),
+      },
+    };
+  }, [baseUrl, memoizedGetAuthToken]);
 
   return (
     <SDKContext.Provider value={sdk}>
@@ -86,3 +112,6 @@ export function useSDK(): ProcessMiningSdk {
   }
   return sdk;
 }
+
+// Re-export types for convenience
+export type { ProcessMiningSdk };

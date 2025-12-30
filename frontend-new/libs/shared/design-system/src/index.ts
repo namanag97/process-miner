@@ -29,3 +29,7 @@ export {
 
 // Context
 export { SDKProvider, useSDK, queryClient } from './context/SDKContext';
+
+// API (types and transformers)
+export * from './api/transformers';
+export { APIError } from './api/client';
