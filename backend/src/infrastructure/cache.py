@@ -8,7 +8,6 @@ Provides caching for:
 """
 
 import hashlib
-import json
 import pickle
 from functools import wraps
 from typing import Any, Callable, Optional

@@ -292,7 +292,7 @@ async def list_filtered_logs(
     query = (
         select(EventLog)
         .where(EventLog.source_log_id == log_id)
-        .where(EventLog.is_filtered == True)
+        .where(EventLog.is_filtered.is_(True))
         .order_by(EventLog.created_at.desc())
     )
     result = await db.execute(query)
@@ -360,7 +360,7 @@ async def delete_filtered_log(
         select(EventLog)
         .where(EventLog.id == filtered_id)
         .where(EventLog.source_log_id == log_id)
-        .where(EventLog.is_filtered == True)
+        .where(EventLog.is_filtered.is_(True))
     )
     result = await db.execute(query)
     filtered_log = result.scalar_one_or_none()

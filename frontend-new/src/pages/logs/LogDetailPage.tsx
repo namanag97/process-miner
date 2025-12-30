@@ -136,7 +136,7 @@ export function LogDetailPage() {
           breadcrumb={[{ label: 'Event Logs', href: '/logs' }, { label: 'Loading' }]}
         />
         <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-          <Spin size="large" tip="Loading event log details..." />
+          <Spin size="large" />
         </div>
       </div>
     );

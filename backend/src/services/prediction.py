@@ -6,8 +6,6 @@ and outcome prediction using scikit-learn and XGBoost.
 
 import pickle
 import time
-from collections import defaultdict
-from typing import Any, Optional
 
 import numpy as np
 from pm4py.objects.log.obj import EventLog as PM4PyLog

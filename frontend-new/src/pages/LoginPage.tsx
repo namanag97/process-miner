@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, Input, Button, Typography, Divider, ConfigProvider } from 'antd';
 import { MailOutlined, LockOutlined } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +8,7 @@ import { luminaTheme, tokens } from '@lumina/design-system';
 const { Title, Text } = Typography;
 
 export function LoginPage() {
+  const navigate = useNavigate();
   const { login, loginAsGuest } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,9 +19,15 @@ export function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
+      navigate('/home');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGuestLogin = () => {
+    loginAsGuest();
+    navigate('/home');
   };
 
   return (
@@ -96,7 +104,7 @@ export function LoginPage() {
           <Button
             size="large"
             block
-            onClick={loginAsGuest}
+            onClick={handleGuestLogin}
           >
             Continue as Guest
           </Button>

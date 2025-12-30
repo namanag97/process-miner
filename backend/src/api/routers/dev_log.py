@@ -3,7 +3,6 @@
 Receives log entries from frontend and appends them to dev-logs/app.log.
 """
 
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any

@@ -18,7 +18,7 @@ from pm4py.objects.log.importer.xes import importer as xes_importer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
-from src.core.exceptions import ProcessingError, ValidationError
+from src.core.exceptions import ValidationError
 from src.core.logging_config import get_logger
 from src.models.orm import EventLog, ProcessCase, ProcessEvent
 

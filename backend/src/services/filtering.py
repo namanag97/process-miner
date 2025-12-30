@@ -6,7 +6,6 @@ Supports time-based, variant-based, activity-based, and performance-based filter
 
 import json
 import time
-from copy import deepcopy
 from datetime import datetime
 from typing import Any, Optional
 

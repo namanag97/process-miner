@@ -14,8 +14,8 @@ interface LogEntry {
   timestamp: string;
 }
 
-// Backend URL - uses same origin in dev
-const DEV_LOG_ENDPOINT = '/api/v1/dev/log';
+// Backend URL - hardcoded for dev (frontend at 5173/4200, backend at 8001)
+const DEV_LOG_ENDPOINT = 'http://localhost:8001/api/v1/dev/log';
 
 // Queue for batching logs (reduces network overhead)
 let logQueue: LogEntry[] = [];

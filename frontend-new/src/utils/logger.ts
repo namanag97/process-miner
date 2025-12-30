@@ -1,7 +1,10 @@
 /**
  * Frontend Logger Utility
  * Provides structured logging with levels and namespaces
+ * Also sends logs to the file-based dev logger for persistence
  */
+
+import { devLog, logError as devLogError } from '@lumina/design-system';
 
 export enum LogLevel {
   DEBUG = 0,
@@ -85,6 +88,13 @@ class Logger {
         style,
         message
       );
+    }
+
+    // Also send to file-based dev logger for persistence
+    if (level === LogLevel.ERROR) {
+      devLogError(this.namespace, message, data as Record<string, unknown>);
+    } else {
+      devLog('FE-ACTION', this.namespace, data ? { message, ...( typeof data === 'object' ? data : { data }) } : message);
     }
   }
 

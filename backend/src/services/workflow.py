@@ -3,11 +3,7 @@
 Simple workflow execution for process mining pipelines.
 """
 
-import json
-from datetime import datetime
 from typing import Any
-
-from src.core.enums import MinerType, WorkflowStatus
 
 
 class WorkflowService:
