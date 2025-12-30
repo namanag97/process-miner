@@ -4,7 +4,7 @@ Ported from: src/application/core/conformance_service.py
 Simplified: No aggregates, no domain entities - direct PM4Py usage.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 import pm4py
 from pm4py.objects.petri_net.obj import Marking, PetriNet
@@ -252,9 +252,7 @@ class ConformanceService:
     ) -> dict[str, Any]:
         """Perform token-based replay conformance checking."""
         fitness_result = pm4py.fitness_token_based_replay(log, net, im, fm)
-
         fitness = fitness_result.get("average_trace_fitness", 0.0)
-        percentage_fit = fitness_result.get("percentage_of_fitting_traces", 0.0)
 
         try:
             precision = pm4py.precision_token_based_replay(log, net, im, fm)

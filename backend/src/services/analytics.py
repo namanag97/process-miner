@@ -6,10 +6,8 @@ throughput metrics, and frequent pattern discovery.
 
 import time
 from collections import defaultdict
-from datetime import datetime
 from typing import Any
 
-import pm4py
 from pm4py.objects.log.obj import EventLog as PM4PyLog
 from pm4py.statistics.traces.generic.log import case_statistics
 
@@ -22,22 +20,55 @@ class AnalyticsService:
     """Performance analytics service using PM4Py."""
 
     def detect_bottlenecks(self, pm4py_log: PM4PyLog) -> dict[str, Any]:
-        """Detect bottlenecks based on waiting and service times."""
+        """Detect bottlenecks based on waiting and service times.
+
+        Enhanced to include:
+        - preceding_activities: Activities that come before this one
+        - following_activities: Activities that come after this one
+        - bottleneck_impact_score: Combined score based on wait time and frequency
+        """
         logger.info("detecting_bottlenecks", traces=len(pm4py_log))
         start = time.perf_counter()
 
-        activity_times = defaultdict(lambda: {"waiting": [], "service": [], "count": 0})
+        activity_times = defaultdict(lambda: {
+            "waiting": [],
+            "service": [],
+            "count": 0,
+            "preceding": defaultdict(int),
+            "following": defaultdict(int),
+        })
 
         for trace in pm4py_log:
             for i, event in enumerate(trace):
                 activity = event.get("concept:name", "")
                 activity_times[activity]["count"] += 1
 
-                if i > 0 and "time:timestamp" in event and "time:timestamp" in trace[i - 1]:
-                    prev_ts = trace[i - 1]["time:timestamp"]
-                    curr_ts = event["time:timestamp"]
-                    waiting = (curr_ts - prev_ts).total_seconds()
-                    activity_times[activity]["waiting"].append(waiting)
+                # Track preceding activity
+                if i > 0:
+                    prev_activity = trace[i - 1].get("concept:name", "")
+                    activity_times[activity]["preceding"][prev_activity] += 1
+
+                    # Calculate waiting time
+                    if "time:timestamp" in event and "time:timestamp" in trace[i - 1]:
+                        prev_ts = trace[i - 1]["time:timestamp"]
+                        curr_ts = event["time:timestamp"]
+                        waiting = (curr_ts - prev_ts).total_seconds()
+                        activity_times[activity]["waiting"].append(waiting)
+
+                # Track following activity
+                if i < len(trace) - 1:
+                    next_activity = trace[i + 1].get("concept:name", "")
+                    activity_times[activity]["following"][next_activity] += 1
+
+        # Calculate max waiting time for normalization
+        max_waiting = 1.0
+        max_frequency = 1
+        for data in activity_times.values():
+            avg_waiting = sum(data["waiting"]) / len(data["waiting"]) if data["waiting"] else 0
+            if avg_waiting > max_waiting:
+                max_waiting = avg_waiting
+            if data["count"] > max_frequency:
+                max_frequency = data["count"]
 
         bottlenecks = []
         for activity, data in activity_times.items():
@@ -47,6 +78,16 @@ class AnalyticsService:
             is_bottleneck = avg_waiting > 3600
             severity = "high" if avg_waiting > 86400 else "medium" if avg_waiting > 3600 else "low"
 
+            # Get top 5 preceding and following activities
+            preceding = sorted(data["preceding"].items(), key=lambda x: x[1], reverse=True)[:5]
+            following = sorted(data["following"].items(), key=lambda x: x[1], reverse=True)[:5]
+
+            # Calculate impact score (0-1) based on waiting time and frequency
+            normalized_waiting = avg_waiting / max_waiting if max_waiting > 0 else 0
+            normalized_freq = data["count"] / max_frequency if max_frequency > 0 else 0
+            # Weight waiting time more heavily (70%) than frequency (30%)
+            impact_score = (normalized_waiting * 0.7) + (normalized_freq * 0.3)
+
             bottlenecks.append({
                 "activity": activity,
                 "avg_waiting_time_seconds": round(avg_waiting, 2),
@@ -54,9 +95,12 @@ class AnalyticsService:
                 "frequency": data["count"],
                 "is_bottleneck": is_bottleneck,
                 "severity": severity,
+                "preceding_activities": [a[0] for a in preceding],
+                "following_activities": [a[0] for a in following],
+                "bottleneck_impact_score": round(impact_score, 3),
             })
 
-        bottlenecks.sort(key=lambda x: x["avg_waiting_time_seconds"], reverse=True)
+        bottlenecks.sort(key=lambda x: x["bottleneck_impact_score"], reverse=True)
 
         duration = (time.perf_counter() - start) * 1000
         logger.info("bottlenecks_detected", count=len([b for b in bottlenecks if b["is_bottleneck"]]), duration_ms=round(duration, 2))
@@ -105,6 +149,103 @@ class AnalyticsService:
             "rework_activities": rework_activities,
             "total_rework_cases": cases_with_any_rework,
             "rework_percentage": round(cases_with_any_rework / total_cases * 100, 2) if total_cases > 0 else 0,
+        }
+
+    def detect_rework_chains(self, pm4py_log: PM4PyLog) -> dict[str, Any]:
+        """Detect rework chains - consecutive repetitions of the same activity.
+
+        A rework chain is when an activity appears multiple times in a row,
+        indicating immediate rework/retry patterns.
+
+        Returns:
+            Dictionary with chains info including activity, length, frequency
+        """
+        logger.info("detecting_rework_chains", traces=len(pm4py_log))
+        start = time.perf_counter()
+
+        # Track chains: key = (activity, chain_length), value = list of (case_id, duration)
+        chain_data: dict[tuple[str, int], list[tuple[str, float]]] = defaultdict(list)
+        cases_with_chains = set()
+
+        for trace in pm4py_log:
+            case_id = trace.attributes.get("concept:name", f"trace_{id(trace)}")
+            activities = [e.get("concept:name", "") for e in trace]
+            timestamps = [e.get("time:timestamp") for e in trace]
+
+            if not activities:
+                continue
+
+            # Find consecutive repeats
+            i = 0
+            while i < len(activities):
+                current_activity = activities[i]
+                chain_length = 1
+                chain_start_ts = timestamps[i] if i < len(timestamps) else None
+
+                # Count consecutive occurrences
+                while i + chain_length < len(activities) and activities[i + chain_length] == current_activity:
+                    chain_length += 1
+
+                # Only record if chain length > 1 (actual rework)
+                if chain_length > 1:
+                    cases_with_chains.add(case_id)
+                    chain_end_ts = timestamps[i + chain_length - 1] if (i + chain_length - 1) < len(timestamps) else None
+
+                    duration = 0.0
+                    if chain_start_ts and chain_end_ts:
+                        duration = (chain_end_ts - chain_start_ts).total_seconds()
+
+                    chain_data[(current_activity, chain_length)].append((case_id, duration))
+
+                i += chain_length
+
+        # Aggregate chain data
+        chains = []
+        activity_total_chains: dict[str, int] = defaultdict(int)
+
+        for (activity, chain_length), occurrences in chain_data.items():
+            activity_total_chains[activity] += len(occurrences)
+
+            # Calculate average duration
+            durations = [d for _, d in occurrences if d > 0]
+            avg_duration = sum(durations) / len(durations) if durations else 0.0
+
+            # Get sample case IDs (up to 5)
+            example_case_ids = list(set(c for c, _ in occurrences))[:5]
+
+            chains.append({
+                "activity": activity,
+                "chain_length": chain_length,
+                "frequency": len(occurrences),
+                "avg_chain_duration_seconds": round(avg_duration, 2),
+                "example_case_ids": example_case_ids,
+            })
+
+        # Sort by frequency
+        chains.sort(key=lambda x: x["frequency"], reverse=True)
+
+        # Find most problematic activity
+        most_problematic = None
+        if activity_total_chains:
+            most_problematic = max(activity_total_chains.items(), key=lambda x: x[1])[0]
+
+        total_cases = len(pm4py_log)
+        chains_percentage = (len(cases_with_chains) / total_cases * 100) if total_cases > 0 else 0.0
+
+        duration = (time.perf_counter() - start) * 1000
+        logger.info(
+            "rework_chains_detected",
+            total_chains=len(chains),
+            cases_with_chains=len(cases_with_chains),
+            duration_ms=round(duration, 2),
+        )
+
+        return {
+            "chains": chains,
+            "total_chains": len(chains),
+            "most_problematic_activity": most_problematic,
+            "cases_with_chains": len(cases_with_chains),
+            "chains_percentage": round(chains_percentage, 2),
         }
 
     def get_service_times(self, pm4py_log: PM4PyLog) -> list[dict[str, Any]]:
