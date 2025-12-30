@@ -17,6 +17,7 @@ import {
   LogDetailPage,
   ProcessExplorerIndexPage,
   ProcessExplorerPage,
+  AnalyticsPage,
 } from './pages';
 import { createLogger } from './utils/logger';
 
@@ -103,7 +104,10 @@ function AppLayout() {
         <Route path="/explorer/:logId/*" element={<ProcessExplorerPage />} />
 
         {/* Phase 4: Analytics */}
-        <Route path="/analytics/*" element={<PlaceholderPage title="Analytics" phase={4} />} />
+        <Route path="/analytics" element={<AnalyticsPage />} />
+        <Route path="/analytics/performance" element={<AnalyticsPage />} />
+        <Route path="/analytics/conformance" element={<AnalyticsPage />} />
+        <Route path="/analytics/rework" element={<AnalyticsPage />} />
 
         {/* Phase 5: AI & Advanced */}
         <Route path="/ai/*" element={<PlaceholderPage title="AI Insights" phase={5} />} />
