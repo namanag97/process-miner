@@ -1,0 +1,463 @@
+{
+  "metadata": {
+    "description": "PM4Py API Request/Response Schema",
+    "version": "1.0.0",
+    "pm4py_version": "2.7.x",
+    "test_file": "Insurance_claims_event_log.csv"
+  },
+  "common": {
+    "EventLogRequest": {
+      "file_path": "string",
+      "case_id_column": "string | null",
+      "activity_column": "string | null",
+      "timestamp_column": "string | null",
+      "resource_column": "string | null"
+    },
+    "BaseResponse": {
+      "status": "success | error",
+      "error": "string | null"
+    }
+  },
+  "endpoints": {
+    "load_event_log": {
+      "request": {
+        "file_path": "string",
+        "format": "csv | xes"
+      },
+      "response": {
+        "status": "string",
+        "total_cases": "number",
+        "total_events": "number",
+        "columns": ["string"],
+        "case_id_column": "string",
+        "activity_column": "string",
+        "timestamp_column": "string",
+        "resource_column": "string | null"
+      }
+    },
+    "get_event_statistics": {
+      "request": {},
+      "response": {
+        "start_activities": {
+          "<activity_name>": "number"
+        },
+        "end_activities": {
+          "<activity_name>": "number"
+        },
+        "activity_frequencies": {
+          "<activity_name>": "number"
+        },
+        "case_duration_stats": {
+          "min_seconds": "number",
+          "max_seconds": "number",
+          "avg_seconds": "number",
+          "median_seconds": "number"
+        },
+        "total_cases": "number",
+        "total_events": "number"
+      }
+    },
+    "get_variants": {
+      "request": {
+        "limit": "number | null"
+      },
+      "response": {
+        "variants": [
+          {
+            "trace": ["string"],
+            "count": "number",
+            "percentage": "number"
+          }
+        ],
+        "total_variants": "number"
+      }
+    },
+    "discover_dfg": {
+      "request": {},
+      "response": {
+        "edges": [
+          {
+            "source": "string",
+            "target": "string",
+            "frequency": "number"
+          }
+        ],
+        "start_activities": {
+          "<activity_name>": "number"
+        },
+        "end_activities": {
+          "<activity_name>": "number"
+        },
+        "num_edges": "number"
+      }
+    },
+    "discover_petri_net_alpha": {
+      "request": {},
+      "response": {
+        "places": [
+          {
+            "id": "string",
+            "name": "string"
+          }
+        ],
+        "transitions": [
+          {
+            "id": "string",
+            "name": "string",
+            "label": "string | null"
+          }
+        ],
+        "arcs": [
+          {
+            "source_id": "string",
+            "target_id": "string",
+            "source_type": "place | transition",
+            "target_type": "place | transition"
+          }
+        ],
+        "initial_marking": {
+          "<place_id>": "number"
+        },
+        "final_marking": {
+          "<place_id>": "number"
+        }
+      }
+    },
+    "discover_petri_net_inductive": {
+      "request": {
+        "noise_threshold": "number | null"
+      },
+      "response": {
+        "places": [
+          {
+            "id": "string",
+            "name": "string"
+          }
+        ],
+        "transitions": [
+          {
+            "id": "string",
+            "name": "string",
+            "label": "string | null"
+          }
+        ],
+        "arcs": [
+          {
+            "source_id": "string",
+            "target_id": "string",
+            "source_type": "place | transition",
+            "target_type": "place | transition"
+          }
+        ],
+        "initial_marking": {
+          "<place_id>": "number"
+        },
+        "final_marking": {
+          "<place_id>": "number"
+        }
+      }
+    },
+    "discover_heuristics_net": {
+      "request": {
+        "dependency_threshold": "number | null",
+        "and_threshold": "number | null",
+        "loop_two_threshold": "number | null"
+      },
+      "response": {
+        "nodes": ["string"],
+        "edges": [
+          {
+            "source": "string",
+            "target": "string",
+            "dependency_value": "number",
+            "dfg_value": "number"
+          }
+        ],
+        "start_activities": ["string"],
+        "end_activities": ["string"]
+      }
+    },
+    "discover_process_tree": {
+      "request": {
+        "noise_threshold": "number | null"
+      },
+      "response": {
+        "tree": {
+          "operator": "sequence | xor | parallel | loop | null",
+          "label": "string | null",
+          "children": ["<recursive tree node>"]
+        },
+        "tree_string": "string"
+      }
+    },
+    "convert_to_bpmn": {
+      "request": {
+        "petri_net_id": "string"
+      },
+      "response": {
+        "nodes": [
+          {
+            "id": "string",
+            "type": "task | gateway | start_event | end_event",
+            "name": "string | null"
+          }
+        ],
+        "flows": [
+          {
+            "id": "string",
+            "source_id": "string",
+            "target_id": "string"
+          }
+        ],
+        "num_nodes": "number",
+        "num_flows": "number"
+      }
+    },
+    "conformance_token_replay": {
+      "request": {
+        "petri_net_id": "string"
+      },
+      "response": {
+        "traces": [
+          {
+            "case_id": "string",
+            "is_fit": "boolean",
+            "trace_fitness": "number",
+            "produced_tokens": "number",
+            "consumed_tokens": "number",
+            "missing_tokens": "number",
+            "remaining_tokens": "number"
+          }
+        ],
+        "aggregate": {
+          "total_traces": "number",
+          "fit_traces": "number",
+          "avg_fitness": "number",
+          "total_produced": "number",
+          "total_consumed": "number",
+          "total_missing": "number",
+          "total_remaining": "number"
+        }
+      }
+    },
+    "conformance_alignments": {
+      "request": {
+        "petri_net_id": "string"
+      },
+      "response": {
+        "alignments": [
+          {
+            "case_id": "string",
+            "alignment": [
+              {
+                "log_move": "string | null",
+                "model_move": "string | null"
+              }
+            ],
+            "cost": "number",
+            "fitness": "number"
+          }
+        ],
+        "aggregate": {
+          "total_traces": "number",
+          "avg_cost": "number",
+          "avg_fitness": "number"
+        }
+      }
+    },
+    "evaluate_fitness": {
+      "request": {
+        "petri_net_id": "string",
+        "variant": "token_based | alignment_based"
+      },
+      "response": {
+        "log_fitness": "number",
+        "average_trace_fitness": "number",
+        "percentage_of_fitting_traces": "number"
+      }
+    },
+    "evaluate_precision": {
+      "request": {
+        "petri_net_id": "string"
+      },
+      "response": {
+        "precision": "number"
+      }
+    },
+    "evaluate_generalization": {
+      "request": {
+        "petri_net_id": "string"
+      },
+      "response": {
+        "generalization": "number"
+      }
+    },
+    "evaluate_simplicity": {
+      "request": {
+        "petri_net_id": "string"
+      },
+      "response": {
+        "simplicity": "number"
+      }
+    },
+    "social_network_handover": {
+      "request": {},
+      "response": {
+        "resources": ["string"],
+        "matrix": [["number"]],
+        "edges": [
+          {
+            "from_resource": "string",
+            "to_resource": "string",
+            "weight": "number"
+          }
+        ]
+      }
+    },
+    "social_network_working_together": {
+      "request": {},
+      "response": {
+        "resources": ["string"],
+        "matrix": [["number"]],
+        "edges": [
+          {
+            "resource_a": "string",
+            "resource_b": "string",
+            "weight": "number"
+          }
+        ]
+      }
+    },
+    "discover_roles": {
+      "request": {},
+      "response": {
+        "roles": [
+          {
+            "role_id": "number",
+            "resources": ["string"],
+            "activities": ["string"]
+          }
+        ],
+        "total_roles": "number"
+      }
+    },
+    "get_footprints": {
+      "request": {},
+      "response": {
+        "activities": ["string"],
+        "sequence": [
+          {
+            "source": "string",
+            "target": "string"
+          }
+        ],
+        "parallel": [
+          {
+            "activity_a": "string",
+            "activity_b": "string"
+          }
+        ]
+      }
+    },
+    "get_temporal_statistics": {
+      "request": {},
+      "response": {
+        "log_start": "string (ISO datetime)",
+        "log_end": "string (ISO datetime)",
+        "log_duration_days": "number",
+        "avg_case_arrival_seconds": "number",
+        "cases_per_day": "number"
+      }
+    },
+    "filter_variants": {
+      "request": {
+        "percentage": "number",
+        "min_count": "number | null"
+      },
+      "response": {
+        "original_cases": "number",
+        "filtered_cases": "number",
+        "reduction_percentage": "number",
+        "kept_variants": "number"
+      }
+    },
+    "get_log_skeleton": {
+      "request": {},
+      "response": {
+        "equivalence": [
+          ["string", "string"]
+        ],
+        "always_after": [
+          {
+            "activity": "string",
+            "always_followed_by": "string"
+          }
+        ],
+        "always_before": [
+          {
+            "activity": "string",
+            "always_preceded_by": "string"
+          }
+        ],
+        "never_together": [
+          ["string", "string"]
+        ],
+        "activ_freq": {
+          "<activity_name>": {
+            "min": "number",
+            "max": "number"
+          }
+        }
+      }
+    },
+    "detect_batches": {
+      "request": {},
+      "response": {
+        "batches": [
+          {
+            "activity": "string",
+            "resource": "string",
+            "batch_type": "simultaneous | sequential | concurrent",
+            "instances": "number",
+            "events_in_batch": "number"
+          }
+        ],
+        "total_batch_patterns": "number"
+      }
+    },
+    "discover_transition_system": {
+      "request": {
+        "direction": "forward | backward | both"
+      },
+      "response": {
+        "states": [
+          {
+            "id": "string",
+            "name": "string"
+          }
+        ],
+        "transitions": [
+          {
+            "source_state": "string",
+            "target_state": "string",
+            "activity": "string"
+          }
+        ],
+        "num_states": "number",
+        "num_transitions": "number"
+      }
+    },
+    "discover_prefix_tree": {
+      "request": {},
+      "response": {
+        "root": {
+          "activity": "string | null",
+          "count": "number",
+          "children": ["<recursive node>"]
+        },
+        "total_nodes": "number",
+        "max_depth": "number"
+      }
+    }
+  }
+}
