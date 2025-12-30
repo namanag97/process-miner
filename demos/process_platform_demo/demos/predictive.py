@@ -218,13 +218,21 @@ def run_demo(event_log: pd.DataFrame) -> dict:
     next_act_results = predictor.train_next_activity_model(event_log)
     time_results = predictor.train_time_model(event_log)
     
-    # Make a sample prediction
+    # Make a sample prediction using an activity from the actual event log
+    # Get a random valid activity that exists in the training data
+    valid_activities = list(predictor.label_encoders['current_activity'].classes_)
+    sample_activity = valid_activities[0] if valid_activities else 'Unknown'
+    
+    # Get valid priority and region from training data
+    valid_priorities = list(predictor.label_encoders['priority'].classes_)
+    valid_regions = list(predictor.label_encoders['region'].classes_)
+    
     sample_case = {
         'prefix_length': 3,
-        'current_activity': 'Stock Check',
+        'current_activity': sample_activity,
         'order_value': 5000,
-        'priority': 'High',
-        'region': 'North',
+        'priority': valid_priorities[0] if valid_priorities else 'Medium',
+        'region': valid_regions[0] if valid_regions else 'North',
         'num_unique_activities': 3,
         'has_deviation': False
     }
