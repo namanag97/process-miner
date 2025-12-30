@@ -3,7 +3,19 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from
 import { ConfigProvider } from 'antd';
 import { AppShell, SDKProvider, luminaTheme } from '@lumina/design-system';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { LoginPage, HomePage, PlaceholderPage } from './pages';
+import { NotificationProvider, useNotifications } from './context/NotificationContext';
+import {
+  LoginPage,
+  HomePage,
+  PlaceholderPage,
+  SettingsPage,
+  NotificationsPage,
+  ActivityLogPage,
+  HelpCenterPage,
+} from './pages';
+import { createLogger } from './utils/logger';
+
+const log = createLogger('Navigation');
 
 // Protected route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -24,7 +36,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const { unreadCount } = useNotifications();
 
   // Determine active nav item from URL
   const getActiveId = () => {
@@ -38,6 +51,7 @@ function AppLayout() {
     if (path.startsWith('/settings')) return 'settings';
     if (path.startsWith('/help')) return 'help';
     if (path.startsWith('/notifications')) return 'notifications';
+    if (path.startsWith('/activity')) return 'activity';
     return 'home';
   };
 
@@ -52,7 +66,9 @@ function AppLayout() {
       settings: '/settings/profile',
       help: '/help',
       notifications: '/notifications',
+      activity: '/activity',
     };
+    log.debug('Navigating', { from: location.pathname, to: routes[id] });
     navigate(routes[id] || '/home');
   };
 
@@ -62,15 +78,15 @@ function AppLayout() {
       onNavigate={handleNavigate}
       userName={user?.name}
       userEmail={user?.email}
-      notificationCount={3}
+      notificationCount={unreadCount}
     >
       <Routes>
         {/* Phase 1: Base Platform */}
         <Route path="/home" element={<HomePage />} />
-        <Route path="/settings/*" element={<PlaceholderPage title="Settings" phase={1} />} />
-        <Route path="/notifications" element={<PlaceholderPage title="Notifications" phase={1} />} />
-        <Route path="/help" element={<PlaceholderPage title="Help Center" phase={1} />} />
-        <Route path="/activity" element={<PlaceholderPage title="Activity Log" phase={1} />} />
+        <Route path="/settings/*" element={<SettingsPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/help" element={<HelpCenterPage />} />
+        <Route path="/activity" element={<ActivityLogPage />} />
 
         {/* Phase 2: Data Foundation */}
         <Route path="/logs" element={<PlaceholderPage title="Event Logs" phase={2} />} />
@@ -100,19 +116,21 @@ function App() {
     <ConfigProvider theme={luminaTheme}>
       <SDKProvider>
         <AuthProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              <Route
-                path="/*"
-                element={
-                  <ProtectedRoute>
-                    <AppLayout />
-                  </ProtectedRoute>
-                }
-              />
-            </Routes>
-          </BrowserRouter>
+          <NotificationProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route
+                  path="/*"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout />
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+            </BrowserRouter>
+          </NotificationProvider>
         </AuthProvider>
       </SDKProvider>
     </ConfigProvider>

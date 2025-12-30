@@ -5,14 +5,27 @@ A scratch demo showcasing key technologies for the Process Mining & Business Aut
 ## 🚀 Quick Start
 
 ```bash
-# Install dependencies
+# Navigate to the demo directory
+cd process_platform_demo
+
+# Activate virtual environment (if not already activated)
+source venv/bin/activate
+
+# Install dependencies (if needed)
 pip install -r requirements.txt
 
-# Download spaCy model
-python -m spacy download en_core_web_sm
+# Download spaCy model (optional - for document processing demo)
+python3 -m spacy download en_core_web_sm
 
 # Run the demo
 streamlit run app.py
+```
+
+### Alternative: Run without activating venv
+
+```bash
+# From the process_platform_demo directory
+./venv/bin/streamlit run app.py
 ```
 
 ## 📦 Demos Included

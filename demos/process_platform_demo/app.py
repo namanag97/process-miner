@@ -263,6 +263,19 @@ def render_predictive_demo(event_log):
                         else:
                             st.info(f"~{hours/24:.0f} days")
                     
+                    # Animated Feature Importance
+                    st.markdown("---")
+                    st.subheader("🎥 Algorithm Visualization")
+                    st.caption("Watch how the ML model learns feature importance during training")
+                    
+                    try:
+                        from demos.animations import create_animated_feature_importance
+                        feature_names = ['Prefix Len', 'Activity', 'Value', 'Priority', 'Region', 'Unique Acts', 'Deviation']
+                        anim_fig = create_animated_feature_importance(feature_names, iterations=15)
+                        st.plotly_chart(anim_fig, use_container_width=True)
+                    except Exception as anim_err:
+                        st.warning(f"Animation not available: {anim_err}")
+                    
             except Exception as e:
                 progress_bar.empty()
                 status_area.error(f"❌ Error: {e}")
@@ -394,6 +407,19 @@ def render_simulation_demo():
             fig.update_layout(title="Resource Utilization (%)", yaxis_range=[0, 100])
             st.plotly_chart(fig, use_container_width=True)
             st.caption("🔴 Red = Over 80% utilization (potential bottleneck)")
+            
+            # Animated Simulation Flow
+            st.markdown("---")
+            st.subheader("🎥 Algorithm Visualization")
+            st.caption("Watch cases flow through the process activities in the simulation")
+            
+            try:
+                from demos.animations import create_animated_simulation_flow
+                activities = ["Order", "Credit", "Warehouse", "Ship", "Invoice", "Pay"]
+                anim_fig = create_animated_simulation_flow(n_cases=15, activities=activities)
+                st.plotly_chart(anim_fig, use_container_width=True)
+            except Exception as anim_err:
+                st.warning(f"Animation not available: {anim_err}")
             
         except Exception as e:
             progress_bar.empty()
@@ -863,6 +889,18 @@ def render_graph_demo(event_log):
             for path, count in sorted(graph.variants.items(), key=lambda x: -x[1])[:5]:
                 variants.append({'path': ' → '.join(path), 'frequency': count, 'steps': len(path)})
             st.dataframe(pd.DataFrame(variants), use_container_width=True)
+            
+            # Animated DFG Discovery
+            st.markdown("---")
+            st.subheader("🎥 Algorithm Visualization")
+            st.caption("Watch how the Directly-Follows Graph is discovered by analyzing event sequences")
+            
+            try:
+                from demos.animations import create_animated_dfg
+                anim_fig = create_animated_dfg(event_log, duration_ms=150)
+                st.plotly_chart(anim_fig, use_container_width=True)
+            except Exception as anim_err:
+                st.warning(f"Animation not available: {anim_err}")
             
         except Exception as e:
             progress_bar.empty()

@@ -1,3 +1,7 @@
 export { LoginPage } from './LoginPage';
 export { HomePage } from './HomePage';
 export { PlaceholderPage } from './PlaceholderPage';
+export { SettingsPage } from './settings';
+export { NotificationsPage } from './NotificationsPage';
+export { ActivityLogPage } from './ActivityLogPage';
+export { HelpCenterPage } from './HelpCenterPage';
