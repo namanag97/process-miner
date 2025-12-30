@@ -1,6 +1,5 @@
 """File storage operations."""
 
-from pathlib import Path
 from typing import Optional
 
 from src.core.config import get_settings

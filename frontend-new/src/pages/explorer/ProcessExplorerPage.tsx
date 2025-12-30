@@ -324,7 +324,7 @@ export function ProcessExplorerPage() {
                 height: '100%',
               }}
             >
-              <Spin size="large" tip="Loading process map..." />
+              <Spin size="large" />
             </div>
           ) : (
             <ProcessCanvas

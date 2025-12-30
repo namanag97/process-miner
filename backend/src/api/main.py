@@ -115,6 +115,30 @@ def create_app() -> FastAPI:
             },
         )
 
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        """Global exception handler for unhandled errors.
+
+        Ensures CORS headers are returned even for 500 errors.
+        """
+        logger.error(
+            "unhandled_exception",
+            exception_type=type(exc).__name__,
+            message=str(exc),
+            path=str(request.url.path),
+            exc_info=True,
+        )
+        return JSONResponse(
+            status_code=500,
+            content={
+                "type": "error",
+                "title": "InternalServerError",
+                "status": 500,
+                "detail": str(exc) if settings.debug else "Internal server error",
+                "instance": str(request.url),
+            },
+        )
+
     # Health endpoints
     @app.get("/health", tags=["Health"])
     async def health_check() -> dict[str, Any]:

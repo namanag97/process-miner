@@ -226,7 +226,7 @@ export function EventLogsPage() {
           description="Manage your uploaded event log files"
         />
         <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-          <Spin size="large" tip="Loading event logs..." />
+          <Spin size="large" />
         </div>
       </div>
     );

@@ -8,8 +8,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
-from src.core.enums import ConformanceMethod, MinerType, ModelFormat, SourceFormat
-
+from src.core.enums import ConformanceMethod, MinerType
 
 # =============================================================================
 # Common

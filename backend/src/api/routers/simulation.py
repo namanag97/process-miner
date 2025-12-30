@@ -14,7 +14,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.dependencies import get_db
 from src.core.logging_config import get_logger
 from src.models.orm import EventLog, ProcessCase, ProcessEvent, ProcessModel
-from src.models.schemas import PlayOutRequest, PlayOutResponse, SimulationRequest, SimulationResponse
+from src.models.schemas import (
+    PlayOutRequest,
+    PlayOutResponse,
+    SimulationRequest,
+    SimulationResponse,
+)
 from src.services.filtering import filtering_service
 from src.services.simulation import simulation_service
 

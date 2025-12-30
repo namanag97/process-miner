@@ -4,9 +4,9 @@ Provides model play-out, what-if simulation, and capacity planning.
 """
 
 import time
-from datetime import datetime, timedelta
-from typing import Any
 from collections import defaultdict
+from datetime import timedelta
+from typing import Any
 
 import pm4py
 from pm4py.objects.log.obj import EventLog as PM4PyLog
@@ -133,8 +133,7 @@ class SimulationService:
 
     def _apply_modifications(self, pm4py_log: PM4PyLog, modifications: list[dict]) -> PM4PyLog:
         """Apply modifications to create simulated log."""
-        from copy import deepcopy
-        from pm4py.objects.log.obj import EventLog, Trace, Event
+        from pm4py.objects.log.obj import Event, EventLog, Trace
 
         new_log = EventLog()
 

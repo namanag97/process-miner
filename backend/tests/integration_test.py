@@ -49,7 +49,7 @@ class FocusedLogger:
     def save(self):
         """Save results to file."""
         header = [
-            f"Integration Test Report",
+            "Integration Test Report",
             f"Timestamp: {datetime.now().isoformat()}",
             f"Backend URL: {BASE_URL}",
             f"Results: {self.passed} passed, {self.failed} failed",
@@ -197,13 +197,13 @@ C003,Ship Order,2024-01-01 15:00:00,Dave
                     data = r.json()
                     self.logger.log(
                         "PASS",
-                        f"GET /logs/{{id}}/statistics",
+                        "GET /logs/{id}/statistics",
                         f"unique_activities={data.get('unique_activities', 0)}",
                     )
                 else:
-                    self.logger.log("FAIL", f"GET /logs/{{id}}/statistics", f"status_code={r.status_code}")
+                    self.logger.log("FAIL", "GET /logs/{id}/statistics", f"status_code={r.status_code}")
             except Exception as e:
-                self.logger.log("FAIL", f"GET /logs/{{id}}/statistics", str(e))
+                self.logger.log("FAIL", "GET /logs/{id}/statistics", str(e))
 
     async def test_discovery(self):
         """Test process discovery endpoints."""

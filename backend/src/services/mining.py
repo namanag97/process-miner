@@ -10,9 +10,7 @@ Simplified: Removed aggregates, domain entities - works directly with ORM models
 import pickle
 import time
 import warnings
-from typing import Any, Optional
-
-warnings.filterwarnings("ignore")
+from typing import Any
 
 import pm4py
 from pm4py.objects.log.obj import Event as PM4PyEvent
@@ -20,13 +18,15 @@ from pm4py.objects.log.obj import EventLog as PM4PyLog
 from pm4py.objects.log.obj import Trace
 from pm4py.objects.petri_net.obj import Marking, PetriNet
 from pm4py.objects.process_tree.obj import ProcessTree
-from pm4py.statistics.traces.generic.log import case_arrival, case_statistics
+from pm4py.statistics.traces.generic.log import case_statistics
 from pm4py.visualization.dfg import visualizer as dfg_visualizer
 from pm4py.visualization.petri_net import visualizer as pn_visualizer
 
 from src.core.enums import MinerType, ModelFormat
 from src.core.logging_config import get_logger
 from src.models.orm import EventLog
+
+warnings.filterwarnings("ignore")
 
 logger = get_logger(__name__)
 
