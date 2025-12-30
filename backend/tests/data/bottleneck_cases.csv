@@ -1,0 +1,19 @@
+case_id,activity_name,timestamp,claimant_name,agent_name,adjuster_name,claim_amount,claimant_age,type_of_policy,car_make,car_model,car_year,type_of_accident,user_type
+b1,First Notification of Loss (FNOL),2023-01-01 09:00:00,Bob Johnson,Agent C,Adjuster P,3000,50,Liability,Ford,F150,2021,Rear-end,Human
+b1,Assign Claim,2023-01-01 09:15:00,Bob Johnson,Agent C,Adjuster P,3000,50,Liability,Ford,F150,2021,Rear-end,Human
+b1,Claim Decision,2023-01-01 09:30:00,Bob Johnson,Agent C,Adjuster P,3000,50,Liability,Ford,F150,2021,Rear-end,Human
+b1,Set Reserve,2023-01-01 18:00:00,Bob Johnson,Agent C,Adjuster P,3000,50,Liability,Ford,F150,2021,Rear-end,Human
+b1,Payment Sent,2023-01-01 18:30:00,Bob Johnson,Agent C,Adjuster P,3000,50,Liability,Ford,F150,2021,Rear-end,Human
+b1,Close Claim,2023-01-01 19:00:00,Bob Johnson,Agent C,Adjuster P,3000,50,Liability,Ford,F150,2021,Rear-end,Human
+b2,First Notification of Loss (FNOL),2023-01-02 10:00:00,Alice Brown,Agent D,Adjuster Q,4500,28,Collision,Chevy,Malibu,2018,Side-swipe,Human
+b2,Assign Claim,2023-01-02 10:20:00,Alice Brown,Agent D,Adjuster Q,4500,28,Collision,Chevy,Malibu,2018,Side-swipe,Human
+b2,Claim Decision,2023-01-02 10:40:00,Alice Brown,Agent D,Adjuster Q,4500,28,Collision,Chevy,Malibu,2018,Side-swipe,Human
+b2,Set Reserve,2023-01-02 19:30:00,Alice Brown,Agent D,Adjuster Q,4500,28,Collision,Chevy,Malibu,2018,Side-swipe,Human
+b2,Payment Sent,2023-01-02 20:00:00,Alice Brown,Agent D,Adjuster Q,4500,28,Collision,Chevy,Malibu,2018,Side-swipe,Human
+b2,Close Claim,2023-01-02 20:30:00,Alice Brown,Agent D,Adjuster Q,4500,28,Collision,Chevy,Malibu,2018,Side-swipe,Human
+b3,First Notification of Loss (FNOL),2023-01-03 08:00:00,Charlie Davis,Agent E,Adjuster R,6000,42,Comprehensive,BMW,X5,2022,Vandalism,Human
+b3,Assign Claim,2023-01-03 08:10:00,Charlie Davis,Agent E,Adjuster R,6000,42,Comprehensive,BMW,X5,2022,Vandalism,Human
+b3,Claim Decision,2023-01-03 08:25:00,Charlie Davis,Agent E,Adjuster R,6000,42,Comprehensive,BMW,X5,2022,Vandalism,Human
+b3,Set Reserve,2023-01-03 17:45:00,Charlie Davis,Agent E,Adjuster R,6000,42,Comprehensive,BMW,X5,2022,Vandalism,Human
+b3,Payment Sent,2023-01-03 18:15:00,Charlie Davis,Agent E,Adjuster R,6000,42,Comprehensive,BMW,X5,2022,Vandalism,Human
+b3,Close Claim,2023-01-03 18:45:00,Charlie Davis,Agent E,Adjuster R,6000,42,Comprehensive,BMW,X5,2022,Vandalism,Human

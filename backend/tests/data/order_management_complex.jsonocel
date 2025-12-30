@@ -1,0 +1,48 @@
+{
+  "ocel:global-log": {
+    "ocel:attribute-names": [],
+    "ocel:object-types": ["Order", "Product", "Material", "Machine", "Shipment", "Invoice"],
+    "ocel:version": "2.0",
+    "ocel:ordering": "timestamp"
+  },
+  "ocel:global-event": {"ocel:activity": "__INVALID__"},
+  "ocel:global-object": {"ocel:type": "__INVALID__"},
+  "ocel:events": {
+    "e1": {"ocel:activity": "Receive Order", "ocel:timestamp": "2023-01-01T08:00:00", "ocel:omap": ["ord1"], "ocel:vmap": {}},
+    "e2": {"ocel:activity": "Check Inventory", "ocel:timestamp": "2023-01-01T08:15:00", "ocel:omap": ["ord1", "prod1", "prod2"], "ocel:vmap": {}},
+    "e3": {"ocel:activity": "Reserve Materials", "ocel:timestamp": "2023-01-01T08:30:00", "ocel:omap": ["prod1", "mat1", "mat2"], "ocel:vmap": {}},
+    "e4": {"ocel:activity": "Start Production", "ocel:timestamp": "2023-01-01T09:00:00", "ocel:omap": ["prod1", "mach1", "mat1"], "ocel:vmap": {}},
+    "e5": {"ocel:activity": "Complete Production", "ocel:timestamp": "2023-01-01T11:00:00", "ocel:omap": ["prod1", "mach1"], "ocel:vmap": {}},
+    "e6": {"ocel:activity": "Quality Check", "ocel:timestamp": "2023-01-01T11:30:00", "ocel:omap": ["prod1"], "ocel:vmap": {}},
+    "e7": {"ocel:activity": "Create Shipment", "ocel:timestamp": "2023-01-01T12:00:00", "ocel:omap": ["ship1", "ord1", "prod1"], "ocel:vmap": {}},
+    "e8": {"ocel:activity": "Ship Items", "ocel:timestamp": "2023-01-01T14:00:00", "ocel:omap": ["ship1"], "ocel:vmap": {}},
+    "e9": {"ocel:activity": "Generate Invoice", "ocel:timestamp": "2023-01-01T14:30:00", "ocel:omap": ["inv1", "ord1"], "ocel:vmap": {}},
+    "e10": {"ocel:activity": "Deliver", "ocel:timestamp": "2023-01-02T10:00:00", "ocel:omap": ["ord1", "ship1"], "ocel:vmap": {}},
+    "e11": {"ocel:activity": "Receive Order", "ocel:timestamp": "2023-01-01T09:00:00", "ocel:omap": ["ord2"], "ocel:vmap": {}},
+    "e12": {"ocel:activity": "Check Inventory", "ocel:timestamp": "2023-01-01T09:15:00", "ocel:omap": ["ord2", "prod3"], "ocel:vmap": {}},
+    "e13": {"ocel:activity": "Reserve Materials", "ocel:timestamp": "2023-01-01T09:30:00", "ocel:omap": ["prod3", "mat3"], "ocel:vmap": {}},
+    "e14": {"ocel:activity": "Start Production", "ocel:timestamp": "2023-01-01T10:00:00", "ocel:omap": ["prod3", "mach2", "mat3"], "ocel:vmap": {}},
+    "e15": {"ocel:activity": "Complete Production", "ocel:timestamp": "2023-01-01T12:00:00", "ocel:omap": ["prod3", "mach2"], "ocel:vmap": {}},
+    "e16": {"ocel:activity": "Quality Check", "ocel:timestamp": "2023-01-01T12:30:00", "ocel:omap": ["prod3"], "ocel:vmap": {}},
+    "e17": {"ocel:activity": "Create Shipment", "ocel:timestamp": "2023-01-01T13:00:00", "ocel:omap": ["ship2", "ord2", "prod3"], "ocel:vmap": {}},
+    "e18": {"ocel:activity": "Ship Items", "ocel:timestamp": "2023-01-01T15:00:00", "ocel:omap": ["ship2"], "ocel:vmap": {}},
+    "e19": {"ocel:activity": "Generate Invoice", "ocel:timestamp": "2023-01-01T15:30:00", "ocel:omap": ["inv2", "ord2"], "ocel:vmap": {}},
+    "e20": {"ocel:activity": "Deliver", "ocel:timestamp": "2023-01-02T11:00:00", "ocel:omap": ["ord2", "ship2"], "ocel:vmap": {}}
+  },
+  "ocel:objects": {
+    "ord1": {"ocel:type": "Order", "ocel:ovmap": {}},
+    "ord2": {"ocel:type": "Order", "ocel:ovmap": {}},
+    "prod1": {"ocel:type": "Product", "ocel:ovmap": {}},
+    "prod2": {"ocel:type": "Product", "ocel:ovmap": {}},
+    "prod3": {"ocel:type": "Product", "ocel:ovmap": {}},
+    "mat1": {"ocel:type": "Material", "ocel:ovmap": {}},
+    "mat2": {"ocel:type": "Material", "ocel:ovmap": {}},
+    "mat3": {"ocel:type": "Material", "ocel:ovmap": {}},
+    "mach1": {"ocel:type": "Machine", "ocel:ovmap": {}},
+    "mach2": {"ocel:type": "Machine", "ocel:ovmap": {}},
+    "ship1": {"ocel:type": "Shipment", "ocel:ovmap": {}},
+    "ship2": {"ocel:type": "Shipment", "ocel:ovmap": {}},
+    "inv1": {"ocel:type": "Invoice", "ocel:ovmap": {}},
+    "inv2": {"ocel:type": "Invoice", "ocel:ovmap": {}}
+  }
+}

@@ -7,8 +7,9 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from src.infrastructure.persistence.database import Base, get_session
-from src.main import app
+from src.models.orm import Base
+from src.models.database import get_session
+from src.api.main import app
 
 # Test database URL (in-memory)
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -177,3 +178,86 @@ async def discovered_model_id(client: AsyncClient, uploaded_log_id: str) -> str:
     )
     assert response.status_code == 200
     return response.json()["model_id"]
+
+
+# ============================================================================
+# NEW FIXTURES FOR COMPREHENSIVE TESTING
+# ============================================================================
+
+@pytest.fixture
+def insurance_small_csv() -> bytes:
+    """100 cases, 600 events - fast unit tests."""
+    with open("tests/data/insurance_small.csv", "rb") as f:
+        return f.read()
+
+
+@pytest.fixture
+def insurance_medium_csv() -> bytes:
+    """1,000 cases, 6,000 events - thorough tests."""
+    with open("tests/data/insurance_medium.csv", "rb") as f:
+        return f.read()
+
+
+@pytest.fixture
+def rework_cases_csv() -> bytes:
+    """Cases with rework patterns (repeated activities)."""
+    with open("tests/data/rework_cases.csv", "rb") as f:
+        return f.read()
+
+
+@pytest.fixture
+def bottleneck_cases_csv() -> bytes:
+    """Cases with bottleneck patterns (long waiting times)."""
+    with open("tests/data/bottleneck_cases.csv", "rb") as f:
+        return f.read()
+
+
+@pytest.fixture
+def simple_ocel_jsonocel() -> bytes:
+    """Simple OCEL - Order/Item/Package (10 orders, 25 items, 10 packages)."""
+    with open("tests/data/order_management_simple.jsonocel", "rb") as f:
+        return f.read()
+
+
+@pytest.fixture
+def complex_ocel_jsonocel() -> bytes:
+    """Complex OCEL - Multiple object types (50 orders, multi-type interactions)."""
+    with open("tests/data/order_management_complex.jsonocel", "rb") as f:
+        return f.read()
+
+
+@pytest.fixture
+async def uploaded_insurance_log_id(client: AsyncClient, insurance_small_csv: bytes) -> str:
+    """Pre-upload insurance log and return ID."""
+    response = await client.post(
+        "/api/processes/upload",
+        files={"file": ("test.csv", insurance_small_csv, "text/csv")},
+    )
+    assert response.status_code == 200
+    return response.json()["id"]
+
+
+@pytest.fixture
+async def uploaded_ocel_log_id(client: AsyncClient, simple_ocel_jsonocel: bytes) -> str:
+    """Pre-upload OCEL log and return ID."""
+    response = await client.post(
+        "/api/ocpm/upload",
+        files={"file": ("test.jsonocel", simple_ocel_jsonocel, "application/json")},
+    )
+    assert response.status_code == 200
+    return response.json()["id"]
+
+
+@pytest.fixture
+async def discovered_petri_net_id(client: AsyncClient, uploaded_insurance_log_id: str) -> str:
+    """Pre-discover Petri net model and return ID."""
+    response = await client.post(
+        "/api/discovery/discover",
+        json={
+            "log_id": uploaded_insurance_log_id,
+            "miner_type": "inductive",
+            "model_name": "Test Model"
+        },
+    )
+    assert response.status_code == 200
+    return response.json()["id"]
