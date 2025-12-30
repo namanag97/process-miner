@@ -198,8 +198,21 @@ class IngestionService:
         """
         Detect column types from a CSV file.
         Returns suggested column mappings.
+
+        Performance: Only reads first 100KB or 100 lines (whichever comes first)
+        to avoid processing large files unnecessarily.
         """
-        text = file_content.decode("utf-8")
+        # Only read first 100KB for column detection (header + sample rows)
+        MAX_BYTES = 100 * 1024  # 100KB
+        chunk = file_content[:MAX_BYTES]
+
+        # Decode only the chunk we need
+        try:
+            text = chunk.decode("utf-8")
+        except UnicodeDecodeError:
+            # If chunk cuts mid-character, try slightly smaller
+            text = chunk[:-100].decode("utf-8", errors="ignore")
+
         reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
 
         columns = reader.fieldnames or []

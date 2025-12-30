@@ -34,6 +34,7 @@ export function EmptyState({
         textAlign: 'center',
         maxWidth: 400,
         margin: '0 auto',
+        animation: `fadeIn ${tokens.duration.slow}ms ${tokens.easing.out}`,
       }}
     >
       {icon && (
@@ -42,6 +43,7 @@ export function EmptyState({
             fontSize: 48,
             color: tokens.colors.neutral[400],
             marginBottom: tokens.spacing[4],
+            animation: 'float 3s ease-in-out infinite',
           }}
         >
           {icon}
@@ -70,7 +72,21 @@ export function EmptyState({
       )}
       
       {actionLabel && onAction && (
-        <Button type="primary" onClick={onAction}>
+        <Button 
+          type="primary" 
+          onClick={onAction}
+          style={{
+            transition: `transform ${tokens.duration.normal}ms ${tokens.easing.out}, box-shadow ${tokens.duration.normal}ms ${tokens.easing.out}`,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.3)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '';
+          }}
+        >
           {actionLabel}
         </Button>
       )}

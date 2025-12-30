@@ -4,6 +4,7 @@ Endpoints for uploading, listing, and managing event logs.
 """
 
 import json
+import os
 import time
 from typing import Optional
 
@@ -35,6 +36,82 @@ router = APIRouter(prefix="/processes", tags=["Processes"])
 
 
 # =============================================================================
+# File Validation Helpers
+# =============================================================================
+
+
+def validate_file_upload(file: UploadFile) -> None:
+    """Validate file extension and content type for security.
+
+    Args:
+        file: The uploaded file to validate
+
+    Raises:
+        HTTPException: If file validation fails
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+
+    # Validate file extension
+    allowed_extensions = {".csv", ".xes"}
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in allowed_extensions:
+        logger.warning("upload_rejected_extension", filename=file.filename, extension=ext)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed extensions: {', '.join(allowed_extensions)}",
+        )
+
+    # Validate content type
+    allowed_mimetypes = {"text/csv", "application/csv", "application/xml", "text/xml"}
+    if file.content_type and file.content_type not in allowed_mimetypes:
+        logger.warning(
+            "upload_rejected_mimetype",
+            filename=file.filename,
+            content_type=file.content_type,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid content type: {file.content_type}. Expected CSV or XML.",
+        )
+
+
+async def validate_file_signature(content: bytes, filename: str) -> None:
+    """Validate file content signature to prevent file type spoofing.
+
+    Args:
+        content: First bytes of the file
+        filename: The filename with extension
+
+    Raises:
+        HTTPException: If file signature doesn't match extension
+    """
+    ext = os.path.splitext(filename)[1].lower()
+
+    # Read first 512 bytes for signature check
+    signature = content[:512]
+
+    if ext == ".xes":
+        # XES files should start with XML declaration
+        if not (signature.startswith(b"<?xml") or signature.startswith(b"<log")):
+            logger.warning("file_signature_mismatch", filename=filename, extension=ext)
+            raise HTTPException(
+                status_code=400,
+                detail="File appears to be invalid XES format (not valid XML)",
+            )
+    elif ext == ".csv":
+        # CSV should be readable ASCII/UTF-8 text, check for binary content
+        try:
+            signature.decode("utf-8")
+        except UnicodeDecodeError:
+            logger.warning("file_signature_mismatch", filename=filename, extension=ext)
+            raise HTTPException(
+                status_code=400,
+                detail="File appears to be invalid CSV format (contains binary data)",
+            )
+
+
+# =============================================================================
 # Upload & Ingest
 # =============================================================================
 
@@ -55,9 +132,8 @@ async def upload_process(
     Supports CSV and XES formats. For CSV files, column mappings
     will be auto-detected if not provided.
     """
-    if not file.filename:
-        logger.warning("upload_rejected", reason="no_filename")
-        raise HTTPException(status_code=400, detail="No file provided")
+    # Validate file type and extension
+    validate_file_upload(file)
 
     logger.info("upload_started", filename=file.filename, name=name)
     start_time = time.perf_counter()
@@ -65,6 +141,9 @@ async def upload_process(
     content = await file.read()
     file_size_mb = len(content) / (1024 * 1024)
     logger.info("file_read", size_mb=round(file_size_mb, 2))
+
+    # Validate file signature to prevent spoofing
+    await validate_file_signature(content, file.filename)
 
     try:
         event_log = await ingestion_service.ingest_file(
@@ -117,17 +196,32 @@ async def detect_columns(
 
     Returns suggested mappings for case_id, activity, timestamp, and resource columns.
     """
-    if not file.filename:
-        logger.warning("detect_columns_rejected", reason="no_filename")
-        raise HTTPException(status_code=400, detail="No file provided")
+    # Validate file type and extension
+    validate_file_upload(file)
 
     logger.info("detect_columns_started", filename=file.filename)
+    start_time = time.perf_counter()
+
     content = await file.read()
+    file_size_mb = len(content) / (1024 * 1024)
+    read_time_ms = (time.perf_counter() - start_time) * 1000
+    logger.debug("file_read_for_detection", size_mb=round(file_size_mb, 2), duration_ms=round(read_time_ms, 2))
+
+    # Validate file signature to prevent spoofing
+    await validate_file_signature(content, file.filename)
+
+    detection_start = time.perf_counter()
     result = ingestion_service.detect_columns(content)
+    detection_time_ms = (time.perf_counter() - detection_start) * 1000
+
+    total_time_ms = (time.perf_counter() - start_time) * 1000
     logger.info(
         "detect_columns_completed",
         columns_found=len(result.get("columns", [])),
         row_count=result.get("row_count", 0),
+        file_size_mb=round(file_size_mb, 2),
+        detection_ms=round(detection_time_ms, 2),
+        total_ms=round(total_time_ms, 2),
     )
 
     return ColumnDetectionResponse(**result)

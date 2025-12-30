@@ -7,7 +7,7 @@ import {
   Card,
   Table,
   Select,
-  Progress,
+  Spin,
   Result,
   Typography,
   Space,
@@ -23,7 +23,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { PageHeader, tokens, toast, useSDK } from '@lumina/design-system';
 import { createLogger } from '../../utils/logger';
-import type { ColumnDetectionResponse } from '@lumina/design-system';
+import type { ColumnDetection } from '@lumina/design-system';
 
 const log = createLogger('UploadWizard');
 const { Dragger } = Upload;
@@ -43,7 +43,7 @@ export function UploadWizardPage() {
   
   const [currentStep, setCurrentStep] = useState(0);
   const [file, setFile] = useState<File | null>(null);
-  const [previewData, setPreviewData] = useState<ColumnDetectionResponse | null>(null);
+  const [previewData, setPreviewData] = useState<ColumnDetection | null>(null);
   const [columnMapping, setColumnMapping] = useState({
     caseId: '',
     activity: '',
@@ -60,7 +60,7 @@ export function UploadWizardPage() {
       // Apply suggestions
       if (data.suggestions) {
         setColumnMapping({
-          caseId: data.suggestions.case_id ?? '',
+          caseId: data.suggestions.caseId ?? '',
           activity: data.suggestions.activity ?? '',
           timestamp: data.suggestions.timestamp ?? '',
           resource: data.suggestions.resource ?? '',
@@ -152,6 +152,11 @@ export function UploadWizardPage() {
     navigate(`/processes/${uploadedLogId}`);
   };
 
+  const handleExploreProcess = () => {
+    log.info('Navigating to explorer for new log');
+    navigate(`/explorer/${uploadedLogId}`);
+  };
+
   const handleUploadAnother = () => {
     log.info('Resetting wizard');
     setCurrentStep(0);
@@ -199,7 +204,7 @@ export function UploadWizardPage() {
             <Text strong>File validated: {file?.name}</Text>
           </Space>
         }
-        description={`${previewData?.row_count?.toLocaleString() ?? 0} rows detected`}
+        description={`${previewData?.rowCount?.toLocaleString() ?? 0} rows detected`}
         style={{ marginBottom: tokens.spacing[6] }}
       />
 
@@ -221,10 +226,10 @@ export function UploadWizardPage() {
         </Space>
       </Card>
 
-      {previewData?.sample_rows && previewData.sample_rows.length > 0 && (
+      {previewData?.sampleRows && previewData.sampleRows.length > 0 && (
         <Card title="Sample Data (First 5 rows)">
           <Table
-            dataSource={previewData.sample_rows.slice(0, 5)}
+            dataSource={previewData.sampleRows.slice(0, 5)}
             columns={(previewData.columns || []).map((col) => ({
               title: col,
               dataIndex: col,
@@ -301,7 +306,10 @@ export function UploadWizardPage() {
           title="Event Log Processed Successfully!"
           subTitle={`${file?.name} has been processed and is ready for analysis.`}
           extra={[
-            <Button type="primary" key="view" onClick={handleViewLog}>
+            <Button type="primary" key="explore" onClick={handleExploreProcess}>
+              Explore Process
+            </Button>,
+            <Button key="view" onClick={handleViewLog}>
               View Event Log
             </Button>,
             <Button key="another" onClick={handleUploadAnother}>
@@ -333,15 +341,11 @@ export function UploadWizardPage() {
     return (
       <Card>
         <div style={{ textAlign: 'center', padding: tokens.spacing[8] }}>
-          <Title level={4}>Processing your data...</Title>
-          <Progress
-            percent={ingestMutation.isPending ? 50 : 100}
-            status={ingestMutation.isPending ? 'active' : 'success'}
-            style={{ maxWidth: 400, margin: '0 auto' }}
-          />
-          <div style={{ marginTop: tokens.spacing[6] }}>
-            <Text type="secondary">Uploading and analyzing your event log...</Text>
-          </div>
+          <Spin size="large" />
+          <Title level={4} style={{ marginTop: tokens.spacing[4] }}>Processing your data...</Title>
+          <Text type="secondary" style={{ display: 'block', marginTop: tokens.spacing[2] }}>
+            This may take a few moments for larger files
+          </Text>
         </div>
       </Card>
     );

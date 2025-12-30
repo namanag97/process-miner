@@ -49,6 +49,15 @@ export function MetricCard({
       style={{
         borderRadius: tokens.radius.lg,
         cursor: onClick ? 'pointer' : 'default',
+        transition: `transform ${tokens.duration.moderate}ms ${tokens.easing.out}, box-shadow ${tokens.duration.moderate}ms ${tokens.easing.out}`,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-2px)';
+        e.currentTarget.style.boxShadow = '0 8px 25px -5px rgba(0, 0, 0, 0.1)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.boxShadow = '';
       }}
       bodyStyle={{ padding: tokens.spacing[4] }}
     >

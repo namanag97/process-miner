@@ -69,7 +69,7 @@ This document defines the complete navigation structure, URL patterns, and page 
 | `/help` | Help Center | Help & support | Phase 1 |
 
 ### Phase 2: Data Foundation
-
+logs have renamed into processes - find
 | Route | Page | Purpose | Status |
 |-------|------|---------|--------|
 | `/logs` | Event Logs List | All uploaded logs | Phase 2 |

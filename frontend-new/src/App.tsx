@@ -4,6 +4,7 @@ import { ConfigProvider } from 'antd';
 import { AppShell, SDKProvider, luminaTheme, logAction } from '@lumina/design-system';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
+import { BackendHealthProvider } from './context/BackendHealthContext';
 import {
   LoginPage,
   HomePage,
@@ -136,23 +137,25 @@ function App() {
   return (
     <ConfigProvider theme={luminaTheme}>
       <SDKProvider>
-        <AuthProvider>
-          <NotificationProvider>
-            <BrowserRouter>
-              <Routes>
-                <Route path="/login" element={<LoginPage />} />
-                <Route
-                  path="/*"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout />
-                    </ProtectedRoute>
-                  }
-                />
-              </Routes>
-            </BrowserRouter>
-          </NotificationProvider>
-        </AuthProvider>
+        <BackendHealthProvider>
+          <AuthProvider>
+            <NotificationProvider>
+              <BrowserRouter>
+                <Routes>
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route
+                    path="/*"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout />
+                      </ProtectedRoute>
+                    }
+                  />
+                </Routes>
+              </BrowserRouter>
+            </NotificationProvider>
+          </AuthProvider>
+        </BackendHealthProvider>
       </SDKProvider>
     </ConfigProvider>
   );

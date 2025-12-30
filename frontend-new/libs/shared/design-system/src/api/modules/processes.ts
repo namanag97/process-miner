@@ -9,7 +9,13 @@ import type {
   ProcessDetailResponse,
   ColumnDetectionResponse,
 } from '../types';
-import { transformProcess, transformProcessDetail, EventLog } from '../transformers';
+import {
+  transformProcess,
+  transformProcessDetail,
+  transformColumnDetection,
+  EventLog,
+  ColumnDetection,
+} from '../transformers';
 
 export interface ListProcessesOptions {
   page?: number;
@@ -30,7 +36,7 @@ export interface ProcessesModule {
   get: (id: string) => Promise<EventLog>;
   ingest: (file: File, metadata?: ProcessMetadata) => Promise<{ id: string }>;
   delete: (id: string) => Promise<void>;
-  detectColumns: (file: File) => Promise<ColumnDetectionResponse>;
+  detectColumns: (file: File) => Promise<ColumnDetection>;
   analyze: (logId: string) => Promise<Record<string, unknown>>;
 }
 
@@ -88,8 +94,9 @@ export function createProcessesModule(client: ApiClient): ProcessesModule {
     async detectColumns(file: File) {
       const formData = new FormData();
       formData.append('file', file);
-      
-      return client.postForm<ColumnDetectionResponse>('/processes/detect-columns', formData);
+
+      const response = await client.postForm<ColumnDetectionResponse>('/processes/detect-columns', formData);
+      return transformColumnDetection(response);
     },
 
     async analyze(logId: string) {

@@ -144,8 +144,10 @@ export class ApiClient {
       logRequest('GET', path, params);
     }
     const start = performance.now();
+    const maxRetryTime = 30000; // 30 seconds max
+    const retryStart = performance.now();
 
-    let lastError: unknown;
+    let lastError: Error | APIError | undefined;
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       try {
         const response = await fetch(url.toString(), {
@@ -158,14 +160,25 @@ export class ApiClient {
 
         if (!path.startsWith('/dev/')) {
           logResponse('GET', path, response.status, performance.now() - start);
+          if (attempt > 0) {
+            console.info(`[API] Request succeeded after ${attempt} retries`);
+          }
         }
         return result;
       } catch (error) {
-        lastError = error;
+        lastError = error as Error | APIError;
         this.isBackendHealthy = false;
+
+        // Check timeout
+        if (performance.now() - retryStart > maxRetryTime) {
+          console.error(`[API] Max retry time exceeded for ${path}`);
+          break;
+        }
 
         // Only retry if retryable and not last attempt
         if (attempt < this.maxRetries && this.isRetryable(error)) {
+          const delay = this.retryDelay * Math.pow(2, attempt);
+          console.warn(`[API] Retrying ${path} (attempt ${attempt + 1}/${this.maxRetries}) after ${delay}ms`);
           await this.sleep(attempt);
           continue;
         }
@@ -185,6 +198,10 @@ export class ApiClient {
         throw error;
       }
     }
+
+    if (!lastError) {
+      lastError = new APIError(0, 'Unknown Error', 'Request failed without error details');
+    }
     throw lastError;
   }
 
@@ -193,8 +210,10 @@ export class ApiClient {
       logRequest('POST', path, body);
     }
     const start = performance.now();
+    const maxRetryTime = 30000; // 30 seconds max
+    const retryStart = performance.now();
 
-    let lastError: unknown;
+    let lastError: Error | APIError | undefined;
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       try {
         const response = await fetch(`${this.baseUrl}${path}`, {
@@ -208,13 +227,24 @@ export class ApiClient {
 
         if (!path.startsWith('/dev/')) {
           logResponse('POST', path, response.status, performance.now() - start);
+          if (attempt > 0) {
+            console.info(`[API] Request succeeded after ${attempt} retries`);
+          }
         }
         return result;
       } catch (error) {
-        lastError = error;
+        lastError = error as Error | APIError;
         this.isBackendHealthy = false;
 
+        // Check timeout
+        if (performance.now() - retryStart > maxRetryTime) {
+          console.error(`[API] Max retry time exceeded for ${path}`);
+          break;
+        }
+
         if (attempt < this.maxRetries && this.isRetryable(error)) {
+          const delay = this.retryDelay * Math.pow(2, attempt);
+          console.warn(`[API] Retrying ${path} (attempt ${attempt + 1}/${this.maxRetries}) after ${delay}ms`);
           await this.sleep(attempt);
           continue;
         }
@@ -232,6 +262,10 @@ export class ApiClient {
         }
         throw error;
       }
+    }
+
+    if (!lastError) {
+      lastError = new APIError(0, 'Unknown Error', 'Request failed without error details');
     }
     throw lastError;
   }
