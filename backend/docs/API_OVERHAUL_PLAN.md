@@ -8,7 +8,7 @@ Overhaul backend API to fully support frontend and leverage PM4Py capabilities.
 # API Overhaul Handoff
 
 **Last Updated:** 2025-12-30
-**Last Completed:** Phase 1 (Process Explorer APIs)
+**Last Completed:** Phase 4 (Analytics Enhancements)
 
 ---
 
@@ -20,11 +20,11 @@ Overhaul backend API to fully support frontend and leverage PM4Py capabilities.
 | 1.2 | Variant Complexity | ✅ DONE |
 | 1.3 | Activities Endpoint | ✅ DONE |
 | 1.4 | Explorer Data Endpoint | ✅ DONE |
-| 2.1 | OCEL Blob Storage | TODO |
-| 2.2 | Real OC-DFG | TODO |
-| 3.1 | Alignment Diagnostics | TODO |
-| 4.1 | Enhanced Bottlenecks | TODO |
-| 4.2 | Rework Chains | TODO |
+| 2.1 | OCEL Blob Storage | ✅ DONE |
+| 2.2 | Real OC-DFG | ✅ DONE |
+| 3.1 | Alignment Diagnostics | ✅ DONE |
+| 4.1 | Enhanced Bottlenecks | ✅ DONE |
+| 4.2 | Rework Chains | ✅ DONE |
 | 5.x | PM4Py Extras | TODO |
 
 ---
@@ -38,7 +38,7 @@ source .venv/bin/activate
 # 2. Check current task status
 cat docs/API_OVERHAUL_PLAN.md | grep "Status:"
 
-# 3. Find next TODO task (Phase 2.1) and implement
+# 3. Find next TODO task (Phase 5.x) and implement
 
 # 4. After changes, verify
 make check
@@ -46,15 +46,14 @@ make check
 
 ---
 
-## Next Task: Phase 2.1 - OCEL Blob Storage
+## Next Task: Phase 5.x - PM4Py Extras (LOW PRIORITY)
 
-**Priority:** HIGH
+**Priority:** LOW
 
-**What to do:**
-1. Add `ocel_data: Mapped[Optional[bytes]]` column to `OCELLog` in `src/models/orm.py`
-2. Update `src/services/ocpm.py` to store/retrieve OCEL blob
-3. Create Alembic migration: `alembic revision --autogenerate -m "Add ocel_data blob"`
-4. Run migration: `alembic upgrade head`
+**Remaining tasks:**
+- 5.1 Temporal Stats: `GET /processes/{id}/temporal-stats` using `pm4py.get_all_case_durations()`
+- 5.2 Log Skeleton: `GET /processes/{id}/skeleton` using `pm4py.discover_log_skeleton()`
+- 5.3 Batch Detection: `GET /processes/{id}/batches` using `pm4py.discover_batches()`
 
 ---
 
@@ -83,14 +82,53 @@ make check
 
 ---
 
+## Phase 2 Implementation Summary (Completed)
+
+### 2.1 OCEL Blob Storage
+- Added `ocel_data: Mapped[Optional[bytes]]` to `OCELLog` in `src/models/orm.py`
+- Updated upload endpoint to store raw OCEL bytes for later re-parsing
+- Created Alembic migration: `alembic/versions/001_add_ocel_data_blob.py`
+
+### 2.2 Real OC-DFG Endpoint
+- New endpoint: `GET /ocpm/logs/{log_id}/oc-dfg`
+- Enhanced `OCDFGResponse` schema with proper `OCDFGTypeGraph` structure
+- Updated `ocpm_service.get_ocdfg_graph_data()` to parse PM4Py OC-DFG output
+- Returns per-object-type DFG graphs with nodes, edges, start/end activities
+
+---
+
+## Phase 3 Implementation Summary (Completed)
+
+### 3.1 Alignment Diagnostics
+- New schemas: `AlignmentMove`, `CaseAlignmentResponse`, `AlignmentDiagnosticsResponse`
+- New endpoint: `GET /conformance/alignments/{log_id}/{model_id}`
+- New service method: `conformance_service.get_alignment_diagnostics()`
+- Uses `pm4py.conformance_diagnostics_alignments()` for optimal alignments
+- Returns per-case alignment moves (sync, log-only, model-only)
+
+---
+
+## Phase 4 Implementation Summary (Completed)
+
+### 4.1 Enhanced Bottlenecks
+- Extended `BottleneckResponse` with:
+  - `preceding_activities: list[str]` - Top 5 activities before the bottleneck
+  - `following_activities: list[str]` - Top 5 activities after the bottleneck
+  - `bottleneck_impact_score: float` - 0-1 score based on wait time + frequency
+- Bottlenecks now sorted by impact score
+
+### 4.2 Rework Chains
+- New schemas: `ReworkChain`, `ReworkChainListResponse`
+- New endpoint: `GET /analytics/logs/{log_id}/rework-chains`
+- New service method: `analytics_service.detect_rework_chains()`
+- Detects consecutive repetitions of the same activity
+- Returns chain length, frequency, duration, and example case IDs
+
+---
+
 ## Implementation Order (Remaining)
 
-1. **Phase 2.1** - OCEL blob storage (requires migration)
-2. **Phase 2.2** - Real OC-DFG endpoint
-3. **Phase 3.1** - Conformance alignment diagnostics
-4. **Phase 4.1** - Enhanced bottlenecks
-5. **Phase 4.2** - Rework chains
-6. **Phase 5.x** - PM4Py extras (temporal, skeleton, batches)
+1. **Phase 5.x** - PM4Py extras (temporal, skeleton, batches)
 
 ---
 

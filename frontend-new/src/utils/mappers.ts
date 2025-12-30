@@ -70,6 +70,7 @@ export interface BEActivityDetailResponse {
   is_start_activity: boolean;
   is_end_activity: boolean;
   position_avg: number | null;
+  resources: string[]; // Now included in BE response
 }
 
 export interface BEBottleneckResponse {
@@ -188,7 +189,7 @@ export function mapProcessToEventLog(be: BEProcessResponse): FEEventLog {
     totalCases: be.total_cases,
     totalEvents: be.total_events,
     createdAt: be.created_at,
-    sourceFile: undefined, // Requires ProcessDetailResponse for this field
+    sourceFile: be.source_file, // Now available from BE
   };
 }
 
@@ -239,7 +240,7 @@ export function mapVariants(variants: BEVariantResponse[]): FEVariant[] {
  */
 export function mapActivityDetails(
   activities: BEActivityDetailResponse[]
-): Omit<FEActivityDetail, 'resources'>[] {
+): FEActivityDetail[] {
   return activities.map((a) => ({
     id: a.activity,
     name: a.activity,
@@ -248,6 +249,7 @@ export function mapActivityDetails(
     avgDurationSeconds: a.avg_duration_seconds ?? 0,
     minDurationSeconds: a.min_duration_seconds ?? 0,
     maxDurationSeconds: a.max_duration_seconds ?? 0,
+    resources: a.resources, // Now available from BE
   }));
 }
 

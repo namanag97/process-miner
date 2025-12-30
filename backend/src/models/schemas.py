@@ -781,6 +781,27 @@ class ReworkListResponse(BaseModel):
     rework_percentage: float
 
 
+class ReworkChain(BaseModel):
+    """A chain of rework activities showing patterns of repeated work."""
+
+    activity: str
+    chain_length: int  # How many times it repeats in a row
+    frequency: int  # How many cases have this chain
+    avg_chain_duration_seconds: float = 0.0
+    example_case_ids: list[str] = []  # Sample case IDs exhibiting this pattern
+
+
+class ReworkChainListResponse(BaseModel):
+    """Response for rework chain analysis."""
+
+    log_id: str
+    chains: list[ReworkChain]
+    total_chains: int
+    most_problematic_activity: Optional[str] = None
+    cases_with_chains: int = 0
+    chains_percentage: float = 0.0
+
+
 class ServiceTimeResponse(BaseModel):
     """Service time per activity."""
 

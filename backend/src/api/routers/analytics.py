@@ -16,12 +16,14 @@ from src.models.schemas import (
     BottleneckListResponse,
     BottleneckResponse,
     CycleTimeResponse,
+    PatternResponse,
     PerformanceDashboardResponse,
+    ReworkChain,
+    ReworkChainListResponse,
     ReworkListResponse,
     ReworkResponse,
     ServiceTimeResponse,
     ThroughputResponse,
-    PatternResponse,
 )
 from src.services.analytics import analytics_service
 from src.services.filtering import filtering_service
@@ -135,6 +137,44 @@ async def get_patterns(log_id: str, min_support: float = 0.1, db: AsyncSession =
     pm4py_log, _ = await _get_pm4py_log(log_id, db)
     result = analytics_service.get_frequent_patterns(pm4py_log, min_support)
     return [PatternResponse(**p) for p in result]
+
+
+@router.get("/logs/{log_id}/rework-chains", response_model=ReworkChainListResponse)
+async def get_rework_chains(log_id: str, db: AsyncSession = Depends(get_db)) -> ReworkChainListResponse:
+    """Detect rework chains - consecutive repetitions of the same activity.
+
+    A rework chain is when an activity appears multiple times consecutively,
+    indicating immediate rework/retry patterns. For example, if activity 'Review'
+    appears 3 times in a row, that's a chain of length 3.
+
+    Returns:
+        - chains: List of detected rework chains with frequency and duration
+        - most_problematic_activity: Activity with the most chains
+        - cases_with_chains: Number of cases containing chains
+    """
+    logger.info("getting_rework_chains", log_id=log_id)
+
+    # Try cache first
+    cache_key = f"rework_chains:{log_id}"
+    cached = cache_service.get(cache_key)
+    if cached:
+        return cached
+
+    pm4py_log, _ = await _get_pm4py_log(log_id, db)
+    result = analytics_service.detect_rework_chains(pm4py_log)
+
+    response = ReworkChainListResponse(
+        log_id=log_id,
+        chains=[ReworkChain(**c) for c in result["chains"]],
+        total_chains=result["total_chains"],
+        most_problematic_activity=result["most_problematic_activity"],
+        cases_with_chains=result["cases_with_chains"],
+        chains_percentage=result["chains_percentage"],
+    )
+
+    # Cache for 1 hour
+    cache_service.set(cache_key, response, ttl=3600)
+    return response
 
 
 @router.get("/logs/{log_id}/performance", response_model=PerformanceDashboardResponse)
