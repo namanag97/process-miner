@@ -18,6 +18,10 @@ import {
   ProcessExplorerIndexPage,
   ProcessExplorerPage,
   AnalyticsPage,
+  AIIndexPage,
+  AIInsightsPage,
+  PredictionsPage,
+  PredictorDetailPage,
 } from './pages';
 import { createLogger } from './utils/logger';
 
@@ -110,7 +114,10 @@ function AppLayout() {
         <Route path="/analytics/rework" element={<AnalyticsPage />} />
 
         {/* Phase 5: AI & Advanced */}
-        <Route path="/ai/*" element={<PlaceholderPage title="AI Insights" phase={5} />} />
+        <Route path="/ai" element={<AIIndexPage />} />
+        <Route path="/ai/insights" element={<AIInsightsPage />} />
+        <Route path="/ai/predictions" element={<PredictionsPage />} />
+        <Route path="/ai/predictions/:id" element={<PredictorDetailPage />} />
 
         {/* Default redirect */}
         <Route path="/" element={<Navigate to="/home" replace />} />
