@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
-import { AppShell, SDKProvider, luminaTheme } from '@lumina/design-system';
+import { AppShell, SDKProvider, luminaTheme, logAction } from '@lumina/design-system';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
 import {
@@ -48,6 +48,11 @@ function AppLayout() {
   const location = useLocation();
   const { user } = useAuth();
   const { unreadCount } = useNotifications();
+
+  // Log route changes for dev debugging
+  useEffect(() => {
+    logAction('Route', { path: location.pathname });
+  }, [location.pathname]);
 
   // Determine active nav item from URL
   const getActiveId = () => {

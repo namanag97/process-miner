@@ -1,45 +1,41 @@
 import React from 'react';
-import { Row, Col, Card, Table, Progress, Typography, Space, Tooltip } from 'antd';
+import { Row, Col, Card, Table, Progress, Typography, Space, Tooltip, Skeleton } from 'antd';
 import {
   ClockCircleOutlined,
   ThunderboltOutlined,
   WarningOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons';
-import { MetricCard, tokens, formatDuration, formatCompactNumber } from '@lumina/design-system';
+import { MetricCard, tokens, formatDurationFromSeconds, formatCompactNumber, type PerformanceData } from '@lumina/design-system';
 import { createLogger } from '../../utils/logger';
 
 const { Text, Title } = Typography;
 const log = createLogger('PerformanceTab');
 
-// Mock data for performance metrics
-const mockBottlenecks = [
-  { activity: 'Approval Review', avgDuration: 172800, frequency: 1250, impact: 95 },
-  { activity: 'Document Verification', avgDuration: 86400, frequency: 890, impact: 78 },
-  { activity: 'Payment Processing', avgDuration: 43200, frequency: 2100, impact: 65 },
-  { activity: 'Quality Check', avgDuration: 28800, frequency: 750, impact: 45 },
-  { activity: 'Final Sign-off', avgDuration: 14400, frequency: 1100, impact: 32 },
-];
+interface PerformanceTabProps {
+  logId: string | null;
+  data?: PerformanceData;
+  loading?: boolean;
+}
 
-const mockCycleTimeBreakdown = [
-  { activity: 'Order Received', avgTime: 3600, percentage: 5 },
-  { activity: 'Validation', avgTime: 7200, percentage: 10 },
-  { activity: 'Processing', avgTime: 14400, percentage: 20 },
-  { activity: 'Approval Review', avgTime: 172800, percentage: 45 },
-  { activity: 'Completion', avgTime: 7200, percentage: 10 },
-  { activity: 'Delivery', avgTime: 3600, percentage: 5 },
-  { activity: 'Confirmation', avgTime: 3600, percentage: 5 },
-];
+export function PerformanceTab({ logId, data, loading }: PerformanceTabProps) {
+  log.debug('Rendering PerformanceTab', { logId, hasData: !!data });
 
-const mockThroughputData = {
-  casesPerDay: 85,
-  casesPerWeek: 595,
-  casesPerMonth: 2550,
-  trend: 12.5,
-};
+  if (loading) {
+    return (
+      <Card>
+        <Skeleton active paragraph={{ rows: 8 }} />
+      </Card>
+    );
+  }
 
-export function PerformanceTab() {
-  log.debug('Rendering PerformanceTab');
+  if (!data) {
+    return (
+      <Card>
+        <Text type="secondary">Select an event log to view performance metrics</Text>
+      </Card>
+    );
+  }
 
   const bottleneckColumns = [
     {
@@ -59,32 +55,29 @@ export function PerformanceTab() {
       render: (text: string) => <Text strong>{text}</Text>,
     },
     {
-      title: 'Avg Duration',
-      dataIndex: 'avgDuration',
-      key: 'avgDuration',
-      render: (seconds: number) => formatDuration(seconds),
-    },
-    {
-      title: 'Frequency',
-      dataIndex: 'frequency',
-      key: 'frequency',
-      render: (val: number) => formatCompactNumber(val),
+      title: 'Avg Wait Time',
+      dataIndex: 'avgWaitingTime',
+      key: 'avgWaitingTime',
+      render: (seconds: number) => formatDurationFromSeconds(seconds),
     },
     {
       title: 'Impact Score',
-      dataIndex: 'impact',
-      key: 'impact',
+      dataIndex: 'impactScore',
+      key: 'impactScore',
       render: (val: number) => (
         <Progress
-          percent={val}
+          percent={Math.round(val * 100)}
           size="small"
-          strokeColor={val > 70 ? tokens.colors.error[500] : val > 40 ? tokens.colors.warning[500] : tokens.colors.success[500]}
+          strokeColor={val > 0.7 ? tokens.colors.error[500] : val > 0.4 ? tokens.colors.warning[500] : tokens.colors.success[500]}
           showInfo={false}
           style={{ width: 100 }}
         />
       ),
     },
   ];
+
+  const avgCycleTimeDays = data.cycleTime.avgSeconds / 86400;
+  const throughputPerDay = data.throughput.casesPerDay;
 
   return (
     <div>
@@ -93,25 +86,23 @@ export function PerformanceTab() {
         <Col xs={24} sm={8}>
           <MetricCard
             title="Avg Cycle Time"
-            value="4.2"
+            value={avgCycleTimeDays.toFixed(1)}
             suffix="days"
-            trend={{ value: -8.5, isPositive: true, label: 'vs last month' }}
             status="success"
           />
         </Col>
         <Col xs={24} sm={8}>
           <MetricCard
             title="Throughput"
-            value={mockThroughputData.casesPerDay}
+            value={throughputPerDay.toFixed(1)}
             suffix="cases/day"
-            trend={{ value: mockThroughputData.trend, isPositive: true, label: 'vs last week' }}
           />
         </Col>
         <Col xs={24} sm={8}>
           <MetricCard
             title="Bottleneck Activities"
-            value={mockBottlenecks.length}
-            status="warning"
+            value={data.topBottlenecks.length}
+            status={data.topBottlenecks.length > 3 ? 'warning' : 'default'}
           />
         </Col>
       </Row>
@@ -131,48 +122,52 @@ export function PerformanceTab() {
             }
             style={{ marginBottom: tokens.spacing[6] }}
           >
-            <Table
-              dataSource={mockBottlenecks}
-              columns={bottleneckColumns}
-              rowKey="activity"
-              pagination={false}
-              size="middle"
-            />
+            {data.topBottlenecks.length > 0 ? (
+              <Table
+                dataSource={data.topBottlenecks}
+                columns={bottleneckColumns}
+                rowKey="activity"
+                pagination={false}
+                size="middle"
+              />
+            ) : (
+              <Text type="secondary">No bottlenecks detected</Text>
+            )}
           </Card>
         </Col>
 
-        {/* Cycle Time Breakdown */}
+        {/* Cycle Time Stats */}
         <Col xs={24} lg={10}>
           <Card
             title={
               <Space>
                 <ClockCircleOutlined style={{ color: tokens.colors.primary[500] }} />
-                <span>Cycle Time Breakdown</span>
+                <span>Cycle Time Distribution</span>
               </Space>
             }
             style={{ marginBottom: tokens.spacing[6] }}
           >
             <Space direction="vertical" style={{ width: '100%' }} size={12}>
-              {mockCycleTimeBreakdown.map((item) => (
-                <div key={item.activity}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <Text>{item.activity}</Text>
-                    <Text type="secondary">{formatDuration(item.avgTime)}</Text>
-                  </div>
-                  <Progress
-                    percent={item.percentage}
-                    showInfo={false}
-                    strokeColor={
-                      item.percentage > 30
-                        ? tokens.colors.error[500]
-                        : item.percentage > 15
-                        ? tokens.colors.warning[500]
-                        : tokens.colors.primary[500]
-                    }
-                    trailColor={tokens.colors.neutral[200]}
-                  />
-                </div>
-              ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text>Minimum</Text>
+                <Text strong>{formatDurationFromSeconds(data.cycleTime.minSeconds)}</Text>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text>Median</Text>
+                <Text strong>{formatDurationFromSeconds(data.cycleTime.medianSeconds)}</Text>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text>Average</Text>
+                <Text strong>{formatDurationFromSeconds(data.cycleTime.avgSeconds)}</Text>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text>75th Percentile</Text>
+                <Text strong>{formatDurationFromSeconds(data.cycleTime.percentile75)}</Text>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text>Maximum</Text>
+                <Text strong>{formatDurationFromSeconds(data.cycleTime.maxSeconds)}</Text>
+              </div>
             </Space>
           </Card>
         </Col>
@@ -191,7 +186,7 @@ export function PerformanceTab() {
           <Col xs={24} sm={8}>
             <div style={{ textAlign: 'center', padding: tokens.spacing[4] }}>
               <Title level={2} style={{ marginBottom: 0, color: tokens.colors.primary[500] }}>
-                {mockThroughputData.casesPerDay}
+                {data.throughput.casesPerDay.toFixed(1)}
               </Title>
               <Text type="secondary">Cases per Day</Text>
             </div>
@@ -199,7 +194,7 @@ export function PerformanceTab() {
           <Col xs={24} sm={8}>
             <div style={{ textAlign: 'center', padding: tokens.spacing[4] }}>
               <Title level={2} style={{ marginBottom: 0, color: tokens.colors.primary[500] }}>
-                {formatCompactNumber(mockThroughputData.casesPerWeek)}
+                {formatCompactNumber(data.throughput.casesPerWeek)}
               </Title>
               <Text type="secondary">Cases per Week</Text>
             </div>
@@ -207,7 +202,7 @@ export function PerformanceTab() {
           <Col xs={24} sm={8}>
             <div style={{ textAlign: 'center', padding: tokens.spacing[4] }}>
               <Title level={2} style={{ marginBottom: 0, color: tokens.colors.primary[500] }}>
-                {formatCompactNumber(mockThroughputData.casesPerMonth)}
+                {formatCompactNumber(data.throughput.casesPerMonth)}
               </Title>
               <Text type="secondary">Cases per Month</Text>
             </div>

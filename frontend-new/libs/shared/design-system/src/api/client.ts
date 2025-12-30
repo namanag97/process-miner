@@ -3,6 +3,8 @@
  * Handles auth headers, error parsing, and request/response logging
  */
 
+import { logRequest, logResponse, logError } from '../utils/devLogger';
+
 export interface ApiClientConfig {
   baseUrl: string;
   getAuthToken?: () => string | null;
@@ -83,25 +85,65 @@ export class ApiClient {
       });
     }
 
-    const response = await fetch(url.toString(), {
-      method: 'GET',
-      headers: this.getHeaders('application/json'),
-    });
+    // Log request (skip dev log endpoint to avoid recursion)
+    if (!path.startsWith('/dev/')) {
+      logRequest('GET', path, params);
+    }
+    const start = performance.now();
 
-    return this.handleResponse<T>(response);
+    try {
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: this.getHeaders('application/json'),
+      });
+
+      const result = await this.handleResponse<T>(response);
+      
+      if (!path.startsWith('/dev/')) {
+        logResponse('GET', path, response.status, performance.now() - start);
+      }
+      return result;
+    } catch (error) {
+      if (!path.startsWith('/dev/')) {
+        logError(`GET ${path}`, error);
+      }
+      throw error;
+    }
   }
 
   async post<T>(path: string, body?: unknown): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      method: 'POST',
-      headers: this.getHeaders('application/json'),
-      body: body ? JSON.stringify(body) : undefined,
-    });
+    if (!path.startsWith('/dev/')) {
+      logRequest('POST', path, body);
+    }
+    const start = performance.now();
 
-    return this.handleResponse<T>(response);
+    try {
+      const response = await fetch(`${this.baseUrl}${path}`, {
+        method: 'POST',
+        headers: this.getHeaders('application/json'),
+        body: body ? JSON.stringify(body) : undefined,
+      });
+
+      const result = await this.handleResponse<T>(response);
+      
+      if (!path.startsWith('/dev/')) {
+        logResponse('POST', path, response.status, performance.now() - start);
+      }
+      return result;
+    } catch (error) {
+      if (!path.startsWith('/dev/')) {
+        logError(`POST ${path}`, error);
+      }
+      throw error;
+    }
   }
 
   async postForm<T>(path: string, formData: FormData): Promise<T> {
+    if (!path.startsWith('/dev/')) {
+      logRequest('POST-FORM', path, 'FormData');
+    }
+    const start = performance.now();
+
     // Don't set Content-Type for FormData - browser sets it with boundary
     const headers: Record<string, string> = {};
     const token = this.getAuthToken?.();
@@ -109,21 +151,51 @@ export class ApiClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      method: 'POST',
-      headers,
-      body: formData,
-    });
+    try {
+      const response = await fetch(`${this.baseUrl}${path}`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
 
-    return this.handleResponse<T>(response);
+      const result = await this.handleResponse<T>(response);
+      
+      if (!path.startsWith('/dev/')) {
+        logResponse('POST-FORM', path, response.status, performance.now() - start);
+      }
+      return result;
+    } catch (error) {
+      if (!path.startsWith('/dev/')) {
+        logError(`POST-FORM ${path}`, error);
+      }
+      throw error;
+    }
   }
 
   async delete<T = void>(path: string): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      method: 'DELETE',
-      headers: this.getHeaders('application/json'),
-    });
+    if (!path.startsWith('/dev/')) {
+      logRequest('DELETE', path);
+    }
+    const start = performance.now();
 
-    return this.handleResponse<T>(response);
+    try {
+      const response = await fetch(`${this.baseUrl}${path}`, {
+        method: 'DELETE',
+        headers: this.getHeaders('application/json'),
+      });
+
+      const result = await this.handleResponse<T>(response);
+      
+      if (!path.startsWith('/dev/')) {
+        logResponse('DELETE', path, response.status, performance.now() - start);
+      }
+      return result;
+    } catch (error) {
+      if (!path.startsWith('/dev/')) {
+        logError(`DELETE ${path}`, error);
+      }
+      throw error;
+    }
   }
 }
+

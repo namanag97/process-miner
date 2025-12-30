@@ -2,6 +2,7 @@
 
 from src.api.routers.analytics import router as analytics_router
 from src.api.routers.conformance import router as conformance_router
+from src.api.routers.dev_log import router as dev_log_router
 from src.api.routers.discovery import router as discovery_router
 from src.api.routers.filtering import router as filtering_router
 from src.api.routers.ocpm import router as ocpm_router
@@ -24,4 +25,5 @@ __all__ = [
     "organizational_router",
     "predictions_router",
     "simulation_router",
+    "dev_log_router",
 ]
