@@ -16,7 +16,9 @@ class TestProcessUpload:
     """Tests for process upload functionality."""
 
     @pytest.mark.asyncio
-    async def test_upload_insurance_small_csv(self, client: AsyncClient, insurance_small_csv: bytes):
+    async def test_upload_insurance_small_csv(
+        self, client: AsyncClient, insurance_small_csv: bytes
+    ):
         """Upload insurance small CSV and verify structure."""
         response = await client.post(
             "/api/v1/processes/upload",
@@ -30,7 +32,9 @@ class TestProcessUpload:
         assert len(data["activities"]) == 6  # Insurance has 6 activities
 
     @pytest.mark.asyncio
-    async def test_upload_with_auto_column_detection(self, client: AsyncClient, insurance_small_csv: bytes):
+    async def test_upload_with_auto_column_detection(
+        self, client: AsyncClient, insurance_small_csv: bytes
+    ):
         """Verify auto-column detection works correctly."""
         response = await client.post(
             "/api/v1/processes/upload",
@@ -114,7 +118,9 @@ class TestProcessStatistics:
         assert "end_activities" in data
 
     @pytest.mark.asyncio
-    async def test_statistics_counts_accurate(self, client: AsyncClient, uploaded_insurance_log_id: str):
+    async def test_statistics_counts_accurate(
+        self, client: AsyncClient, uploaded_insurance_log_id: str
+    ):
         """Verify statistics counts are accurate."""
         response = await client.get(f"/api/v1/processes/{uploaded_insurance_log_id}/statistics")
         assert response.status_code == 200
@@ -137,18 +143,26 @@ class TestProcessVariants:
         assert isinstance(data, list) or "variants" in data
 
     @pytest.mark.asyncio
-    async def test_get_variants_with_top_n(self, client: AsyncClient, uploaded_insurance_log_id: str):
+    async def test_get_variants_with_top_n(
+        self, client: AsyncClient, uploaded_insurance_log_id: str
+    ):
         """Get top N variants."""
-        response = await client.get(f"/api/v1/processes/{uploaded_insurance_log_id}/variants?top_n=5")
+        response = await client.get(
+            f"/api/v1/processes/{uploaded_insurance_log_id}/variants?top_n=5"
+        )
         assert response.status_code == 200
         data = response.json()
         variants = data if isinstance(data, list) else data.get("variants", [])
         assert len(variants) <= 5
 
     @pytest.mark.asyncio
-    async def test_variants_with_complexity_scores(self, client: AsyncClient, uploaded_insurance_log_id: str):
+    async def test_variants_with_complexity_scores(
+        self, client: AsyncClient, uploaded_insurance_log_id: str
+    ):
         """Verify complexity scores are in valid range [0, 1]."""
-        response = await client.get(f"/api/v1/processes/{uploaded_insurance_log_id}/variants?include_complexity=true")
+        response = await client.get(
+            f"/api/v1/processes/{uploaded_insurance_log_id}/variants?include_complexity=true"
+        )
         assert response.status_code == 200
         data = response.json()
         variants = data if isinstance(data, list) else data.get("variants", [])
@@ -159,16 +173,22 @@ class TestProcessVariants:
                 assert variant["rework_count"] >= 0
 
     @pytest.mark.asyncio
-    async def test_variant_case_counts_sum_to_total(self, client: AsyncClient, uploaded_insurance_log_id: str):
+    async def test_variant_case_counts_sum_to_total(
+        self, client: AsyncClient, uploaded_insurance_log_id: str
+    ):
         """Verify SUM(variant.case_count) = log.total_cases."""
         response = await client.get(f"/api/v1/processes/{uploaded_insurance_log_id}/variants")
         assert response.status_code == 200
         variants_data = response.json()
-        variants = variants_data if isinstance(variants_data, list) else variants_data.get("variants", [])
+        variants = (
+            variants_data if isinstance(variants_data, list) else variants_data.get("variants", [])
+        )
 
         total_variant_cases = sum(v.get("case_count", 0) for v in variants)
 
-        stats_response = await client.get(f"/api/v1/processes/{uploaded_insurance_log_id}/statistics")
+        stats_response = await client.get(
+            f"/api/v1/processes/{uploaded_insurance_log_id}/statistics"
+        )
         stats = stats_response.json()
 
         assert total_variant_cases == stats["total_cases"]
@@ -187,9 +207,13 @@ class TestProcessActivities:
         assert len(activities) == 6  # Insurance has 6 activities
 
     @pytest.mark.asyncio
-    async def test_activities_sorted_by_frequency(self, client: AsyncClient, uploaded_insurance_log_id: str):
+    async def test_activities_sorted_by_frequency(
+        self, client: AsyncClient, uploaded_insurance_log_id: str
+    ):
         """Verify activities can be sorted by frequency."""
-        response = await client.get(f"/api/v1/processes/{uploaded_insurance_log_id}/activities?sort_by=frequency")
+        response = await client.get(
+            f"/api/v1/processes/{uploaded_insurance_log_id}/activities?sort_by=frequency"
+        )
         assert response.status_code == 200
         data = response.json()
         activities = data if isinstance(data, list) else data.get("activities", [])
@@ -198,7 +222,9 @@ class TestProcessActivities:
             assert "name" in activity or "activity" in activity
 
     @pytest.mark.asyncio
-    async def test_activity_frequencies_sum_correctly(self, client: AsyncClient, uploaded_insurance_log_id: str):
+    async def test_activity_frequencies_sum_correctly(
+        self, client: AsyncClient, uploaded_insurance_log_id: str
+    ):
         """Verify activity frequency percentages are valid."""
         response = await client.get(f"/api/v1/processes/{uploaded_insurance_log_id}/activities")
         assert response.status_code == 200

@@ -33,7 +33,12 @@ class OrganizationalService:
         metrics = self._compute_network_metrics(nodes, edges)
 
         duration = (time.perf_counter() - start) * 1000
-        logger.info("handover_network_discovered", nodes=len(nodes), edges=len(edges), duration_ms=round(duration, 2))
+        logger.info(
+            "handover_network_discovered",
+            nodes=len(nodes),
+            edges=len(edges),
+            duration_ms=round(duration, 2),
+        )
 
         return {"network_type": "handover", "nodes": nodes, "edges": edges, "metrics": metrics}
 
@@ -51,9 +56,19 @@ class OrganizationalService:
         metrics = self._compute_network_metrics(nodes, edges)
 
         duration = (time.perf_counter() - start) * 1000
-        logger.info("working_together_network_discovered", nodes=len(nodes), edges=len(edges), duration_ms=round(duration, 2))
+        logger.info(
+            "working_together_network_discovered",
+            nodes=len(nodes),
+            edges=len(edges),
+            duration_ms=round(duration, 2),
+        )
 
-        return {"network_type": "working_together", "nodes": nodes, "edges": edges, "metrics": metrics}
+        return {
+            "network_type": "working_together",
+            "nodes": nodes,
+            "edges": edges,
+            "metrics": metrics,
+        }
 
     def discover_resource_similarity(self, pm4py_log: PM4PyLog) -> dict[str, Any]:
         """Discover activity-based resource similarity."""
@@ -71,20 +86,40 @@ class OrganizationalService:
         resources = list(resource_activities.keys())
         edges = []
         for i, r1 in enumerate(resources):
-            for r2 in resources[i + 1:]:
+            for r2 in resources[i + 1 :]:
                 a1, a2 = resource_activities[r1], resource_activities[r2]
                 if a1 and a2:
                     similarity = len(a1 & a2) / len(a1 | a2)
                     if similarity > 0.1:
-                        edges.append({"source": r1, "target": r2, "weight": round(similarity, 4), "label": "similar"})
+                        edges.append(
+                            {
+                                "source": r1,
+                                "target": r2,
+                                "weight": round(similarity, 4),
+                                "label": "similar",
+                            }
+                        )
 
-        nodes = [{"id": r, "label": r, "type": "resource", "weight": len(resource_activities[r])} for r in resources]
+        nodes = [
+            {"id": r, "label": r, "type": "resource", "weight": len(resource_activities[r])}
+            for r in resources
+        ]
         metrics = {"total_resources": len(resources), "similarity_edges": len(edges)}
 
         duration = (time.perf_counter() - start) * 1000
-        logger.info("resource_similarity_discovered", nodes=len(nodes), edges=len(edges), duration_ms=round(duration, 2))
+        logger.info(
+            "resource_similarity_discovered",
+            nodes=len(nodes),
+            edges=len(edges),
+            duration_ms=round(duration, 2),
+        )
 
-        return {"network_type": "resource_similarity", "nodes": nodes, "edges": edges, "metrics": metrics}
+        return {
+            "network_type": "resource_similarity",
+            "nodes": nodes,
+            "edges": edges,
+            "metrics": metrics,
+        }
 
     def discover_roles(self, pm4py_log: PM4PyLog) -> list[dict[str, Any]]:
         """Discover organizational roles based on activity patterns."""
@@ -101,7 +136,9 @@ class OrganizationalService:
 
         activity_signatures = {}
         for resource, activities in resource_activities.items():
-            top_activities = frozenset(sorted(activities.keys(), key=activities.get, reverse=True)[:5])
+            top_activities = frozenset(
+                sorted(activities.keys(), key=activities.get, reverse=True)[:5]
+            )
             activity_signatures[resource] = top_activities
 
         role_groups = defaultdict(list)
@@ -110,11 +147,13 @@ class OrganizationalService:
 
         roles = []
         for i, (signature, resources) in enumerate(role_groups.items()):
-            roles.append({
-                "role_id": f"role_{i + 1}",
-                "resources": resources,
-                "activities": list(signature),
-            })
+            roles.append(
+                {
+                    "role_id": f"role_{i + 1}",
+                    "resources": resources,
+                    "activities": list(signature),
+                }
+            )
 
         duration = (time.perf_counter() - start) * 1000
         logger.info("roles_discovered", count=len(roles), duration_ms=round(duration, 2))
@@ -135,14 +174,24 @@ class OrganizationalService:
                     activities[event.get("concept:name", "")] += 1
                     if "time:timestamp" in event:
                         timestamps.append(event["time:timestamp"])
-                    if i < len(trace) - 1 and "time:timestamp" in event and "time:timestamp" in trace[i + 1]:
-                        processing_times.append((trace[i + 1]["time:timestamp"] - event["time:timestamp"]).total_seconds())
+                    if (
+                        i < len(trace) - 1
+                        and "time:timestamp" in event
+                        and "time:timestamp" in trace[i + 1]
+                    ):
+                        processing_times.append(
+                            (
+                                trace[i + 1]["time:timestamp"] - event["time:timestamp"]
+                            ).total_seconds()
+                        )
 
         profile = {
             "resource": resource,
             "total_events": sum(activities.values()),
             "activities": dict(activities),
-            "avg_processing_time_seconds": round(sum(processing_times) / len(processing_times), 2) if processing_times else 0,
+            "avg_processing_time_seconds": round(sum(processing_times) / len(processing_times), 2)
+            if processing_times
+            else 0,
             "first_activity": min(timestamps).isoformat() if timestamps else None,
             "last_activity": max(timestamps).isoformat() if timestamps else None,
         }
@@ -210,7 +259,9 @@ class OrganizationalService:
         return {
             "node_count": len(nodes),
             "edge_count": len(edges),
-            "density": round(2 * len(edges) / (len(nodes) * (len(nodes) - 1)), 4) if len(nodes) > 1 else 0,
+            "density": round(2 * len(edges) / (len(nodes) * (len(nodes) - 1)), 4)
+            if len(nodes) > 1
+            else 0,
         }
 
 

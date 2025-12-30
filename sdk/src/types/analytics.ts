@@ -129,64 +129,98 @@ export interface TimeAnalysis extends HypermediaResponse {
 
 // =============================================================================
 // PERFORMANCE METRICS (used by AnalyticsClient)
+// Aligned with backend schemas.py
 // =============================================================================
+
+export interface Bottleneck {
+  activity: string;
+  avgWaitingTime: number;
+  avgServiceTime: number;
+  frequency: number;
+  isBottleneck: boolean;
+  severity: "low" | "medium" | "high";
+  impactScore: number;
+}
 
 export interface BottleneckListResponse extends HypermediaResponse {
   logId: string;
-  bottlenecks: Array<{
-    activity: string;
-    waitingTime: number;
-    frequency: number;
-  }>;
+  bottlenecks: Bottleneck[];
+  totalBottlenecks: number;
+}
+
+export interface ReworkActivity {
+  activity: string;
+  reworkCount: number;
+  casesWithRework: number;
+  reworkPercentage: number;
 }
 
 export interface ReworkListResponse extends HypermediaResponse {
   logId: string;
-  rework: Array<{
-    activity: string;
-    reworkCount: number;
-    cases: string[];
-  }>;
+  reworkActivities: ReworkActivity[];
+  totalReworkCases: number;
+  reworkPercentage: number;
 }
 
 export interface ServiceTimeResponse {
   activity: string;
-  avgServiceTime: number;
-  minServiceTime: number;
-  maxServiceTime: number;
+  minSeconds: number;
+  maxSeconds: number;
+  avgSeconds: number;
+  medianSeconds: number;
+  stdDevSeconds: number;
 }
 
 export interface CycleTimeResponse extends HypermediaResponse {
   logId: string;
-  avgCycleTime: number;
-  medianCycleTime: number;
-  minCycleTime: number;
-  maxCycleTime: number;
+  minSeconds: number;
+  maxSeconds: number;
+  avgSeconds: number;
+  medianSeconds: number;
+  percentile25: number;
+  percentile75: number;
+  percentile95: number;
 }
 
 export interface ThroughputResponse extends HypermediaResponse {
   logId: string;
+  totalCases: number;
+  completedCases: number;
   casesPerDay: number;
-  eventsPerDay: number;
+  casesPerWeek: number;
+  casesPerMonth: number;
+  timeRangeDays: number;
 }
 
 export interface PatternResponse {
-  pattern: string[];
+  pattern: string;
+  frequency: number;
   support: number;
-  confidence: number;
-  cases: string[];
+}
+
+/**
+ * Performance data used by FE PerformanceTab
+ * Matches what getPerformance() returns after transformation
+ */
+export interface PerformanceData extends HypermediaResponse {
+  logId: string;
+  cycleTime: CycleTimeResponse;
+  throughput: ThroughputResponse;
+  topBottlenecks: Array<{
+    activity: string;
+    avgWaitingTime: number;
+    impactScore: number;
+  }>;
+  reworkSummary: {
+    totalReworkCases: number;
+    reworkPercentage: number;
+  };
 }
 
 export interface PerformanceDashboardResponse extends HypermediaResponse {
   logId: string;
-  summary: {
-    avgCycleTime: number;
-    avgThroughput: number;
-    bottleneckCount: number;
-    reworkRate: number;
-  };
-  details: {
-    serviceTimes: ServiceTimeResponse[];
-    bottlenecks: Array<{ activity: string; waitingTime: number }>;
-  };
+  cycleTime: CycleTimeResponse;
+  throughput: ThroughputResponse;
+  topBottlenecks: Bottleneck[];
+  reworkSummary: Record<string, unknown>;
 }

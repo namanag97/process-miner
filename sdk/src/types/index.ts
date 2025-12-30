@@ -7,7 +7,7 @@ export * from "./common.js";
 
 // Domain types
 export * from "./auth.js";
-export * from "./logs.js";
+export * from "./processes.js";
 export * from "./discovery.js";
 export * from "./conformance.js";
 export * from "./performance.js";

@@ -39,7 +39,9 @@ export class OrgClient {
    * Shows which resources work together on the same cases.
    */
   async buildCollaborationNetwork(logId: string): Promise<SocialNetwork> {
-    return this.http.get<SocialNetwork>(`/api/v1/organizational/logs/${logId}/collaboration-network`);
+    return this.http.get<SocialNetwork>(
+      `/api/v1/organizational/logs/${logId}/collaboration-network`
+    );
   }
 
   /**
@@ -63,7 +65,9 @@ export class OrgClient {
    * Returns activity involvement and performance metrics.
    */
   async getResourceProfile(logId: string, resource: string): Promise<ResourceProfile> {
-    return this.http.get<ResourceProfile>(`/api/v1/organizational/logs/${logId}/resources/${resource}/profile`);
+    return this.http.get<ResourceProfile>(
+      `/api/v1/organizational/logs/${logId}/resources/${resource}/profile`
+    );
   }
 
   /**

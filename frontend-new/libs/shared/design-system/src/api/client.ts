@@ -1,6 +1,6 @@
 /**
  * API Client - Base HTTP client for backend communication
- * Handles auth headers, error parsing, and request/response logging
+ * Handles auth headers, error parsing, request/response logging, and retry logic
  */
 
 import { logRequest, logResponse, logError } from '../utils/devLogger';
@@ -8,7 +8,12 @@ import { logRequest, logResponse, logError } from '../utils/devLogger';
 export interface ApiClientConfig {
   baseUrl: string;
   getAuthToken?: () => string | null;
+  maxRetries?: number;
+  retryDelay?: number;
 }
+
+const DEFAULT_MAX_RETRIES = 3;
+const DEFAULT_RETRY_DELAY = 1000; // ms
 
 /**
  * RFC 7807 Problem Details error format
@@ -41,6 +46,9 @@ export class APIError extends Error {
 export class ApiClient {
   private baseUrl: string;
   private getAuthToken?: () => string | null;
+  private maxRetries: number;
+  private retryDelay: number;
+  private isBackendHealthy = true;
 
   constructor(config: ApiClientConfig) {
     // Remove trailing slash and ensure /api/v1 suffix
@@ -49,6 +57,52 @@ export class ApiClient {
       this.baseUrl = `${this.baseUrl}/api/v1`;
     }
     this.getAuthToken = config.getAuthToken;
+    this.maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
+    this.retryDelay = config.retryDelay ?? DEFAULT_RETRY_DELAY;
+  }
+
+  /**
+   * Check if backend is reachable
+   */
+  async checkHealth(): Promise<boolean> {
+    try {
+      const healthUrl = this.baseUrl.replace('/api/v1', '/health');
+      const response = await fetch(healthUrl, { method: 'GET' });
+      this.isBackendHealthy = response.ok;
+      return response.ok;
+    } catch {
+      this.isBackendHealthy = false;
+      return false;
+    }
+  }
+
+  /**
+   * Get backend health status
+   */
+  getHealthStatus(): boolean {
+    return this.isBackendHealthy;
+  }
+
+  /**
+   * Sleep for retry delay with exponential backoff
+   */
+  private async sleep(attempt: number): Promise<void> {
+    const delay = this.retryDelay * Math.pow(2, attempt);
+    return new Promise((resolve) => setTimeout(resolve, delay));
+  }
+
+  /**
+   * Determine if error is retryable (network errors, 5xx)
+   */
+  private isRetryable(error: unknown): boolean {
+    if (error instanceof APIError) {
+      return error.status >= 500 && error.status < 600;
+    }
+    // Network errors are retryable
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      return true;
+    }
+    return false;
   }
 
   private getHeaders(contentType?: string): HeadersInit {
@@ -76,7 +130,7 @@ export class ApiClient {
 
   async get<T>(path: string, params?: Record<string, unknown>): Promise<T> {
     const url = new URL(`${this.baseUrl}${path}`);
-    
+
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
@@ -91,24 +145,47 @@ export class ApiClient {
     }
     const start = performance.now();
 
-    try {
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers: this.getHeaders('application/json'),
-      });
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      try {
+        const response = await fetch(url.toString(), {
+          method: 'GET',
+          headers: this.getHeaders('application/json'),
+        });
 
-      const result = await this.handleResponse<T>(response);
-      
-      if (!path.startsWith('/dev/')) {
-        logResponse('GET', path, response.status, performance.now() - start);
+        const result = await this.handleResponse<T>(response);
+        this.isBackendHealthy = true;
+
+        if (!path.startsWith('/dev/')) {
+          logResponse('GET', path, response.status, performance.now() - start);
+        }
+        return result;
+      } catch (error) {
+        lastError = error;
+        this.isBackendHealthy = false;
+
+        // Only retry if retryable and not last attempt
+        if (attempt < this.maxRetries && this.isRetryable(error)) {
+          await this.sleep(attempt);
+          continue;
+        }
+
+        if (!path.startsWith('/dev/')) {
+          logError(`GET ${path}`, error);
+        }
+
+        // Improve error message for network failures
+        if (error instanceof TypeError && error.message === 'Failed to fetch') {
+          throw new APIError(
+            0,
+            'Connection Failed',
+            'Unable to reach the backend server. Please ensure it is running on http://localhost:8001'
+          );
+        }
+        throw error;
       }
-      return result;
-    } catch (error) {
-      if (!path.startsWith('/dev/')) {
-        logError(`GET ${path}`, error);
-      }
-      throw error;
     }
+    throw lastError;
   }
 
   async post<T>(path: string, body?: unknown): Promise<T> {
@@ -117,25 +194,46 @@ export class ApiClient {
     }
     const start = performance.now();
 
-    try {
-      const response = await fetch(`${this.baseUrl}${path}`, {
-        method: 'POST',
-        headers: this.getHeaders('application/json'),
-        body: body ? JSON.stringify(body) : undefined,
-      });
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      try {
+        const response = await fetch(`${this.baseUrl}${path}`, {
+          method: 'POST',
+          headers: this.getHeaders('application/json'),
+          body: body ? JSON.stringify(body) : undefined,
+        });
 
-      const result = await this.handleResponse<T>(response);
-      
-      if (!path.startsWith('/dev/')) {
-        logResponse('POST', path, response.status, performance.now() - start);
+        const result = await this.handleResponse<T>(response);
+        this.isBackendHealthy = true;
+
+        if (!path.startsWith('/dev/')) {
+          logResponse('POST', path, response.status, performance.now() - start);
+        }
+        return result;
+      } catch (error) {
+        lastError = error;
+        this.isBackendHealthy = false;
+
+        if (attempt < this.maxRetries && this.isRetryable(error)) {
+          await this.sleep(attempt);
+          continue;
+        }
+
+        if (!path.startsWith('/dev/')) {
+          logError(`POST ${path}`, error);
+        }
+
+        if (error instanceof TypeError && error.message === 'Failed to fetch') {
+          throw new APIError(
+            0,
+            'Connection Failed',
+            'Unable to reach the backend server. Please ensure it is running on http://localhost:8001'
+          );
+        }
+        throw error;
       }
-      return result;
-    } catch (error) {
-      if (!path.startsWith('/dev/')) {
-        logError(`POST ${path}`, error);
-      }
-      throw error;
     }
+    throw lastError;
   }
 
   async postForm<T>(path: string, formData: FormData): Promise<T> {
@@ -151,25 +249,46 @@ export class ApiClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    try {
-      const response = await fetch(`${this.baseUrl}${path}`, {
-        method: 'POST',
-        headers,
-        body: formData,
-      });
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      try {
+        const response = await fetch(`${this.baseUrl}${path}`, {
+          method: 'POST',
+          headers,
+          body: formData,
+        });
 
-      const result = await this.handleResponse<T>(response);
-      
-      if (!path.startsWith('/dev/')) {
-        logResponse('POST-FORM', path, response.status, performance.now() - start);
+        const result = await this.handleResponse<T>(response);
+        this.isBackendHealthy = true;
+
+        if (!path.startsWith('/dev/')) {
+          logResponse('POST-FORM', path, response.status, performance.now() - start);
+        }
+        return result;
+      } catch (error) {
+        lastError = error;
+        this.isBackendHealthy = false;
+
+        if (attempt < this.maxRetries && this.isRetryable(error)) {
+          await this.sleep(attempt);
+          continue;
+        }
+
+        if (!path.startsWith('/dev/')) {
+          logError(`POST-FORM ${path}`, error);
+        }
+
+        if (error instanceof TypeError && error.message === 'Failed to fetch') {
+          throw new APIError(
+            0,
+            'Connection Failed',
+            'Unable to reach the backend server. Please ensure it is running on http://localhost:8001'
+          );
+        }
+        throw error;
       }
-      return result;
-    } catch (error) {
-      if (!path.startsWith('/dev/')) {
-        logError(`POST-FORM ${path}`, error);
-      }
-      throw error;
     }
+    throw lastError;
   }
 
   async delete<T = void>(path: string): Promise<T> {
@@ -178,24 +297,45 @@ export class ApiClient {
     }
     const start = performance.now();
 
-    try {
-      const response = await fetch(`${this.baseUrl}${path}`, {
-        method: 'DELETE',
-        headers: this.getHeaders('application/json'),
-      });
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      try {
+        const response = await fetch(`${this.baseUrl}${path}`, {
+          method: 'DELETE',
+          headers: this.getHeaders('application/json'),
+        });
 
-      const result = await this.handleResponse<T>(response);
-      
-      if (!path.startsWith('/dev/')) {
-        logResponse('DELETE', path, response.status, performance.now() - start);
+        const result = await this.handleResponse<T>(response);
+        this.isBackendHealthy = true;
+
+        if (!path.startsWith('/dev/')) {
+          logResponse('DELETE', path, response.status, performance.now() - start);
+        }
+        return result;
+      } catch (error) {
+        lastError = error;
+        this.isBackendHealthy = false;
+
+        if (attempt < this.maxRetries && this.isRetryable(error)) {
+          await this.sleep(attempt);
+          continue;
+        }
+
+        if (!path.startsWith('/dev/')) {
+          logError(`DELETE ${path}`, error);
+        }
+
+        if (error instanceof TypeError && error.message === 'Failed to fetch') {
+          throw new APIError(
+            0,
+            'Connection Failed',
+            'Unable to reach the backend server. Please ensure it is running on http://localhost:8001'
+          );
+        }
+        throw error;
       }
-      return result;
-    } catch (error) {
-      if (!path.startsWith('/dev/')) {
-        logError(`DELETE ${path}`, error);
-      }
-      throw error;
     }
+    throw lastError;
   }
 }
 

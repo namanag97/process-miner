@@ -47,7 +47,7 @@ export interface TransitionPerformance {
 
 export type BottleneckSeverity = "low" | "medium" | "high" | "critical";
 
-export interface Bottleneck extends HypermediaResponse {
+export interface PerformanceBottleneck extends HypermediaResponse {
   type: "activity" | "transition";
   name: string;
   severity: BottleneckSeverity;
@@ -60,7 +60,7 @@ export interface Bottleneck extends HypermediaResponse {
 
 export interface BottleneckAnalysis extends HypermediaResponse {
   logId: string;
-  bottlenecks: Bottleneck[];
+  bottlenecks: PerformanceBottleneck[];
   totalBottlenecks: number;
   criticalCount: number;
   highCount: number;

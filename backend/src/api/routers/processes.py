@@ -175,16 +175,18 @@ async def list_processes(
     items = []
     for log in logs:
         activities = json.loads(log.activities_json) if log.activities_json else []
-        items.append(ProcessResponse(
-            id=log.id,
-            name=log.name,
-            source_format=log.source_format,
-            total_events=log.total_events,
-            total_cases=log.total_cases,
-            total_activities=log.total_activities,
-            activities=activities,
-            created_at=log.created_at,
-        ))
+        items.append(
+            ProcessResponse(
+                id=log.id,
+                name=log.name,
+                source_format=log.source_format,
+                total_events=log.total_events,
+                total_cases=log.total_cases,
+                total_activities=log.total_activities,
+                activities=activities,
+                created_at=log.created_at,
+            )
+        )
 
     return ProcessListResponse(
         items=items,
@@ -355,7 +357,9 @@ async def list_cases(
         raise HTTPException(status_code=404, detail=f"Process not found: {process_id}")
 
     # Count total cases
-    count_query = select(func.count()).select_from(ProcessCase).where(ProcessCase.log_id == process_id)
+    count_query = (
+        select(func.count()).select_from(ProcessCase).where(ProcessCase.log_id == process_id)
+    )
     total = await db.scalar(count_query) or 0
 
     # Paginate cases
@@ -377,14 +381,16 @@ async def list_cases(
         if case.start_time and case.end_time:
             duration = (case.end_time - case.start_time).total_seconds()
 
-        items.append(CaseResponse(
-            case_id=case.case_id,
-            event_count=len(case.events),
-            variant=case.variant_key,
-            start_time=case.start_time,
-            end_time=case.end_time,
-            duration_seconds=duration,
-        ))
+        items.append(
+            CaseResponse(
+                case_id=case.case_id,
+                event_count=len(case.events),
+                variant=case.variant_key,
+                start_time=case.start_time,
+                end_time=case.end_time,
+                duration_seconds=duration,
+            )
+        )
 
     return CaseListResponse(
         items=items,

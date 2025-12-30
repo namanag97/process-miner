@@ -646,25 +646,19 @@ class FilteringService:
                 "id": "happy_path",
                 "name": "Happy Path (Top 80%)",
                 "description": "Keep variants covering 80% of cases",
-                "filters": [
-                    {"type": FilterType.VARIANTS_COVERAGE, "params": {"coverage": 0.8}}
-                ],
+                "filters": [{"type": FilterType.VARIANTS_COVERAGE, "params": {"coverage": 0.8}}],
             },
             {
                 "id": "top_10_variants",
                 "name": "Top 10 Variants",
                 "description": "Keep only the 10 most common process variants",
-                "filters": [
-                    {"type": FilterType.VARIANTS_TOP_K, "params": {"k": 10}}
-                ],
+                "filters": [{"type": FilterType.VARIANTS_TOP_K, "params": {"k": 10}}],
             },
             {
                 "id": "remove_short_cases",
                 "name": "Remove Short Cases",
                 "description": "Remove cases with less than 3 events",
-                "filters": [
-                    {"type": FilterType.CASE_SIZE, "params": {"min_size": 3}}
-                ],
+                "filters": [{"type": FilterType.CASE_SIZE, "params": {"min_size": 3}}],
             },
             {
                 "id": "remove_outlier_duration",

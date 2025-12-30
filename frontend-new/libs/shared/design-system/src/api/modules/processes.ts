@@ -1,5 +1,5 @@
 /**
- * Logs Module - SDK methods for event log operations
+ * Processes Module - SDK methods for event log operations
  */
 
 import type { ApiClient } from '../client';
@@ -11,13 +11,13 @@ import type {
 } from '../types';
 import { transformProcess, transformProcessDetail, EventLog } from '../transformers';
 
-export interface ListLogsOptions {
+export interface ListProcessesOptions {
   page?: number;
   pageSize?: number;
   sourceFormat?: string;
 }
 
-export interface LogMetadata {
+export interface ProcessMetadata {
   name?: string;
   caseIdColumn?: string;
   activityColumn?: string;
@@ -25,18 +25,18 @@ export interface LogMetadata {
   resourceColumn?: string;
 }
 
-export interface LogsModule {
-  list: (options?: ListLogsOptions) => Promise<{ items: EventLog[]; total: number; page: number; pageSize: number; pages: number }>;
+export interface ProcessesModule {
+  list: (options?: ListProcessesOptions) => Promise<{ items: EventLog[]; total: number; page: number; pageSize: number; pages: number }>;
   get: (id: string) => Promise<EventLog>;
-  ingest: (file: File, metadata?: LogMetadata) => Promise<{ id: string }>;
+  ingest: (file: File, metadata?: ProcessMetadata) => Promise<{ id: string }>;
   delete: (id: string) => Promise<void>;
   detectColumns: (file: File) => Promise<ColumnDetectionResponse>;
   analyze: (logId: string) => Promise<Record<string, unknown>>;
 }
 
-export function createLogsModule(client: ApiClient): LogsModule {
+export function createProcessesModule(client: ApiClient): ProcessesModule {
   return {
-    async list(options?: ListLogsOptions) {
+    async list(options?: ListProcessesOptions) {
       const response = await client.get<PaginatedResponse<ProcessResponse>>('/processes', {
         page: options?.page ?? 1,
         page_size: options?.pageSize ?? 20,
@@ -57,7 +57,7 @@ export function createLogsModule(client: ApiClient): LogsModule {
       return transformProcessDetail(response);
     },
 
-    async ingest(file: File, metadata?: LogMetadata) {
+    async ingest(file: File, metadata?: ProcessMetadata) {
       const formData = new FormData();
       formData.append('file', file);
       

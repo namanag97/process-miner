@@ -15,14 +15,16 @@ class TestPM4PyDiscovery:
     """Tests for PM4Py discovery algorithms."""
 
     @pytest.mark.asyncio
-    async def test_alpha_miner_produces_petri_net(self, client: AsyncClient, uploaded_insurance_log_id: str):
+    async def test_alpha_miner_produces_petri_net(
+        self, client: AsyncClient, uploaded_insurance_log_id: str
+    ):
         """Alpha miner produces valid Petri net."""
         response = await client.post(
             "/api/v1/discovery/discover",
             json={
                 "log_id": uploaded_insurance_log_id,
                 "miner_type": "alpha",
-                "model_name": "PM4Py Alpha Test"
+                "model_name": "PM4Py Alpha Test",
             },
         )
         assert response.status_code == 200
@@ -31,14 +33,16 @@ class TestPM4PyDiscovery:
         # Petri net should have places and transitions
 
     @pytest.mark.asyncio
-    async def test_inductive_miner_produces_petri_net(self, client: AsyncClient, uploaded_insurance_log_id: str):
+    async def test_inductive_miner_produces_petri_net(
+        self, client: AsyncClient, uploaded_insurance_log_id: str
+    ):
         """Inductive miner produces valid Petri net."""
         response = await client.post(
             "/api/v1/discovery/discover",
             json={
                 "log_id": uploaded_insurance_log_id,
                 "miner_type": "inductive",
-                "model_name": "PM4Py Inductive Test"
+                "model_name": "PM4Py Inductive Test",
             },
         )
         assert response.status_code == 200
@@ -51,10 +55,7 @@ class TestPM4PyConformance:
 
     @pytest.mark.asyncio
     async def test_token_replay_executes(
-        self,
-        client: AsyncClient,
-        uploaded_insurance_log_id: str,
-        discovered_petri_net_id: str
+        self, client: AsyncClient, uploaded_insurance_log_id: str, discovered_petri_net_id: str
     ):
         """Token replay executes and returns fitness."""
         response = await client.post(
@@ -62,7 +63,7 @@ class TestPM4PyConformance:
             json={
                 "log_id": uploaded_insurance_log_id,
                 "model_id": discovered_petri_net_id,
-                "method": "token_replay"
+                "method": "token_replay",
             },
         )
         assert response.status_code == 200
@@ -75,7 +76,9 @@ class TestPM4PyStatistics:
     """Tests for PM4Py statistics."""
 
     @pytest.mark.asyncio
-    async def test_start_activities_extracted(self, client: AsyncClient, uploaded_insurance_log_id: str):
+    async def test_start_activities_extracted(
+        self, client: AsyncClient, uploaded_insurance_log_id: str
+    ):
         """Start activities are correctly extracted."""
         response = await client.get(f"/api/v1/processes/{uploaded_insurance_log_id}/statistics")
         assert response.status_code == 200
@@ -85,7 +88,9 @@ class TestPM4PyStatistics:
         assert "First Notification of Loss (FNOL)" in str(data["start_activities"])
 
     @pytest.mark.asyncio
-    async def test_end_activities_extracted(self, client: AsyncClient, uploaded_insurance_log_id: str):
+    async def test_end_activities_extracted(
+        self, client: AsyncClient, uploaded_insurance_log_id: str
+    ):
         """End activities are correctly extracted."""
         response = await client.get(f"/api/v1/processes/{uploaded_insurance_log_id}/statistics")
         assert response.status_code == 200
@@ -118,10 +123,6 @@ c1,C,2023-01-01 10:00:00"""
         # Discover - should not crash
         response = await client.post(
             "/api/v1/discovery/discover",
-            json={
-                "log_id": log_id,
-                "miner_type": "inductive",
-                "model_name": "Single Case Model"
-            },
+            json={"log_id": log_id, "miner_type": "inductive", "model_name": "Single Case Model"},
         )
         assert response.status_code in [200, 400, 500]  # Either succeeds or fails gracefully

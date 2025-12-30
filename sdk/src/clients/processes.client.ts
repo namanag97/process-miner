@@ -1,5 +1,5 @@
 /**
- * Logs Client - Event Log Operations
+ * Processes Client - Event Log Operations
  *
  * Business verbs (following CodeOpinion guidance):
  * - ingest() - Import event log file into system
@@ -26,7 +26,96 @@ import {
   ProcessVariant,
   PaginatedLogs,
   UpdateLogMetadata,
-} from "../types/logs.js";
+} from "../types/processes.js";
+
+// =============================================================================
+// Backend Response Types (snake_case)
+// =============================================================================
+
+interface BEProcessResponse {
+  id: string;
+  name: string;
+  source_format: string;
+  total_events: number;
+  total_cases: number;
+  total_activities: number;
+  activities: string[];
+  created_at: string;
+  source_file?: string;
+}
+
+interface BEProcessListResponse {
+  items: BEProcessResponse[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+}
+
+interface BEStatisticsResponse {
+  total_events: number;
+  total_cases: number;
+  total_activities: number;
+  total_variants: number;
+  activities: string[];
+  start_activities: Record<string, number>;
+  end_activities: Record<string, number>;
+  avg_case_duration_seconds: number | null;
+  min_case_duration_seconds: number | null;
+  max_case_duration_seconds: number | null;
+  date_range: { start: string; end: string } | null;
+}
+
+interface BEVariantResponse {
+  variant_key: string;
+  activity_trace: string;
+  case_count: number;
+  frequency_percent: number;
+  avg_duration_seconds: number | null;
+}
+
+// =============================================================================
+// Transformation Helpers
+// =============================================================================
+
+function transformProcessToEventLog(be: BEProcessResponse): EventLog {
+  return {
+    id: be.id,
+    name: be.name,
+    sourceFile: be.source_file,
+    totalCases: be.total_cases,
+    totalEvents: be.total_events,
+    createdAt: be.created_at,
+  };
+}
+
+function transformStatistics(be: BEStatisticsResponse, logId: string): LogStatistics {
+  return {
+    logId,
+    eventCount: be.total_events,
+    caseCount: be.total_cases,
+    activityCount: be.total_activities,
+    variantCount: be.total_variants,
+    activities: be.activities,
+    startActivities: be.start_activities,
+    endActivities: be.end_activities,
+    avgCaseDurationSeconds: be.avg_case_duration_seconds ?? undefined,
+    minCaseDurationSeconds: be.min_case_duration_seconds ?? undefined,
+    maxCaseDurationSeconds: be.max_case_duration_seconds ?? undefined,
+    dateRange: be.date_range ?? undefined,
+  };
+}
+
+function transformVariant(be: BEVariantResponse): ProcessVariant {
+  return {
+    key: be.variant_key,
+    activities: be.activity_trace.split(" -> "),
+    caseCount: be.case_count,
+    length: be.activity_trace.split(" -> ").length,
+    frequencyPercent: be.frequency_percent,
+    avgDurationSeconds: be.avg_duration_seconds ?? undefined,
+  };
+}
 
 export interface ListLogsOptions extends PaginationOptions {
   search?: string;
@@ -34,7 +123,7 @@ export interface ListLogsOptions extends PaginationOptions {
   sortOrder?: "asc" | "desc";
 }
 
-export class LogsClient {
+export class ProcessesClient {
   constructor(private readonly http: HttpClient) {}
 
   /**
@@ -96,20 +185,40 @@ export class LogsClient {
    * List all event logs with optional filtering and pagination.
    */
   async list(options?: ListLogsOptions): Promise<PaginatedLogs> {
-    return this.http.get<PaginatedLogs>("/api/v1/processes", {
+    const response = await this.http.get<BEProcessListResponse>("/api/v1/processes", {
       page: options?.page,
       page_size: options?.pageSize,
       search: options?.search,
       sort_by: options?.sortBy,
       sort_order: options?.sortOrder,
     });
+
+    return {
+      items: response.items.map(transformProcessToEventLog),
+      total: response.total,
+      page: response.page,
+      pageSize: response.page_size,
+      totalPages: response.pages,
+    };
   }
 
   /**
    * Get detailed information about a specific event log.
    */
   async get(logId: string): Promise<EventLogDetails> {
-    return this.http.get<EventLogDetails>(`/api/v1/processes/${logId}`);
+    const response = await this.http.get<
+      BEProcessResponse & {
+        statistics?: BEStatisticsResponse;
+      }
+    >(`/api/v1/processes/${logId}`);
+
+    return {
+      ...transformProcessToEventLog(response),
+      uniqueActivities: response.total_activities,
+      uniqueResources: 0, // Not available in BE response
+      variantCount: response.statistics?.total_variants ?? 0,
+      dateRange: response.statistics?.date_range ?? undefined,
+    };
   }
 
   /**
@@ -123,7 +232,10 @@ export class LogsClient {
    * Analyze event log and get detailed statistics.
    */
   async analyze(logId: string): Promise<LogStatistics> {
-    return this.http.get<LogStatistics>(`/api/v1/processes/${logId}/statistics`);
+    const response = await this.http.get<BEStatisticsResponse>(
+      `/api/v1/processes/${logId}/statistics`
+    );
+    return transformStatistics(response, logId);
   }
 
   /**
@@ -138,14 +250,20 @@ export class LogsClient {
    * List process variants in an event log.
    */
   async listVariants(logId: string, limit = 50): Promise<ProcessVariant[]> {
-    return this.http.get<ProcessVariant[]>(`/api/v1/processes/${logId}/variants`, { limit });
+    const response = await this.http.get<BEVariantResponse[]>(
+      `/api/v1/processes/${logId}/variants`,
+      { limit }
+    );
+    return response.map(transformVariant);
   }
 
   /**
    * List all unique activities in an event log.
    */
   async listActivities(logId: string): Promise<string[]> {
-    const response = await this.http.get<{ activities: string[] }>(`/api/v1/processes/${logId}/activities`);
+    const response = await this.http.get<{ activities: string[] }>(
+      `/api/v1/processes/${logId}/activities`
+    );
     return response.activities;
   }
 

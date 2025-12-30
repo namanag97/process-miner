@@ -24,7 +24,10 @@ export class SimulationClient {
    * Creates artificial cases that follow the process model.
    */
   async playOut(modelId: string, request: PlayOutRequest): Promise<PlayOutResponse> {
-    return this.http.post<PlayOutResponse>(`/api/v1/simulation/models/${modelId}/play-out`, request);
+    return this.http.post<PlayOutResponse>(
+      `/api/v1/simulation/models/${modelId}/play-out`,
+      request
+    );
   }
 
   /**

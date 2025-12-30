@@ -31,14 +31,16 @@ class TestModelDiscovery:
     """Tests for process model discovery."""
 
     @pytest.mark.asyncio
-    async def test_discover_with_inductive_miner(self, client: AsyncClient, uploaded_insurance_log_id: str):
+    async def test_discover_with_inductive_miner(
+        self, client: AsyncClient, uploaded_insurance_log_id: str
+    ):
         """Discover model using inductive miner."""
         response = await client.post(
             "/api/v1/discovery/discover",
             json={
                 "log_id": uploaded_insurance_log_id,
                 "miner_type": "inductive",
-                "model_name": "Test Inductive Model"
+                "model_name": "Test Inductive Model",
             },
         )
         assert response.status_code == 200
@@ -47,14 +49,16 @@ class TestModelDiscovery:
         assert "fitness" in data or "quality" in data
 
     @pytest.mark.asyncio
-    async def test_discover_with_alpha_miner(self, client: AsyncClient, uploaded_insurance_log_id: str):
+    async def test_discover_with_alpha_miner(
+        self, client: AsyncClient, uploaded_insurance_log_id: str
+    ):
         """Discover model using alpha miner."""
         response = await client.post(
             "/api/v1/discovery/discover",
             json={
                 "log_id": uploaded_insurance_log_id,
                 "miner_type": "alpha",
-                "model_name": "Test Alpha Model"
+                "model_name": "Test Alpha Model",
             },
         )
         assert response.status_code == 200
@@ -62,14 +66,16 @@ class TestModelDiscovery:
         assert "id" in data
 
     @pytest.mark.asyncio
-    async def test_discover_with_heuristics_miner(self, client: AsyncClient, uploaded_insurance_log_id: str):
+    async def test_discover_with_heuristics_miner(
+        self, client: AsyncClient, uploaded_insurance_log_id: str
+    ):
         """Discover model using heuristics miner."""
         response = await client.post(
             "/api/v1/discovery/discover",
             json={
                 "log_id": uploaded_insurance_log_id,
                 "miner_type": "heuristics",
-                "model_name": "Test Heuristics Model"
+                "model_name": "Test Heuristics Model",
             },
         )
         assert response.status_code == 200
@@ -81,36 +87,36 @@ class TestModelDiscovery:
         """Discover with invalid log_id should return 404."""
         response = await client.post(
             "/api/v1/discovery/discover",
-            json={
-                "log_id": "nonexistent",
-                "miner_type": "inductive",
-                "model_name": "Test"
-            },
+            json={"log_id": "nonexistent", "miner_type": "inductive", "model_name": "Test"},
         )
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_discover_with_invalid_miner_type(self, client: AsyncClient, uploaded_insurance_log_id: str):
+    async def test_discover_with_invalid_miner_type(
+        self, client: AsyncClient, uploaded_insurance_log_id: str
+    ):
         """Discover with unsupported miner_type should return 400."""
         response = await client.post(
             "/api/v1/discovery/discover",
             json={
                 "log_id": uploaded_insurance_log_id,
                 "miner_type": "nonexistent_miner",
-                "model_name": "Test"
+                "model_name": "Test",
             },
         )
         assert response.status_code in [400, 422]
 
     @pytest.mark.asyncio
-    async def test_self_discovered_model_has_good_fitness(self, client: AsyncClient, uploaded_insurance_log_id: str):
+    async def test_self_discovered_model_has_good_fitness(
+        self, client: AsyncClient, uploaded_insurance_log_id: str
+    ):
         """Self-discovered model should have fitness > 0.5."""
         response = await client.post(
             "/api/v1/discovery/discover",
             json={
                 "log_id": uploaded_insurance_log_id,
                 "miner_type": "inductive",
-                "model_name": "Test Fitness"
+                "model_name": "Test Fitness",
             },
         )
         assert response.status_code == 200
@@ -149,7 +155,7 @@ class TestModelManagement:
             json={
                 "log_id": uploaded_insurance_log_id,
                 "miner_type": "inductive",
-                "model_name": "To Delete"
+                "model_name": "To Delete",
             },
         )
         model_id = discover_resp.json()["id"]
@@ -173,7 +179,9 @@ class TestModelQuality:
     """Tests for model quality metrics."""
 
     @pytest.mark.asyncio
-    async def test_quality_metrics_in_valid_range(self, client: AsyncClient, discovered_petri_net_id: str):
+    async def test_quality_metrics_in_valid_range(
+        self, client: AsyncClient, discovered_petri_net_id: str
+    ):
         """Verify fitness and precision are in [0, 1]."""
         response = await client.get(f"/api/v1/discovery/models/{discovered_petri_net_id}")
         assert response.status_code == 200
@@ -206,11 +214,7 @@ c2,B,2023-01-02 10:30:00"""
         # Discover - should not crash
         response = await client.post(
             "/api/v1/discovery/discover",
-            json={
-                "log_id": log_id,
-                "miner_type": "inductive",
-                "model_name": "Tiny Model"
-            },
+            json={"log_id": log_id, "miner_type": "inductive", "model_name": "Tiny Model"},
         )
         # Either succeeds or returns a meaningful error
         assert response.status_code in [200, 400, 500]

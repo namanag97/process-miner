@@ -36,8 +36,14 @@ export class FilteringClient {
    * Preview filter impact without saving.
    * Returns statistics about what would be filtered out.
    */
-  async previewFilter(logId: string, request: FilterPreviewRequest): Promise<FilterPreviewResponse> {
-    return this.http.post<FilterPreviewResponse>(`/api/v1/filtering/logs/${logId}/preview`, request);
+  async previewFilter(
+    logId: string,
+    request: FilterPreviewRequest
+  ): Promise<FilterPreviewResponse> {
+    return this.http.post<FilterPreviewResponse>(
+      `/api/v1/filtering/logs/${logId}/preview`,
+      request
+    );
   }
 
   /**

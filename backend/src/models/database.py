@@ -51,9 +51,7 @@ async def get_session_context() -> AsyncGenerator[AsyncSession, None]:
             logger.debug("db_session_context_committed")
         except Exception as e:
             await session.rollback()
-            logger.warning(
-                "db_session_context_rollback", error=str(e), error_type=type(e).__name__
-            )
+            logger.warning("db_session_context_rollback", error=str(e), error_type=type(e).__name__)
             raise
 
 

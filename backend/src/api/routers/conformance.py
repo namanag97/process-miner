@@ -58,9 +58,7 @@ async def check_conformance(
     start_time = time.perf_counter()
 
     # Get the event log with cases and events
-    log_result = await session.execute(
-        select(EventLog).where(EventLog.id == request.log_id)
-    )
+    log_result = await session.execute(select(EventLog).where(EventLog.id == request.log_id))
     event_log = log_result.scalar_one_or_none()
 
     if not event_log:
@@ -99,10 +97,12 @@ async def check_conformance(
             fitness=result["fitness"],
             precision=result.get("precision"),
             method=result["method"],
-            diagnostics_json=json.dumps({
-                "fitting_traces": result["fitting_traces"],
-                "total_traces": result["total_traces"],
-            }),
+            diagnostics_json=json.dumps(
+                {
+                    "fitting_traces": result["fitting_traces"],
+                    "total_traces": result["total_traces"],
+                }
+            ),
         )
         session.add(conformance_record)
         await session.commit()
@@ -271,18 +271,14 @@ async def get_conformance_diagnostics(
     Returns trace-level analysis including deviations.
     """
     # Get the event log
-    log_result = await session.execute(
-        select(EventLog).where(EventLog.id == log_id)
-    )
+    log_result = await session.execute(select(EventLog).where(EventLog.id == log_id))
     event_log = log_result.scalar_one_or_none()
 
     if not event_log:
         raise HTTPException(status_code=404, detail="Event log not found")
 
     # Get the process model
-    model_result = await session.execute(
-        select(ProcessModel).where(ProcessModel.id == model_id)
-    )
+    model_result = await session.execute(select(ProcessModel).where(ProcessModel.id == model_id))
     model = model_result.scalar_one_or_none()
 
     if not model:
@@ -331,18 +327,14 @@ async def get_deviations(
     Returns case-level deviation information.
     """
     # Get the event log
-    log_result = await session.execute(
-        select(EventLog).where(EventLog.id == log_id)
-    )
+    log_result = await session.execute(select(EventLog).where(EventLog.id == log_id))
     event_log = log_result.scalar_one_or_none()
 
     if not event_log:
         raise HTTPException(status_code=404, detail="Event log not found")
 
     # Get the process model
-    model_result = await session.execute(
-        select(ProcessModel).where(ProcessModel.id == model_id)
-    )
+    model_result = await session.execute(select(ProcessModel).where(ProcessModel.id == model_id))
     model = model_result.scalar_one_or_none()
 
     if not model:
@@ -355,9 +347,7 @@ async def get_deviations(
         )
 
     try:
-        deviations = conformance_service.detect_deviations(
-            event_log, model, threshold
-        )
+        deviations = conformance_service.detect_deviations(event_log, model, threshold)
 
         return [
             DeviationResponse(
@@ -403,18 +393,14 @@ async def get_alignment_diagnostics(
     start_time = time.perf_counter()
 
     # Get the event log
-    log_result = await session.execute(
-        select(EventLog).where(EventLog.id == log_id)
-    )
+    log_result = await session.execute(select(EventLog).where(EventLog.id == log_id))
     event_log = log_result.scalar_one_or_none()
 
     if not event_log:
         raise HTTPException(status_code=404, detail="Event log not found")
 
     # Get the process model
-    model_result = await session.execute(
-        select(ProcessModel).where(ProcessModel.id == model_id)
-    )
+    model_result = await session.execute(select(ProcessModel).where(ProcessModel.id == model_id))
     model = model_result.scalar_one_or_none()
 
     if not model:
@@ -428,9 +414,7 @@ async def get_alignment_diagnostics(
 
     try:
         # Get alignment diagnostics
-        diagnostics = conformance_service.get_alignment_diagnostics(
-            event_log, model, max_cases
-        )
+        diagnostics = conformance_service.get_alignment_diagnostics(event_log, model, max_cases)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info(

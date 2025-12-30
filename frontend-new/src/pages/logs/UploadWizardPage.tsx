@@ -54,7 +54,7 @@ export function UploadWizardPage() {
 
   // Detect columns mutation
   const detectColumnsMutation = useMutation({
-    mutationFn: (file: File) => sdk.logs.detectColumns(file),
+    mutationFn: (file: File) => sdk.processes.detectColumns(file),
     onSuccess: (data) => {
       setPreviewData(data);
       // Apply suggestions
@@ -77,7 +77,7 @@ export function UploadWizardPage() {
   const ingestMutation = useMutation({
     mutationFn: async () => {
       if (!file) throw new Error('No file selected');
-      return sdk.logs.ingest(file, {
+      return sdk.processes.ingest(file, {
         name: file.name,
         caseIdColumn: columnMapping.caseId,
         activityColumn: columnMapping.activity,
@@ -86,7 +86,7 @@ export function UploadWizardPage() {
       });
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['logs'] });
+      queryClient.invalidateQueries({ queryKey: ['processes'] });
       setUploadedLogId(data.id);
       toast.success('Event log processed successfully!');
     },
@@ -149,7 +149,7 @@ export function UploadWizardPage() {
 
   const handleViewLog = () => {
     log.info('Navigating to new log');
-    navigate(`/logs/${uploadedLogId}`);
+    navigate(`/processes/${uploadedLogId}`);
   };
 
   const handleUploadAnother = () => {
@@ -381,13 +381,13 @@ export function UploadWizardPage() {
         title="Upload Event Log"
         description="Import your process data to start analyzing"
         breadcrumb={[
-          { label: 'Event Logs', href: '/logs' },
+          { label: 'Event Logs', href: '/processes' },
           { label: 'Upload' },
         ]}
         actions={
           <Button
             icon={<ArrowLeftOutlined />}
-            onClick={() => navigate('/logs')}
+            onClick={() => navigate('/processes')}
           >
             Cancel
           </Button>

@@ -60,7 +60,13 @@ async def train_predictor(
         - If async_mode=True: {"job_id": "...", "status": "pending"}
         - If async_mode=False: PredictorResponse with trained model
     """
-    logger.info("training_predictor", log_id=log_id, target=request.target_type, algorithm=request.algorithm, async_mode=async_mode)
+    logger.info(
+        "training_predictor",
+        log_id=log_id,
+        target=request.target_type,
+        algorithm=request.algorithm,
+        async_mode=async_mode,
+    )
 
     # Verify log exists
     query = select(EventLog).where(EventLog.id == log_id)
@@ -82,11 +88,13 @@ async def train_predictor(
             task_id=task.id,
             job_type="train_prediction",
             status="pending",
-            parameters_json=json.dumps({
-                "log_id": log_id,
-                "target_type": request.target_type,
-                "algorithm": request.algorithm,
-            }),
+            parameters_json=json.dumps(
+                {
+                    "log_id": log_id,
+                    "target_type": request.target_type,
+                    "algorithm": request.algorithm,
+                }
+            ),
         )
         db.add(async_job)
         await db.commit()
@@ -103,11 +111,17 @@ async def train_predictor(
         pm4py_log = filtering_service.to_pm4py_log(event_log)
 
         if request.target_type == "next_activity":
-            model_bytes, metrics = prediction_service.train_next_activity_model(pm4py_log, request.algorithm)
+            model_bytes, metrics = prediction_service.train_next_activity_model(
+                pm4py_log, request.algorithm
+            )
         elif request.target_type == "remaining_time":
-            model_bytes, metrics = prediction_service.train_remaining_time_model(pm4py_log, request.algorithm)
+            model_bytes, metrics = prediction_service.train_remaining_time_model(
+                pm4py_log, request.algorithm
+            )
         else:
-            raise HTTPException(status_code=400, detail=f"Unsupported target type: {request.target_type}")
+            raise HTTPException(
+                status_code=400, detail=f"Unsupported target type: {request.target_type}"
+            )
 
         activities = prediction_service.get_activities_from_log(pm4py_log)
         metrics["activities"] = activities
@@ -130,7 +144,9 @@ async def train_predictor(
             "target_type": request.target_type,
             "algorithm": request.algorithm,
             "metrics": metrics,
-            "trained_at": prediction_model.trained_at.isoformat() if prediction_model.trained_at else None,
+            "trained_at": prediction_model.trained_at.isoformat()
+            if prediction_model.trained_at
+            else None,
         }
 
 
@@ -174,14 +190,16 @@ async def list_predictors(log_id: str, db: AsyncSession = Depends(get_db)) -> Pr
     items = []
     for p in predictors:
         metrics = json.loads(p.metrics_json) if p.metrics_json else {}
-        items.append(PredictorResponse(
-            id=p.id,
-            log_id=p.log_id,
-            target_type=p.target_type,
-            algorithm=p.algorithm,
-            metrics=metrics,
-            trained_at=p.trained_at,
-        ))
+        items.append(
+            PredictorResponse(
+                id=p.id,
+                log_id=p.log_id,
+                target_type=p.target_type,
+                algorithm=p.algorithm,
+                metrics=metrics,
+                trained_at=p.trained_at,
+            )
+        )
 
     return PredictorListResponse(log_id=log_id, predictors=items, total=len(items))
 
@@ -251,7 +269,9 @@ async def predict(
             confidence=prediction_result["confidence"],
         )
     else:
-        raise HTTPException(status_code=400, detail=f"Unsupported target type: {predictor.target_type}")
+        raise HTTPException(
+            status_code=400, detail=f"Unsupported target type: {predictor.target_type}"
+        )
 
 
 @router.post("/predictors/{predictor_id}/predict-batch", response_model=BatchPredictionResponse)
@@ -279,22 +299,26 @@ async def predict_batch(
             pred_result = prediction_service.predict_next_activity(
                 predictor.model_binary, case.case_prefix, activities
             )
-            predictions.append(PredictionResponse(
-                predictor_id=predictor_id,
-                case_prefix=case.case_prefix,
-                prediction=pred_result["prediction"],
-                confidence=pred_result["confidence"],
-            ))
+            predictions.append(
+                PredictionResponse(
+                    predictor_id=predictor_id,
+                    case_prefix=case.case_prefix,
+                    prediction=pred_result["prediction"],
+                    confidence=pred_result["confidence"],
+                )
+            )
         else:
             pred_result = prediction_service.predict_remaining_time(
                 predictor.model_binary, case.case_prefix, activities
             )
-            predictions.append(PredictionResponse(
-                predictor_id=predictor_id,
-                case_prefix=case.case_prefix,
-                prediction=pred_result["prediction_seconds"],
-                confidence=pred_result["confidence"],
-            ))
+            predictions.append(
+                PredictionResponse(
+                    predictor_id=predictor_id,
+                    case_prefix=case.case_prefix,
+                    prediction=pred_result["prediction_seconds"],
+                    confidence=pred_result["confidence"],
+                )
+            )
 
     return BatchPredictionResponse(predictor_id=predictor_id, predictions=predictions)
 

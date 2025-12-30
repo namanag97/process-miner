@@ -60,10 +60,9 @@ export function createConformanceModule(client: ApiClient): ConformanceModule {
     },
 
     async getDiagnostics(logId: string, modelId: string) {
-      return client.get<DiagnosticsResponse>('/conformance/diagnostics', {
-        log_id: logId,
-        model_id: modelId,
-      });
+      return client.get<DiagnosticsResponse>(
+        `/conformance/diagnostics/${encodeURIComponent(logId)}/${encodeURIComponent(modelId)}`
+      );
     },
   };
 }

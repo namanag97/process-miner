@@ -146,7 +146,7 @@ export function ProcessExplorerIndexPage() {
           title="No event logs available"
           description="Upload an event log first to start exploring your process"
           actionLabel="Upload File"
-          onAction={() => navigate('/logs/upload')}
+          onAction={() => navigate('/processes/upload')}
         />
       )}
     </div>

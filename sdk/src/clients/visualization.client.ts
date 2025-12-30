@@ -10,11 +10,7 @@
  */
 
 import { HttpClient } from "../client.js";
-import {
-  DFGResponse,
-  PetriNetResponse,
-  FootprintsResponse,
-} from "../types/visualization.js";
+import { DFGResponse, PetriNetResponse, FootprintsResponse } from "../types/visualization.js";
 
 export class VisualizationClient {
   constructor(private readonly http: HttpClient) {}

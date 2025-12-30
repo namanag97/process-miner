@@ -117,15 +117,13 @@ export interface LogStatistics extends HypermediaResponse {
   caseCount: number;
   activityCount: number;
   variantCount: number;
-  resourceCount: number;
-  dateRange?: DateRange;
-  avgCaseDurationSeconds?: number;
-  medianCaseDurationSeconds?: number;
-  minCaseDurationSeconds?: number;
-  maxCaseDurationSeconds?: number;
   activities: string[];
   startActivities: Record<string, number>;
   endActivities: Record<string, number>;
+  dateRange?: DateRange;
+  avgCaseDurationSeconds?: number;
+  minCaseDurationSeconds?: number;
+  maxCaseDurationSeconds?: number;
 }
 
 /**

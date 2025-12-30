@@ -18,14 +18,18 @@ class TestBottleneckDetection:
     @pytest.mark.asyncio
     async def test_detect_bottlenecks(self, client: AsyncClient, uploaded_insurance_log_id: str):
         """Detect bottlenecks in process."""
-        response = await client.get(f"/api/v1/analytics/logs/{uploaded_insurance_log_id}/bottlenecks")
+        response = await client.get(
+            f"/api/v1/analytics/logs/{uploaded_insurance_log_id}/bottlenecks"
+        )
         assert response.status_code == 200
         data = response.json()
         # Should return list of bottlenecks or empty list
         assert isinstance(data, list) or "bottlenecks" in data
 
     @pytest.mark.asyncio
-    async def test_bottlenecks_with_special_dataset(self, client: AsyncClient, bottleneck_cases_csv: bytes):
+    async def test_bottlenecks_with_special_dataset(
+        self, client: AsyncClient, bottleneck_cases_csv: bytes
+    ):
         """Detect bottlenecks using dataset with known bottleneck."""
         # Upload bottleneck dataset
         upload_resp = await client.post(
@@ -80,7 +84,9 @@ class TestPerformanceMetrics:
     @pytest.mark.asyncio
     async def test_get_service_times(self, client: AsyncClient, uploaded_insurance_log_id: str):
         """Get service time statistics."""
-        response = await client.get(f"/api/v1/analytics/logs/{uploaded_insurance_log_id}/service-times")
+        response = await client.get(
+            f"/api/v1/analytics/logs/{uploaded_insurance_log_id}/service-times"
+        )
         assert response.status_code == 200
         data = response.json()
         # Validate service times if present
@@ -92,7 +98,9 @@ class TestPerformanceMetrics:
     @pytest.mark.asyncio
     async def test_get_cycle_times(self, client: AsyncClient, uploaded_insurance_log_id: str):
         """Get cycle time metrics."""
-        response = await client.get(f"/api/v1/analytics/logs/{uploaded_insurance_log_id}/cycle-time")
+        response = await client.get(
+            f"/api/v1/analytics/logs/{uploaded_insurance_log_id}/cycle-time"
+        )
         assert response.status_code == 200
         data = response.json()
         # Validate cycle times
@@ -102,7 +110,9 @@ class TestPerformanceMetrics:
     @pytest.mark.asyncio
     async def test_get_throughput(self, client: AsyncClient, uploaded_insurance_log_id: str):
         """Get throughput metrics."""
-        response = await client.get(f"/api/v1/analytics/logs/{uploaded_insurance_log_id}/throughput")
+        response = await client.get(
+            f"/api/v1/analytics/logs/{uploaded_insurance_log_id}/throughput"
+        )
         assert response.status_code == 200
         data = response.json()
         # Throughput rates should be >= 0
