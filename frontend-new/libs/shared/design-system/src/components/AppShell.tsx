@@ -126,6 +126,7 @@ export function AppShell({
     bottom: 0,
     background: tokens.colors.surface.sidebar,
     borderRight: `1px solid ${tokens.colors.neutral[200]}`,
+    transition: `width ${tokens.duration.moderate}ms ${tokens.easing.out}`,
   };
 
   return (
@@ -221,6 +222,7 @@ export function AppShell({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        animation: 'pulse 2s ease-in-out infinite',
                       }}
                     >
                       {notificationCount}
@@ -300,7 +302,7 @@ export function AppShell({
         <Layout
           style={{
             marginLeft: collapsed ? tokens.sidebar.collapsedWidth : tokens.sidebar.width,
-            transition: 'margin-left 0.2s',
+            transition: `margin-left ${tokens.duration.moderate}ms ${tokens.easing.out}`,
           }}
         >
           <Header

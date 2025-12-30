@@ -5,6 +5,7 @@
 import type {
   ProcessResponse,
   ProcessDetailResponse,
+  ColumnDetectionResponse,
   DFGResponse,
   DFGNodeResponse,
   DFGEdgeResponse,
@@ -31,6 +32,18 @@ export interface EventLog {
   sourceFile?: string;
   statistics?: Record<string, unknown>;
   updatedAt?: string;
+}
+
+export interface ColumnDetection {
+  columns: string[];
+  suggestions: {
+    caseId?: string;
+    activity?: string;
+    timestamp?: string;
+    resource?: string;
+  };
+  sampleRows: Record<string, unknown>[];
+  rowCount: number;
 }
 
 export interface DFGNode {
@@ -154,6 +167,20 @@ export function transformProcessDetail(be: ProcessDetailResponse): EventLog {
   };
 }
 
+export function transformColumnDetection(be: ColumnDetectionResponse): ColumnDetection {
+  return {
+    columns: be.columns,
+    suggestions: {
+      caseId: be.suggestions.case_id,
+      activity: be.suggestions.activity,
+      timestamp: be.suggestions.timestamp,
+      resource: be.suggestions.resource,
+    },
+    sampleRows: be.sample_rows,
+    rowCount: be.row_count,
+  };
+}
+
 export function transformDFGNode(be: DFGNodeResponse): DFGNode {
   return {
     id: be.id,
@@ -188,11 +215,34 @@ export function transformDFG(be: DFGResponse): DFGData {
 }
 
 export function transformVariant(be: VariantResponse): Variant {
-  // Parse activity trace like "Create→Approve→Ship" into array (BUG-008 fix)
-  const activities = be.activity_trace
-    ? be.activity_trace.split('→').map(a => a.trim()).filter(Boolean)
-    : [];
-  
+  // Robust activity trace parsing - handles multiple separator formats
+  let activities: string[] = [];
+
+  if (be.activity_trace) {
+    // Try multiple separators (→, ->, ,) in order of preference
+    const separators = ['→', '->', ' -> ', ','];
+
+    for (const sep of separators) {
+      if (be.activity_trace.includes(sep)) {
+        activities = be.activity_trace
+          .split(sep)
+          .map(a => a.trim())
+          .filter(Boolean);
+        break;
+      }
+    }
+
+    // Fallback: if no separator found, treat as single activity
+    if (activities.length === 0 && be.activity_trace.trim()) {
+      activities = [be.activity_trace.trim()];
+    }
+  }
+
+  // Validation logging
+  if (activities.length === 0 && be.activity_trace) {
+    console.warn('[transformVariant] Failed to parse activity_trace:', be.activity_trace);
+  }
+
   return {
     key: be.variant_key,
     activityTrace: be.activity_trace,

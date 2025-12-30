@@ -80,11 +80,11 @@ export function AnalyticsPage() {
   const selectedLog = logs.find((l: EventLog) => l.id === selectedLogId);
 
   // Summary stats from performance data
-  const avgCycleTime = performanceData?.cycleTime?.avgSeconds
+  const avgCycleTime = performanceData?.cycleTime?.avgSeconds != null
     ? formatDurationFromSeconds(performanceData.cycleTime.avgSeconds)
     : 'N/A';
 
-  const reworkRate = reworkData?.reworkPercentage ?? 0;
+  const reworkRate = reworkData?.reworkPercentage ?? null;
   const bottleneckCount = performanceData?.topBottlenecks?.length ?? 0;
 
   const tabItems = [
@@ -199,16 +199,18 @@ export function AnalyticsPage() {
         <Col xs={24} sm={6}>
           <MetricCard
             title="Throughput"
-            value={(performanceData?.throughput?.casesPerDay ?? 0).toFixed(1)}
-            suffix="cases/day"
+            value={performanceData?.throughput?.casesPerDay != null
+              ? performanceData.throughput.casesPerDay.toFixed(1)
+              : 'N/A'}
+            suffix={performanceData?.throughput?.casesPerDay != null ? 'cases/day' : undefined}
             loading={isLoading}
           />
         </Col>
         <Col xs={24} sm={6}>
           <MetricCard
             title="Rework Rate"
-            value={`${reworkRate.toFixed(1)}%`}
-            status={reworkRate > 20 ? 'warning' : 'success'}
+            value={reworkRate != null ? `${reworkRate.toFixed(1)}%` : 'N/A'}
+            status={reworkRate != null && reworkRate > 20 ? 'warning' : 'success'}
             loading={isLoading}
           />
         </Col>

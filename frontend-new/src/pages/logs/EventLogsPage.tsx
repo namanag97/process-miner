@@ -58,7 +58,7 @@ export function EventLogsPage() {
     queryFn: () => sdk.processes.list({ pageSize: 100 }),
   });
 
-  const logs = data?.items ?? [];
+  const logs = Array.isArray(data?.items) ? data.items : [];
 
   // Delete mutation
   const deleteMutation = useMutation({

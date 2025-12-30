@@ -1,1 +1,414 @@
-/* You can add global styles to this file, and also import other style files */
+/* ============================================
+   LUMINA DESIGN SYSTEM — Global Styles
+   Premium UI Polish Layer
+   ============================================ */
+
+/* ----------------------------------------
+   CSS Custom Properties (Animation Tokens)
+   ---------------------------------------- */
+:root {
+  /* Animation Durations */
+  --duration-fast: 100ms;
+  --duration-normal: 150ms;
+  --duration-moderate: 200ms;
+  --duration-slow: 300ms;
+
+  /* Easing Curves */
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* Focus Ring */
+  --focus-ring-color: rgba(37, 99, 235, 0.25);
+  --focus-ring-width: 3px;
+
+  /* Shadows */
+  --shadow-hover:
+    0 8px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* ----------------------------------------
+   Base Resets & Typography Polish
+   ---------------------------------------- */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ----------------------------------------
+   Transition Utilities
+   ---------------------------------------- */
+.transition-all {
+  transition: all var(--duration-normal) var(--ease-default);
+}
+
+.transition-transform {
+  transition: transform var(--duration-normal) var(--ease-default);
+}
+
+.transition-shadow {
+  transition: box-shadow var(--duration-moderate) var(--ease-default);
+}
+
+.transition-opacity {
+  transition: opacity var(--duration-normal) var(--ease-default);
+}
+
+.transition-colors {
+  transition:
+    color var(--duration-fast) var(--ease-default),
+    background-color var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default);
+}
+
+/* ----------------------------------------
+   Focus States (WCAG AA Compliant)
+   ---------------------------------------- */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 var(--focus-ring-width) var(--focus-ring-color);
+}
+
+/* Ant Design overrides for focus */
+.ant-input:focus,
+.ant-input-focused,
+.ant-input-affix-wrapper:focus,
+.ant-input-affix-wrapper-focused {
+  box-shadow: 0 0 0 var(--focus-ring-width) var(--focus-ring-color) !important;
+  border-color: #2563eb !important;
+}
+
+.ant-btn:focus-visible {
+  box-shadow: 0 0 0 var(--focus-ring-width) var(--focus-ring-color) !important;
+}
+
+/* ----------------------------------------
+   Card Hover Effects
+   ---------------------------------------- */
+.card-hover-lift {
+  transition:
+    transform var(--duration-moderate) var(--ease-out),
+    box-shadow var(--duration-moderate) var(--ease-out);
+}
+
+.card-hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+}
+
+/* Subtle scale variant */
+.card-hover-scale {
+  transition:
+    transform var(--duration-moderate) var(--ease-out),
+    box-shadow var(--duration-moderate) var(--ease-out);
+}
+
+.card-hover-scale:hover {
+  transform: scale(1.01);
+  box-shadow: var(--shadow-hover);
+}
+
+/* ----------------------------------------
+   Button Enhancements
+   ---------------------------------------- */
+.ant-btn {
+  transition: all var(--duration-normal) var(--ease-default) !important;
+}
+
+.ant-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.ant-btn-primary:active {
+  transform: translateY(0);
+}
+
+.ant-btn-default:hover {
+  border-color: #2563eb !important;
+  color: #2563eb !important;
+}
+
+/* ----------------------------------------
+   Skeleton Loading Animation
+   ---------------------------------------- */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+.skeleton-text {
+  height: 14px;
+  margin-bottom: 8px;
+}
+
+.skeleton-title {
+  height: 20px;
+  width: 60%;
+  margin-bottom: 12px;
+}
+
+.skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.skeleton-card {
+  height: 120px;
+  border-radius: 8px;
+}
+
+/* ----------------------------------------
+   Page Entrance Animations
+   ---------------------------------------- */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn var(--duration-slow) var(--ease-out) forwards;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp var(--duration-slow) var(--ease-out) forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn var(--duration-slow) var(--ease-out) forwards;
+}
+
+/* Stagger delays for lists/grids */
+.stagger-1 {
+  animation-delay: 50ms;
+}
+.stagger-2 {
+  animation-delay: 100ms;
+}
+.stagger-3 {
+  animation-delay: 150ms;
+}
+.stagger-4 {
+  animation-delay: 200ms;
+}
+.stagger-5 {
+  animation-delay: 250ms;
+}
+.stagger-6 {
+  animation-delay: 300ms;
+}
+
+/* ----------------------------------------
+   Pulse Animation (Notifications, Badges)
+   ---------------------------------------- */
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* ----------------------------------------
+   Float Animation (Empty States)
+   ---------------------------------------- */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* ----------------------------------------
+   Gradient Backgrounds
+   ---------------------------------------- */
+.bg-gradient-primary {
+  background: linear-gradient(135deg, #ebf5ff 0%, #d6ebff 50%, #ebf5ff 100%);
+}
+
+.bg-gradient-subtle {
+  background: linear-gradient(180deg, #f9fafb 0%, #ffffff 100%);
+}
+
+.bg-gradient-hero {
+  background: linear-gradient(135deg, #f9fafb 0%, #ebf5ff 50%, #f3f4f6 100%);
+}
+
+/* ----------------------------------------
+   Menu & Navigation Polish
+   ---------------------------------------- */
+.ant-menu-item {
+  transition: all var(--duration-normal) var(--ease-default) !important;
+}
+
+.ant-menu-item:hover {
+  background-color: #e5e7eb !important;
+}
+
+.ant-menu-item-selected {
+  background-color: #d6ebff !important;
+}
+
+/* ----------------------------------------
+   Table Row Hover
+   ---------------------------------------- */
+.ant-table-tbody > tr {
+  transition: background-color var(--duration-fast) var(--ease-default);
+}
+
+.ant-table-tbody > tr:hover > td {
+  background-color: #f9fafb !important;
+}
+
+/* ----------------------------------------
+   Tag Transitions
+   ---------------------------------------- */
+.ant-tag {
+  transition: all var(--duration-fast) var(--ease-default);
+}
+
+.ant-tag:hover {
+  opacity: 0.85;
+}
+
+/* ----------------------------------------
+   Steps Component Polish
+   ---------------------------------------- */
+.ant-steps-item-icon {
+  transition: all var(--duration-normal) var(--ease-default);
+}
+
+.ant-steps-item-process .ant-steps-item-icon {
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+}
+
+/* ----------------------------------------
+   Upload Dropzone Polish
+   ---------------------------------------- */
+.ant-upload-drag {
+  transition: all var(--duration-normal) var(--ease-default) !important;
+}
+
+.ant-upload-drag:hover {
+  border-color: #2563eb !important;
+  background-color: #ebf5ff !important;
+}
+
+.ant-upload-drag-hover {
+  border-color: #1d4ed8 !important;
+  background-color: #d6ebff !important;
+}
+
+/* ----------------------------------------
+   Progress Bar Polish
+   ---------------------------------------- */
+.ant-progress-bg {
+  transition: width var(--duration-slow) var(--ease-default);
+}
+
+.ant-progress-status-active .ant-progress-bg::before {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+}
+
+/* ----------------------------------------
+   Modal Polish
+   ---------------------------------------- */
+.ant-modal-content {
+  border-radius: 12px !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* ----------------------------------------
+   Scrollbar Polish (Webkit)
+   ---------------------------------------- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* ----------------------------------------
+   Selection Polish
+   ---------------------------------------- */
+::selection {
+  background-color: #d6ebff;
+  color: #1e40af;
+}

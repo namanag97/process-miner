@@ -121,20 +121,29 @@ export function ProcessExplorerPage() {
   });
 
   // Fetch variants
-  const { data: variants, isLoading: variantsLoading } = useQuery({
+  const {
+    data: variants,
+    isLoading: variantsLoading,
+    error: variantsError,
+  } = useQuery({
     queryKey: ['variants', logId],
     queryFn: () => sdk.discovery.getVariants(logId!, { topN: 50, includeComplexity: true }),
     enabled: !!logId,
   });
 
   // Fetch activities
-  const { data: activities, isLoading: activitiesLoading } = useQuery({
+  const {
+    data: activities,
+    isLoading: activitiesLoading,
+    error: activitiesError,
+  } = useQuery({
     queryKey: ['activities', logId],
     queryFn: () => sdk.discovery.getActivities(logId!),
     enabled: !!logId,
   });
 
   const loading = logLoading || dfgLoading || variantsLoading || activitiesLoading;
+  const error = dfgError || variantsError || activitiesError;
 
   log.debug('Rendering ProcessExplorerPage', {
     logId,
@@ -150,17 +159,21 @@ export function ProcessExplorerPage() {
 
   // Transform DFG nodes for ProcessCanvas
   const dfgNodes = useMemo((): DFGNodeData[] => {
-    if (!dfgData?.nodes) return [];
-    const nodes = dfgData.nodes as unknown as SDKDFGNode[];
-    const activityMap = new Map(
-      (activities as unknown as SDKActivityDetail[] | undefined)?.map((a) => [a.name, a]) ?? []
-    );
+    if (!dfgData?.nodes || !Array.isArray(dfgData.nodes)) {
+      if (dfgData?.nodes) {
+        console.error('[ProcessExplorer] Invalid DFG nodes data:', dfgData);
+      }
+      return [];
+    }
 
-    return nodes.map((node) => {
-      const activityDetail = activityMap.get(node.name);
+    const activityList = Array.isArray(activities) ? activities : [];
+    const activityMap = new Map(activityList.map((a) => [a.name, a]));
+
+    return dfgData.nodes.map((node) => {
+      const activityDetail = activityMap.get(node.label);
       return {
-        id: node.name,
-        label: node.name,
+        id: node.id,
+        label: node.label,
         frequency: node.frequency,
         isStart: node.isStart,
         isEnd: node.isEnd,
@@ -173,37 +186,51 @@ export function ProcessExplorerPage() {
 
   // Transform DFG edges for ProcessCanvas
   const dfgEdges = useMemo((): DFGEdgeData[] => {
-    if (!dfgData?.edges) return [];
-    const edges = dfgData.edges as unknown as SDKDFGEdge[];
-    return edges.map((edge) => ({
+    if (!dfgData?.edges || !Array.isArray(dfgData.edges)) {
+      if (dfgData?.edges) {
+        console.error('[ProcessExplorer] Invalid DFG edges data:', dfgData);
+      }
+      return [];
+    }
+
+    return dfgData.edges.map((edge) => ({
       source: edge.source,
       target: edge.target,
       frequency: edge.frequency,
-      performance: edge.avgDurationSeconds,
+      performance: edge.avgDuration,
     }));
   }, [dfgData]);
 
   // Transform variants for VariantPanel
   const processedVariants = useMemo((): Variant[] => {
-    if (!variants) return [];
-    const variantList = variants as unknown as SDKVariant[];
-    return variantList.map((v, index) => ({
+    if (!variants || !Array.isArray(variants)) {
+      if (variants) {
+        console.error('[ProcessExplorer] Invalid variants data:', variants);
+      }
+      return [];
+    }
+
+    // Explicitly sort by frequency DESC to ensure happy path detection is correct
+    const sortedVariants = [...variants].sort((a, b) =>
+      (b.frequencyPercent ?? 0) - (a.frequencyPercent ?? 0)
+    );
+
+    return sortedVariants.map((v, index) => ({
       key: v.key,
-      activities: v.activities,
-      caseCount: v.caseCount,
-      frequencyPercent: v.frequencyPercent,
+      activities: Array.isArray(v.activities) ? v.activities : [],
+      caseCount: v.caseCount ?? 0,
+      frequencyPercent: v.frequencyPercent ?? 0,
       avgDurationSeconds: v.avgDuration ?? 0,
-      isHappyPath: index === 0 && v.frequencyPercent > 50,
+      isHappyPath: index === 0 && (v.frequencyPercent ?? 0) > 50,
       complexityScore: v.complexityScore,
-      hasRework: hasReworkInVariant(v.activities),
+      hasRework: hasReworkInVariant(Array.isArray(v.activities) ? v.activities : []),
     }));
   }, [variants]);
 
   // Calculate KPIs
   const kpis = useMemo((): ProcessKPIs => {
-    // totalCases from dfgData or calculate from variants
-    const totalCases = (dfgData as { totalCases?: number } | undefined)?.totalCases
-      ?? processedVariants.reduce((sum, v) => sum + v.caseCount, 0);
+    // Calculate totalCases from variants (backend DFG doesn't include this field)
+    const totalCases = processedVariants.reduce((sum, v) => sum + v.caseCount, 0);
     const uniqueVariants = processedVariants.length;
     const uniqueActivities = dfgNodes.length;
 
@@ -234,10 +261,13 @@ export function ProcessExplorerPage() {
 
   // Build filter options
   const filterOptions = useMemo((): FilterOptions => {
-    const activityNames = (activities as unknown as SDKActivityDetail[] | undefined)?.map((a) => a.name) ?? [];
+    const activityList = Array.isArray(activities) ? activities : [];
+    const activityNames = activityList.map((a) => a.name);
     const allResources = new Set<string>();
-    (activities as unknown as SDKActivityDetail[] | undefined)?.forEach((a) => {
-      a.resources?.forEach((r) => allResources.add(r));
+    activityList.forEach((a) => {
+      if (Array.isArray(a.resources)) {
+        a.resources.forEach((r) => allResources.add(r));
+      }
     });
 
     const durations = processedVariants
@@ -258,21 +288,21 @@ export function ProcessExplorerPage() {
 
   // Get activity detail for selected node
   const selectedActivity = useMemo(() => {
-    if (!selectedNodeId || !activities) return null;
-    const activityList = activities as unknown as SDKActivityDetail[];
-    const activity = activityList.find(
+    if (!selectedNodeId || !Array.isArray(activities)) return null;
+
+    const activity = activities.find(
       (a) => a.id === selectedNodeId || a.name === selectedNodeId
     );
     if (!activity) return null;
     return {
       id: activity.id,
       name: activity.name,
-      totalOccurrences: activity.frequency,
-      casePercentage: activity.frequencyPercent,
+      totalOccurrences: activity.frequency ?? 0,
+      casePercentage: activity.frequencyPercent ?? 0,
       avgDurationSeconds: activity.avgDuration ?? 0,
       minDurationSeconds: activity.minDuration ?? 0,
       maxDurationSeconds: activity.maxDuration ?? 0,
-      resources: activity.resources ?? [],
+      resources: Array.isArray(activity.resources) ? activity.resources : [],
     };
   }, [selectedNodeId, activities]);
 
@@ -341,7 +371,9 @@ export function ProcessExplorerPage() {
 
   const handleFilterWithActivity = useCallback(
     (activityId: string) => {
-      const activity = (activities as unknown as SDKActivityDetail[] | undefined)?.find(
+      if (!Array.isArray(activities)) return;
+
+      const activity = activities.find(
         (a) => a.id === activityId || a.name === activityId
       );
       if (activity) {
@@ -360,7 +392,9 @@ export function ProcessExplorerPage() {
 
   const handleFilterWithoutActivity = useCallback(
     (activityId: string) => {
-      const activity = (activities as unknown as SDKActivityDetail[] | undefined)?.find(
+      if (!Array.isArray(activities)) return;
+
+      const activity = activities.find(
         (a) => a.id === activityId || a.name === activityId
       );
       if (activity) {
@@ -444,12 +478,66 @@ export function ProcessExplorerPage() {
   // =============================================================================
 
   // Error state
-  if (dfgError) {
+  if (error) {
+    const errorMessages = [
+      dfgError && `DFG: ${(dfgError as Error).message}`,
+      variantsError && `Variants: ${(variantsError as Error).message}`,
+      activitiesError && `Activities: ${(activitiesError as Error).message}`,
+    ].filter(Boolean).join(' | ');
+
+    // Check if this is a 404 (log not found) error
+    const is404 = errorMessages.toLowerCase().includes('not found') || 
+                  errorMessages.includes('404');
+    const isNetworkError = errorMessages.toLowerCase().includes('network') ||
+                           errorMessages.toLowerCase().includes('unable to reach') ||
+                           errorMessages.toLowerCase().includes('failed to fetch');
+
+    if (is404) {
+      return (
+        <div style={{ padding: 24 }}>
+          <Alert
+            message="Event Log Not Found"
+            description="This event log may have been deleted or does not exist."
+            type="warning"
+            showIcon
+            action={
+              <Space direction="vertical">
+                <Button type="primary" onClick={() => navigate('/processes')}>
+                  Go to Event Logs
+                </Button>
+                <Button onClick={() => navigate('/explorer')}>
+                  Back to Explorer
+                </Button>
+              </Space>
+            }
+          />
+        </div>
+      );
+    }
+
+    if (isNetworkError) {
+      return (
+        <div style={{ padding: 24 }}>
+          <Alert
+            message="Server Unavailable"
+            description="Unable to connect to the server. Please check that the backend is running and try again."
+            type="error"
+            showIcon
+            action={
+              <Button onClick={() => window.location.reload()}>
+                Retry
+              </Button>
+            }
+          />
+        </div>
+      );
+    }
+
     return (
       <div style={{ padding: 24 }}>
         <Alert
           message="Failed to load process map"
-          description={(dfgError as Error).message}
+          description={errorMessages}
           type="error"
           showIcon
           action={

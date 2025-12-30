@@ -1,69 +1,77 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Input, Typography, Row, Col, Tag, Space } from 'antd';
-import { SearchOutlined, FolderOpenOutlined, PlayCircleOutlined } from '@ant-design/icons';
-import { PageHeader, EmptyState, tokens } from '@lumina/design-system';
+import { useQuery } from '@tanstack/react-query';
+import { Card, Input, Typography, Row, Col, Tag, Space, Spin, Alert, Button } from 'antd';
+import { SearchOutlined, FolderOpenOutlined, PlayCircleOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PageHeader, EmptyState, tokens, useSDK, type EventLog } from '@lumina/design-system';
 import { createLogger } from '../../utils/logger';
 
 const log = createLogger('ProcessExplorerIndexPage');
 const { Text, Title } = Typography;
 
-// Mock event logs - same as EventLogsPage
-const mockEventLogs = [
-  {
-    id: '1',
-    name: 'Orders_2024.csv',
-    totalCases: 1250,
-    totalEvents: 45000,
-    createdAt: '2024-12-28T10:30:00Z',
-  },
-  {
-    id: '2',
-    name: 'Claims_Process.xes',
-    totalCases: 890,
-    totalEvents: 23400,
-    createdAt: '2024-12-27T14:15:00Z',
-  },
-  {
-    id: '3',
-    name: 'Purchase_Orders.csv',
-    totalCases: 3200,
-    totalEvents: 98000,
-    createdAt: '2024-12-25T09:00:00Z',
-  },
-  {
-    id: '4',
-    name: 'Support_Tickets.csv',
-    totalCases: 560,
-    totalEvents: 8900,
-    createdAt: '2024-12-20T16:45:00Z',
-  },
-];
-
-interface EventLogSummary {
-  id: string;
-  name: string;
-  totalCases: number;
-  totalEvents: number;
-  createdAt: string;
-}
-
 export function ProcessExplorerIndexPage() {
   const navigate = useNavigate();
+  const sdk = useSDK();
   const [searchText, setSearchText] = useState('');
 
-  log.debug('Rendering ProcessExplorerIndexPage');
+  // Fetch real logs from SDK
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['processes'],
+    queryFn: () => sdk.processes.list({ pageSize: 50 }),
+  });
+
+  const logs = Array.isArray(data?.items) ? data.items : [];
+
+  log.debug('Rendering ProcessExplorerIndexPage', { logCount: logs.length, isLoading });
 
   const filteredLogs = useMemo(() => {
-    if (!searchText) return mockEventLogs;
+    if (!searchText) return logs;
     const lower = searchText.toLowerCase();
-    return mockEventLogs.filter((log) => log.name.toLowerCase().includes(lower));
-  }, [searchText]);
+    return logs.filter((logItem) => logItem.name.toLowerCase().includes(lower));
+  }, [logs, searchText]);
 
-  const handleExplore = (logItem: EventLogSummary) => {
+  const handleExplore = (logItem: EventLog) => {
     log.info('Exploring log', { logId: logItem.id, name: logItem.name });
     navigate(`/explorer/${logItem.id}`);
   };
+
+  // Error state
+  if (error) {
+    return (
+      <div>
+        <PageHeader
+          title="Process Explorer"
+          description="Select an event log to visualize and explore your process"
+        />
+        <Alert
+          message="Failed to load event logs"
+          description={(error as Error).message}
+          type="error"
+          showIcon
+          action={
+            <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
+              Retry
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div>
+        <PageHeader
+          title="Process Explorer"
+          description="Select an event log to visualize and explore your process"
+        />
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
+          <Spin size="large" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -72,7 +80,7 @@ export function ProcessExplorerIndexPage() {
         description="Select an event log to visualize and explore your process"
       />
 
-      {mockEventLogs.length > 0 ? (
+      {logs.length > 0 ? (
         <>
           {/* Search Bar */}
           <div style={{ marginBottom: tokens.spacing[6] }}>
@@ -88,14 +96,19 @@ export function ProcessExplorerIndexPage() {
 
           {/* Log Cards Grid */}
           <Row gutter={[16, 16]}>
-            {filteredLogs.map((logItem) => (
-              <Col xs={24} sm={12} lg={8} xl={6} key={logItem.id}>
+            {filteredLogs.map((logItem, index) => (
+              <Col 
+                xs={24} sm={12} lg={8} xl={6} 
+                key={logItem.id}
+                className={`animate-fade-in-up stagger-${Math.min(index + 1, 6)}`}
+              >
                 <Card
                   hoverable
                   onClick={() => handleExplore(logItem)}
                   style={{
                     borderRadius: tokens.radius.lg,
                     height: '100%',
+                    transition: `transform ${tokens.duration.moderate}ms ${tokens.easing.out}, box-shadow ${tokens.duration.moderate}ms ${tokens.easing.out}`,
                   }}
                   styles={{
                     body: {
@@ -103,6 +116,14 @@ export function ProcessExplorerIndexPage() {
                       flexDirection: 'column',
                       height: '100%',
                     },
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                    e.currentTarget.style.boxShadow = '0 12px 28px -8px rgba(0, 0, 0, 0.12)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '';
                   }}
                 >
                   <Space direction="vertical" size="small" style={{ width: '100%', flex: 1 }}>

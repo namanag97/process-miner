@@ -9,3 +9,6 @@ export type { EmptyStateProps } from './EmptyState';
 
 export { PageHeader } from './PageHeader';
 export type { PageHeaderProps } from './PageHeader';
+
+export { SkeletonCard } from './SkeletonCard';
+export type { SkeletonCardProps } from './SkeletonCard';

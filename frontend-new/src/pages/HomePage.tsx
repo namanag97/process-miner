@@ -1,5 +1,6 @@
 import React from 'react';
-import { Row, Col, Card, Button, List, Typography } from 'antd';
+import { useQuery } from '@tanstack/react-query';
+import { Row, Col, Card, Button, List, Typography, Spin } from 'antd';
 import {
   UploadOutlined,
   SearchOutlined,
@@ -8,23 +9,41 @@ import {
   FolderOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { PageHeader, MetricCard, EmptyState, tokens } from '@lumina/design-system';
+import { PageHeader, MetricCard, EmptyState, tokens, useSDK, type EventLog } from '@lumina/design-system';
 import { useAuth } from '../context/AuthContext';
 
 const { Text } = Typography;
 
-// Mock data for demo
-const mockRecentLogs = [
-  { id: '1', name: 'Orders_2024.csv', cases: 1250, events: 45000, uploaded: '2 hours ago' },
-  { id: '2', name: 'Claims_Process.xes', cases: 890, events: 23400, uploaded: 'Yesterday' },
-  { id: '3', name: 'Purchase_Orders.csv', cases: 3200, events: 98000, uploaded: '3 days ago' },
-];
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffHours < 1) return 'Just now';
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  if (diffDays === 1) return 'Yesterday';
+  return `${diffDays} days ago`;
+}
 
 export function HomePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  
-  const hasLogs = mockRecentLogs.length > 0;
+  const sdk = useSDK();
+
+  // Fetch real logs from SDK
+  const { data, isLoading } = useQuery({
+    queryKey: ['processes'],
+    queryFn: () => sdk.processes.list({ pageSize: 5 }),
+  });
+
+  const logs = Array.isArray(data?.items) ? data.items : [];
+  const hasLogs = logs.length > 0;
+
+  // Calculate stats from real data
+  const totalCases = logs.reduce((sum, log) => sum + log.totalCases, 0);
+  const lastActivity = logs.length > 0 ? formatRelativeTime(logs[0].createdAt) : 'N/A';
 
   return (
     <div>
@@ -36,24 +55,23 @@ export function HomePage() {
       {/* Stats Row */}
       {hasLogs && (
         <Row gutter={16} style={{ marginBottom: tokens.spacing[6] }}>
-          <Col xs={24} sm={8}>
+          <Col xs={24} sm={8} className="animate-fade-in-up stagger-1">
             <MetricCard
               title="Event Logs"
-              value={3}
-              trend={{ value: 50, isPositive: true, label: 'this week' }}
+              value={logs.length}
             />
           </Col>
-          <Col xs={24} sm={8}>
+          <Col xs={24} sm={8} className="animate-fade-in-up stagger-2">
             <MetricCard
               title="Total Cases"
-              value="5.3K"
+              value={totalCases >= 1000 ? `${(totalCases / 1000).toFixed(1)}K` : totalCases}
               status="success"
             />
           </Col>
-          <Col xs={24} sm={8}>
+          <Col xs={24} sm={8} className="animate-fade-in-up stagger-3">
             <MetricCard
               title="Last Activity"
-              value="2h ago"
+              value={lastActivity}
             />
           </Col>
         </Row>
@@ -71,10 +89,14 @@ export function HomePage() {
             }
             style={{ marginBottom: tokens.spacing[6] }}
           >
-            {hasLogs ? (
+            {isLoading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
+                <Spin />
+              </div>
+            ) : hasLogs ? (
               <List
-                dataSource={mockRecentLogs}
-                renderItem={(item) => (
+                dataSource={logs}
+                renderItem={(item: EventLog) => (
                   <List.Item
                     actions={[
                       <Button
@@ -93,7 +115,7 @@ export function HomePage() {
                       title={item.name}
                       description={
                         <Text type="secondary">
-                          {item.cases.toLocaleString()} cases • {item.events.toLocaleString()} events • {item.uploaded}
+                          {item.totalCases.toLocaleString()} cases • {item.totalEvents.toLocaleString()} events • {formatRelativeTime(item.createdAt)}
                         </Text>
                       }
                     />

@@ -38,7 +38,7 @@ export function LoginPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: tokens.colors.neutral[100],
+          background: `linear-gradient(135deg, ${tokens.colors.neutral[100]} 0%, ${tokens.colors.primary[50]} 50%, ${tokens.colors.neutral[100]} 100%)`,
         }}
       >
         <Card
@@ -46,6 +46,7 @@ export function LoginPage() {
             width: 400,
             borderRadius: tokens.radius.lg,
             boxShadow: tokens.shadow.lg,
+            animation: `scaleIn 300ms ${tokens.easing.out}`,
           }}
         >
           <div style={{ textAlign: 'center', marginBottom: tokens.spacing[6] }}>
