@@ -5,3 +5,4 @@ export { SettingsPage } from './settings';
 export { NotificationsPage } from './NotificationsPage';
 export { ActivityLogPage } from './ActivityLogPage';
 export { HelpCenterPage } from './HelpCenterPage';
+export { EventLogsPage, UploadWizardPage, LogDetailPage } from './logs';
