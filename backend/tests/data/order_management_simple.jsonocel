@@ -1,0 +1,36 @@
+{
+  "ocel:global-log": {
+    "ocel:attribute-names": [],
+    "ocel:object-types": ["Order", "Item", "Package"],
+    "ocel:version": "2.0",
+    "ocel:ordering": "timestamp"
+  },
+  "ocel:global-event": {
+    "ocel:activity": "__INVALID__"
+  },
+  "ocel:global-object": {
+    "ocel:type": "__INVALID__"
+  },
+  "ocel:events": {
+    "e1": {"ocel:activity": "Create Order", "ocel:timestamp": "2023-01-01T10:00:00", "ocel:omap": ["o1"], "ocel:vmap": {}},
+    "e2": {"ocel:activity": "Add Item", "ocel:timestamp": "2023-01-01T10:05:00", "ocel:omap": ["o1", "i1"], "ocel:vmap": {}},
+    "e3": {"ocel:activity": "Add Item", "ocel:timestamp": "2023-01-01T10:06:00", "ocel:omap": ["o1", "i2"], "ocel:vmap": {}},
+    "e4": {"ocel:activity": "Pack Items", "ocel:timestamp": "2023-01-01T11:00:00", "ocel:omap": ["p1", "i1", "i2"], "ocel:vmap": {}},
+    "e5": {"ocel:activity": "Ship Package", "ocel:timestamp": "2023-01-01T12:00:00", "ocel:omap": ["p1"], "ocel:vmap": {}},
+    "e6": {"ocel:activity": "Deliver", "ocel:timestamp": "2023-01-01T15:00:00", "ocel:omap": ["o1", "p1"], "ocel:vmap": {}},
+    "e7": {"ocel:activity": "Create Order", "ocel:timestamp": "2023-01-01T10:30:00", "ocel:omap": ["o2"], "ocel:vmap": {}},
+    "e8": {"ocel:activity": "Add Item", "ocel:timestamp": "2023-01-01T10:35:00", "ocel:omap": ["o2", "i3"], "ocel:vmap": {}},
+    "e9": {"ocel:activity": "Pack Items", "ocel:timestamp": "2023-01-01T11:30:00", "ocel:omap": ["p2", "i3"], "ocel:vmap": {}},
+    "e10": {"ocel:activity": "Ship Package", "ocel:timestamp": "2023-01-01T12:30:00", "ocel:omap": ["p2"], "ocel:vmap": {}},
+    "e11": {"ocel:activity": "Deliver", "ocel:timestamp": "2023-01-01T16:00:00", "ocel:omap": ["o2", "p2"], "ocel:vmap": {}}
+  },
+  "ocel:objects": {
+    "o1": {"ocel:type": "Order", "ocel:ovmap": {}},
+    "o2": {"ocel:type": "Order", "ocel:ovmap": {}},
+    "i1": {"ocel:type": "Item", "ocel:ovmap": {}},
+    "i2": {"ocel:type": "Item", "ocel:ovmap": {}},
+    "i3": {"ocel:type": "Item", "ocel:ovmap": {}},
+    "p1": {"ocel:type": "Package", "ocel:ovmap": {}},
+    "p2": {"ocel:type": "Package", "ocel:ovmap": {}}
+  }
+}

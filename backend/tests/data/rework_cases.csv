@@ -1,0 +1,17 @@
+case_id,activity_name,timestamp,claimant_name,agent_name,adjuster_name,claim_amount,claimant_age,type_of_policy,car_make,car_model,car_year,type_of_accident,user_type
+r1,First Notification of Loss (FNOL),2023-01-01 09:00:00,John Doe,Agent A,Adjuster X,5000,45,Collision,Toyota,Camry,2020,Collision,Human
+r1,Assign Claim,2023-01-01 09:30:00,John Doe,Agent A,Adjuster X,5000,45,Collision,Toyota,Camry,2020,Collision,Human
+r1,Claim Decision,2023-01-01 10:00:00,John Doe,Agent A,Adjuster X,5000,45,Collision,Toyota,Camry,2020,Collision,Human
+r1,Assign Claim,2023-01-01 10:30:00,John Doe,Agent A,Adjuster Y,5000,45,Collision,Toyota,Camry,2020,Collision,Human
+r1,Claim Decision,2023-01-01 11:00:00,John Doe,Agent A,Adjuster Y,5000,45,Collision,Toyota,Camry,2020,Collision,Human
+r1,Set Reserve,2023-01-01 11:30:00,John Doe,Agent A,Adjuster Y,5000,45,Collision,Toyota,Camry,2020,Collision,Human
+r1,Payment Sent,2023-01-01 12:00:00,John Doe,Agent A,Adjuster Y,5000,45,Collision,Toyota,Camry,2020,Collision,Human
+r1,Close Claim,2023-01-01 12:30:00,John Doe,Agent A,Adjuster Y,5000,45,Collision,Toyota,Camry,2020,Collision,Human
+r2,First Notification of Loss (FNOL),2023-01-02 08:00:00,Jane Smith,Agent B,Adjuster Z,7500,35,Comprehensive,Honda,Accord,2019,Theft,Human
+r2,Assign Claim,2023-01-02 08:30:00,Jane Smith,Agent B,Adjuster Z,7500,35,Comprehensive,Honda,Accord,2019,Theft,Human
+r2,Claim Decision,2023-01-02 09:00:00,Jane Smith,Agent B,Adjuster Z,7500,35,Comprehensive,Honda,Accord,2019,Theft,Human
+r2,Claim Decision,2023-01-02 09:30:00,Jane Smith,Agent B,Adjuster Z,7500,35,Comprehensive,Honda,Accord,2019,Theft,Human
+r2,Claim Decision,2023-01-02 10:00:00,Jane Smith,Agent B,Adjuster Z,7500,35,Comprehensive,Honda,Accord,2019,Theft,Human
+r2,Set Reserve,2023-01-02 10:30:00,Jane Smith,Agent B,Adjuster Z,7500,35,Comprehensive,Honda,Accord,2019,Theft,Human
+r2,Payment Sent,2023-01-02 11:00:00,Jane Smith,Agent B,Adjuster Z,7500,35,Comprehensive,Honda,Accord,2019,Theft,Human
+r2,Close Claim,2023-01-02 11:30:00,Jane Smith,Agent B,Adjuster Z,7500,35,Comprehensive,Honda,Accord,2019,Theft,Human
