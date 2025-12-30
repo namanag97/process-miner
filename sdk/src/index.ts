@@ -14,7 +14,7 @@
  * await sdk.auth.signIn({ email: 'user@example.com', password: 'test' });
  *
  * // Ingest event log
- * const log = await sdk.logs.ingest(file, { name: 'My Process' });
+ * const log = await sdk.processes.ingest(file, { name: 'My Process' });
  *
  * // Discover process model
  * const model = await sdk.discovery.discover({ logId: log.id, minerType: 'inductive' });
@@ -32,7 +32,7 @@ import { SdkConfig } from "./types/common.js";
 
 // Import all clients
 import { AuthClient } from "./clients/auth.client.js";
-import { LogsClient } from "./clients/logs.client.js";
+import { ProcessesClient } from "./clients/processes.client.js";
 import { DiscoveryClient } from "./clients/discovery.client.js";
 import { ConformanceClient } from "./clients/conformance.client.js";
 import { PerformanceClient } from "./clients/performance.client.js";
@@ -62,7 +62,7 @@ export class ProcessMiningSdk {
   public readonly auth: AuthClient;
 
   /** Event log operations (ingest, analyze, assessQuality) */
-  public readonly logs: LogsClient;
+  public readonly processes: ProcessesClient;
 
   /** Process discovery operations (discover, buildDFG, extractPetriNet) */
   public readonly discovery: DiscoveryClient;
@@ -114,7 +114,7 @@ export class ProcessMiningSdk {
 
     // Initialize all clients
     this.auth = new AuthClient(this.http);
-    this.logs = new LogsClient(this.http);
+    this.processes = new ProcessesClient(this.http);
     this.discovery = new DiscoveryClient(this.http);
     this.conformance = new ConformanceClient(this.http);
     this.performance = new PerformanceClient(this.http);
@@ -148,7 +148,7 @@ export * from "./types/index.js";
 
 // Re-export individual clients for advanced usage
 export { AuthClient } from "./clients/auth.client.js";
-export { LogsClient } from "./clients/logs.client.js";
+export { ProcessesClient } from "./clients/processes.client.js";
 export { DiscoveryClient } from "./clients/discovery.client.js";
 export { ConformanceClient } from "./clients/conformance.client.js";
 export { PerformanceClient } from "./clients/performance.client.js";

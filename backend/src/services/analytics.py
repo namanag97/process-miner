@@ -30,13 +30,15 @@ class AnalyticsService:
         logger.info("detecting_bottlenecks", traces=len(pm4py_log))
         start = time.perf_counter()
 
-        activity_times = defaultdict(lambda: {
-            "waiting": [],
-            "service": [],
-            "count": 0,
-            "preceding": defaultdict(int),
-            "following": defaultdict(int),
-        })
+        activity_times = defaultdict(
+            lambda: {
+                "waiting": [],
+                "service": [],
+                "count": 0,
+                "preceding": defaultdict(int),
+                "following": defaultdict(int),
+            }
+        )
 
         for trace in pm4py_log:
             for i, event in enumerate(trace):
@@ -88,24 +90,33 @@ class AnalyticsService:
             # Weight waiting time more heavily (70%) than frequency (30%)
             impact_score = (normalized_waiting * 0.7) + (normalized_freq * 0.3)
 
-            bottlenecks.append({
-                "activity": activity,
-                "avg_waiting_time_seconds": round(avg_waiting, 2),
-                "avg_service_time_seconds": round(avg_service, 2),
-                "frequency": data["count"],
-                "is_bottleneck": is_bottleneck,
-                "severity": severity,
-                "preceding_activities": [a[0] for a in preceding],
-                "following_activities": [a[0] for a in following],
-                "bottleneck_impact_score": round(impact_score, 3),
-            })
+            bottlenecks.append(
+                {
+                    "activity": activity,
+                    "avg_waiting_time_seconds": round(avg_waiting, 2),
+                    "avg_service_time_seconds": round(avg_service, 2),
+                    "frequency": data["count"],
+                    "is_bottleneck": is_bottleneck,
+                    "severity": severity,
+                    "preceding_activities": [a[0] for a in preceding],
+                    "following_activities": [a[0] for a in following],
+                    "bottleneck_impact_score": round(impact_score, 3),
+                }
+            )
 
         bottlenecks.sort(key=lambda x: x["bottleneck_impact_score"], reverse=True)
 
         duration = (time.perf_counter() - start) * 1000
-        logger.info("bottlenecks_detected", count=len([b for b in bottlenecks if b["is_bottleneck"]]), duration_ms=round(duration, 2))
+        logger.info(
+            "bottlenecks_detected",
+            count=len([b for b in bottlenecks if b["is_bottleneck"]]),
+            duration_ms=round(duration, 2),
+        )
 
-        return {"bottlenecks": bottlenecks, "total_bottlenecks": len([b for b in bottlenecks if b["is_bottleneck"]])}
+        return {
+            "bottlenecks": bottlenecks,
+            "total_bottlenecks": len([b for b in bottlenecks if b["is_bottleneck"]]),
+        }
 
     def analyze_rework(self, pm4py_log: PM4PyLog) -> dict[str, Any]:
         """Analyze rework (repeated activities within cases)."""
@@ -136,19 +147,27 @@ class AnalyticsService:
                 "activity": activity,
                 "rework_count": data["rework_count"],
                 "cases_with_rework": data["cases_with_rework"],
-                "rework_percentage": round(data["cases_with_rework"] / total_cases * 100, 2) if total_cases > 0 else 0,
+                "rework_percentage": round(data["cases_with_rework"] / total_cases * 100, 2)
+                if total_cases > 0
+                else 0,
             }
             for activity, data in activity_rework.items()
         ]
         rework_activities.sort(key=lambda x: x["rework_count"], reverse=True)
 
         duration = (time.perf_counter() - start) * 1000
-        logger.info("rework_analyzed", activities_with_rework=len(rework_activities), duration_ms=round(duration, 2))
+        logger.info(
+            "rework_analyzed",
+            activities_with_rework=len(rework_activities),
+            duration_ms=round(duration, 2),
+        )
 
         return {
             "rework_activities": rework_activities,
             "total_rework_cases": cases_with_any_rework,
-            "rework_percentage": round(cases_with_any_rework / total_cases * 100, 2) if total_cases > 0 else 0,
+            "rework_percentage": round(cases_with_any_rework / total_cases * 100, 2)
+            if total_cases > 0
+            else 0,
         }
 
     def detect_rework_chains(self, pm4py_log: PM4PyLog) -> dict[str, Any]:
@@ -183,13 +202,20 @@ class AnalyticsService:
                 chain_start_ts = timestamps[i] if i < len(timestamps) else None
 
                 # Count consecutive occurrences
-                while i + chain_length < len(activities) and activities[i + chain_length] == current_activity:
+                while (
+                    i + chain_length < len(activities)
+                    and activities[i + chain_length] == current_activity
+                ):
                     chain_length += 1
 
                 # Only record if chain length > 1 (actual rework)
                 if chain_length > 1:
                     cases_with_chains.add(case_id)
-                    chain_end_ts = timestamps[i + chain_length - 1] if (i + chain_length - 1) < len(timestamps) else None
+                    chain_end_ts = (
+                        timestamps[i + chain_length - 1]
+                        if (i + chain_length - 1) < len(timestamps)
+                        else None
+                    )
 
                     duration = 0.0
                     if chain_start_ts and chain_end_ts:
@@ -213,13 +239,15 @@ class AnalyticsService:
             # Get sample case IDs (up to 5)
             example_case_ids = list(set(c for c, _ in occurrences))[:5]
 
-            chains.append({
-                "activity": activity,
-                "chain_length": chain_length,
-                "frequency": len(occurrences),
-                "avg_chain_duration_seconds": round(avg_duration, 2),
-                "example_case_ids": example_case_ids,
-            })
+            chains.append(
+                {
+                    "activity": activity,
+                    "chain_length": chain_length,
+                    "frequency": len(occurrences),
+                    "avg_chain_duration_seconds": round(avg_duration, 2),
+                    "example_case_ids": example_case_ids,
+                }
+            )
 
         # Sort by frequency
         chains.sort(key=lambda x: x["frequency"], reverse=True)
@@ -257,8 +285,14 @@ class AnalyticsService:
 
         for trace in pm4py_log:
             for i, event in enumerate(trace):
-                if i < len(trace) - 1 and "time:timestamp" in event and "time:timestamp" in trace[i + 1]:
-                    duration = (trace[i + 1]["time:timestamp"] - event["time:timestamp"]).total_seconds()
+                if (
+                    i < len(trace) - 1
+                    and "time:timestamp" in event
+                    and "time:timestamp" in trace[i + 1]
+                ):
+                    duration = (
+                        trace[i + 1]["time:timestamp"] - event["time:timestamp"]
+                    ).total_seconds()
                     activity_durations[event.get("concept:name", "")].append(duration)
 
         result = []
@@ -266,17 +300,23 @@ class AnalyticsService:
             if durations:
                 sorted_durations = sorted(durations)
                 n = len(sorted_durations)
-                result.append({
-                    "activity": activity,
-                    "min_seconds": round(min(durations), 2),
-                    "max_seconds": round(max(durations), 2),
-                    "avg_seconds": round(sum(durations) / n, 2),
-                    "median_seconds": round(sorted_durations[n // 2], 2),
-                    "std_dev_seconds": round((sum((x - sum(durations) / n) ** 2 for x in durations) / n) ** 0.5, 2),
-                })
+                result.append(
+                    {
+                        "activity": activity,
+                        "min_seconds": round(min(durations), 2),
+                        "max_seconds": round(max(durations), 2),
+                        "avg_seconds": round(sum(durations) / n, 2),
+                        "median_seconds": round(sorted_durations[n // 2], 2),
+                        "std_dev_seconds": round(
+                            (sum((x - sum(durations) / n) ** 2 for x in durations) / n) ** 0.5, 2
+                        ),
+                    }
+                )
 
         duration = (time.perf_counter() - start) * 1000
-        logger.info("service_times_computed", activities=len(result), duration_ms=round(duration, 2))
+        logger.info(
+            "service_times_computed", activities=len(result), duration_ms=round(duration, 2)
+        )
         return result
 
     def get_cycle_time(self, pm4py_log: PM4PyLog) -> dict[str, Any]:
@@ -294,8 +334,15 @@ class AnalyticsService:
                     durations.append((max(timestamps) - min(timestamps)).total_seconds())
 
         if not durations:
-            return {"min_seconds": 0, "max_seconds": 0, "avg_seconds": 0, "median_seconds": 0,
-                    "percentile_25_seconds": 0, "percentile_75_seconds": 0, "percentile_95_seconds": 0}
+            return {
+                "min_seconds": 0,
+                "max_seconds": 0,
+                "avg_seconds": 0,
+                "median_seconds": 0,
+                "percentile_25_seconds": 0,
+                "percentile_75_seconds": 0,
+                "percentile_95_seconds": 0,
+            }
 
         sorted_d = sorted(durations)
         n = len(sorted_d)
@@ -326,8 +373,14 @@ class AnalyticsService:
                     all_timestamps.append(event["time:timestamp"])
 
         if not all_timestamps:
-            return {"total_cases": len(pm4py_log), "completed_cases": len(pm4py_log),
-                    "cases_per_day": 0, "cases_per_week": 0, "cases_per_month": 0, "time_range_days": 0}
+            return {
+                "total_cases": len(pm4py_log),
+                "completed_cases": len(pm4py_log),
+                "cases_per_day": 0,
+                "cases_per_week": 0,
+                "cases_per_month": 0,
+                "time_range_days": 0,
+            }
 
         min_ts, max_ts = min(all_timestamps), max(all_timestamps)
         time_range_days = (max_ts - min_ts).total_seconds() / 86400
@@ -348,7 +401,9 @@ class AnalyticsService:
         logger.info("throughput_computed", duration_ms=round(duration, 2))
         return result
 
-    def get_frequent_patterns(self, pm4py_log: PM4PyLog, min_support: float = 0.1) -> list[dict[str, Any]]:
+    def get_frequent_patterns(
+        self, pm4py_log: PM4PyLog, min_support: float = 0.1
+    ) -> list[dict[str, Any]]:
         """Get frequent activity patterns/subsequences."""
         logger.info("computing_patterns", traces=len(pm4py_log), min_support=min_support)
         start = time.perf_counter()
@@ -361,7 +416,7 @@ class AnalyticsService:
             seen_patterns = set()
             for length in range(2, min(5, len(activities) + 1)):
                 for i in range(len(activities) - length + 1):
-                    pattern = tuple(activities[i:i + length])
+                    pattern = tuple(activities[i : i + length])
                     if pattern not in seen_patterns:
                         seen_patterns.add(pattern)
                         pattern_counts[pattern] += 1
@@ -370,11 +425,13 @@ class AnalyticsService:
         for pattern, count in pattern_counts.items():
             support = count / total_traces if total_traces > 0 else 0
             if support >= min_support:
-                patterns.append({
-                    "pattern": " -> ".join(pattern),
-                    "frequency": count,
-                    "support": round(support, 4),
-                })
+                patterns.append(
+                    {
+                        "pattern": " -> ".join(pattern),
+                        "frequency": count,
+                        "support": round(support, 4),
+                    }
+                )
 
         patterns.sort(key=lambda x: x["frequency"], reverse=True)
 

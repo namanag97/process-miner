@@ -38,7 +38,9 @@ async def _get_pm4py_log(log_id: str, db: AsyncSession):
 
 
 @router.get("/logs/{log_id}/handover-network", response_model=SocialNetworkResponse)
-async def get_handover_network(log_id: str, db: AsyncSession = Depends(get_db)) -> SocialNetworkResponse:
+async def get_handover_network(
+    log_id: str, db: AsyncSession = Depends(get_db)
+) -> SocialNetworkResponse:
     """Discover handover of work network."""
     logger.info("getting_handover_network", log_id=log_id)
     pm4py_log = await _get_pm4py_log(log_id, db)
@@ -53,7 +55,9 @@ async def get_handover_network(log_id: str, db: AsyncSession = Depends(get_db)) 
 
 
 @router.get("/logs/{log_id}/collaboration-network", response_model=SocialNetworkResponse)
-async def get_collaboration_network(log_id: str, db: AsyncSession = Depends(get_db)) -> SocialNetworkResponse:
+async def get_collaboration_network(
+    log_id: str, db: AsyncSession = Depends(get_db)
+) -> SocialNetworkResponse:
     """Discover working together network."""
     logger.info("getting_collaboration_network", log_id=log_id)
     pm4py_log = await _get_pm4py_log(log_id, db)
@@ -68,7 +72,9 @@ async def get_collaboration_network(log_id: str, db: AsyncSession = Depends(get_
 
 
 @router.get("/logs/{log_id}/resource-similarity", response_model=SocialNetworkResponse)
-async def get_resource_similarity(log_id: str, db: AsyncSession = Depends(get_db)) -> SocialNetworkResponse:
+async def get_resource_similarity(
+    log_id: str, db: AsyncSession = Depends(get_db)
+) -> SocialNetworkResponse:
     """Discover resource similarity based on activities."""
     logger.info("getting_resource_similarity", log_id=log_id)
     pm4py_log = await _get_pm4py_log(log_id, db)
@@ -92,7 +98,9 @@ async def get_roles(log_id: str, db: AsyncSession = Depends(get_db)) -> list[Res
 
 
 @router.get("/logs/{log_id}/resources/{resource}/profile", response_model=ResourceProfileResponse)
-async def get_resource_profile(log_id: str, resource: str, db: AsyncSession = Depends(get_db)) -> ResourceProfileResponse:
+async def get_resource_profile(
+    log_id: str, resource: str, db: AsyncSession = Depends(get_db)
+) -> ResourceProfileResponse:
     """Get detailed profile for a specific resource."""
     logger.info("getting_resource_profile", log_id=log_id, resource=resource)
     pm4py_log = await _get_pm4py_log(log_id, db)

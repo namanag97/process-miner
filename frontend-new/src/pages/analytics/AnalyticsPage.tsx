@@ -26,8 +26,8 @@ export function AnalyticsPage() {
 
   // Fetch available logs
   const { data: logsData, isLoading: logsLoading, error: logsError } = useQuery({
-    queryKey: ['logs'],
-    queryFn: () => sdk.logs.list({ pageSize: 50 }),
+    queryKey: ['processes'],
+    queryFn: () => sdk.processes.list({ pageSize: 50 }),
   });
 
   const logs = logsData?.items ?? [];
@@ -151,7 +151,7 @@ export function AnalyticsPage() {
           title="No event logs available"
           description="Upload an event log to start analyzing your processes"
           actionLabel="Upload Event Log"
-          onAction={() => navigate('/logs/upload')}
+          onAction={() => navigate('/processes/upload')}
         />
       </div>
     );
@@ -199,7 +199,7 @@ export function AnalyticsPage() {
         <Col xs={24} sm={6}>
           <MetricCard
             title="Throughput"
-            value={performanceData?.throughput?.casesPerDay?.toFixed(1) ?? 'N/A'}
+            value={(performanceData?.throughput?.casesPerDay ?? 0).toFixed(1)}
             suffix="cases/day"
             loading={isLoading}
           />

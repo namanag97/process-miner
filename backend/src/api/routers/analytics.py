@@ -44,7 +44,9 @@ async def _get_pm4py_log(log_id: str, db: AsyncSession):
 
 
 @router.get("/logs/{log_id}/bottlenecks", response_model=BottleneckListResponse)
-async def get_bottlenecks(log_id: str, db: AsyncSession = Depends(get_db)) -> BottleneckListResponse:
+async def get_bottlenecks(
+    log_id: str, db: AsyncSession = Depends(get_db)
+) -> BottleneckListResponse:
     """Detect process bottlenecks based on waiting times."""
     logger.info("getting_bottlenecks", log_id=log_id)
 
@@ -93,7 +95,9 @@ async def get_rework(log_id: str, db: AsyncSession = Depends(get_db)) -> ReworkL
 
 
 @router.get("/logs/{log_id}/service-times")
-async def get_service_times(log_id: str, db: AsyncSession = Depends(get_db)) -> list[ServiceTimeResponse]:
+async def get_service_times(
+    log_id: str, db: AsyncSession = Depends(get_db)
+) -> list[ServiceTimeResponse]:
     """Get service time statistics per activity."""
     logger.info("getting_service_times", log_id=log_id)
 
@@ -131,7 +135,9 @@ async def get_throughput(log_id: str, db: AsyncSession = Depends(get_db)) -> Thr
 
 
 @router.get("/logs/{log_id}/patterns")
-async def get_patterns(log_id: str, min_support: float = 0.1, db: AsyncSession = Depends(get_db)) -> list[PatternResponse]:
+async def get_patterns(
+    log_id: str, min_support: float = 0.1, db: AsyncSession = Depends(get_db)
+) -> list[PatternResponse]:
     """Get frequent activity patterns/subsequences."""
     logger.info("getting_patterns", log_id=log_id, min_support=min_support)
     pm4py_log, _ = await _get_pm4py_log(log_id, db)
@@ -140,7 +146,9 @@ async def get_patterns(log_id: str, min_support: float = 0.1, db: AsyncSession =
 
 
 @router.get("/logs/{log_id}/rework-chains", response_model=ReworkChainListResponse)
-async def get_rework_chains(log_id: str, db: AsyncSession = Depends(get_db)) -> ReworkChainListResponse:
+async def get_rework_chains(
+    log_id: str, db: AsyncSession = Depends(get_db)
+) -> ReworkChainListResponse:
     """Detect rework chains - consecutive repetitions of the same activity.
 
     A rework chain is when an activity appears multiple times consecutively,
@@ -178,7 +186,9 @@ async def get_rework_chains(log_id: str, db: AsyncSession = Depends(get_db)) -> 
 
 
 @router.get("/logs/{log_id}/performance", response_model=PerformanceDashboardResponse)
-async def get_performance_dashboard(log_id: str, db: AsyncSession = Depends(get_db)) -> PerformanceDashboardResponse:
+async def get_performance_dashboard(
+    log_id: str, db: AsyncSession = Depends(get_db)
+) -> PerformanceDashboardResponse:
     """Get comprehensive performance dashboard."""
     logger.info("getting_performance_dashboard", log_id=log_id)
     pm4py_log, _ = await _get_pm4py_log(log_id, db)

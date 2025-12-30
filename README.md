@@ -1,17 +1,20 @@
 # Process Mining SaaS Platform
 
-A comprehensive Process Mining platform powered by **PM4Py** with a FastAPI backend and TypeScript SDK.
+A comprehensive Process Mining platform powered by **PM4Py** with a FastAPI backend, React frontend, and TypeScript SDK.
 
 ## 🚀 Quick Start
 
 ```bash
-# Install all dependencies
+# Install backend dependencies
 make install
 
-# Start the backend
-make dev
+# Start the backend (Terminal 1)
+cd backend/src && ../.venv/bin/python -m uvicorn api.main:app --reload --port 8001
 
-# Run all checks
+# Start the frontend (Terminal 2)
+cd frontend-new && npm run start
+
+# Run strict code checks
 make check
 ```
 
@@ -21,13 +24,18 @@ make check
 system/
 ├── backend/          # FastAPI backend (Python)
 │   ├── src/          # Application code
-│   └── tests/        # Test suite
+│   └── tests/        # Test suite (pytest)
+├── frontend-new/     # React frontend (TypeScript)
+│   ├── src/          # Application code
+│   └── libs/         # Shared libraries
 ├── sdk/              # TypeScript SDK
 │   └── src/          # SDK source
 └── docs/             # Documentation
 ```
 
 ## Development Commands
+
+### Unified Commands (Backend + SDK)
 
 | Command           | Description                     |
 | ----------------- | ------------------------------- |
@@ -38,10 +46,29 @@ system/
 | `make test`       | Run all tests (pytest + vitest) |
 | `make check`      | Run lint + typecheck + security |
 | `make all`        | Run check + test (full CI)      |
-| `make dev`        | Start development server        |
 | `make pre-commit` | Install pre-commit hooks        |
 
-## API Access
+### Frontend Commands
+
+```bash
+cd frontend-new && npm run start  # Start dev server (port 4200)
+cd frontend-new && npm run build  # Production build
+cd frontend-new && npm run test   # Run Jest tests
+```
+
+## Testing Tools
+
+- **Backend:** `pytest` with async support + coverage (`pytest-cov`)
+  - 16 test files in `backend/tests/`
+  - Run: `make backend-test` or `make backend-test-cov`
+- **Frontend:** `Jest` + React Testing Library
+  - Run: `cd frontend-new && npm test`
+- **SDK:** `Vitest`
+  - Run: `make sdk-test`
+
+## Server URLs
+
+### Backend API (Port 8001)
 
 | Endpoint                           | Description        |
 | ---------------------------------- | ------------------ |
@@ -50,6 +77,12 @@ system/
 | http://localhost:8001/metrics      | Prometheus metrics |
 | http://localhost:8001/health/live  | Liveness probe     |
 | http://localhost:8001/health/ready | Readiness probe    |
+
+### Frontend (Port 4200)
+
+| Endpoint               | Description    |
+| ---------------------- | -------------- |
+| http://localhost:4200/ | React Frontend |
 
 ## Key Features
 

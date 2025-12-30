@@ -30,7 +30,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (stored) {
       try {
         setUser(JSON.parse(stored));
-      } catch {
+      } catch (error) {
+        console.warn('Failed to parse stored auth data:', error);
         localStorage.removeItem(STORAGE_KEY);
       }
     }

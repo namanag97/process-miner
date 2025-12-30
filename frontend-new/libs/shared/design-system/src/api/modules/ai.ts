@@ -16,7 +16,7 @@ export interface Predictor {
 
 export interface AIModule {
   listPredictors: () => Promise<Predictor[]>;
-  getInsights: (logId: string) => Promise<unknown>;
+  getInsights: (logId: string) => Promise<{ predictions: unknown[]; insights: unknown[] }>;
   getPredictorDetail: (id: string) => Promise<Predictor>;
 }
 

@@ -58,7 +58,7 @@ function AppLayout() {
   const getActiveId = () => {
     const path = location.pathname;
     if (path.startsWith('/home')) return 'home';
-    if (path.startsWith('/logs')) return 'logs';
+    if (path.startsWith('/processes')) return 'logs';
     if (path.startsWith('/explorer')) return 'explorer';
     if (path.startsWith('/analytics')) return 'analytics';
     if (path.startsWith('/ai')) return 'ai-insights';
@@ -73,7 +73,7 @@ function AppLayout() {
   const handleNavigate = (id: string) => {
     const routes: Record<string, string> = {
       home: '/home',
-      logs: '/logs',
+      logs: '/processes',
       explorer: '/explorer',
       analytics: '/analytics',
       'ai-insights': '/ai/insights',
@@ -104,9 +104,9 @@ function AppLayout() {
         <Route path="/activity" element={<ActivityLogPage />} />
 
         {/* Phase 2: Data Foundation */}
-        <Route path="/logs" element={<EventLogsPage />} />
-        <Route path="/logs/upload" element={<UploadWizardPage />} />
-        <Route path="/logs/:id/*" element={<LogDetailPage />} />
+        <Route path="/processes" element={<EventLogsPage />} />
+        <Route path="/processes/upload" element={<UploadWizardPage />} />
+        <Route path="/processes/:id/*" element={<LogDetailPage />} />
 
         {/* Phase 3: Process Discovery */}
         <Route path="/explorer" element={<ProcessExplorerIndexPage />} />

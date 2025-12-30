@@ -365,8 +365,12 @@ class MiningService:
                 }
             elif isinstance(fp_result, dict):
                 return {
-                    "sequence": [f"{k[0]} -> {k[1]}" for k in list(fp_result.get("sequence", set()))[:50]],
-                    "parallel": [f"{k[0]} || {k[1]}" for k in list(fp_result.get("parallel", set()))[:50]],
+                    "sequence": [
+                        f"{k[0]} -> {k[1]}" for k in list(fp_result.get("sequence", set()))[:50]
+                    ],
+                    "parallel": [
+                        f"{k[0]} || {k[1]}" for k in list(fp_result.get("parallel", set()))[:50]
+                    ],
                     "activities": list(fp_result.get("activities", set())),
                     "start_activities": list(fp_result.get("start_activities", set())),
                     "end_activities": list(fp_result.get("end_activities", set())),
@@ -509,8 +513,6 @@ class MiningService:
         except Exception as e:
             return {"error": str(e)}
 
-
-
     # =========================================================================
     # Model Quality Evaluation
     # =========================================================================
@@ -540,8 +542,6 @@ class MiningService:
         """Evaluate model precision."""
         pm4py_log = self._to_pm4py_log(event_log)
         return pm4py.precision_token_based_replay(pm4py_log, net, im, fm)
-
-
 
     # =========================================================================
     # Serialization
@@ -619,6 +619,7 @@ class MiningService:
                 # Add any additional attributes from JSON
                 if event.attributes_json:
                     import json
+
                     try:
                         attrs = json.loads(event.attributes_json)
                         for key, value in attrs.items():

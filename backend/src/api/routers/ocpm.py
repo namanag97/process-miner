@@ -90,10 +90,12 @@ async def upload_ocel(
             total_events=stats["total_events"],
             total_objects=stats["total_objects"],
             total_object_types=stats["total_object_types"],
-            metadata_json=json.dumps({
-                "activities": stats["activities"],
-                "objects_per_type": stats["objects_per_type"],
-            }),
+            metadata_json=json.dumps(
+                {
+                    "activities": stats["activities"],
+                    "objects_per_type": stats["objects_per_type"],
+                }
+            ),
             ocel_data=content,  # Store raw OCEL for OC-DFG and other analyses
         )
         session.add(log_model)
@@ -147,9 +149,7 @@ async def list_ocel_logs(
 
     Returns a list of all uploaded object-centric event logs with their metadata.
     """
-    result = await session.execute(
-        select(OCELLog).order_by(OCELLog.created_at.desc())
-    )
+    result = await session.execute(select(OCELLog).order_by(OCELLog.created_at.desc()))
     logs = result.scalars().all()
 
     response_logs = []
@@ -183,9 +183,7 @@ async def get_ocel_log(
 
     Returns detailed information about a specific object-centric event log.
     """
-    result = await session.execute(
-        select(OCELLog).where(OCELLog.id == log_id)
-    )
+    result = await session.execute(select(OCELLog).where(OCELLog.id == log_id))
     log = result.scalar_one_or_none()
 
     if not log:
@@ -217,9 +215,7 @@ async def delete_ocel_log(
 
     Removes the log and all associated data (object types, models).
     """
-    result = await session.execute(
-        select(OCELLog).where(OCELLog.id == log_id)
-    )
+    result = await session.execute(select(OCELLog).where(OCELLog.id == log_id))
     log = result.scalar_one_or_none()
 
     if not log:
@@ -246,16 +242,12 @@ async def get_object_types(
 
     Returns all object types (e.g., Order, Item, Package) with their counts.
     """
-    result = await session.execute(
-        select(OCELObjectType).where(OCELObjectType.log_id == log_id)
-    )
+    result = await session.execute(select(OCELObjectType).where(OCELObjectType.log_id == log_id))
     object_types = result.scalars().all()
 
     if not object_types:
         # Check if log exists
-        log_result = await session.execute(
-            select(OCELLog).where(OCELLog.id == log_id)
-        )
+        log_result = await session.execute(select(OCELLog).where(OCELLog.id == log_id))
         if not log_result.scalar_one_or_none():
             raise HTTPException(status_code=404, detail="OCEL log not found")
 
@@ -282,9 +274,7 @@ async def get_ocel_statistics(
     Returns comprehensive statistics including event counts, object counts,
     activities, and objects per type.
     """
-    result = await session.execute(
-        select(OCELLog).where(OCELLog.id == log_id)
-    )
+    result = await session.execute(select(OCELLog).where(OCELLog.id == log_id))
     log = result.scalar_one_or_none()
 
     if not log:
@@ -322,9 +312,7 @@ async def discover_oc_petri_net(
     Uses PM4Py's `discover_oc_petri_net()` to create an OC-PN that captures
     the process behavior across all object types.
     """
-    result = await session.execute(
-        select(OCELLog).where(OCELLog.id == request.log_id)
-    )
+    result = await session.execute(select(OCELLog).where(OCELLog.id == request.log_id))
     log = result.scalar_one_or_none()
 
     if not log:
@@ -332,8 +320,7 @@ async def discover_oc_petri_net(
 
     if not log.ocel_data:
         raise HTTPException(
-            status_code=400,
-            detail="OCEL data not stored. Please re-upload the OCEL file."
+            status_code=400, detail="OCEL data not stored. Please re-upload the OCEL file."
         )
 
     model_name = request.model_name or f"OC-PN_{log.name}"
@@ -393,9 +380,7 @@ async def list_oc_petri_nets(
     """
     List all discovered Object-Centric Petri Nets.
     """
-    result = await session.execute(
-        select(OCPetriNet).order_by(OCPetriNet.created_at.desc())
-    )
+    result = await session.execute(select(OCPetriNet).order_by(OCPetriNet.created_at.desc()))
     models = result.scalars().all()
 
     return [
@@ -418,9 +403,7 @@ async def get_oc_petri_net(
     """
     Get Object-Centric Petri Net details.
     """
-    result = await session.execute(
-        select(OCPetriNet).where(OCPetriNet.id == model_id)
-    )
+    result = await session.execute(select(OCPetriNet).where(OCPetriNet.id == model_id))
     model = result.scalar_one_or_none()
 
     if not model:
@@ -443,9 +426,7 @@ async def delete_oc_petri_net(
     """
     Delete an Object-Centric Petri Net.
     """
-    result = await session.execute(
-        select(OCPetriNet).where(OCPetriNet.id == model_id)
-    )
+    result = await session.execute(select(OCPetriNet).where(OCPetriNet.id == model_id))
     model = result.scalar_one_or_none()
 
     if not model:
@@ -473,9 +454,7 @@ async def get_object_relationships(
     Shows how many events and cases are associated with each object type.
     This is stored metadata from the upload - actual graph requires re-parsing.
     """
-    result = await session.execute(
-        select(OCELLog).where(OCELLog.id == log_id)
-    )
+    result = await session.execute(select(OCELLog).where(OCELLog.id == log_id))
     log = result.scalar_one_or_none()
 
     if not log:
@@ -507,9 +486,7 @@ async def get_oc_dfg(
 
     This endpoint requires the OCEL data to be stored (uploaded after Phase 2.1).
     """
-    result = await session.execute(
-        select(OCELLog).where(OCELLog.id == log_id)
-    )
+    result = await session.execute(select(OCELLog).where(OCELLog.id == log_id))
     log = result.scalar_one_or_none()
 
     if not log:
@@ -517,8 +494,7 @@ async def get_oc_dfg(
 
     if not log.ocel_data:
         raise HTTPException(
-            status_code=400,
-            detail="OCEL data not stored. Please re-upload the OCEL file."
+            status_code=400, detail="OCEL data not stored. Please re-upload the OCEL file."
         )
 
     logger.info("oc_dfg_computation_started", log_id=log.id)
@@ -532,7 +508,9 @@ async def get_oc_dfg(
         ocdfg_data = ocpm_service.get_ocdfg_graph_data(ocel)
 
         if "error" in ocdfg_data and ocdfg_data["error"]:
-            raise HTTPException(status_code=500, detail=f"OC-DFG computation failed: {ocdfg_data['error']}")
+            raise HTTPException(
+                status_code=500, detail=f"OC-DFG computation failed: {ocdfg_data['error']}"
+            )
 
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info(

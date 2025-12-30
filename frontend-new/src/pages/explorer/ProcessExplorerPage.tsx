@@ -1,7 +1,20 @@
+/**
+ * ProcessExplorerPage - World-Class Process Mining Explorer
+ *
+ * Features:
+ * - Advanced DFG visualization with dagre layout
+ * - Performance and frequency metrics
+ * - KPI bar with key process metrics
+ * - Advanced filtering (activity, sequence, duration, time, resource)
+ * - Variant exploration with search and sorting
+ * - Activity and edge detail panels
+ * - Path highlighting from variant selection
+ */
+
 import React, { useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Tabs, Spin, Space, Tooltip, Breadcrumb, Drawer, Alert } from 'antd';
+import { Button, Tabs, Spin, Space, Tooltip, Breadcrumb, Drawer, Alert, Tag } from 'antd';
 import {
   ArrowLeftOutlined,
   DownloadOutlined,
@@ -9,41 +22,99 @@ import {
   ExpandOutlined,
   CompressOutlined,
 } from '@ant-design/icons';
-import { tokens, toast, useSDK, type DFGNode, type DFGEdge, type Variant, type ActivityDetail } from '@lumina/design-system';
+import { tokens, toast, useSDK } from '@lumina/design-system';
 import { createLogger } from '../../utils/logger';
-import { ProcessCanvas } from './components/ProcessCanvas';
-import { VariantPanel } from './components/VariantPanel';
+
+// Import components
+import { ProcessCanvas, DFGNodeData, DFGEdgeData } from './components/ProcessCanvas';
+import { ProcessKPIBar, ProcessKPIs } from './components/ProcessKPIBar';
+import { VariantPanel, Variant } from './components/VariantPanel';
 import { ActivityDetailsPanel } from './components/ActivityDetailsPanel';
-import { FilterPanel, AppliedFilter } from './components/FilterPanel';
+import { EdgeDetailsPanel, EdgeDetail } from './components/EdgeDetailsPanel';
+import { FilterPanel, AppliedFilter, FilterOptions } from './components/FilterPanel';
+
+// =============================================================================
+// SDK RESPONSE TYPES
+// =============================================================================
+
+interface SDKDFGNode {
+  name: string;
+  frequency: number;
+  isStart: boolean;
+  isEnd: boolean;
+}
+
+interface SDKDFGEdge {
+  source: string;
+  target: string;
+  frequency: number;
+  probability: number;
+  avgDurationSeconds?: number;
+}
+
+interface SDKVariant {
+  key: string;
+  activities: string[];
+  caseCount: number;
+  frequencyPercent: number;
+  avgDuration: number | null;
+  complexityScore?: number;
+}
+
+interface SDKActivityDetail {
+  id: string;
+  name: string;
+  frequency: number;
+  frequencyPercent: number;
+  avgDuration: number | null;
+  minDuration: number | null;
+  maxDuration: number | null;
+  isStart: boolean;
+  isEnd: boolean;
+  resources: string[];
+}
 
 const log = createLogger('ProcessExplorerPage');
+
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
 
 export function ProcessExplorerPage() {
   const { logId } = useParams<{ logId: string }>();
   const navigate = useNavigate();
   const sdk = useSDK();
-  
+
   // UI State
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [rightPanelTab, setRightPanelTab] = useState('variants');
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
-  
+
   // Selection State
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [selectedVariantKey, setSelectedVariantKey] = useState<string | null>(null);
-  
+
   // Filter State
   const [appliedFilters, setAppliedFilters] = useState<AppliedFilter[]>([]);
 
+  // =============================================================================
+  // DATA FETCHING
+  // =============================================================================
+
   // Fetch log details
   const { data: logInfo, isLoading: logLoading } = useQuery({
-    queryKey: ['logs', logId],
-    queryFn: () => sdk.logs.get(logId!),
+    queryKey: ['processes', logId],
+    queryFn: () => sdk.processes.get(logId!),
     enabled: !!logId,
   });
 
   // Fetch DFG data
-  const { data: dfgData, isLoading: dfgLoading, error: dfgError } = useQuery({
+  const {
+    data: dfgData,
+    isLoading: dfgLoading,
+    error: dfgError,
+  } = useQuery({
     queryKey: ['dfg', logId],
     queryFn: () => sdk.discovery.buildDFG(logId!, { includePerformance: true }),
     enabled: !!logId,
@@ -52,7 +123,7 @@ export function ProcessExplorerPage() {
   // Fetch variants
   const { data: variants, isLoading: variantsLoading } = useQuery({
     queryKey: ['variants', logId],
-    queryFn: () => sdk.discovery.getVariants(logId!, { topN: 20, includeComplexity: true }),
+    queryFn: () => sdk.discovery.getVariants(logId!, { topN: 50, includeComplexity: true }),
     enabled: !!logId,
   });
 
@@ -65,43 +136,133 @@ export function ProcessExplorerPage() {
 
   const loading = logLoading || dfgLoading || variantsLoading || activitiesLoading;
 
-  log.debug('Rendering ProcessExplorerPage', { logId, selectedNodeId, selectedVariantKey, loading });
+  log.debug('Rendering ProcessExplorerPage', {
+    logId,
+    selectedNodeId,
+    selectedEdgeId,
+    selectedVariantKey,
+    loading,
+  });
 
-  // Convert SDK types to component-compatible format
-  const dfgNodes = useMemo(() => {
+  // =============================================================================
+  // DATA TRANSFORMATIONS
+  // =============================================================================
+
+  // Transform DFG nodes for ProcessCanvas
+  const dfgNodes = useMemo((): DFGNodeData[] => {
     if (!dfgData?.nodes) return [];
-    return dfgData.nodes.map((node: DFGNode) => ({
-      id: node.id,
-      label: node.label,
-      frequency: node.frequency,
-    }));
-  }, [dfgData]);
+    const nodes = dfgData.nodes as unknown as SDKDFGNode[];
+    const activityMap = new Map(
+      (activities as unknown as SDKActivityDetail[] | undefined)?.map((a) => [a.name, a]) ?? []
+    );
 
-  const dfgEdges = useMemo(() => {
+    return nodes.map((node) => {
+      const activityDetail = activityMap.get(node.name);
+      return {
+        id: node.name,
+        label: node.name,
+        frequency: node.frequency,
+        isStart: node.isStart,
+        isEnd: node.isEnd,
+        avgDuration: activityDetail?.avgDuration ?? undefined,
+        minDuration: activityDetail?.minDuration ?? undefined,
+        maxDuration: activityDetail?.maxDuration ?? undefined,
+      };
+    });
+  }, [dfgData, activities]);
+
+  // Transform DFG edges for ProcessCanvas
+  const dfgEdges = useMemo((): DFGEdgeData[] => {
     if (!dfgData?.edges) return [];
-    return dfgData.edges.map((edge: DFGEdge) => ({
+    const edges = dfgData.edges as unknown as SDKDFGEdge[];
+    return edges.map((edge) => ({
       source: edge.source,
       target: edge.target,
       frequency: edge.frequency,
-      performance: edge.avgDuration,
+      performance: edge.avgDurationSeconds,
     }));
   }, [dfgData]);
 
-  const mockVariants = useMemo(() => {
+  // Transform variants for VariantPanel
+  const processedVariants = useMemo((): Variant[] => {
     if (!variants) return [];
-    return variants.map((v: Variant) => ({
+    const variantList = variants as unknown as SDKVariant[];
+    return variantList.map((v, index) => ({
       key: v.key,
       activities: v.activities,
       caseCount: v.caseCount,
       frequencyPercent: v.frequencyPercent,
       avgDurationSeconds: v.avgDuration ?? 0,
+      isHappyPath: index === 0 && v.frequencyPercent > 50,
+      complexityScore: v.complexityScore,
+      hasRework: hasReworkInVariant(v.activities),
     }));
   }, [variants]);
+
+  // Calculate KPIs
+  const kpis = useMemo((): ProcessKPIs => {
+    // totalCases from dfgData or calculate from variants
+    const totalCases = (dfgData as { totalCases?: number } | undefined)?.totalCases
+      ?? processedVariants.reduce((sum, v) => sum + v.caseCount, 0);
+    const uniqueVariants = processedVariants.length;
+    const uniqueActivities = dfgNodes.length;
+
+    // Calculate avg throughput from variants
+    const variantsWithDuration = processedVariants.filter((v) => v.avgDurationSeconds > 0);
+    const avgThroughputTime =
+      variantsWithDuration.length > 0
+        ? variantsWithDuration.reduce((sum, v) => sum + v.avgDurationSeconds * v.caseCount, 0) /
+          variantsWithDuration.reduce((sum, v) => sum + v.caseCount, 0)
+        : undefined;
+
+    const happyPathPercent = processedVariants[0]?.frequencyPercent;
+    const reworkVariants = processedVariants.filter((v) => v.hasRework);
+    const reworkRate =
+      reworkVariants.length > 0
+        ? reworkVariants.reduce((sum, v) => sum + v.frequencyPercent, 0)
+        : undefined;
+
+    return {
+      totalCases,
+      uniqueVariants,
+      uniqueActivities,
+      avgThroughputTime,
+      happyPathPercent,
+      reworkRate,
+    };
+  }, [dfgData, processedVariants, dfgNodes]);
+
+  // Build filter options
+  const filterOptions = useMemo((): FilterOptions => {
+    const activityNames = (activities as unknown as SDKActivityDetail[] | undefined)?.map((a) => a.name) ?? [];
+    const allResources = new Set<string>();
+    (activities as unknown as SDKActivityDetail[] | undefined)?.forEach((a) => {
+      a.resources?.forEach((r) => allResources.add(r));
+    });
+
+    const durations = processedVariants
+      .filter((v) => v.avgDurationSeconds > 0)
+      .map((v) => v.avgDurationSeconds);
+    const minDuration = durations.length > 0 ? Math.min(...durations) : 0;
+    const maxDuration = durations.length > 0 ? Math.max(...durations) : 0;
+    const meanDuration =
+      durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
+
+    return {
+      activities: activityNames,
+      resources: Array.from(allResources),
+      timeRange: { start: '', end: '' },
+      caseDuration: { min: minDuration, max: maxDuration, mean: meanDuration },
+    };
+  }, [activities, processedVariants]);
 
   // Get activity detail for selected node
   const selectedActivity = useMemo(() => {
     if (!selectedNodeId || !activities) return null;
-    const activity = activities.find((a: ActivityDetail) => a.id === selectedNodeId);
+    const activityList = activities as unknown as SDKActivityDetail[];
+    const activity = activityList.find(
+      (a) => a.id === selectedNodeId || a.name === selectedNodeId
+    );
     if (!activity) return null;
     return {
       id: activity.id,
@@ -111,27 +272,51 @@ export function ProcessExplorerPage() {
       avgDurationSeconds: activity.avgDuration ?? 0,
       minDurationSeconds: activity.minDuration ?? 0,
       maxDurationSeconds: activity.maxDuration ?? 0,
-      resources: activity.resources,
+      resources: activity.resources ?? [],
     };
   }, [selectedNodeId, activities]);
 
+  // Get edge detail for selected edge
+  const selectedEdge = useMemo((): EdgeDetail | null => {
+    if (!selectedEdgeId || !dfgEdges.length) return null;
+    const [, source, target] = selectedEdgeId.split('-');
+    const edge = dfgEdges.find((e) => e.source === source && e.target === target);
+    if (!edge) return null;
+
+    const totalFrequency = dfgEdges.reduce((sum, e) => sum + e.frequency, 0);
+    return {
+      id: selectedEdgeId,
+      source: edge.source,
+      target: edge.target,
+      frequency: edge.frequency,
+      frequencyPercent: (edge.frequency / totalFrequency) * 100,
+      avgDurationSeconds: edge.performance,
+    };
+  }, [selectedEdgeId, dfgEdges]);
+
   // Get highlighted path from selected variant
   const highlightedPath = useMemo(() => {
-    if (!selectedVariantKey || !mockVariants.length) return [];
-    const variant = mockVariants.find((v: { key: string }) => v.key === selectedVariantKey);
-    if (!variant) return [];
-    // Map activity names to node IDs
-    return variant.activities.map((name: string) => {
-      const node = dfgNodes.find((n: { label: string }) => n.label === name);
-      return node?.id || '';
-    }).filter(Boolean);
-  }, [selectedVariantKey, mockVariants, dfgNodes]);
+    if (!selectedVariantKey || !processedVariants.length) return [];
+    const variant = processedVariants.find((v) => v.key === selectedVariantKey);
+    return variant?.activities ?? [];
+  }, [selectedVariantKey, processedVariants]);
 
-  // Handlers
+  // =============================================================================
+  // HANDLERS
+  // =============================================================================
+
   const handleNodeClick = useCallback((nodeId: string) => {
     log.debug('Node clicked', { nodeId });
     setSelectedNodeId((prev) => (prev === nodeId ? null : nodeId));
+    setSelectedEdgeId(null);
     setRightPanelTab('activity');
+  }, []);
+
+  const handleEdgeClick = useCallback((edgeId: string, source: string, target: string) => {
+    log.debug('Edge clicked', { edgeId, source, target });
+    setSelectedEdgeId((prev) => (prev === edgeId ? null : edgeId));
+    setSelectedNodeId(null);
+    setRightPanelTab('edge');
   }, []);
 
   const handleSelectVariant = useCallback((variantKey: string | null) => {
@@ -141,36 +326,56 @@ export function ProcessExplorerPage() {
 
   const handleFilterToVariant = useCallback((variantKey: string) => {
     log.info('Filter to variant', { variantKey });
-    toast.info('Filtering to variant (coming soon)');
-  }, []);
-
-  const handleFilterWithActivity = useCallback((activityId: string) => {
-    const activity = activities?.find((a: ActivityDetail) => a.id === activityId);
-    if (activity) {
+    const variant = processedVariants.find((v) => v.key === variantKey);
+    if (variant) {
       const filter: AppliedFilter = {
-        id: `with-${activityId}-${Date.now()}`,
-        type: 'activity',
-        label: `With: ${activity.name}`,
-        value: { include: [activityId] },
+        id: `variant-${variantKey}-${Date.now()}`,
+        type: 'variant',
+        label: `Variant: ${variant.activities.slice(0, 2).join(' → ')}...`,
+        value: { variantKey, activities: variant.activities },
       };
       setAppliedFilters((prev) => [...prev, filter]);
-      toast.success(`Filtering cases with "${activity.name}"`);
+      toast.success('Filtering to variant');
     }
-  }, [activities]);
+  }, [processedVariants]);
 
-  const handleFilterWithoutActivity = useCallback((activityId: string) => {
-    const activity = activities?.find((a: ActivityDetail) => a.id === activityId);
-    if (activity) {
-      const filter: AppliedFilter = {
-        id: `without-${activityId}-${Date.now()}`,
-        type: 'activity',
-        label: `Without: ${activity.name}`,
-        value: { exclude: [activityId] },
-      };
-      setAppliedFilters((prev) => [...prev, filter]);
-      toast.success(`Filtering cases without "${activity.name}"`);
-    }
-  }, [activities]);
+  const handleFilterWithActivity = useCallback(
+    (activityId: string) => {
+      const activity = (activities as unknown as SDKActivityDetail[] | undefined)?.find(
+        (a) => a.id === activityId || a.name === activityId
+      );
+      if (activity) {
+        const filter: AppliedFilter = {
+          id: `with-${activityId}-${Date.now()}`,
+          type: 'activity',
+          label: `With: ${activity.name}`,
+          value: { mode: 'include', activities: [activity.name] },
+        };
+        setAppliedFilters((prev) => [...prev, filter]);
+        toast.success(`Filtering cases with "${activity.name}"`);
+      }
+    },
+    [activities]
+  );
+
+  const handleFilterWithoutActivity = useCallback(
+    (activityId: string) => {
+      const activity = (activities as unknown as SDKActivityDetail[] | undefined)?.find(
+        (a) => a.id === activityId || a.name === activityId
+      );
+      if (activity) {
+        const filter: AppliedFilter = {
+          id: `without-${activityId}-${Date.now()}`,
+          type: 'activity',
+          label: `Without: ${activity.name}`,
+          value: { mode: 'exclude', activities: [activity.name] },
+        };
+        setAppliedFilters((prev) => [...prev, filter]);
+        toast.success(`Filtering cases without "${activity.name}"`);
+      }
+    },
+    [activities]
+  );
 
   const handleApplyFilter = useCallback((filter: AppliedFilter) => {
     setAppliedFilters((prev) => [...prev, filter]);
@@ -192,13 +397,9 @@ export function ProcessExplorerPage() {
     toast.info('SVG export coming soon');
   }, []);
 
-  // Mock filter options (will be fetched from API in future)
-  const mockFilterOptions = useMemo(() => ({
-    activities: activities?.map((a: ActivityDetail) => a.name) ?? [],
-    resources: [],
-    timeRange: { start: '', end: '' },
-    caseDuration: { min: 0, max: 0, mean: 0 },
-  }), [activities]);
+  // =============================================================================
+  // TAB ITEMS
+  // =============================================================================
 
   const tabItems = [
     {
@@ -206,7 +407,7 @@ export function ProcessExplorerPage() {
       label: 'Variants',
       children: (
         <VariantPanel
-          variants={mockVariants}
+          variants={processedVariants}
           selectedVariantKey={selectedVariantKey}
           onSelectVariant={handleSelectVariant}
           onFilterToVariant={handleFilterToVariant}
@@ -225,7 +426,22 @@ export function ProcessExplorerPage() {
         />
       ),
     },
+    {
+      key: 'edge',
+      label: 'Transition',
+      children: (
+        <EdgeDetailsPanel
+          edge={selectedEdge}
+          onClose={() => setSelectedEdgeId(null)}
+          totalCases={kpis.totalCases}
+        />
+      ),
+    },
   ];
+
+  // =============================================================================
+  // RENDER
+  // =============================================================================
 
   // Error state
   if (dfgError) {
@@ -237,9 +453,7 @@ export function ProcessExplorerPage() {
           type="error"
           showIcon
           action={
-            <Button onClick={() => navigate('/explorer')}>
-              Go Back
-            </Button>
+            <Button onClick={() => navigate('/explorer')}>Go Back</Button>
           }
         />
       </div>
@@ -272,7 +486,7 @@ export function ProcessExplorerPage() {
           </Button>
           <Breadcrumb
             items={[
-              { title: 'Event Logs', onClick: () => navigate('/logs') },
+              { title: 'Event Logs', onClick: () => navigate('/processes') },
               { title: logInfo?.name ?? 'Loading...' },
               { title: 'Explorer' },
             ]}
@@ -305,6 +519,41 @@ export function ProcessExplorerPage() {
         </Space>
       </div>
 
+      {/* KPI Bar */}
+      {!loading && <ProcessKPIBar kpis={kpis} compact />}
+
+      {/* Applied Filters Bar */}
+      {appliedFilters.length > 0 && (
+        <div
+          style={{
+            padding: `${tokens.spacing[2]} ${tokens.spacing[4]}`,
+            backgroundColor: tokens.colors.neutral[50],
+            borderBottom: `1px solid ${tokens.colors.neutral[200]}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flexWrap: 'wrap',
+          }}
+        >
+          <span style={{ fontSize: 12, color: tokens.colors.neutral[500] }}>
+            Active filters:
+          </span>
+          {appliedFilters.map((filter) => (
+            <Tag
+              key={filter.id}
+              closable
+              onClose={() => handleRemoveFilter(filter.id)}
+              color={filter.color}
+            >
+              {filter.label}
+            </Tag>
+          ))}
+          <Button type="link" size="small" onClick={handleClearAllFilters}>
+            Clear all
+          </Button>
+        </div>
+      )}
+
       {/* Main Content */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Canvas Area */}
@@ -331,8 +580,10 @@ export function ProcessExplorerPage() {
               dfgNodes={dfgNodes}
               dfgEdges={dfgEdges}
               selectedNodeId={selectedNodeId}
+              selectedEdgeId={selectedEdgeId}
               highlightedPath={highlightedPath}
               onNodeClick={handleNodeClick}
+              onEdgeClick={handleEdgeClick}
             />
           )}
         </div>
@@ -341,7 +592,7 @@ export function ProcessExplorerPage() {
         {rightPanelOpen && (
           <div
             style={{
-              width: 320,
+              width: 360,
               backgroundColor: tokens.colors.neutral[0],
               borderLeft: `1px solid ${tokens.colors.neutral[200]}`,
               display: 'flex',
@@ -365,13 +616,13 @@ export function ProcessExplorerPage() {
       <Drawer
         title="Filters"
         placement="right"
-        width={340}
+        width={380}
         open={filterDrawerOpen}
         onClose={() => setFilterDrawerOpen(false)}
         styles={{ body: { padding: 0 } }}
       >
         <FilterPanel
-          filterOptions={mockFilterOptions}
+          filterOptions={filterOptions}
           appliedFilters={appliedFilters}
           onApplyFilter={handleApplyFilter}
           onRemoveFilter={handleRemoveFilter}
@@ -380,6 +631,19 @@ export function ProcessExplorerPage() {
       </Drawer>
     </div>
   );
+}
+
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+
+function hasReworkInVariant(activities: string[]): boolean {
+  const seen = new Set<string>();
+  for (const activity of activities) {
+    if (seen.has(activity)) return true;
+    seen.add(activity);
+  }
+  return false;
 }
 
 export default ProcessExplorerPage;

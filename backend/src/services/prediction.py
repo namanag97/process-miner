@@ -57,7 +57,9 @@ class PredictionService:
         logger.info("features_extracted", samples=len(X), duration_ms=round(duration, 2))
         return X, y_next, y_time
 
-    def train_next_activity_model(self, pm4py_log: PM4PyLog, algorithm: str = "random_forest") -> tuple[bytes, dict]:
+    def train_next_activity_model(
+        self, pm4py_log: PM4PyLog, algorithm: str = "random_forest"
+    ) -> tuple[bytes, dict]:
         """Train next activity prediction model."""
         logger.info("training_next_activity_model", algorithm=algorithm, traces=len(pm4py_log))
         start = time.perf_counter()
@@ -74,25 +76,36 @@ class PredictionService:
         if algorithm == "xgboost":
             try:
                 from xgboost import XGBClassifier
-                model = XGBClassifier(n_estimators=100, max_depth=5, use_label_encoder=False, eval_metric='mlogloss')
+
+                model = XGBClassifier(
+                    n_estimators=100, max_depth=5, use_label_encoder=False, eval_metric="mlogloss"
+                )
             except ImportError:
                 from sklearn.ensemble import RandomForestClassifier
+
                 model = RandomForestClassifier(n_estimators=100, max_depth=10)
         else:
             from sklearn.ensemble import RandomForestClassifier
+
             model = RandomForestClassifier(n_estimators=100, max_depth=10)
 
         model.fit(X_train, y_train)
         accuracy = model.score(X_test, y_test) if len(X_test) > 0 else 0
 
         model_bytes = pickle.dumps(model)
-        metrics = {"accuracy": round(float(accuracy), 4), "train_samples": len(X_train), "test_samples": len(X_test)}
+        metrics = {
+            "accuracy": round(float(accuracy), 4),
+            "train_samples": len(X_train),
+            "test_samples": len(X_test),
+        }
 
         duration = (time.perf_counter() - start) * 1000
         logger.info("model_trained", accuracy=metrics["accuracy"], duration_ms=round(duration, 2))
         return model_bytes, metrics
 
-    def train_remaining_time_model(self, pm4py_log: PM4PyLog, algorithm: str = "random_forest") -> tuple[bytes, dict]:
+    def train_remaining_time_model(
+        self, pm4py_log: PM4PyLog, algorithm: str = "random_forest"
+    ) -> tuple[bytes, dict]:
         """Train remaining time prediction model."""
         logger.info("training_remaining_time_model", algorithm=algorithm, traces=len(pm4py_log))
         start = time.perf_counter()
@@ -109,12 +122,15 @@ class PredictionService:
         if algorithm == "xgboost":
             try:
                 from xgboost import XGBRegressor
+
                 model = XGBRegressor(n_estimators=100, max_depth=5)
             except ImportError:
                 from sklearn.ensemble import RandomForestRegressor
+
                 model = RandomForestRegressor(n_estimators=100, max_depth=10)
         else:
             from sklearn.ensemble import RandomForestRegressor
+
             model = RandomForestRegressor(n_estimators=100, max_depth=10)
 
         model.fit(X_train, y_train)
@@ -127,14 +143,20 @@ class PredictionService:
             mae, rmse = 0, 0
 
         model_bytes = pickle.dumps(model)
-        metrics = {"mae_seconds": round(float(mae), 2), "rmse_seconds": round(float(rmse), 2),
-                   "train_samples": len(X_train), "test_samples": len(X_test)}
+        metrics = {
+            "mae_seconds": round(float(mae), 2),
+            "rmse_seconds": round(float(rmse), 2),
+            "train_samples": len(X_train),
+            "test_samples": len(X_test),
+        }
 
         duration = (time.perf_counter() - start) * 1000
         logger.info("model_trained", mae=metrics["mae_seconds"], duration_ms=round(duration, 2))
         return model_bytes, metrics
 
-    def predict_next_activity(self, model_bytes: bytes, case_prefix: list[str], activities: list[str]) -> dict:
+    def predict_next_activity(
+        self, model_bytes: bytes, case_prefix: list[str], activities: list[str]
+    ) -> dict:
         """Predict next activity for a case prefix."""
         if not model_bytes:
             return {"prediction": None, "confidence": 0}
@@ -150,21 +172,33 @@ class PredictionService:
         features = np.array([prefix_encoded + [len(case_prefix), 0.5]])
 
         prediction_idx = model.predict(features)[0]
-        probas = model.predict_proba(features)[0] if hasattr(model, 'predict_proba') else [1.0]
+        probas = model.predict_proba(features)[0] if hasattr(model, "predict_proba") else [1.0]
 
-        predicted_activity = activities[int(prediction_idx)] if int(prediction_idx) < len(activities) else activities[0]
+        predicted_activity = (
+            activities[int(prediction_idx)]
+            if int(prediction_idx) < len(activities)
+            else activities[0]
+        )
         confidence = float(max(probas))
 
         alternatives = []
-        if hasattr(model, 'predict_proba'):
+        if hasattr(model, "predict_proba"):
             sorted_idx = np.argsort(probas)[::-1][:3]
             for idx in sorted_idx:
                 if idx < len(activities):
-                    alternatives.append({"activity": activities[idx], "probability": round(float(probas[idx]), 4)})
+                    alternatives.append(
+                        {"activity": activities[idx], "probability": round(float(probas[idx]), 4)}
+                    )
 
-        return {"prediction": predicted_activity, "confidence": round(confidence, 4), "alternatives": alternatives}
+        return {
+            "prediction": predicted_activity,
+            "confidence": round(confidence, 4),
+            "alternatives": alternatives,
+        }
 
-    def predict_remaining_time(self, model_bytes: bytes, case_prefix: list[str], activities: list[str]) -> dict:
+    def predict_remaining_time(
+        self, model_bytes: bytes, case_prefix: list[str], activities: list[str]
+    ) -> dict:
         """Predict remaining time for a case prefix."""
         if not model_bytes:
             return {"prediction_seconds": 0, "confidence": 0}

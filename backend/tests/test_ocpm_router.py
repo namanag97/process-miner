@@ -306,10 +306,7 @@ class TestRawOCELExtraction:
 
     @pytest.mark.asyncio
     async def test_extract_raw_ocel_json(
-        self,
-        client: AsyncClient,
-        simple_ocel_jsonocel: bytes,
-        test_session: AsyncSession
+        self, client: AsyncClient, simple_ocel_jsonocel: bytes, test_session: AsyncSession
     ):
         """Extract and verify raw OCEL JSON structure.
 
@@ -326,9 +323,7 @@ class TestRawOCELExtraction:
         log_id = upload_resp.json()["id"]
 
         # Retrieve from database
-        result = await test_session.execute(
-            select(OCELLog).where(OCELLog.id == log_id)
-        )
+        result = await test_session.execute(select(OCELLog).where(OCELLog.id == log_id))
         ocel_log = result.scalar_one()
 
         # Verify ocel_data field is populated
@@ -336,7 +331,7 @@ class TestRawOCELExtraction:
         assert len(ocel_log.ocel_data) > 0
 
         # Parse as JSON
-        parsed_ocel = json.loads(ocel_log.ocel_data.decode('utf-8'))
+        parsed_ocel = json.loads(ocel_log.ocel_data.decode("utf-8"))
 
         # Validate OCEL 2.0 structure
         assert "ocel:events" in parsed_ocel
@@ -345,7 +340,11 @@ class TestRawOCELExtraction:
         assert parsed_ocel["ocel:global-log"]["ocel:version"] == "2.0"
 
         # Verify object types
-        assert set(parsed_ocel["ocel:global-log"]["ocel:object-types"]) == {"Order", "Item", "Package"}
+        assert set(parsed_ocel["ocel:global-log"]["ocel:object-types"]) == {
+            "Order",
+            "Item",
+            "Package",
+        }
 
         # Verify events structure
         events = parsed_ocel["ocel:events"]

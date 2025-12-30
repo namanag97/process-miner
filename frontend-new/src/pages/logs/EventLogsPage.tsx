@@ -54,17 +54,17 @@ export function EventLogsPage() {
 
   // Fetch logs from API
   const { data, isLoading, error } = useQuery({
-    queryKey: ['logs'],
-    queryFn: () => sdk.logs.list({ pageSize: 100 }),
+    queryKey: ['processes'],
+    queryFn: () => sdk.processes.list({ pageSize: 100 }),
   });
 
   const logs = data?.items ?? [];
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => sdk.logs.delete(id),
+    mutationFn: (id: string) => sdk.processes.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['logs'] });
+      queryClient.invalidateQueries({ queryKey: ['processes'] });
       toast.success(`"${logToDelete?.name}" has been deleted`);
       setDeleteModalOpen(false);
       setLogToDelete(null);
@@ -90,7 +90,7 @@ export function EventLogsPage() {
 
   const handleView = (record: EventLog) => {
     log.info('Viewing log', { logId: record.id, name: record.name });
-    navigate(`/logs/${record.id}`);
+    navigate(`/processes/${record.id}`);
   };
 
   const handleDownload = (record: EventLog) => {
@@ -243,7 +243,7 @@ export function EventLogsPage() {
             icon={<UploadOutlined />}
             onClick={() => {
               log.info('Navigating to upload');
-              navigate('/logs/upload');
+              navigate('/processes/upload');
             }}
           >
             Upload File
@@ -288,7 +288,7 @@ export function EventLogsPage() {
           title="No event logs yet"
           description="Upload your first event log file to start analyzing your process"
           actionLabel="Upload File"
-          onAction={() => navigate('/logs/upload')}
+          onAction={() => navigate('/processes/upload')}
         />
       )}
 

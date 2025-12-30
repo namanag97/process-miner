@@ -2,28 +2,41 @@ import React, { createContext, useContext, useMemo, useCallback } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ApiClient } from '../api/client';
 import {
-  createLogsModule,
+  createProcessesModule,
   createDiscoveryModule,
   createAnalyticsModule,
   createConformanceModule,
   createAIModule,
-  type LogsModule,
+  createPredictionsModule,
+  createSimulationModule,
+  createOrganizationalModule,
+  type ProcessesModule,
   type DiscoveryModule,
   type AnalyticsModule,
   type ConformanceModule,
   type AIModule,
+  type PredictionsModule,
+  type SimulationModule,
+  type OrganizationalModule,
 } from '../api/modules';
 
 // SDK type - properly typed with real modules
 interface ProcessMiningSdk {
-  logs: LogsModule;
+  processes: ProcessesModule;
   discovery: DiscoveryModule;
   analytics: AnalyticsModule;
   conformance: ConformanceModule;
   ai: AIModule;
+  predictions: PredictionsModule;
+  simulation: SimulationModule;
+  organizational: OrganizationalModule;
   visualization: {
     getDFG: (logId: string) => Promise<unknown>;
   };
+  /** Check backend health */
+  checkHealth: () => Promise<boolean>;
+  /** Get cached health status */
+  isHealthy: () => boolean;
 }
 
 // Create SDK context
@@ -69,27 +82,36 @@ export function SDKProvider({
 
   // Create SDK with real API modules
   const sdk = useMemo<ProcessMiningSdk>(() => {
-    const client = new ApiClient({ 
-      baseUrl, 
+    const client = new ApiClient({
+      baseUrl,
       getAuthToken: memoizedGetAuthToken,
     });
 
-    const logsModule = createLogsModule(client);
+    const processesModule = createProcessesModule(client);
     const discoveryModule = createDiscoveryModule(client);
     const analyticsModule = createAnalyticsModule(client);
     const conformanceModule = createConformanceModule(client);
     const aiModule = createAIModule(client);
+    const predictionsModule = createPredictionsModule(client);
+    const simulationModule = createSimulationModule(client);
+    const organizationalModule = createOrganizationalModule(client);
 
     return {
-      logs: logsModule,
+      processes: processesModule,
       discovery: discoveryModule,
       analytics: analyticsModule,
       conformance: conformanceModule,
       ai: aiModule,
+      predictions: predictionsModule,
+      simulation: simulationModule,
+      organizational: organizationalModule,
       // Visualization is an alias to discovery.buildDFG for backward compatibility
       visualization: {
         getDFG: (logId: string) => discoveryModule.buildDFG(logId),
       },
+      // Health check methods
+      checkHealth: () => client.checkHealth(),
+      isHealthy: () => client.getHealthStatus(),
     };
   }, [baseUrl, memoizedGetAuthToken]);
 

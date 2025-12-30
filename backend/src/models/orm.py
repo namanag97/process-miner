@@ -22,9 +22,7 @@ class EventLog(Base):
 
     __tablename__ = "event_logs"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     source_file: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     source_format: Mapped[str] = mapped_column(String(20), default="csv")
@@ -78,9 +76,7 @@ class ProcessCase(Base):
 
     __tablename__ = "process_cases"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     log_id: Mapped[str] = mapped_column(
         ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=False
     )
@@ -108,9 +104,7 @@ class ProcessEvent(Base):
 
     __tablename__ = "process_events"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     case_ref_id: Mapped[str] = mapped_column(
         ForeignKey("process_cases.id", ondelete="CASCADE"), nullable=False
     )
@@ -130,9 +124,7 @@ class ProcessModel(Base):
 
     __tablename__ = "process_models"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     log_id: Mapped[Optional[str]] = mapped_column(
         ForeignKey("event_logs.id", ondelete="SET NULL"), nullable=True
@@ -160,9 +152,7 @@ class ConformanceResult(Base):
 
     __tablename__ = "conformance_results"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     log_id: Mapped[str] = mapped_column(
         ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=False
     )
@@ -186,9 +176,7 @@ class Workflow(Base):
 
     __tablename__ = "workflows"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str] = mapped_column(String(255), nullable=False)
 
     # Pipeline definition as JSON
@@ -214,9 +202,7 @@ class WorkflowRun(Base):
 
     __tablename__ = "workflow_runs"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     workflow_id: Mapped[str] = mapped_column(
         ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False
     )
@@ -247,9 +233,7 @@ class OCELLog(Base):
 
     __tablename__ = "ocel_logs"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     source_file: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     source_format: Mapped[str] = mapped_column(String(20), default="jsonocel")
@@ -285,9 +269,7 @@ class OCELObjectType(Base):
 
     __tablename__ = "ocel_object_types"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     log_id: Mapped[str] = mapped_column(
         ForeignKey("ocel_logs.id", ondelete="CASCADE"), nullable=False
     )
@@ -306,9 +288,7 @@ class OCPetriNet(Base):
 
     __tablename__ = "oc_petri_nets"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     log_id: Mapped[str] = mapped_column(
         ForeignKey("ocel_logs.id", ondelete="CASCADE"), nullable=False
     )
@@ -336,9 +316,7 @@ class AnalyticsCache(Base):
 
     __tablename__ = "analytics_cache"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     log_id: Mapped[str] = mapped_column(
         ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=False
     )
@@ -358,9 +336,7 @@ class SocialNetwork(Base):
 
     __tablename__ = "social_networks"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     log_id: Mapped[str] = mapped_column(
         ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=False
     )
@@ -380,9 +356,7 @@ class PredictionModel(Base):
 
     __tablename__ = "prediction_models"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     log_id: Mapped[str] = mapped_column(
         ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=False
     )
@@ -398,9 +372,7 @@ class Prediction(Base):
 
     __tablename__ = "predictions"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     model_id: Mapped[str] = mapped_column(
         ForeignKey("prediction_models.id", ondelete="CASCADE"), nullable=False
     )
@@ -420,9 +392,7 @@ class AsyncJob(Base):
 
     __tablename__ = "async_jobs"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     job_type: Mapped[str] = mapped_column(String(50), nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="pending")
     progress: Mapped[int] = mapped_column(Integer, default=0)

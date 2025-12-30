@@ -184,6 +184,7 @@ async def discovered_model_id(client: AsyncClient, uploaded_log_id: str) -> str:
 # NEW FIXTURES FOR COMPREHENSIVE TESTING
 # ============================================================================
 
+
 @pytest.fixture
 def insurance_small_csv() -> bytes:
     """100 cases, 600 events - fast unit tests."""
@@ -256,7 +257,7 @@ async def discovered_petri_net_id(client: AsyncClient, uploaded_insurance_log_id
         json={
             "log_id": uploaded_insurance_log_id,
             "miner_type": "inductive",
-            "model_name": "Test Model"
+            "model_name": "Test Model",
         },
     )
     assert response.status_code == 200

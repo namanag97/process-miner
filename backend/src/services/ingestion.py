@@ -218,19 +218,39 @@ class IngestionService:
 
         # Common column name patterns
         case_patterns = [
-            "case_id", "case:concept:name", "caseid", "case",
-            "trace_id", "traceid", "trace", "process_id",
+            "case_id",
+            "case:concept:name",
+            "caseid",
+            "case",
+            "trace_id",
+            "traceid",
+            "trace",
+            "process_id",
         ]
         activity_patterns = [
-            "activity_name", "concept:name", "activity",
-            "event_name", "event", "action", "task",
+            "activity_name",
+            "concept:name",
+            "activity",
+            "event_name",
+            "event",
+            "action",
+            "task",
         ]
         timestamp_patterns = [
-            "time:timestamp", "timestamp", "start_time",
-            "event_time", "time", "datetime", "date",
+            "time:timestamp",
+            "timestamp",
+            "start_time",
+            "event_time",
+            "time",
+            "datetime",
+            "date",
         ]
         resource_patterns = [
-            "org:resource", "resource", "user", "actor", "agent",
+            "org:resource",
+            "resource",
+            "user",
+            "actor",
+            "agent",
         ]
 
         for col in columns:
@@ -308,7 +328,8 @@ class IngestionService:
             for event_data in case_events:
                 # Extract attributes (non-standard fields)
                 attributes = {
-                    k: v for k, v in event_data.items()
+                    k: v
+                    for k, v in event_data.items()
                     if k not in ["case_id", "activity", "timestamp", "resource"]
                 }
 
@@ -351,9 +372,7 @@ class IngestionService:
             missing.append(f"timestamp_column '{timestamp_col}'")
 
         if missing:
-            raise ValidationError(
-                f"Columns not found: {', '.join(missing)}. Available: {columns}"
-            )
+            raise ValidationError(f"Columns not found: {', '.join(missing)}. Available: {columns}")
 
         events = []
         for row in reader:
@@ -383,9 +402,7 @@ class IngestionService:
             events.append(event)
 
         if not events:
-            raise ValidationError(
-                "No valid events found in CSV. Check column mappings."
-            )
+            raise ValidationError("No valid events found in CSV. Check column mappings.")
 
         return events
 
@@ -402,12 +419,14 @@ class IngestionService:
             for trace in pm4py_log:
                 case_id = trace.attributes.get("concept:name", "")
                 for event in trace:
-                    events.append({
-                        "case_id": case_id,
-                        "activity": event.get("concept:name", ""),
-                        "timestamp": event.get("time:timestamp", ""),
-                        "resource": event.get("org:resource"),
-                    })
+                    events.append(
+                        {
+                            "case_id": case_id,
+                            "activity": event.get("concept:name", ""),
+                            "timestamp": event.get("time:timestamp", ""),
+                            "resource": event.get("org:resource"),
+                        }
+                    )
 
             return events
         finally:
@@ -438,6 +457,7 @@ class IngestionService:
             # Fallback: try parsing with dateutil if available
             try:
                 from dateutil import parser
+
                 return parser.parse(value)
             except Exception:
                 pass

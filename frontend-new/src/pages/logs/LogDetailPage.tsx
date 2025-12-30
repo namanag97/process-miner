@@ -40,25 +40,25 @@ export function LogDetailPage() {
 
   // Fetch log details
   const { data: logDetail, isLoading, error } = useQuery({
-    queryKey: ['logs', logId],
-    queryFn: () => sdk.logs.get(logId!),
+    queryKey: ['processes', logId],
+    queryFn: () => sdk.processes.get(logId!),
     enabled: !!logId,
   });
 
   // Fetch log statistics
   const { data: stats } = useQuery({
-    queryKey: ['logs', logId, 'stats'],
-    queryFn: () => sdk.logs.analyze(logId!),
+    queryKey: ['processes', logId, 'stats'],
+    queryFn: () => sdk.processes.analyze(logId!),
     enabled: !!logId,
   });
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => sdk.logs.delete(id),
+    mutationFn: (id: string) => sdk.processes.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['logs'] });
+      queryClient.invalidateQueries({ queryKey: ['processes'] });
       toast.success(`"${logDetail?.name}" has been deleted`);
-      navigate('/logs');
+      navigate('/processes');
     },
     onError: (err) => {
       toast.error(`Failed to delete: ${(err as Error).message}`);
@@ -115,7 +115,7 @@ export function LogDetailPage() {
       <div>
         <PageHeader
           title="Event Log"
-          breadcrumb={[{ label: 'Event Logs', href: '/logs' }, { label: 'Error' }]}
+          breadcrumb={[{ label: 'Event Logs', href: '/processes' }, { label: 'Error' }]}
         />
         <Alert
           message="Failed to load event log"
@@ -133,7 +133,7 @@ export function LogDetailPage() {
       <div>
         <PageHeader
           title="Loading..."
-          breadcrumb={[{ label: 'Event Logs', href: '/logs' }, { label: 'Loading' }]}
+          breadcrumb={[{ label: 'Event Logs', href: '/processes' }, { label: 'Loading' }]}
         />
         <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
           <Spin size="large" />
@@ -269,7 +269,7 @@ export function LogDetailPage() {
         title={logDetail.name}
         description={`${logDetail.totalCases.toLocaleString()} cases • ${logDetail.totalEvents.toLocaleString()} events`}
         breadcrumb={[
-          { label: 'Event Logs', href: '/logs' },
+          { label: 'Event Logs', href: '/processes' },
           { label: logDetail.name },
         ]}
         actions={

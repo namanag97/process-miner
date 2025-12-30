@@ -42,7 +42,7 @@ class FocusedLogger:
 
     def section(self, title: str):
         """Log a section header."""
-        line = f"\n{'='*60}\n  {title}\n{'='*60}"
+        line = f"\n{'=' * 60}\n  {title}\n{'=' * 60}"
         self.results.append(line)
         print(line)
 
@@ -201,7 +201,9 @@ C003,Ship Order,2024-01-01 15:00:00,Dave
                         f"unique_activities={data.get('unique_activities', 0)}",
                     )
                 else:
-                    self.logger.log("FAIL", "GET /logs/{id}/statistics", f"status_code={r.status_code}")
+                    self.logger.log(
+                        "FAIL", "GET /logs/{id}/statistics", f"status_code={r.status_code}"
+                    )
             except Exception as e:
                 self.logger.log("FAIL", "GET /logs/{id}/statistics", str(e))
 
@@ -234,7 +236,9 @@ C003,Ship Order,2024-01-01 15:00:00,Dave
                         f"model_id={self.model_id[:8] if self.model_id else 'n/a'}... miner=inductive",
                     )
                 else:
-                    self.logger.log("FAIL", "POST /discovery/discover", f"status_code={r.status_code}")
+                    self.logger.log(
+                        "FAIL", "POST /discovery/discover", f"status_code={r.status_code}"
+                    )
             except Exception as e:
                 self.logger.log("FAIL", "POST /discovery/discover", str(e))
 
@@ -245,9 +249,13 @@ C003,Ship Order,2024-01-01 15:00:00,Dave
                     data = r.json()
                     nodes = len(data.get("nodes", []))
                     edges = len(data.get("edges", []))
-                    self.logger.log("PASS", "GET /discovery/dfg/{id}", f"nodes={nodes} edges={edges}")
+                    self.logger.log(
+                        "PASS", "GET /discovery/dfg/{id}", f"nodes={nodes} edges={edges}"
+                    )
                 else:
-                    self.logger.log("FAIL", "GET /discovery/dfg/{id}", f"status_code={r.status_code}")
+                    self.logger.log(
+                        "FAIL", "GET /discovery/dfg/{id}", f"status_code={r.status_code}"
+                    )
             except Exception as e:
                 self.logger.log("FAIL", "GET /discovery/dfg/{id}", str(e))
 
@@ -264,7 +272,9 @@ C003,Ship Order,2024-01-01 15:00:00,Dave
                     fitness = data.get("fitness", 0)
                     self.logger.log("PASS", "POST /conformance/check", f"fitness={fitness:.2%}")
                 else:
-                    self.logger.log("FAIL", "POST /conformance/check", f"status_code={r.status_code}")
+                    self.logger.log(
+                        "FAIL", "POST /conformance/check", f"status_code={r.status_code}"
+                    )
             except Exception as e:
                 self.logger.log("FAIL", "POST /conformance/check", str(e))
         else:
@@ -278,9 +288,13 @@ C003,Ship Order,2024-01-01 15:00:00,Dave
                 if r.status_code == 200:
                     data = r.json()
                     bottlenecks = len(data.get("bottlenecks", []))
-                    self.logger.log("PASS", "GET /performance/analyze/{id}", f"bottlenecks={bottlenecks}")
+                    self.logger.log(
+                        "PASS", "GET /performance/analyze/{id}", f"bottlenecks={bottlenecks}"
+                    )
                 else:
-                    self.logger.log("FAIL", "GET /performance/analyze/{id}", f"status_code={r.status_code}")
+                    self.logger.log(
+                        "FAIL", "GET /performance/analyze/{id}", f"status_code={r.status_code}"
+                    )
             except Exception as e:
                 self.logger.log("FAIL", "GET /performance/analyze/{id}", str(e))
         else:

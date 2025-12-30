@@ -28,7 +28,7 @@ const gettingStartedCards: GettingStartedCard[] = [
     icon: <UploadOutlined style={{ fontSize: 32, color: tokens.colors.primary[500] }} />,
     title: 'Upload your first file',
     description: 'Get started by uploading a CSV or XES event log file',
-    path: '/logs/upload',
+    path: '/processes/upload',
   },
   {
     icon: <CompassOutlined style={{ fontSize: 32, color: tokens.colors.success[500] }} />,

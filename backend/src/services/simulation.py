@@ -52,7 +52,9 @@ class SimulationService:
 
         impact = {}
         for key in original_metrics:
-            if isinstance(original_metrics[key], (int, float)) and isinstance(simulated_metrics[key], (int, float)):
+            if isinstance(original_metrics[key], (int, float)) and isinstance(
+                simulated_metrics[key], (int, float)
+            ):
                 original_val = original_metrics[key]
                 simulated_val = simulated_metrics[key]
                 if original_val != 0:
@@ -72,7 +74,9 @@ class SimulationService:
 
     def estimate_capacity(self, pm4py_log: PM4PyLog, target_throughput: float) -> dict[str, Any]:
         """Estimate resource requirements for target throughput."""
-        logger.info("estimating_capacity", traces=len(pm4py_log), target_throughput=target_throughput)
+        logger.info(
+            "estimating_capacity", traces=len(pm4py_log), target_throughput=target_throughput
+        )
         start = time.perf_counter()
 
         resource_events = defaultdict(int)
@@ -82,8 +86,14 @@ class SimulationService:
             for i, event in enumerate(trace):
                 resource = event.get("org:resource", "default")
                 resource_events[resource] += 1
-                if i < len(trace) - 1 and "time:timestamp" in event and "time:timestamp" in trace[i + 1]:
-                    duration = (trace[i + 1]["time:timestamp"] - event["time:timestamp"]).total_seconds()
+                if (
+                    i < len(trace) - 1
+                    and "time:timestamp" in event
+                    and "time:timestamp" in trace[i + 1]
+                ):
+                    duration = (
+                        trace[i + 1]["time:timestamp"] - event["time:timestamp"]
+                    ).total_seconds()
                     resource_time[resource] += duration
 
         all_timestamps = []

@@ -267,23 +267,27 @@ class OCPMService:
                         activity_freq[tgt] = activity_freq.get(tgt, 0) + freq
 
                 for act in ot_activities:
-                    nodes.append({
-                        "id": f"{ot}_{act}",
-                        "name": act,
-                        "object_type": ot,
-                        "frequency": activity_freq.get(act, 0),
-                    })
+                    nodes.append(
+                        {
+                            "id": f"{ot}_{act}",
+                            "name": act,
+                            "object_type": ot,
+                            "frequency": activity_freq.get(act, 0),
+                        }
+                    )
 
                 # Build edges
                 edges = []
                 for (src, tgt, edge_ot), freq in edges_dict.items():
                     if edge_ot == ot:
-                        edges.append({
-                            "source": src,
-                            "target": tgt,
-                            "object_type": ot,
-                            "frequency": freq,
-                        })
+                        edges.append(
+                            {
+                                "source": src,
+                                "target": tgt,
+                                "object_type": ot,
+                                "frequency": freq,
+                            }
+                        )
 
                 # Get start/end activities for this object type
                 ot_start = list(start_activities.get(ot, {}).keys()) if start_activities else []

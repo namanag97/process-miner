@@ -162,11 +162,13 @@ async def get_petri_net(
 
     arcs = []
     for arc in net.arcs:
-        arcs.append(PetriNetArc(
-            source=str(arc.source.name),
-            target=str(arc.target.name),
-            weight=arc.weight if hasattr(arc, "weight") else 1,
-        ))
+        arcs.append(
+            PetriNetArc(
+                source=str(arc.source.name),
+                target=str(arc.target.name),
+                weight=arc.weight if hasattr(arc, "weight") else 1,
+            )
+        )
 
     initial_marking = [str(p.name) for p in im.keys()] if im else []
     final_marking = [str(p.name) for p in fm.keys()] if fm else []
@@ -300,12 +302,8 @@ async def get_footprints(
 async def get_explorer_data(
     db: DBSession,
     log_id: str,
-    include_performance: bool = Query(
-        True, description="Include performance metrics in DFG edges"
-    ),
-    include_complexity: bool = Query(
-        True, description="Include complexity metrics in variants"
-    ),
+    include_performance: bool = Query(True, description="Include performance metrics in DFG edges"),
+    include_complexity: bool = Query(True, description="Include complexity metrics in variants"),
     top_variants: int = Query(20, ge=1, le=100, description="Number of top variants to include"),
 ):
     """

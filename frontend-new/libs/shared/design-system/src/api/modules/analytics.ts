@@ -6,6 +6,7 @@ import type { ApiClient } from '../client';
 import type {
   PerformanceDashboardResponse,
   ReworkListResponse,
+  CycleTimeResponse,
 } from '../types';
 import {
   transformPerformance,
@@ -17,8 +18,8 @@ import {
 export interface AnalyticsModule {
   getPerformance: (logId: string) => Promise<PerformanceData>;
   getRework: (logId: string) => Promise<ReworkData>;
-  getBottlenecks: (logId: string) => Promise<unknown>;
-  getCycleTime: (logId: string) => Promise<unknown>;
+  getBottlenecks: (logId: string) => Promise<{ log_id: string; bottlenecks: unknown[]; total_bottlenecks: number }>;
+  getCycleTime: (logId: string) => Promise<CycleTimeResponse>;
 }
 
 export function createAnalyticsModule(client: ApiClient): AnalyticsModule {

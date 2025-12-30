@@ -65,7 +65,7 @@ export function HomePage() {
           <Card
             title="Recent Event Logs"
             extra={
-              <Button type="link" onClick={() => navigate('/logs')}>
+              <Button type="link" onClick={() => navigate('/processes')}>
                 View all
               </Button>
             }
@@ -80,13 +80,13 @@ export function HomePage() {
                       <Button
                         key="view"
                         type="link"
-                        onClick={() => navigate(`/logs/${item.id}`)}
+                        onClick={() => navigate(`/processes/${item.id}`)}
                       >
                         View
                       </Button>,
                     ]}
                     style={{ cursor: 'pointer' }}
-                    onClick={() => navigate(`/logs/${item.id}`)}
+                    onClick={() => navigate(`/processes/${item.id}`)}
                   >
                     <List.Item.Meta
                       avatar={<FileOutlined style={{ fontSize: 24, color: tokens.colors.primary[500] }} />}
@@ -106,7 +106,7 @@ export function HomePage() {
                 title="No event logs yet"
                 description="Upload your first event log to start analyzing your process"
                 actionLabel="Upload File"
-                onAction={() => navigate('/logs/upload')}
+                onAction={() => navigate('/processes/upload')}
               />
             )}
           </Card>
@@ -121,7 +121,7 @@ export function HomePage() {
                 icon={<UploadOutlined />}
                 size="large"
                 block
-                onClick={() => navigate('/logs/upload')}
+                onClick={() => navigate('/processes/upload')}
               >
                 Upload Event Log
               </Button>

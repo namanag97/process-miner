@@ -27,7 +27,11 @@ class WorkflowService:
                 "description": "Discover model → Check conformance → Get diagnostics",
                 "steps": [
                     {"name": "discover", "type": "discover", "params": {"miner": "inductive"}},
-                    {"name": "conformance", "type": "conformance", "params": {"method": "token_replay"}},
+                    {
+                        "name": "conformance",
+                        "type": "conformance",
+                        "params": {"method": "token_replay"},
+                    },
                 ],
             },
             {
@@ -36,7 +40,11 @@ class WorkflowService:
                 "description": "Complete analysis: discovery, conformance, variants",
                 "steps": [
                     {"name": "discover", "type": "discover", "params": {"miner": "inductive"}},
-                    {"name": "conformance", "type": "conformance", "params": {"method": "token_replay"}},
+                    {
+                        "name": "conformance",
+                        "type": "conformance",
+                        "params": {"method": "token_replay"},
+                    },
                     {"name": "variants", "type": "variants", "params": {"top_n": 20}},
                     {"name": "statistics", "type": "statistics", "params": {}},
                 ],

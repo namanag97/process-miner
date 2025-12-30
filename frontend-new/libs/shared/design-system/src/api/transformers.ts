@@ -188,8 +188,10 @@ export function transformDFG(be: DFGResponse): DFGData {
 }
 
 export function transformVariant(be: VariantResponse): Variant {
-  // Parse activity trace like "Create→Approve→Ship" into array
-  const activities = be.activity_trace.split('→').map(a => a.trim());
+  // Parse activity trace like "Create→Approve→Ship" into array (BUG-008 fix)
+  const activities = be.activity_trace
+    ? be.activity_trace.split('→').map(a => a.trim()).filter(Boolean)
+    : [];
   
   return {
     key: be.variant_key,

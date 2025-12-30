@@ -76,14 +76,10 @@ class ConformanceService:
         net, im, fm = self._get_petri_net(model)
 
         # Token replay diagnostics
-        replay_result = pm4py.conformance_diagnostics_token_based_replay(
-            pm4py_log, net, im, fm
-        )
+        replay_result = pm4py.conformance_diagnostics_token_based_replay(pm4py_log, net, im, fm)
 
         # Calculate aggregate metrics
-        fitting_traces = sum(
-            1 for r in replay_result if r.get("trace_is_fit", False)
-        )
+        fitting_traces = sum(1 for r in replay_result if r.get("trace_is_fit", False))
         total_traces = len(replay_result)
 
         # Collect deviations
@@ -94,17 +90,21 @@ class ConformanceService:
                 remaining = result.get("remaining_tokens", [])
 
                 if missing:
-                    deviations.append({
-                        "trace_index": i,
-                        "type": "missing_tokens",
-                        "tokens": [str(t) for t in missing[:5]],
-                    })
+                    deviations.append(
+                        {
+                            "trace_index": i,
+                            "type": "missing_tokens",
+                            "tokens": [str(t) for t in missing[:5]],
+                        }
+                    )
                 if remaining:
-                    deviations.append({
-                        "trace_index": i,
-                        "type": "remaining_tokens",
-                        "tokens": [str(t) for t in remaining[:5]],
-                    })
+                    deviations.append(
+                        {
+                            "trace_index": i,
+                            "type": "remaining_tokens",
+                            "tokens": [str(t) for t in remaining[:5]],
+                        }
+                    )
 
         return {
             "total_traces": total_traces,
@@ -124,9 +124,7 @@ class ConformanceService:
         pm4py_log = mining_service._to_pm4py_log(event_log)
         net, im, fm = self._get_petri_net(model)
 
-        diagnostics = pm4py.conformance_diagnostics_token_based_replay(
-            pm4py_log, net, im, fm
-        )
+        diagnostics = pm4py.conformance_diagnostics_token_based_replay(pm4py_log, net, im, fm)
 
         deviations = []
         for i, (trace, diag) in enumerate(zip(pm4py_log, diagnostics)):
@@ -134,20 +132,24 @@ class ConformanceService:
                 case_id = trace.attributes.get("concept:name", f"trace_{i}")
 
                 if diag.get("missing_tokens"):
-                    deviations.append({
-                        "case_id": case_id,
-                        "activity": "",
-                        "deviation_type": "missing_token",
-                        "details": f"Missing tokens: {len(diag['missing_tokens'])}",
-                    })
+                    deviations.append(
+                        {
+                            "case_id": case_id,
+                            "activity": "",
+                            "deviation_type": "missing_token",
+                            "details": f"Missing tokens: {len(diag['missing_tokens'])}",
+                        }
+                    )
 
                 if diag.get("remaining_tokens"):
-                    deviations.append({
-                        "case_id": case_id,
-                        "activity": "",
-                        "deviation_type": "remaining_token",
-                        "details": f"Remaining tokens: {len(diag['remaining_tokens'])}",
-                    })
+                    deviations.append(
+                        {
+                            "case_id": case_id,
+                            "activity": "",
+                            "deviation_type": "remaining_token",
+                            "details": f"Remaining tokens: {len(diag['remaining_tokens'])}",
+                        }
+                    )
 
         return deviations
 
@@ -195,7 +197,9 @@ class ConformanceService:
                 if isinstance(move, tuple) and len(move) >= 2:
                     labels = move[0] if len(move) > 0 else (None, None)
                     log_label = labels[0] if isinstance(labels, tuple) and len(labels) > 0 else None
-                    model_label = labels[1] if isinstance(labels, tuple) and len(labels) > 1 else None
+                    model_label = (
+                        labels[1] if isinstance(labels, tuple) and len(labels) > 1 else None
+                    )
 
                     # Determine move type
                     if log_label == ">>" or log_label is None:
@@ -211,11 +215,13 @@ class ConformanceService:
                         log_move = str(log_label) if log_label else None
                         model_move = str(model_label) if model_label else None
 
-                    moves.append({
-                        "log_move": log_move,
-                        "model_move": model_move,
-                        "move_type": move_type,
-                    })
+                    moves.append(
+                        {
+                            "log_move": log_move,
+                            "model_move": model_move,
+                            "move_type": move_type,
+                        }
+                    )
 
             # Calculate fitness for this case
             fitness = alignment.get("fitness", 1.0)
@@ -226,13 +232,15 @@ class ConformanceService:
             if is_fit:
                 fitting_count += 1
 
-            case_alignments.append({
-                "case_id": case_id,
-                "fitness": fitness,
-                "cost": cost,
-                "alignment": moves,
-                "is_fit": is_fit,
-            })
+            case_alignments.append(
+                {
+                    "case_id": case_id,
+                    "fitness": fitness,
+                    "cost": cost,
+                    "alignment": moves,
+                    "is_fit": is_fit,
+                }
+            )
 
         avg_fitness = total_fitness / len(case_alignments) if case_alignments else 0.0
 
