@@ -14,7 +14,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Tabs, Spin, Space, Tooltip, Breadcrumb, Drawer, Alert, Tag } from 'antd';
+import { Button, Tabs, Spin, Space, Tooltip, Breadcrumb, Drawer, Alert, Tag, Dropdown } from 'antd';
 import {
   ArrowLeftOutlined,
   DownloadOutlined,
@@ -426,10 +426,105 @@ export function ProcessExplorerPage() {
     toast.info('All filters cleared');
   }, []);
 
-  const handleExportSVG = useCallback(() => {
-    log.info('Exporting SVG');
-    toast.info('SVG export coming soon');
-  }, []);
+  const handleExportPNG = useCallback(() => {
+    log.info('Exporting PNG');
+    // Find the React Flow viewport and export
+    const viewport = document.querySelector('.react-flow__viewport') as HTMLElement;
+    if (!viewport) {
+      toast.error('Unable to export: Canvas not found');
+      return;
+    }
+    
+    // Use html2canvas approach (simple implementation)
+    import('html-to-image').then(({ toPng }) => {
+      const flowContainer = document.querySelector('.react-flow') as HTMLElement;
+      if (flowContainer) {
+        toPng(flowContainer, { 
+          backgroundColor: '#ffffff',
+          quality: 1,
+        }).then((dataUrl: string) => {
+          const link = document.createElement('a');
+          link.download = `${logInfo?.name ?? 'process'}-dfg.png`;
+          link.href = dataUrl;
+          link.click();
+          toast.success('Process map exported as PNG');
+        }).catch((err: Error) => {
+          log.error('PNG export failed', err);
+          toast.error('Failed to export PNG');
+        });
+      }
+    }).catch(() => {
+      // html-to-image not installed, fallback to CSV-only message
+      toast.info('Image export not available. Use CSV export to download process data.');
+    });
+  }, [logInfo]);
+
+  const handleExportCSV = useCallback(() => {
+    log.info('Exporting CSV');
+    
+    // Export nodes and edges as CSV
+    const nodesCSV = [
+      ['Activity', 'Frequency', 'Is Start', 'Is End'].join(','),
+      ...dfgNodes.map(node => 
+        [
+          `"${node.label}"`,
+          node.frequency,
+          node.isStart,
+          node.isEnd
+        ].join(',')
+      )
+    ].join('\n');
+
+    const edgesCSV = [
+      ['Source', 'Target', 'Frequency', 'Avg Duration (s)'].join(','),
+      ...dfgEdges.map(edge =>
+        [
+          `"${edge.source}"`,
+          `"${edge.target}"`,
+          edge.frequency,
+          edge.performance ?? ''
+        ].join(',')
+      )
+    ].join('\n');
+
+    const variantsCSV = [
+      ['Variant', 'Case Count', 'Frequency %', 'Avg Duration (s)', 'Has Rework'].join(','),
+      ...processedVariants.map(v =>
+        [
+          `"${v.activities.join(' → ')}"`,
+          v.caseCount,
+          v.frequencyPercent.toFixed(2),
+          v.avgDurationSeconds,
+          v.hasRework
+        ].join(',')
+      )
+    ].join('\n');
+
+    const fullCSV = `=== ACTIVITIES ===\n${nodesCSV}\n\n=== TRANSITIONS ===\n${edgesCSV}\n\n=== VARIANTS ===\n${variantsCSV}`;
+
+    const blob = new Blob([fullCSV], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${logInfo?.name ?? 'process'}-data.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    toast.success('Process data exported as CSV');
+  }, [dfgNodes, dfgEdges, processedVariants, logInfo]);
+
+  const exportMenuItems = [
+    {
+      key: 'png',
+      label: 'Export as PNG',
+      icon: <DownloadOutlined />,
+      onClick: handleExportPNG,
+    },
+    {
+      key: 'csv',
+      label: 'Export as CSV',
+      icon: <DownloadOutlined />,
+      onClick: handleExportCSV,
+    },
+  ];
 
   // =============================================================================
   // TAB ITEMS
@@ -592,11 +687,11 @@ export function ProcessExplorerPage() {
               Filters {appliedFilters.length > 0 && `(${appliedFilters.length})`}
             </Button>
           </Tooltip>
-          <Tooltip title="Export SVG">
-            <Button icon={<DownloadOutlined />} onClick={handleExportSVG}>
+          <Dropdown menu={{ items: exportMenuItems }} trigger={['click']}>
+            <Button icon={<DownloadOutlined />}>
               Export
             </Button>
-          </Tooltip>
+          </Dropdown>
           <Tooltip title={rightPanelOpen ? 'Collapse panel' : 'Expand panel'}>
             <Button
               type="text"

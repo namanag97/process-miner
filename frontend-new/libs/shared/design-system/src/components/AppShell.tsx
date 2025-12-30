@@ -13,6 +13,7 @@ import {
   QuestionCircleOutlined,
   BellOutlined,
   UserOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { luminaTheme, tokens } from '../theme';
@@ -53,6 +54,7 @@ const defaultNavItems: NavItem[] = [
 ];
 
 const bottomNavItems: NavItem[] = [
+  { id: 'test-bench', label: 'Test Bench', icon: <ToolOutlined /> },
   { id: 'settings', label: 'Settings', icon: <SettingOutlined /> },
   { id: 'help', label: 'Help', icon: <QuestionCircleOutlined /> },
 ];

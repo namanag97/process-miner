@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Steps,
@@ -13,16 +13,25 @@ import {
   Space,
   Alert,
   Form,
+  Modal,
+  Progress,
+  Tag,
 } from 'antd';
 import type { UploadProps } from 'antd';
 import {
   InboxOutlined,
   CheckCircleOutlined,
   ArrowLeftOutlined,
+  WarningOutlined,
+  CloseCircleOutlined,
+  FileOutlined,
+  ClockCircleOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader, tokens, toast, useSDK } from '@lumina/design-system';
 import { createLogger } from '../../utils/logger';
+import { useBeforeUnload } from '../../utils/useBeforeUnload';
 import type { ColumnDetection } from '@lumina/design-system';
 
 const log = createLogger('UploadWizard');
@@ -35,6 +44,21 @@ const STEPS = [
   { title: 'Configure', description: 'Map columns' },
   { title: 'Process', description: 'Complete' },
 ];
+
+type ProcessingStage = 'idle' | 'uploading' | 'parsing' | 'analyzing' | 'complete' | 'error';
+
+// Helper to format file size
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// Helper to get unique values from sample data
+function getUniqueValuesFromSample(sampleRows: Record<string, unknown>[], column: string): number {
+  const values = new Set(sampleRows.map(row => row[column]));
+  return values.size;
+}
 
 export function UploadWizardPage() {
   const navigate = useNavigate();
@@ -51,11 +75,61 @@ export function UploadWizardPage() {
     resource: '',
   });
   const [uploadedLogId, setUploadedLogId] = useState<string | null>(null);
+  
+  // New state for improved UX
+  const [processingStage, setProcessingStage] = useState<ProcessingStage>('idle');
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [detectionStartTime, setDetectionStartTime] = useState<number | null>(null);
+  const [showDetectionTimeout, setShowDetectionTimeout] = useState(false);
+  const [processingStartTime, setProcessingStartTime] = useState<number | null>(null);
+  const [showProcessingTimeout, setShowProcessingTimeout] = useState(false);
+
+  // Determine if wizard has unsaved state
+  const hasUnsavedState = currentStep > 0 && !uploadedLogId;
+
+  // Browser navigation blocking
+  useBeforeUnload(hasUnsavedState, 'Your upload progress will be lost. Are you sure you want to leave?');
+
+  // Note: useBlocker requires data router, so we only use browser beforeunload
+  // plus manual confirmation modal for Cancel button clicks
+
+  // Detection timeout tracker
+  useEffect(() => {
+    if (!detectionStartTime) {
+      setShowDetectionTimeout(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setShowDetectionTimeout(true);
+    }, 30000); // 30 seconds
+
+    return () => clearTimeout(timer);
+  }, [detectionStartTime]);
+
+  // Processing timeout tracker
+  useEffect(() => {
+    if (!processingStartTime) {
+      setShowProcessingTimeout(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setShowProcessingTimeout(true);
+    }, 15000); // 15 seconds
+
+    return () => clearTimeout(timer);
+  }, [processingStartTime]);
 
   // Detect columns mutation
   const detectColumnsMutation = useMutation({
     mutationFn: (file: File) => sdk.processes.detectColumns(file),
+    onMutate: () => {
+      setDetectionStartTime(Date.now());
+      setShowDetectionTimeout(false);
+    },
     onSuccess: (data) => {
+      setDetectionStartTime(null);
       setPreviewData(data);
       // Apply suggestions
       if (data.suggestions) {
@@ -69,34 +143,53 @@ export function UploadWizardPage() {
       setCurrentStep(1);
     },
     onError: (err) => {
+      setDetectionStartTime(null);
       toast.error(`Failed to detect columns: ${(err as Error).message}`);
     },
   });
 
-  // Ingest mutation
+  // Ingest mutation with staged progress
   const ingestMutation = useMutation({
     mutationFn: async () => {
       if (!file) throw new Error('No file selected');
-      return sdk.processes.ingest(file, {
+      
+      // Stage 1: Uploading
+      setProcessingStage('uploading');
+      await new Promise(resolve => setTimeout(resolve, 500)); // Brief visual delay
+      
+      // Stage 2: Parsing (simulated, actual work happens on backend)
+      setProcessingStage('parsing');
+      
+      const result = await sdk.processes.ingest(file, {
         name: file.name,
         caseIdColumn: columnMapping.caseId,
         activityColumn: columnMapping.activity,
         timestampColumn: columnMapping.timestamp,
         resourceColumn: columnMapping.resource || undefined,
       });
+      
+      // Stage 3: Complete
+      setProcessingStage('complete');
+      return result;
+    },
+    onMutate: () => {
+      setProcessingStartTime(Date.now());
+      setShowProcessingTimeout(false);
     },
     onSuccess: (data) => {
+      setProcessingStartTime(null);
       queryClient.invalidateQueries({ queryKey: ['processes'] });
       setUploadedLogId(data.id);
       toast.success('Event log processed successfully!');
     },
     onError: (err) => {
+      setProcessingStartTime(null);
+      setProcessingStage('error');
       toast.error(`Failed to upload: ${(err as Error).message}`);
-      setCurrentStep(2); // Go back to configure step
     },
   });
 
-  log.debug('Rendering UploadWizard', { step: currentStep });
+  log.debug('Rendering UploadWizard', { step: currentStep, processingStage });
 
   const handleFileUpload: UploadProps['customRequest'] = (options) => {
     const uploadedFile = options.file as File;
@@ -124,11 +217,18 @@ export function UploadWizardPage() {
     
     setFile(uploadedFile);
     options.onSuccess?.({});
-    toast.success('File selected successfully');
     
     // Detect columns
     detectColumnsMutation.mutate(uploadedFile);
   };
+
+  const handleCancelDetection = useCallback(() => {
+    detectColumnsMutation.reset();
+    setDetectionStartTime(null);
+    setShowDetectionTimeout(false);
+    setFile(null);
+    toast.info('Column detection cancelled');
+  }, [detectColumnsMutation]);
 
   const handleNext = () => {
     log.debug('Moving to next step', { from: currentStep, to: currentStep + 1 });
@@ -136,6 +236,7 @@ export function UploadWizardPage() {
     if (currentStep === 2) {
       // Start processing
       setCurrentStep(3);
+      setProcessingStage('uploading');
       ingestMutation.mutate();
     } else {
       setCurrentStep((prev) => prev + 1);
@@ -164,6 +265,26 @@ export function UploadWizardPage() {
     setPreviewData(null);
     setColumnMapping({ caseId: '', activity: '', timestamp: '', resource: '' });
     setUploadedLogId(null);
+    setProcessingStage('idle');
+    setShowProcessingTimeout(false);
+    setShowDetectionTimeout(false);
+  };
+
+  const handleCancelClick = () => {
+    if (hasUnsavedState) {
+      setShowCancelConfirm(true);
+    } else {
+      navigate('/processes');
+    }
+  };
+
+  const handleConfirmCancel = () => {
+    setShowCancelConfirm(false);
+    navigate('/processes');
+  };
+
+  const handleCancelStay = () => {
+    setShowCancelConfirm(false);
   };
 
   // Step 1: File Upload
@@ -190,6 +311,50 @@ export function UploadWizardPage() {
           Supports CSV and XES files up to 100MB
         </p>
       </Dragger>
+
+      {/* Detection in progress with cancel */}
+      {detectColumnsMutation.isPending && (
+        <div style={{ marginTop: tokens.spacing[4], textAlign: 'center' }}>
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <div>
+              <Spin style={{ marginRight: tokens.spacing[2] }} />
+              <Text>Analyzing {file?.name}...</Text>
+            </div>
+            
+            {showDetectionTimeout && (
+              <Alert
+                type="warning"
+                message="Taking longer than expected"
+                description="Large files may take a minute or two to analyze. You can wait or cancel and try a smaller file."
+                icon={<ClockCircleOutlined />}
+                showIcon
+              />
+            )}
+            
+            <Button 
+              onClick={handleCancelDetection}
+              icon={<CloseCircleOutlined />}
+            >
+              Cancel
+            </Button>
+          </Space>
+        </div>
+      )}
+
+      {/* File selected indicator */}
+      {file && !detectColumnsMutation.isPending && (
+        <Alert
+          type="info"
+          message={
+            <Space>
+              <FileOutlined />
+              <Text strong>{file.name}</Text>
+              <Text type="secondary">({formatFileSize(file.size)})</Text>
+            </Space>
+          }
+          style={{ marginTop: tokens.spacing[4] }}
+        />
+      )}
     </Card>
   );
 
@@ -202,6 +367,7 @@ export function UploadWizardPage() {
           <Space>
             <CheckCircleOutlined />
             <Text strong>File validated: {file?.name}</Text>
+            <Text type="secondary">({formatFileSize(file?.size ?? 0)})</Text>
           </Space>
         }
         description={`${previewData?.rowCount?.toLocaleString() ?? 0} rows detected`}
@@ -246,56 +412,143 @@ export function UploadWizardPage() {
     </div>
   );
 
-  // Step 3: Configure Column Mapping
-  const renderConfiguration = () => (
-    <Card title="Map Your Columns">
-      <Text type="secondary" style={{ display: 'block', marginBottom: tokens.spacing[6] }}>
-        Select which columns correspond to the required event log fields.
-      </Text>
+  // Column validation warnings
+  const getColumnValidationWarnings = (): { type: 'warning' | 'error' | 'success'; message: string }[] => {
+    const warnings: { type: 'warning' | 'error' | 'success'; message: string }[] = [];
+    
+    if (!previewData?.sampleRows || previewData.sampleRows.length === 0) return warnings;
 
-      <Form layout="vertical" style={{ maxWidth: 400 }}>
-        <Form.Item label="Case ID" required>
-          <Select
-            value={columnMapping.caseId}
-            onChange={(value) => setColumnMapping((prev) => ({ ...prev, caseId: value }))}
-            options={(previewData?.columns || []).map((c) => ({ label: c, value: c }))}
-            placeholder="Select case ID column"
-          />
-        </Form.Item>
+    const sampleRows = previewData.sampleRows;
+    
+    // Check case ID
+    if (columnMapping.caseId) {
+      const uniqueCaseIds = getUniqueValuesFromSample(sampleRows, columnMapping.caseId);
+      if (uniqueCaseIds <= 2) {
+        warnings.push({ type: 'warning', message: `Very few unique Case IDs (${uniqueCaseIds}) in sample. Verify this is the correct column.` });
+      } else if (uniqueCaseIds === sampleRows.length) {
+        warnings.push({ type: 'success', message: `Case ID column looks good (${uniqueCaseIds} unique values in sample)` });
+      }
+    }
+    
+    // Check activity
+    if (columnMapping.activity) {
+      const uniqueActivities = getUniqueValuesFromSample(sampleRows, columnMapping.activity);
+      if (uniqueActivities === sampleRows.length) {
+        warnings.push({ type: 'warning', message: `Every row has a unique Activity. This is unusual for process data.` });
+      } else if (uniqueActivities > 0) {
+        warnings.push({ type: 'success', message: `Activity column has ${uniqueActivities} unique values in sample` });
+      }
+    }
+    
+    // Check timestamp format (simple validation)
+    if (columnMapping.timestamp && sampleRows[0]) {
+      const sampleTimestamp = String(sampleRows[0][columnMapping.timestamp] ?? '');
+      if (sampleTimestamp && !isNaN(Date.parse(sampleTimestamp))) {
+        warnings.push({ type: 'success', message: `Timestamp format detected: ${sampleTimestamp.slice(0, 19)}` });
+      } else if (sampleTimestamp) {
+        warnings.push({ type: 'warning', message: `Timestamp format may not parse correctly: "${sampleTimestamp}"` });
+      }
+    }
+    
+    return warnings;
+  };
 
-        <Form.Item label="Activity" required>
-          <Select
-            value={columnMapping.activity}
-            onChange={(value) => setColumnMapping((prev) => ({ ...prev, activity: value }))}
-            options={(previewData?.columns || []).map((c) => ({ label: c, value: c }))}
-            placeholder="Select activity column"
-          />
-        </Form.Item>
+  // Step 3: Configure Column Mapping with Validation Summary
+  const renderConfiguration = () => {
+    const validationWarnings = getColumnValidationWarnings();
+    const hasAllRequired = !!columnMapping.caseId && !!columnMapping.activity && !!columnMapping.timestamp;
+    
+    return (
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Card title="Map Your Columns">
+          <Text type="secondary" style={{ display: 'block', marginBottom: tokens.spacing[6] }}>
+            Select which columns correspond to the required event log fields.
+          </Text>
 
-        <Form.Item label="Timestamp" required>
-          <Select
-            value={columnMapping.timestamp}
-            onChange={(value) => setColumnMapping((prev) => ({ ...prev, timestamp: value }))}
-            options={(previewData?.columns || []).map((c) => ({ label: c, value: c }))}
-            placeholder="Select timestamp column"
-          />
-        </Form.Item>
+          <Form layout="vertical" style={{ maxWidth: 400 }}>
+            <Form.Item label="Case ID" required>
+              <Select
+                value={columnMapping.caseId}
+                onChange={(value) => setColumnMapping((prev) => ({ ...prev, caseId: value }))}
+                options={(previewData?.columns || []).map((c) => ({ label: c, value: c }))}
+                placeholder="Select case ID column"
+              />
+            </Form.Item>
 
-        <Form.Item label="Resource (optional)">
-          <Select
-            value={columnMapping.resource}
-            onChange={(value) => setColumnMapping((prev) => ({ ...prev, resource: value }))}
-            options={[
-              { label: '— None —', value: '' },
-              ...(previewData?.columns || []).map((c) => ({ label: c, value: c })),
-            ]}
-            allowClear
-            placeholder="Select resource column"
-          />
-        </Form.Item>
-      </Form>
-    </Card>
-  );
+            <Form.Item label="Activity" required>
+              <Select
+                value={columnMapping.activity}
+                onChange={(value) => setColumnMapping((prev) => ({ ...prev, activity: value }))}
+                options={(previewData?.columns || []).map((c) => ({ label: c, value: c }))}
+                placeholder="Select activity column"
+              />
+            </Form.Item>
+
+            <Form.Item label="Timestamp" required>
+              <Select
+                value={columnMapping.timestamp}
+                onChange={(value) => setColumnMapping((prev) => ({ ...prev, timestamp: value }))}
+                options={(previewData?.columns || []).map((c) => ({ label: c, value: c }))}
+                placeholder="Select timestamp column"
+              />
+            </Form.Item>
+
+            <Form.Item label="Resource (optional)">
+              <Select
+                value={columnMapping.resource}
+                onChange={(value) => setColumnMapping((prev) => ({ ...prev, resource: value }))}
+                options={[
+                  { label: '— None —', value: '' },
+                  ...(previewData?.columns || []).map((c) => ({ label: c, value: c })),
+                ]}
+                allowClear
+                placeholder="Select resource column"
+              />
+            </Form.Item>
+          </Form>
+        </Card>
+
+        {/* Validation Summary */}
+        {hasAllRequired && validationWarnings.length > 0 && (
+          <Card title="Column Validation" size="small">
+            <Space direction="vertical" style={{ width: '100%' }}>
+              {validationWarnings.map((warning, idx) => (
+                <Alert
+                  key={idx}
+                  type={warning.type === 'success' ? 'success' : warning.type}
+                  message={warning.message}
+                  showIcon
+                  icon={
+                    warning.type === 'warning' ? <WarningOutlined /> :
+                    warning.type === 'success' ? <CheckCircleOutlined /> :
+                    <ExclamationCircleOutlined />
+                  }
+                />
+              ))}
+            </Space>
+          </Card>
+        )}
+      </Space>
+    );
+  };
+
+  // Get processing stage info
+  const getProcessingStageInfo = () => {
+    switch (processingStage) {
+      case 'uploading':
+        return { percent: 20, text: 'Uploading your file...', status: 'active' as const };
+      case 'parsing':
+        return { percent: 50, text: 'Parsing columns and rows...', status: 'active' as const };
+      case 'analyzing':
+        return { percent: 80, text: 'Analyzing process structure...', status: 'active' as const };
+      case 'complete':
+        return { percent: 100, text: 'Complete!', status: 'success' as const };
+      case 'error':
+        return { percent: 0, text: 'Processing failed', status: 'exception' as const };
+      default:
+        return { percent: 0, text: 'Preparing...', status: 'normal' as const };
+    }
+  };
 
   // Step 4: Processing
   const renderProcessing = () => {
@@ -304,13 +557,18 @@ export function UploadWizardPage() {
         <Result
           status="success"
           title="Event Log Processed Successfully!"
-          subTitle={`${file?.name} has been processed and is ready for analysis.`}
+          subTitle={
+            <Space direction="vertical" size="small">
+              <Text>{file?.name} has been processed and is ready for analysis.</Text>
+              <Text type="secondary">{formatFileSize(file?.size ?? 0)}</Text>
+            </Space>
+          }
           extra={[
-            <Button type="primary" key="explore" onClick={handleExploreProcess}>
+            <Button type="primary" size="large" key="explore" onClick={handleExploreProcess}>
               Explore Process
             </Button>,
             <Button key="view" onClick={handleViewLog}>
-              View Event Log
+              View Event Log Details
             </Button>,
             <Button key="another" onClick={handleUploadAnother}>
               Upload Another
@@ -321,31 +579,95 @@ export function UploadWizardPage() {
     }
 
     if (ingestMutation.isError) {
+      const errorMessage = (ingestMutation.error as Error).message;
+      const isNetworkError = errorMessage.toLowerCase().includes('network') || 
+                            errorMessage.toLowerCase().includes('unable to reach') ||
+                            errorMessage.toLowerCase().includes('failed to fetch');
+      
       return (
         <Result
           status="error"
-          title="Upload Failed"
-          subTitle={(ingestMutation.error as Error).message}
+          title={isNetworkError ? 'Cannot Connect to Server' : 'Upload Failed'}
+          subTitle={
+            <Space direction="vertical">
+              <Text>{errorMessage}</Text>
+              {isNetworkError && (
+                <Text type="secondary">
+                  Please check that the backend server is running and try again.
+                </Text>
+              )}
+            </Space>
+          }
           extra={[
-            <Button type="primary" key="retry" onClick={() => ingestMutation.mutate()}>
-              Retry
+            <Button type="primary" key="retry" onClick={() => {
+              setProcessingStage('uploading');
+              ingestMutation.mutate();
+            }}>
+              Try Again
             </Button>,
-            <Button key="back" onClick={() => setCurrentStep(2)}>
-              Go Back
+            <Button key="back" onClick={() => {
+              setProcessingStage('idle');
+              setCurrentStep(2);
+            }}>
+              Go Back to Configuration
+            </Button>,
+            <Button key="start-over" onClick={handleUploadAnother}>
+              Start Over
             </Button>,
           ]}
         />
       );
     }
 
+    const stageInfo = getProcessingStageInfo();
+
     return (
       <Card>
         <div style={{ textAlign: 'center', padding: tokens.spacing[8] }}>
-          <Spin size="large" />
-          <Title level={4} style={{ marginTop: tokens.spacing[4] }}>Processing your data...</Title>
-          <Text type="secondary" style={{ display: 'block', marginTop: tokens.spacing[2] }}>
-            This may take a few moments for larger files
-          </Text>
+          <Progress 
+            type="circle" 
+            percent={stageInfo.percent} 
+            status={stageInfo.status}
+            strokeColor={{
+              '0%': tokens.colors.primary[400],
+              '100%': tokens.colors.primary[600],
+            }}
+          />
+          
+          <Title level={4} style={{ marginTop: tokens.spacing[6] }}>
+            {stageInfo.text}
+          </Title>
+          
+          <Space direction="vertical" style={{ marginTop: tokens.spacing[4] }}>
+            <Text type="secondary">
+              Processing {file?.name}
+            </Text>
+            
+            {/* Processing stages indicator */}
+            <Space style={{ marginTop: tokens.spacing[4] }}>
+              <Tag color={processingStage === 'uploading' ? 'processing' : processingStage !== 'idle' ? 'success' : 'default'}>
+                1. Upload
+              </Tag>
+              <Tag color={processingStage === 'parsing' ? 'processing' : ['analyzing', 'complete'].includes(processingStage) ? 'success' : 'default'}>
+                2. Parse
+              </Tag>
+              <Tag color={processingStage === 'analyzing' ? 'processing' : processingStage === 'complete' ? 'success' : 'default'}>
+                3. Analyze
+              </Tag>
+            </Space>
+          </Space>
+
+          {/* Timeout warning */}
+          {showProcessingTimeout && (
+            <Alert
+              type="info"
+              message="Still processing your data..."
+              description="Larger files may take a minute or two. Please don't close this page."
+              icon={<ClockCircleOutlined />}
+              showIcon
+              style={{ marginTop: tokens.spacing[6], textAlign: 'left' }}
+            />
+          )}
         </div>
       </Card>
     );
@@ -391,7 +713,7 @@ export function UploadWizardPage() {
         actions={
           <Button
             icon={<ArrowLeftOutlined />}
-            onClick={() => navigate('/processes')}
+            onClick={handleCancelClick}
           >
             Cancel
           </Button>
@@ -428,6 +750,23 @@ export function UploadWizardPage() {
           </Button>
         </div>
       )}
+
+      {/* Cancel Confirmation Modal */}
+      <Modal
+        title="Discard Upload Progress?"
+        open={showCancelConfirm}
+        onOk={handleConfirmCancel}
+        onCancel={handleCancelStay}
+        okText="Discard"
+        cancelText="Stay"
+        okButtonProps={{ danger: true }}
+      >
+        <p>
+          You have unsaved upload progress. If you leave now, your file selection and column 
+          configuration will be lost.
+        </p>
+        <p>Are you sure you want to discard your progress?</p>
+      </Modal>
     </div>
   );
 }
