@@ -2,7 +2,7 @@
  * Event Logs Hooks - React Query hooks for event log operations
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSDK } from '../../../../apps/lumina/src/context/SDKContext';
+import { useSDK } from '@lumina/design-system';
 import type { ListLogsOptions } from 'process-mining-sdk';
 
 // Query key factory for logs

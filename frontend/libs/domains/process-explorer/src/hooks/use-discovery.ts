@@ -2,7 +2,7 @@
  * Discovery Hooks - React Query hooks for process model discovery
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSDK } from '../../../../apps/lumina/src/context/SDKContext';
+import { useSDK } from '@lumina/design-system';
 import type { DiscoverModelOptions, ProcessModel } from 'process-mining-sdk';
 
 // Query key factory for discovery

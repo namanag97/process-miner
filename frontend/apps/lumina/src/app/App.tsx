@@ -14,6 +14,8 @@ import {
   ApiOutlined,
   SettingOutlined,
   LogoutOutlined,
+  SearchOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons';
 import { AppShell, type NavItem } from '@lumina/design-system';
 import { useAuth } from '../context';
@@ -73,36 +75,36 @@ const App: React.FC = () => {
   }
 
   const navItems: NavItem[] = [
+    // Primary navigation (Celonis-style)
     {
-      id: 'analyze',
-      label: 'ANALYZE',
+      id: 'quickstarts',
+      label: 'Quickstarts',
+      icon: <DashboardOutlined />,
+      onClick: () => navigate('/'),
+    },
+    {
+      id: 'business-miner',
+      label: 'Business Miner',
+      icon: <NodeIndexOutlined />,
+      onClick: () => navigate('/explorer/demo'),
+    },
+    {
+      id: 'gallery',
+      label: 'Celonis Gallery',
+      icon: <ApiOutlined />,
+      onClick: () => navigate('/data/connectors'),
+    },
+    {
+      id: 'more',
+      label: 'More',
       icon: <BarChartOutlined />,
       children: [
-        {
-          id: 'dashboard',
-          label: 'Dashboard',
-          icon: <DashboardOutlined />,
-          onClick: () => navigate('/'),
-        },
-        {
-          id: 'explorer',
-          label: 'Process Explorer',
-          icon: <NodeIndexOutlined />,
-          onClick: () => navigate('/explorer/demo'),
-        },
         {
           id: 'analytics',
           label: 'Analytics',
           icon: <BarChartOutlined />,
           onClick: () => navigate('/analytics/demo'),
         },
-      ],
-    },
-    {
-      id: 'monitor',
-      label: 'MONITOR',
-      icon: <CheckCircleOutlined />,
-      children: [
         {
           id: 'conformance',
           label: 'Conformance',
@@ -115,13 +117,6 @@ const App: React.FC = () => {
           icon: <BulbOutlined />,
           onClick: () => navigate('/predictions/demo'),
         },
-      ],
-    },
-    {
-      id: 'optimize',
-      label: 'OPTIMIZE',
-      icon: <ExperimentOutlined />,
-      children: [
         {
           id: 'resources',
           label: 'Resources',
@@ -136,9 +131,10 @@ const App: React.FC = () => {
         },
       ],
     },
+    // Data section
     {
       id: 'data',
-      label: 'DATA',
+      label: 'Data',
       icon: <DatabaseOutlined />,
       children: [
         {
@@ -159,27 +155,43 @@ const App: React.FC = () => {
           icon: <NodeIndexOutlined />,
           onClick: () => navigate('/data/models'),
         },
-        {
-          id: 'connectors',
-          label: 'Connectors',
-          icon: <ApiOutlined />,
-          onClick: () => navigate('/data/connectors'),
-        },
       ],
     },
+    // Studio section
     {
-      id: 'settings',
-      label: 'Settings',
+      id: 'studio',
+      label: 'Studio',
+      icon: <ExperimentOutlined />,
+      onClick: () => navigate('/data/models'),
+    },
+    // Admin & Settings
+    {
+      id: 'admin-settings',
+      label: 'Admin & Settings',
       icon: <SettingOutlined />,
       onClick: () => navigate('/settings'),
+    },
+    // Search
+    {
+      id: 'search',
+      label: 'Search',
+      icon: <SearchOutlined />,
+      onClick: () => {/* TODO: Open search modal */},
+    },
+    // Help Center
+    {
+      id: 'help',
+      label: 'Help Center',
+      icon: <QuestionCircleOutlined />,
+      onClick: () => {/* TODO: Open help */},
     },
   ];
 
   // Determine active menu item based on current path
   const getActiveId = (): string => {
     const path = location.pathname;
-    if (path === '/') return 'dashboard';
-    if (path.startsWith('/explorer')) return 'explorer';
+    if (path === '/') return 'quickstarts';
+    if (path.startsWith('/explorer')) return 'business-miner';
     if (path.startsWith('/analytics')) return 'analytics';
     if (path.startsWith('/conformance')) return 'conformance';
     if (path.startsWith('/predictions')) return 'predictions';
@@ -188,9 +200,9 @@ const App: React.FC = () => {
     if (path.startsWith('/data/logs') || path.startsWith('/data/logs/')) return 'logs';
     if (path.startsWith('/data/upload')) return 'upload';
     if (path.startsWith('/data/models')) return 'models';
-    if (path.startsWith('/data/connectors')) return 'connectors';
-    if (path.startsWith('/settings')) return 'settings';
-    return 'dashboard';
+    if (path.startsWith('/data/connectors')) return 'gallery';
+    if (path.startsWith('/settings')) return 'admin-settings';
+    return 'quickstarts';
   };
 
   const footer = isAuthenticated ? (
@@ -198,21 +210,54 @@ const App: React.FC = () => {
       style={{
         display: 'flex',
         alignItems: 'center',
-        justifyContent: collapsed ? 'center' : 'space-between',
-        color: 'rgba(255, 255, 255, 0.65)',
-        fontSize: 12,
+        gap: 10,
+        color: 'rgba(255, 255, 255, 0.85)',
+        padding: collapsed ? '8px 0' : '8px 0',
       }}
     >
+      {/* User Avatar */}
+      <div
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: '50%',
+          background: '#36B37E',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'white',
+          fontWeight: 600,
+          fontSize: 14,
+          flexShrink: 0,
+        }}
+      >
+        {user?.email?.[0]?.toUpperCase() || 'U'}
+      </div>
+      
       {!collapsed && (
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {user?.email}
-        </span>
+        <div style={{ overflow: 'hidden', flex: 1 }}>
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 500,
+              color: 'white',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {user?.name || user?.email?.split('@')[0] || 'User'}
+          </div>
+          <div
+            style={{
+              fontSize: 11,
+              color: 'rgba(255, 255, 255, 0.6)',
+            }}
+          >
+            Admin
+          </div>
+        </div>
       )}
-      <LogoutOutlined
-        style={{ cursor: 'pointer' }}
-        onClick={logout}
-        title="Sign out"
-      />
     </div>
   ) : undefined;
 
