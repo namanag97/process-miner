@@ -12,6 +12,9 @@ import {
   NotificationsPage,
   ActivityLogPage,
   HelpCenterPage,
+  EventLogsPage,
+  UploadWizardPage,
+  LogDetailPage,
 } from './pages';
 import { createLogger } from './utils/logger';
 
@@ -89,9 +92,9 @@ function AppLayout() {
         <Route path="/activity" element={<ActivityLogPage />} />
 
         {/* Phase 2: Data Foundation */}
-        <Route path="/logs" element={<PlaceholderPage title="Event Logs" phase={2} />} />
-        <Route path="/logs/upload" element={<PlaceholderPage title="Upload Event Log" phase={2} />} />
-        <Route path="/logs/:id/*" element={<PlaceholderPage title="Log Detail" phase={2} />} />
+        <Route path="/logs" element={<EventLogsPage />} />
+        <Route path="/logs/upload" element={<UploadWizardPage />} />
+        <Route path="/logs/:id/*" element={<LogDetailPage />} />
 
         {/* Phase 3: Process Discovery */}
         <Route path="/explorer" element={<PlaceholderPage title="Process Explorer" phase={3} />} />
