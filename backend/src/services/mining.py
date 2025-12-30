@@ -116,6 +116,10 @@ class MiningService:
         """Directly-Follows Graph - simple visualization."""
         return pm4py.discover_dfg(log)
 
+    def _discover_performance_dfg(self, log: PM4PyLog) -> tuple[dict, dict, dict]:
+        """Directly-Follows Graph with performance metrics."""
+        return pm4py.discover_performance_dfg(log)
+
     # =========================================================================
     # Petri Net Operations
     # =========================================================================
@@ -265,6 +269,71 @@ class MiningService:
             "total_frequency": total_freq,
         }
 
+    def get_dfg_data_with_performance(self, event_log: EventLog) -> dict[str, Any]:
+        """Get DFG with performance metrics (avg/min/max duration per edge)."""
+        pm4py_log = self._to_pm4py_log(event_log)
+
+        # Get frequency-based DFG for base data
+        dfg, start_activities, end_activities = pm4py.discover_dfg(pm4py_log)
+
+        # Get performance DFG: {(src, tgt): {'mean': ..., 'min': ..., 'max': ..., ...}}
+        perf_dfg, _, _ = pm4py.discover_performance_dfg(pm4py_log)
+
+        # Build nodes (unique activities)
+        all_activities = set()
+        for (source, target), _ in dfg.items():
+            all_activities.add(source)
+            all_activities.add(target)
+
+        # Calculate frequencies
+        activity_freq = {}
+        for (source, target), freq in dfg.items():
+            activity_freq[source] = activity_freq.get(source, 0) + freq
+            activity_freq[target] = activity_freq.get(target, 0) + freq
+
+        total_freq = sum(dfg.values())
+
+        nodes = [
+            {
+                "id": act,
+                "name": act,
+                "frequency": activity_freq.get(act, 0),
+                "is_start": act in start_activities,
+                "is_end": act in end_activities,
+            }
+            for act in all_activities
+        ]
+
+        edges = []
+        for (source, target), freq in dfg.items():
+            edge_data = {
+                "source": source,
+                "target": target,
+                "frequency": freq,
+                "probability": round(freq / total_freq, 4) if total_freq > 0 else 0,
+            }
+            # Add performance metrics if available
+            if (source, target) in perf_dfg:
+                perf_data = perf_dfg[(source, target)]
+                # perf_data is a dict with 'mean', 'min', 'max', etc.
+                if isinstance(perf_data, dict):
+                    edge_data["avg_duration_seconds"] = perf_data.get("mean")
+                    edge_data["min_duration_seconds"] = perf_data.get("min")
+                    edge_data["max_duration_seconds"] = perf_data.get("max")
+                else:
+                    # If it's a single value (mean), use it
+                    edge_data["avg_duration_seconds"] = perf_data
+
+            edges.append(edge_data)
+
+        return {
+            "nodes": nodes,
+            "edges": edges,
+            "start_activities": dict(start_activities),
+            "end_activities": dict(end_activities),
+            "total_frequency": total_freq,
+        }
+
     def get_footprints(self, event_log: EventLog) -> dict[str, Any]:
         """Compute behavioral footprints (sequence/parallel relations)."""
         pm4py_log = self._to_pm4py_log(event_log)
@@ -302,8 +371,122 @@ class MiningService:
                     "start_activities": list(fp_result.get("start_activities", set())),
                     "end_activities": list(fp_result.get("end_activities", set())),
                 }
+            else:
+                return {"error": f"Unexpected footprints result type: {type(fp_result)}"}
         except Exception as e:
             return {"error": str(e)}
+
+    def get_activity_statistics(self, event_log: EventLog) -> list[dict[str, Any]]:
+        """
+        Get detailed statistics for each activity in the event log.
+
+        Returns list of activity details with frequency, timing, and position info.
+        """
+        pm4py_log = self._to_pm4py_log(event_log)
+
+        # Get basic statistics
+        start_activities = dict(pm4py.get_start_activities(pm4py_log))
+        end_activities = dict(pm4py.get_end_activities(pm4py_log))
+
+        # Get activity frequencies
+        activity_freq: dict[str, int] = {}
+        activity_positions: dict[str, list[float]] = {}  # Normalized positions (0-1)
+        activity_durations: dict[str, list[float]] = {}  # Duration to next activity
+
+        total_events = 0
+
+        for trace in pm4py_log:
+            trace_len = len(trace)
+            for i, event in enumerate(trace):
+                activity = event["concept:name"]
+
+                # Count frequency
+                activity_freq[activity] = activity_freq.get(activity, 0) + 1
+                total_events += 1
+
+                # Track normalized position (0 = first, 1 = last)
+                if trace_len > 1:
+                    normalized_pos = i / (trace_len - 1)
+                else:
+                    normalized_pos = 0.5  # Single-event trace
+
+                if activity not in activity_positions:
+                    activity_positions[activity] = []
+                activity_positions[activity].append(normalized_pos)
+
+                # Calculate duration to next activity
+                if i < trace_len - 1:
+                    next_event = trace[i + 1]
+                    current_time = event.get("time:timestamp")
+                    next_time = next_event.get("time:timestamp")
+                    if current_time and next_time:
+                        duration = (next_time - current_time).total_seconds()
+                        if duration >= 0:  # Skip negative durations
+                            if activity not in activity_durations:
+                                activity_durations[activity] = []
+                            activity_durations[activity].append(duration)
+
+        # Build response
+        activities = []
+        for activity, freq in sorted(activity_freq.items(), key=lambda x: -x[1]):
+            positions = activity_positions.get(activity, [])
+            durations = activity_durations.get(activity, [])
+
+            activity_data = {
+                "activity": activity,
+                "frequency": freq,
+                "frequency_percent": round(freq / total_events * 100, 2) if total_events > 0 else 0,
+                "is_start_activity": activity in start_activities,
+                "is_end_activity": activity in end_activities,
+                "position_avg": round(sum(positions) / len(positions), 4) if positions else None,
+            }
+
+            # Add duration metrics if available
+            if durations:
+                activity_data["avg_duration_seconds"] = round(sum(durations) / len(durations), 2)
+                activity_data["min_duration_seconds"] = round(min(durations), 2)
+                activity_data["max_duration_seconds"] = round(max(durations), 2)
+
+            activities.append(activity_data)
+
+        return activities
+
+    def calculate_variant_complexity(self, activity_trace: str) -> dict[str, Any]:
+        """
+        Calculate complexity metrics for a variant.
+
+        Args:
+            activity_trace: Activity sequence in "A -> B -> C" format
+
+        Returns:
+            Dict with complexity_score, rework_count, unique_activity_count
+        """
+        activities = [a.strip() for a in activity_trace.split("->")]
+        unique_activities = set(activities)
+        unique_count = len(unique_activities)
+        total_count = len(activities)
+
+        # Rework count: how many times activities are repeated
+        rework_count = total_count - unique_count
+
+        # Complexity score: combination of length, rework, and unique activities
+        # Higher score = more complex
+        # Formula: (length * 0.3) + (rework_ratio * 0.4) + (unique_ratio * 0.3)
+        rework_ratio = rework_count / total_count if total_count > 0 else 0
+        unique_ratio = unique_count / total_count if total_count > 0 else 1
+
+        # Normalize to 0-1 scale, where higher = more complex
+        complexity_score = (
+            min(total_count / 20, 1.0) * 0.3  # Length component (cap at 20 activities)
+            + rework_ratio * 0.4  # Rework component
+            + (1 - unique_ratio) * 0.3  # Repetition component
+        )
+
+        return {
+            "complexity_score": round(complexity_score, 4),
+            "rework_count": rework_count,
+            "unique_activity_count": unique_count,
+        }
 
     def get_case_statistics(self, event_log: EventLog) -> dict[str, Any]:
         """Get case duration statistics."""

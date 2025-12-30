@@ -12,10 +12,11 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from src.api.dependencies import DBSession
-from src.core.exceptions import NotFoundError, ValidationError
+from src.core.exceptions import ValidationError
 from src.core.logging_config import get_logger
 from src.models.orm import EventLog, ProcessCase
 from src.models.schemas import (
+    ActivityDetailResponse,
     CaseListResponse,
     CaseResponse,
     ColumnDetectionResponse,
@@ -399,11 +400,36 @@ async def get_variants(
     db: DBSession,
     process_id: str,
     top_n: int = Query(20, ge=1, le=100),
+    top_k_percent: Optional[float] = Query(
+        None, ge=0, le=100, description="Return variants covering top K% of cases"
+    ),
+    include_complexity: bool = Query(
+        False, description="Include complexity metrics (score, rework count, unique activities)"
+    ),
+    sort_by: Optional[str] = Query(
+        None,
+        description="Sort variants by: 'frequency', 'complexity', 'duration'. Default: frequency",
+    ),
 ):
     """
     Get process variants (unique activity sequences) with frequencies.
+
+    Supports filtering by:
+    - top_n: Return top N variants by case count
+    - top_k_percent: Return variants covering top K% of cases
+
+    When include_complexity=true, each variant includes:
+    - complexity_score: 0-1 score based on length, rework, and repetition
+    - rework_count: Number of repeated activities
+    - unique_activity_count: Number of distinct activities
     """
-    logger.info("get_variants_started", process_id=process_id, top_n=top_n)
+    logger.info(
+        "get_variants_started",
+        process_id=process_id,
+        top_n=top_n,
+        top_k_percent=top_k_percent,
+        include_complexity=include_complexity,
+    )
 
     # Load with cases
     query = (
@@ -428,9 +454,26 @@ async def get_variants(
 
     total_cases = len(event_log.cases)
 
-    # Build response
+    # Sort by case count initially (will re-sort if sort_by is specified)
+    sorted_variants = sorted(variant_cases.items(), key=lambda x: -len(x[1]))
+
+    # Apply top_k_percent filtering if specified
+    if top_k_percent is not None:
+        target_cases = int(total_cases * top_k_percent / 100)
+        cumulative = 0
+        filtered_variants = []
+        for variant_key, cases in sorted_variants:
+            filtered_variants.append((variant_key, cases))
+            cumulative += len(cases)
+            if cumulative >= target_cases:
+                break
+        sorted_variants = filtered_variants
+    else:
+        sorted_variants = sorted_variants[:top_n]
+
+    # Build response with optional complexity
     variants = []
-    for variant_key, cases in sorted(variant_cases.items(), key=lambda x: -len(x[1]))[:top_n]:
+    for variant_key, cases in sorted_variants:
         # Calculate average duration
         durations = []
         for case in cases:
@@ -439,13 +482,85 @@ async def get_variants(
 
         avg_duration = sum(durations) / len(durations) if durations else None
 
-        variants.append(VariantResponse(
-            variant_key=variant_key,
-            activity_trace=variant_key,  # Already in "A -> B -> C" format
-            case_count=len(cases),
-            frequency_percent=round(len(cases) / total_cases * 100, 2) if total_cases > 0 else 0,
-            avg_duration_seconds=avg_duration,
-        ))
+        variant_data = {
+            "variant_key": variant_key,
+            "activity_trace": variant_key,
+            "case_count": len(cases),
+            "frequency_percent": round(len(cases) / total_cases * 100, 2) if total_cases > 0 else 0,
+            "avg_duration_seconds": avg_duration,
+        }
+
+        # Add complexity metrics if requested
+        if include_complexity:
+            complexity = mining_service.calculate_variant_complexity(variant_key)
+            variant_data.update(complexity)
+
+        variants.append(VariantResponse(**variant_data))
+
+    # Apply sorting if specified
+    if sort_by == "complexity" and include_complexity:
+        variants.sort(key=lambda v: v.complexity_score or 0, reverse=True)
+    elif sort_by == "duration":
+        variants.sort(key=lambda v: v.avg_duration_seconds or 0, reverse=True)
+    # Default (frequency) is already sorted
 
     logger.info("get_variants_completed", process_id=process_id, variants_count=len(variants))
     return variants
+
+
+@router.get("/{process_id}/activities", response_model=list[ActivityDetailResponse])
+async def get_activities(
+    db: DBSession,
+    process_id: str,
+    sort_by: Optional[str] = Query(
+        None,
+        description="Sort activities by: 'frequency', 'duration', 'position'. Default: frequency",
+    ),
+):
+    """
+    Get detailed activity statistics for a process.
+
+    Returns each activity with:
+    - frequency: Total occurrences
+    - frequency_percent: Percentage of total events
+    - avg/min/max_duration_seconds: Time to next activity
+    - is_start_activity/is_end_activity: Position flags
+    - position_avg: Average normalized position (0=start, 1=end)
+    """
+    logger.info("get_activities_started", process_id=process_id, sort_by=sort_by)
+    start_time = time.perf_counter()
+
+    # Load with cases and events
+    query = (
+        select(EventLog)
+        .options(selectinload(EventLog.cases).selectinload(ProcessCase.events))
+        .where(EventLog.id == process_id)
+    )
+    result = await db.execute(query)
+    event_log = result.scalar_one_or_none()
+
+    if not event_log:
+        logger.warning("process_not_found", process_id=process_id)
+        raise HTTPException(status_code=404, detail=f"Process not found: {process_id}")
+
+    # Get activity statistics
+    activities_data = mining_service.get_activity_statistics(event_log)
+
+    # Convert to response objects
+    activities = [ActivityDetailResponse(**a) for a in activities_data]
+
+    # Apply sorting if specified
+    if sort_by == "duration":
+        activities.sort(key=lambda a: a.avg_duration_seconds or 0, reverse=True)
+    elif sort_by == "position":
+        activities.sort(key=lambda a: a.position_avg or 0.5)
+    # Default (frequency) is already sorted
+
+    duration_ms = (time.perf_counter() - start_time) * 1000
+    logger.info(
+        "get_activities_completed",
+        process_id=process_id,
+        activities_count=len(activities),
+        duration_ms=round(duration_ms, 2),
+    )
+    return activities

@@ -16,6 +16,7 @@ from src.core.enums import ConformanceMethod
 from src.core.logging_config import get_logger
 from src.models.orm import ConformanceResult, EventLog, ProcessModel
 from src.models.schemas import (
+    AlignmentDiagnosticsResponse,
     ConformanceCheckRequest,
     ConformanceListResponse,
     ConformanceResponse,
@@ -372,6 +373,96 @@ async def get_deviations(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to detect deviations: {str(e)}",
+        )
+
+
+@router.get("/alignments/{log_id}/{model_id}", response_model=AlignmentDiagnosticsResponse)
+async def get_alignment_diagnostics(
+    log_id: str,
+    model_id: str,
+    max_cases: int = Query(100, ge=1, le=1000, description="Max cases to include"),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Get detailed alignment diagnostics for a log-model pair.
+
+    Uses PM4Py's alignment-based conformance checking to compute optimal
+    alignments between traces and the process model. This provides:
+    - Per-case fitness scores
+    - Detailed alignment moves (sync, log-only, model-only)
+    - Identification of deviating activities
+
+    Note: This is computationally expensive for large logs. Use max_cases to limit.
+    """
+    logger.info(
+        "alignment_diagnostics_started",
+        log_id=log_id,
+        model_id=model_id,
+        max_cases=max_cases,
+    )
+    start_time = time.perf_counter()
+
+    # Get the event log
+    log_result = await session.execute(
+        select(EventLog).where(EventLog.id == log_id)
+    )
+    event_log = log_result.scalar_one_or_none()
+
+    if not event_log:
+        raise HTTPException(status_code=404, detail="Event log not found")
+
+    # Get the process model
+    model_result = await session.execute(
+        select(ProcessModel).where(ProcessModel.id == model_id)
+    )
+    model = model_result.scalar_one_or_none()
+
+    if not model:
+        raise HTTPException(status_code=404, detail="Process model not found")
+
+    if not model.serialized_model:
+        raise HTTPException(
+            status_code=400,
+            detail="Process model has no serialized data",
+        )
+
+    try:
+        # Get alignment diagnostics
+        diagnostics = conformance_service.get_alignment_diagnostics(
+            event_log, model, max_cases
+        )
+
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.info(
+            "alignment_diagnostics_completed",
+            log_id=log_id,
+            model_id=model_id,
+            total_cases=diagnostics["total_cases"],
+            fitting_cases=diagnostics["fitting_cases"],
+            average_fitness=diagnostics["average_fitness"],
+            duration_ms=round(duration_ms, 2),
+        )
+
+        return AlignmentDiagnosticsResponse(
+            log_id=log_id,
+            model_id=model_id,
+            total_cases=diagnostics["total_cases"],
+            fitting_cases=diagnostics["fitting_cases"],
+            average_fitness=diagnostics["average_fitness"],
+            case_alignments=diagnostics["case_alignments"],
+        )
+
+    except Exception as e:
+        logger.error(
+            "alignment_diagnostics_failed",
+            log_id=log_id,
+            model_id=model_id,
+            error=str(e),
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get alignment diagnostics: {str(e)}",
         )
 
 

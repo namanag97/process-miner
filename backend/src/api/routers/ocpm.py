@@ -13,7 +13,7 @@ import json
 import time
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,7 +22,6 @@ from src.core.logging_config import get_logger
 from src.models.orm import OCELLog, OCELObjectType, OCPetriNet
 from src.models.schemas import (
     DiscoverOCPNRequest,
-    FlattenedLogInfo,
     OCDFGResponse,
     OCELLogListResponse,
     OCELLogResponse,
@@ -82,7 +81,7 @@ async def upload_ocel(
         # Get statistics
         stats = ocpm_service.get_ocel_statistics(ocel)
 
-        # Create database record
+        # Create database record with raw OCEL data for later re-parsing
         log_name = name or filename.rsplit(".", 1)[0]
         log_model = OCELLog(
             name=log_name,
@@ -95,6 +94,7 @@ async def upload_ocel(
                 "activities": stats["activities"],
                 "objects_per_type": stats["objects_per_type"],
             }),
+            ocel_data=content,  # Store raw OCEL for OC-DFG and other analyses
         )
         session.add(log_model)
 
@@ -321,9 +321,6 @@ async def discover_oc_petri_net(
 
     Uses PM4Py's `discover_oc_petri_net()` to create an OC-PN that captures
     the process behavior across all object types.
-
-    Note: This requires the original OCEL file to be re-parsed. For production,
-    consider caching the OCEL data.
     """
     result = await session.execute(
         select(OCELLog).where(OCELLog.id == request.log_id)
@@ -333,29 +330,60 @@ async def discover_oc_petri_net(
     if not log:
         raise HTTPException(status_code=404, detail="OCEL log not found")
 
+    if not log.ocel_data:
+        raise HTTPException(
+            status_code=400,
+            detail="OCEL data not stored. Please re-upload the OCEL file."
+        )
+
     model_name = request.model_name or f"OC-PN_{log.name}"
 
-    metadata = json.loads(log.metadata_json) if log.metadata_json else {}
-    object_types = list(metadata.get("objects_per_type", {}).keys())
+    logger.info("oc_pn_discovery_started", log_id=log.id, model_name=model_name)
+    start_time = time.perf_counter()
 
-    # Create OC-PN record
-    # Note: In production, you would store the serialized OC-PN
-    oc_pn_model = OCPetriNet(
-        log_id=log.id,
-        name=model_name,
-        object_types_json=json.dumps(object_types),
-    )
-    session.add(oc_pn_model)
-    await session.commit()
-    await session.refresh(oc_pn_model)
+    try:
+        # Re-parse OCEL from stored blob
+        ocel = ocpm_service.read_ocel_from_bytes(log.ocel_data, log.source_format)
 
-    return OCPetriNetResponse(
-        id=oc_pn_model.id,
-        log_id=oc_pn_model.log_id,
-        name=oc_pn_model.name,
-        object_types=object_types,
-        created_at=oc_pn_model.created_at,
-    )
+        # Discover OC-PN using PM4Py
+        oc_pn = ocpm_service.discover_oc_petri_net(ocel)
+
+        # Serialize the OC-PN for storage
+        serialized_pn = ocpm_service.serialize_oc_petri_net(oc_pn)
+
+        metadata = json.loads(log.metadata_json) if log.metadata_json else {}
+        object_types = list(metadata.get("objects_per_type", {}).keys())
+
+        # Create OC-PN record with serialized model
+        oc_pn_model = OCPetriNet(
+            log_id=log.id,
+            name=model_name,
+            object_types_json=json.dumps(object_types),
+            serialized_model=serialized_pn,
+        )
+        session.add(oc_pn_model)
+        await session.commit()
+        await session.refresh(oc_pn_model)
+
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.info(
+            "oc_pn_discovery_completed",
+            log_id=log.id,
+            model_id=oc_pn_model.id,
+            duration_ms=round(duration_ms, 2),
+        )
+
+        return OCPetriNetResponse(
+            id=oc_pn_model.id,
+            log_id=oc_pn_model.log_id,
+            name=oc_pn_model.name,
+            object_types=object_types,
+            created_at=oc_pn_model.created_at,
+        )
+
+    except Exception as e:
+        logger.error("oc_pn_discovery_failed", log_id=log.id, error=str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"OC-PN discovery failed: {str(e)}")
 
 
 @router.get("/models", response_model=list[OCPetriNetResponse])
@@ -463,6 +491,71 @@ async def get_object_relationships(
         "total_objects": log.total_objects,
         "total_events": log.total_events,
     }
+
+
+@router.get("/logs/{log_id}/oc-dfg", response_model=OCDFGResponse)
+async def get_oc_dfg(
+    log_id: str,
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Get Object-Centric Directly-Follows Graph (OC-DFG) for an OCEL log.
+
+    Computes the OC-DFG using PM4Py's `ocel_discover_ocdfg()` function.
+    Returns separate DFG graphs for each object type, showing how activities
+    relate to each other within the context of different object types.
+
+    This endpoint requires the OCEL data to be stored (uploaded after Phase 2.1).
+    """
+    result = await session.execute(
+        select(OCELLog).where(OCELLog.id == log_id)
+    )
+    log = result.scalar_one_or_none()
+
+    if not log:
+        raise HTTPException(status_code=404, detail="OCEL log not found")
+
+    if not log.ocel_data:
+        raise HTTPException(
+            status_code=400,
+            detail="OCEL data not stored. Please re-upload the OCEL file."
+        )
+
+    logger.info("oc_dfg_computation_started", log_id=log.id)
+    start_time = time.perf_counter()
+
+    try:
+        # Re-parse OCEL from stored blob
+        ocel = ocpm_service.read_ocel_from_bytes(log.ocel_data, log.source_format)
+
+        # Compute OC-DFG
+        ocdfg_data = ocpm_service.get_ocdfg_graph_data(ocel)
+
+        if "error" in ocdfg_data and ocdfg_data["error"]:
+            raise HTTPException(status_code=500, detail=f"OC-DFG computation failed: {ocdfg_data['error']}")
+
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.info(
+            "oc_dfg_computation_completed",
+            log_id=log.id,
+            object_types=len(ocdfg_data["object_types"]),
+            duration_ms=round(duration_ms, 2),
+        )
+
+        return OCDFGResponse(
+            log_id=log.id,
+            object_types=ocdfg_data["object_types"],
+            activities=ocdfg_data["activities"],
+            graphs_by_type=ocdfg_data["graphs_by_type"],
+            total_events=log.total_events,
+            total_objects=log.total_objects,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("oc_dfg_computation_failed", log_id=log.id, error=str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"OC-DFG computation failed: {str(e)}")
 
 
 @router.get("/formats")
