@@ -23,6 +23,7 @@ import {
   AIInsightsPage,
   PredictionsPage,
   PredictorDetailPage,
+  TestBenchPage,
 } from './pages';
 import { createLogger } from './utils/logger';
 
@@ -68,6 +69,7 @@ function AppLayout() {
     if (path.startsWith('/help')) return 'help';
     if (path.startsWith('/notifications')) return 'notifications';
     if (path.startsWith('/activity')) return 'activity';
+    if (path.startsWith('/test-bench')) return 'test-bench';
     return 'home';
   };
 
@@ -83,6 +85,7 @@ function AppLayout() {
       help: '/help',
       notifications: '/notifications',
       activity: '/activity',
+      'test-bench': '/test-bench',
     };
     log.debug('Navigating', { from: location.pathname, to: routes[id] });
     navigate(routes[id] || '/home');
@@ -124,6 +127,9 @@ function AppLayout() {
         <Route path="/ai/insights" element={<AIInsightsPage />} />
         <Route path="/ai/predictions" element={<PredictionsPage />} />
         <Route path="/ai/predictions/:id" element={<PredictorDetailPage />} />
+
+        {/* Developer Tools */}
+        <Route path="/test-bench" element={<TestBenchPage />} />
 
         {/* Default redirect */}
         <Route path="/" element={<Navigate to="/home" replace />} />

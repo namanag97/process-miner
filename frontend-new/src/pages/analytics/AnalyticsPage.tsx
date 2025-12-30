@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Row, Col, Card, Tabs, Select, Space, Typography, Skeleton, Alert } from 'antd';
 import {
@@ -8,12 +8,14 @@ import {
   CheckCircleOutlined,
   ReloadOutlined,
   InfoCircleOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import { PageHeader, MetricCard, EmptyState, tokens, formatCompactNumber, useSDK, formatDurationFromSeconds, type EventLog } from '@lumina/design-system';
 import { createLogger } from '../../utils/logger';
 import { PerformanceTab } from './PerformanceTab';
 import { ConformanceTab } from './ConformanceTab';
 import { ReworkTab } from './ReworkTab';
+import { ResourcesTab } from './ResourcesTab';
 
 const { Text } = Typography;
 const log = createLogger('AnalyticsPage');
@@ -21,6 +23,7 @@ const log = createLogger('AnalyticsPage');
 export function AnalyticsPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const sdk = useSDK();
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
 
@@ -32,12 +35,16 @@ export function AnalyticsPage() {
 
   const logs = logsData?.items ?? [];
 
-  // Auto-select first log if none selected
-  React.useEffect(() => {
-    if (!selectedLogId && logs.length > 0) {
+  // Read logId from URL query param or auto-select first log
+  useEffect(() => {
+    const urlLogId = searchParams.get('logId');
+    if (urlLogId && logs.some((l: EventLog) => l.id === urlLogId)) {
+      setSelectedLogId(urlLogId);
+      log.debug('Selected log from URL param', { logId: urlLogId });
+    } else if (!selectedLogId && logs.length > 0) {
       setSelectedLogId(logs[0].id);
     }
-  }, [logs, selectedLogId]);
+  }, [logs, selectedLogId, searchParams]);
 
   // Fetch performance data for selected log
   const { data: performanceData, isLoading: perfLoading, error: perfError } = useQuery({
@@ -75,6 +82,8 @@ export function AnalyticsPage() {
   const handleLogChange = (logId: string) => {
     log.info('Log selection changed', { logId });
     setSelectedLogId(logId);
+    // Update URL to allow bookmarking/sharing
+    navigate(`${location.pathname}?logId=${logId}`, { replace: true });
   };
 
   const selectedLog = logs.find((l: EventLog) => l.id === selectedLogId);
@@ -117,6 +126,16 @@ export function AnalyticsPage() {
         </Space>
       ),
       children: <ReworkTab logId={selectedLogId} data={reworkData} loading={reworkLoading} />,
+    },
+    {
+      key: 'resources',
+      label: (
+        <Space>
+          <TeamOutlined />
+          Resources
+        </Space>
+      ),
+      children: <ResourcesTab logId={selectedLogId} />,
     },
   ];
 

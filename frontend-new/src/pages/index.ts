@@ -9,3 +9,4 @@ export { EventLogsPage, UploadWizardPage, LogDetailPage } from './logs';
 export { ProcessExplorerIndexPage, ProcessExplorerPage } from './explorer';
 export { AnalyticsPage } from './analytics';
 export { AIIndexPage, AIInsightsPage, PredictionsPage, PredictorDetailPage } from './ai';
+export { TestBenchPage } from './TestBenchPage';
