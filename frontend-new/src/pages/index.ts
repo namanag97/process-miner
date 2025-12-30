@@ -7,4 +7,4 @@ export { ActivityLogPage } from './ActivityLogPage';
 export { HelpCenterPage } from './HelpCenterPage';
 export { EventLogsPage, UploadWizardPage, LogDetailPage } from './logs';
 export { ProcessExplorerIndexPage, ProcessExplorerPage } from './explorer';
-
+export { AnalyticsPage } from './analytics';
