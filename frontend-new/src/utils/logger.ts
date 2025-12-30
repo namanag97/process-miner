@@ -18,8 +18,9 @@ const getLogLevel = (): LogLevel => {
       return LogLevel[stored as keyof typeof LogLevel];
     }
   }
-  // Default to INFO in production, DEBUG in development
-  return import.meta.env?.DEV ? LogLevel.DEBUG : LogLevel.INFO;
+  // Default to DEBUG in development (localhost), INFO otherwise
+  const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+  return isDev ? LogLevel.DEBUG : LogLevel.INFO;
 };
 
 const formatTimestamp = (): string => {
