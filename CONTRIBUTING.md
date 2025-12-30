@@ -39,7 +39,7 @@ git checkout -b feature/your-feature-name
 
 ### 1. Development Workflow
 
-```bash
+````bash
 # Start from dev
 git checkout dev
 git pull origin dev
@@ -55,7 +55,7 @@ git commit -m "feat: add new feature"
 git push origin feature/my-feature
 
 # Open PR to dev (not main!)
-```
+```git
 
 ### 2. Pull Request Process
 
@@ -91,7 +91,7 @@ git merge dev
 # Update version numbers, CHANGELOG, etc.
 # Push and create PR to main
 git push origin release/v1.x.x
-```
+````
 
 After merging to `main`:
 
