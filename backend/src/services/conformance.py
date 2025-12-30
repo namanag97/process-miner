@@ -151,6 +151,98 @@ class ConformanceService:
 
         return deviations
 
+    def get_alignment_diagnostics(
+        self,
+        event_log: EventLog,
+        model: ProcessModel,
+        max_cases: int = 100,
+    ) -> dict[str, Any]:
+        """Get detailed alignment diagnostics using PM4Py alignments.
+
+        Uses pm4py.conformance_diagnostics_alignments() to compute optimal
+        alignments between the log and model. This is more precise but slower
+        than token replay.
+
+        Args:
+            event_log: The event log to check
+            model: The process model to check against
+            max_cases: Maximum number of cases to include in response
+
+        Returns:
+            Dictionary with alignment diagnostics per case
+        """
+        pm4py_log = mining_service._to_pm4py_log(event_log)
+        net, im, fm = self._get_petri_net(model)
+
+        # Get alignment diagnostics using PM4Py
+        alignments = pm4py.conformance_diagnostics_alignments(pm4py_log, net, im, fm)
+
+        case_alignments = []
+        total_fitness = 0.0
+        fitting_count = 0
+
+        for i, (trace, alignment) in enumerate(zip(pm4py_log, alignments)):
+            if i >= max_cases:
+                break
+
+            case_id = trace.attributes.get("concept:name", f"trace_{i}")
+
+            # Extract alignment moves
+            moves = []
+            alignment_seq = alignment.get("alignment", [])
+            for move in alignment_seq:
+                # Each move is ((log_label, model_label), (log_move, model_move))
+                if isinstance(move, tuple) and len(move) >= 2:
+                    labels = move[0] if len(move) > 0 else (None, None)
+                    log_label = labels[0] if isinstance(labels, tuple) and len(labels) > 0 else None
+                    model_label = labels[1] if isinstance(labels, tuple) and len(labels) > 1 else None
+
+                    # Determine move type
+                    if log_label == ">>" or log_label is None:
+                        move_type = "model_only"
+                        log_move = None
+                        model_move = str(model_label) if model_label else None
+                    elif model_label == ">>" or model_label is None:
+                        move_type = "log_only"
+                        log_move = str(log_label) if log_label else None
+                        model_move = None
+                    else:
+                        move_type = "sync"
+                        log_move = str(log_label) if log_label else None
+                        model_move = str(model_label) if model_label else None
+
+                    moves.append({
+                        "log_move": log_move,
+                        "model_move": model_move,
+                        "move_type": move_type,
+                    })
+
+            # Calculate fitness for this case
+            fitness = alignment.get("fitness", 1.0)
+            cost = alignment.get("cost", 0)
+            is_fit = cost == 0
+
+            total_fitness += fitness
+            if is_fit:
+                fitting_count += 1
+
+            case_alignments.append({
+                "case_id": case_id,
+                "fitness": fitness,
+                "cost": cost,
+                "alignment": moves,
+                "is_fit": is_fit,
+            })
+
+        avg_fitness = total_fitness / len(case_alignments) if case_alignments else 0.0
+
+        return {
+            "total_cases": len(pm4py_log),
+            "fitting_cases": fitting_count,
+            "average_fitness": avg_fitness,
+            "case_alignments": case_alignments,
+        }
+
     def _token_replay(
         self,
         log,

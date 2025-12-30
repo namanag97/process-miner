@@ -67,6 +67,7 @@ class ProcessResponse(BaseModel):
     total_activities: int
     activities: list[str]
     created_at: datetime
+    source_file: Optional[str] = None  # FE expects this for display
 
     class Config:
         from_attributes = True
@@ -121,6 +122,25 @@ class VariantResponse(BaseModel):
     case_count: int
     frequency_percent: float
     avg_duration_seconds: Optional[float]
+    # Complexity metrics (optional, populated when requested)
+    complexity_score: Optional[float] = None
+    rework_count: Optional[int] = None
+    unique_activity_count: Optional[int] = None
+
+
+class ActivityDetailResponse(BaseModel):
+    """Detailed activity statistics for process explorer."""
+
+    activity: str
+    frequency: int
+    frequency_percent: float
+    avg_duration_seconds: Optional[float] = None
+    min_duration_seconds: Optional[float] = None
+    max_duration_seconds: Optional[float] = None
+    is_start_activity: bool = False
+    is_end_activity: bool = False
+    position_avg: Optional[float] = None  # Average position in trace (0=first, 1=last)
+    resources: list[str] = []  # Resources that perform this activity
 
 
 class StatisticsResponse(BaseModel):
@@ -214,6 +234,10 @@ class DFGEdge(BaseModel):
     target: str
     frequency: int
     probability: float
+    # Performance metrics (optional, populated when include_performance=true)
+    avg_duration_seconds: Optional[float] = None
+    min_duration_seconds: Optional[float] = None
+    max_duration_seconds: Optional[float] = None
 
 
 class DFGResponse(BaseModel):
@@ -224,6 +248,19 @@ class DFGResponse(BaseModel):
     start_activities: dict[str, int]
     end_activities: dict[str, int]
     total_frequency: int
+
+
+class ProcessExplorerDataResponse(BaseModel):
+    """Unified response for Process Explorer frontend component.
+
+    Combines DFG, variants, activities, and statistics in a single request.
+    """
+
+    log_id: str
+    dfg: DFGResponse
+    variants: list["VariantResponse"]
+    activities: list["ActivityDetailResponse"]
+    statistics: "StatisticsResponse"
 
 
 class PetriNetPlace(BaseModel):
@@ -281,6 +318,8 @@ class ConformanceResponse(BaseModel):
     model_id: str
     fitness: float
     precision: Optional[float]
+    generalization: Optional[float] = None  # FE expects this metric
+    simplicity: Optional[float] = None  # FE expects this metric
     method: str
     is_conformant: bool  # fitness >= 0.8
     fitting_traces: int
@@ -291,16 +330,29 @@ class ConformanceResponse(BaseModel):
         from_attributes = True
 
 
+class DeviationDetail(BaseModel):
+    """Structured deviation for conformance diagnostics."""
+
+    case_id: str
+    activity: str
+    violation_type: str  # 'missing_activity' | 'wrong_order' | 'extra_activity'
+    expected_after: Optional[str] = None
+    frequency: int = 1
+    impact: str = "medium"  # 'low' | 'medium' | 'high'
+
+
 class DiagnosticsResponse(BaseModel):
     """Detailed conformance diagnostics."""
 
     fitness: float
     precision: Optional[float]
+    generalization: Optional[float] = None
+    simplicity: Optional[float] = None
     total_traces: int
     fitting_traces: int
     non_fitting_traces: int
     fitness_ratio: float
-    deviations: Optional[list[dict[str, Any]]]
+    deviations: Optional[list[DeviationDetail]] = None  # Structured deviations
 
 
 # =============================================================================
@@ -479,12 +531,25 @@ class OCDFGEdge(BaseModel):
     frequency: int
 
 
+class OCDFGTypeGraph(BaseModel):
+    """OC-DFG graph for a single object type."""
+
+    object_type: str
+    nodes: list[OCDFGNode]
+    edges: list[OCDFGEdge]
+    start_activities: list[str] = []
+    end_activities: list[str] = []
+
+
 class OCDFGResponse(BaseModel):
     """Object-Centric DFG response."""
 
+    log_id: str
     object_types: list[str]
     activities: list[str]
-    graphs_by_type: dict[str, Any]
+    graphs_by_type: dict[str, OCDFGTypeGraph]
+    total_events: int = 0
+    total_objects: int = 0
 
 
 class FlattenedLogInfo(BaseModel):
@@ -535,6 +600,35 @@ class DeviationResponse(BaseModel):
     activity: Optional[str]
     deviation_type: str
     details: str
+
+
+class AlignmentMove(BaseModel):
+    """Single move in an alignment sequence."""
+
+    log_move: Optional[str] = None
+    model_move: Optional[str] = None
+    move_type: str  # 'sync', 'log_only', 'model_only'
+
+
+class CaseAlignmentResponse(BaseModel):
+    """Alignment result for a single case."""
+
+    case_id: str
+    fitness: float
+    cost: int = 0
+    alignment: list[AlignmentMove]
+    is_fit: bool = True
+
+
+class AlignmentDiagnosticsResponse(BaseModel):
+    """Response for alignment diagnostics endpoint."""
+
+    log_id: str
+    model_id: str
+    total_cases: int
+    fitting_cases: int
+    average_fitness: float
+    case_alignments: list[CaseAlignmentResponse]
 
 
 # =============================================================================
@@ -656,6 +750,9 @@ class BottleneckResponse(BaseModel):
     frequency: int
     is_bottleneck: bool
     severity: str  # 'low', 'medium', 'high'
+    preceding_activities: list[str] = []
+    following_activities: list[str] = []
+    bottleneck_impact_score: float = 0.0  # 0-1 score based on wait time and frequency
 
 
 class BottleneckListResponse(BaseModel):
@@ -924,3 +1021,7 @@ class SimulationResponse(BaseModel):
     original_metrics: dict[str, float]
     simulated_metrics: dict[str, float]
     impact: dict[str, float]
+
+
+# Rebuild models with forward references
+ProcessExplorerDataResponse.model_rebuild()

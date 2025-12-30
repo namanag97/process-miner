@@ -33,21 +33,17 @@ class OCPMService:
         """
         return pm4py.read_ocel(file_path)
 
-    def read_ocel_from_bytes(self, content: bytes, format: str = "jsonocel"):
+    def read_ocel_from_bytes(self, content: bytes, source_format: str = "jsonocel"):
         """Read OCEL from bytes content.
 
         Args:
             content: Raw bytes of the OCEL file
-            format: File format (jsonocel, sqlite, xmlocel)
+            source_format: File format (jsonocel, sqlite, xmlocel)
 
         Returns:
             PM4Py OCEL object
         """
-        suffix = f".{format}"
-        if format == "sqlite":
-            suffix = ".sqlite"
-        elif format == "xmlocel":
-            suffix = ".xmlocel"
+        suffix = self._get_suffix_for_format(source_format)
 
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
             tmp.write(content)
@@ -56,6 +52,21 @@ class OCPMService:
             return pm4py.read_ocel(tmp_path)
         finally:
             os.unlink(tmp_path)
+
+    def _get_suffix_for_format(self, source_format: str) -> str:
+        """Get file suffix for OCEL format.
+
+        Args:
+            source_format: File format (jsonocel, sqlite, xmlocel)
+
+        Returns:
+            File suffix including dot
+        """
+        if source_format == "sqlite":
+            return ".sqlite"
+        elif source_format == "xmlocel":
+            return ".xmlocel"
+        return ".jsonocel"
 
     def get_object_types(self, ocel) -> list[str]:
         """Get all object types from an OCEL.
@@ -218,29 +229,77 @@ class OCPMService:
         """Get OC-DFG as structured data for visualization.
 
         Returns graph data organized by object type for React frontend.
+
+        The PM4Py ocel_discover_ocdfg returns a dictionary with keys:
+        - 'edges': dict mapping (source, target, object_type) to frequency
+        - 'activities_ot': dict mapping object_type to set of activities
+        - 'start_activities': dict mapping object_type to dict of start activities
+        - 'end_activities': dict mapping object_type to dict of end activities
         """
         try:
             ocdfg = self.get_object_centric_dfg(ocel)
+            object_types = self.get_object_types(ocel)
+            activities = self.get_activities(ocel)
 
-            # OC-DFG structure varies by PM4Py version
-            # Try to extract useful graph data
             result = {
-                "object_types": self.get_object_types(ocel),
-                "activities": self.get_activities(ocel),
+                "object_types": object_types,
+                "activities": activities,
                 "graphs_by_type": {},
             }
 
-            # If ocdfg is a dictionary with edges per type
-            if isinstance(ocdfg, dict):
-                for key, value in ocdfg.items():
-                    if isinstance(key, str):
-                        result["graphs_by_type"][key] = {
-                            "raw": str(value)[:1000]  # Truncate for safety
-                        }
+            # Extract edges dictionary
+            edges_dict = ocdfg.get("edges", {}) if isinstance(ocdfg, dict) else {}
+            start_activities = ocdfg.get("start_activities", {}) if isinstance(ocdfg, dict) else {}
+            end_activities = ocdfg.get("end_activities", {}) if isinstance(ocdfg, dict) else {}
+            activities_ot = ocdfg.get("activities_ot", {}) if isinstance(ocdfg, dict) else {}
+
+            # Build graph per object type
+            for ot in object_types:
+                # Get activities for this object type
+                ot_activities = list(activities_ot.get(ot, set())) if activities_ot else activities
+
+                # Build nodes
+                nodes = []
+                activity_freq: dict[str, int] = {}
+                for (src, tgt, edge_ot), freq in edges_dict.items():
+                    if edge_ot == ot:
+                        activity_freq[src] = activity_freq.get(src, 0) + freq
+                        activity_freq[tgt] = activity_freq.get(tgt, 0) + freq
+
+                for act in ot_activities:
+                    nodes.append({
+                        "id": f"{ot}_{act}",
+                        "name": act,
+                        "object_type": ot,
+                        "frequency": activity_freq.get(act, 0),
+                    })
+
+                # Build edges
+                edges = []
+                for (src, tgt, edge_ot), freq in edges_dict.items():
+                    if edge_ot == ot:
+                        edges.append({
+                            "source": src,
+                            "target": tgt,
+                            "object_type": ot,
+                            "frequency": freq,
+                        })
+
+                # Get start/end activities for this object type
+                ot_start = list(start_activities.get(ot, {}).keys()) if start_activities else []
+                ot_end = list(end_activities.get(ot, {}).keys()) if end_activities else []
+
+                result["graphs_by_type"][ot] = {
+                    "object_type": ot,
+                    "nodes": nodes,
+                    "edges": edges,
+                    "start_activities": ot_start,
+                    "end_activities": ot_end,
+                }
 
             return result
         except Exception as e:
-            return {"error": str(e)}
+            return {"error": str(e), "object_types": [], "activities": [], "graphs_by_type": {}}
 
     def get_objects_events_relationship(self, ocel) -> dict[str, Any]:
         """Get the event-object relationship summary.

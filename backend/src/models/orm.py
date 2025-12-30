@@ -262,6 +262,9 @@ class OCELLog(Base):
     # JSON metadata (activities, objects_per_type)
     metadata_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # Raw OCEL data for re-parsing (enables OC-DFG and other analyses)
+    ocel_data: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships
