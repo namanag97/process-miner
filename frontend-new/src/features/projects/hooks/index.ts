@@ -100,7 +100,7 @@ export const useRemoveFileFromProject = createMutationHook<
   { projectId: string; logId: string }
 >({
   mutationFn: async (sdk, { projectId, logId }) => {
-    await sdk.projects.removeProcess(projectId, logId);
+    await sdk.projects.removeFile(projectId, logId);
   },
   invalidateKeys: [['projects']],
   onSuccessMessage: 'Data source removed',

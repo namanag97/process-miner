@@ -137,7 +137,7 @@ function ErrorState({ error, onRetry }: ErrorStateProps) {
   return (
     <Result
       status="error"
-      icon={<WarningOutlined style={{ color: tokens.colors.error }} />}
+      icon={<WarningOutlined style={{ color: tokens.colors.error[500] }} />}
       title="Something went wrong"
       subTitle={error.message || 'An unexpected error occurred'}
       extra={[
@@ -154,9 +154,9 @@ function ErrorState({ error, onRetry }: ErrorStateProps) {
         <Button
           key="home"
           icon={<HomeOutlined />}
-          onClick={() => navigate('/home')}
+          onClick={() => navigate('/workspace')}
         >
-          Go Home
+          Go to Workspace
         </Button>,
       ].filter(Boolean)}
     />
@@ -174,7 +174,7 @@ interface EmptyStateProps {
 function EmptyState({ config }: EmptyStateProps) {
   return (
     <Result
-      icon={config.icon || <InboxOutlined style={{ color: tokens.colors.text.tertiary }} />}
+      icon={config.icon || <InboxOutlined style={{ color: tokens.colors.neutral[400] }} />}
       title={config.title}
       subTitle={config.description}
       extra={
@@ -222,13 +222,9 @@ export function FeaturePage({
 
   // Convert breadcrumb to PageHeader format
   const breadcrumbItems = breadcrumb?.map((item) => ({
-    title: item.href ? (
-      <a onClick={() => navigate(item.href!)} style={{ cursor: 'pointer' }}>
-        {item.icon} {item.label}
-      </a>
-    ) : (
-      <span>{item.icon} {item.label}</span>
-    ),
+    label: item.label,
+    href: item.href,
+    onClick: item.href ? () => navigate(item.href!) : undefined,
   }));
 
   // Loading state - show skeleton
@@ -256,7 +252,7 @@ export function FeaturePage({
         <PageHeader
           title={title}
           description={description}
-          breadcrumb={breadcrumbItems ? { items: breadcrumbItems } : undefined}
+          breadcrumb={breadcrumbItems}
           actions={actions}
         />
         <div style={{ padding: noPadding ? 0 : tokens.spacing[6] }}>
@@ -272,7 +268,7 @@ export function FeaturePage({
       <PageHeader
         title={title}
         description={description}
-        breadcrumb={breadcrumbItems ? { items: breadcrumbItems } : undefined}
+        breadcrumb={breadcrumbItems}
         actions={actions}
       />
       <Suspense fallback={<LoadingSkeleton />}>
@@ -334,7 +330,7 @@ export function PageSection({
             {description && (
               <p style={{
                 margin: `${tokens.spacing[1]}px 0 0`,
-                color: tokens.colors.text.secondary,
+                color: tokens.colors.neutral[500],
                 fontSize: tokens.fontSize.sm,
               }}>
                 {description}

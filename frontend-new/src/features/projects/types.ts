@@ -14,10 +14,12 @@
 export interface Project {
   id: string;
   name: string;
-  description?: string;
+  description: string | null;
   totalFiles: number;
   createdAt: string;
-  updatedAt: string;
+  updatedAt: string | null;
+  tags?: string[];
+  totalAnalyses?: number;
 }
 
 /**
@@ -33,9 +35,13 @@ export interface ProjectDetail extends Project {
 export interface EventLogSummary {
   id: string;
   name: string;
-  totalCases: number;
+  sourceFormat: string;
   totalEvents: number;
+  totalCases: number;
+  totalActivities: number;
+  activities: string[];
   createdAt: string;
+  sourceFile: string | null;
 }
 
 /**
@@ -94,6 +100,7 @@ export interface ProjectListResponse {
   total: number;
   page: number;
   pageSize: number;
+  pages: number;
 }
 
 // ============================================

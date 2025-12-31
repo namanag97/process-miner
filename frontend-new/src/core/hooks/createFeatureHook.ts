@@ -139,7 +139,6 @@ export function createMutationHook<TData, TVariables, TError = Error>(
 
         // Call custom onSuccess
         config.onSuccess?.(data, variables);
-        overrides?.onSuccess?.(data, variables, undefined);
       },
 
       onError: (error, variables) => {
@@ -153,7 +152,6 @@ export function createMutationHook<TData, TVariables, TError = Error>(
 
         // Call custom onError
         config.onError?.(error, variables);
-        overrides?.onError?.(error, variables, undefined);
       },
 
       ...config.options,

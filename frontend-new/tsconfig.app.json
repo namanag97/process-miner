@@ -17,6 +17,7 @@
     "src/**/*.test.js",
     "src/**/*.spec.jsx",
     "src/**/*.test.jsx",
+    "src/features/_template/**/*",
     "jest.config.ts",
     "jest.config.cts",
     "**/*.stories.ts",
