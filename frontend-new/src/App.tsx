@@ -26,6 +26,9 @@ import {
   PredictionsPage,
   PredictorDetailPage,
   TestBenchPage,
+  ProjectDetailPage,
+  ProcessQuestionsPage,
+  KPIPage,
 } from './pages';
 import { createLogger } from './utils/logger';
 
@@ -62,6 +65,7 @@ function AppLayout() {
   const getActiveId = () => {
     const path = location.pathname;
     if (path.startsWith('/home')) return 'home';
+    if (path.startsWith('/projects')) return 'home'; // Projects are part of workspace
     if (path.startsWith('/processes')) return 'logs';
     if (path.startsWith('/explorer')) return 'explorer';
     if (path.startsWith('/analytics')) return 'analytics';
@@ -72,6 +76,7 @@ function AppLayout() {
     if (path.startsWith('/notifications')) return 'notifications';
     if (path.startsWith('/activity')) return 'activity';
     if (path.startsWith('/test-bench')) return 'test-bench';
+    if (path.startsWith('/audit')) return 'audit-logs';
     return 'home';
   };
 
@@ -109,13 +114,21 @@ function AppLayout() {
         <Route path="/help" element={<HelpCenterPage />} />
         <Route path="/activity" element={<ActivityLogPage />} />
         <Route path="/audit-logs" element={<AuditLogsPage />} />
+        <Route path="/audit" element={<AuditLogsPage />} />
 
-        {/* Phase 2: Data Foundation */}
+        {/* Project-centric flow (new primary flow) */}
+        <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
+        <Route path="/projects/:projectId/upload" element={<UploadWizardPage />} />
+        <Route path="/projects/:projectId/data/:logId/questions" element={<ProcessQuestionsPage />} />
+        <Route path="/projects/:projectId/data/:logId/explorer" element={<ProcessExplorerPage />} />
+        <Route path="/projects/:projectId/data/:logId/kpi" element={<KPIPage />} />
+
+        {/* Phase 2: Data Foundation (legacy routes) */}
         <Route path="/processes" element={<EventLogsPage />} />
         <Route path="/processes/upload" element={<UploadWizardPage />} />
         <Route path="/processes/:id/*" element={<LogDetailPage />} />
 
-        {/* Phase 3: Process Discovery */}
+        {/* Phase 3: Process Discovery (legacy routes) */}
         <Route path="/explorer" element={<ProcessExplorerIndexPage />} />
         <Route path="/explorer/:logId/*" element={<ProcessExplorerPage />} />
 

@@ -1,68 +1,20 @@
 import React from 'react';
-import { Row, Col, Card, Table, Progress, Typography, Space, Tag, Tooltip } from 'antd';
+import { Row, Col, Card, Table, Progress, Typography, Space, Tag, Tooltip, Skeleton, Empty, Button } from 'antd';
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   ExclamationCircleOutlined,
   InfoCircleOutlined,
+  FileSearchOutlined,
 } from '@ant-design/icons';
-import { MetricCard, tokens, formatCompactNumber } from '@lumina/design-system';
+import { useQuery } from '@tanstack/react-query';
+import { MetricCard, tokens, formatCompactNumber, useSDK, queryKeys, EmptyState } from '@lumina/design-system';
 import { createLogger } from '../../utils/logger';
 
 const { Text } = Typography;
 const log = createLogger('ConformanceTab');
 
-// Mock conformance data
-const mockConformanceMetrics = {
-  fitness: 87.5,
-  precision: 92.3,
-  generalization: 78.9,
-  simplicity: 85.2,
-};
-
-const mockDeviations = [
-  {
-    caseId: 'CASE-1001',
-    violationType: 'Missing Activity',
-    activity: 'Quality Check',
-    expectedAfter: 'Processing',
-    frequency: 125,
-    impact: 'high',
-  },
-  {
-    caseId: 'CASE-1002',
-    violationType: 'Wrong Order',
-    activity: 'Payment',
-    expectedAfter: 'Approval',
-    frequency: 89,
-    impact: 'medium',
-  },
-  {
-    caseId: 'CASE-1003',
-    violationType: 'Extra Activity',
-    activity: 'Manual Review',
-    expectedAfter: 'N/A',
-    frequency: 67,
-    impact: 'low',
-  },
-  {
-    caseId: 'CASE-1004',
-    violationType: 'Missing Activity',
-    activity: 'Confirmation',
-    expectedAfter: 'Delivery',
-    frequency: 45,
-    impact: 'medium',
-  },
-  {
-    caseId: 'CASE-1005',
-    violationType: 'Wrong Order',
-    activity: 'Validation',
-    expectedAfter: 'Order Received',
-    frequency: 34,
-    impact: 'high',
-  },
-];
-
+// Impact color mapping
 const impactColors: Record<string, string> = {
   high: tokens.colors.error[500],
   medium: tokens.colors.warning[500],
@@ -102,218 +54,169 @@ interface ConformanceTabProps {
 }
 
 export function ConformanceTab({ logId }: ConformanceTabProps) {
-  log.debug('Rendering ConformanceTab', { logId });
+  const sdk = useSDK();
 
-  const deviationColumns = [
-    {
-      title: 'Case ID',
-      dataIndex: 'caseId',
-      key: 'caseId',
-      render: (text: string) => <Text code>{text}</Text>,
+  // Try to fetch conformance data from the backend
+  // Note: This requires a model to be discovered first
+  const { data: conformanceData, isLoading, error } = useQuery({
+    queryKey: queryKeys.conformance.check(logId ?? '', undefined),
+    queryFn: async () => {
+      if (!logId) return null;
+      try {
+        // Attempt to get conformance data - this may fail if no model exists
+        const result = await sdk.conformance.check({
+          logId,
+          modelId: 'default', // Use default model if exists
+          method: 'token_replay',
+        });
+        return result;
+      } catch (e) {
+        // If conformance check fails (no model), return null and show placeholder
+        log.warn('Conformance check not available', { logId, error: e });
+        return null;
+      }
     },
-    {
-      title: 'Violation Type',
-      dataIndex: 'violationType',
-      key: 'violationType',
-      render: (type: string) => {
-        const icon = type === 'Missing Activity' ? <CloseCircleOutlined /> :
-                     type === 'Wrong Order' ? <ExclamationCircleOutlined /> :
-                     <InfoCircleOutlined />;
-        return (
-          <Space>
-            {icon}
-            <span>{type}</span>
-          </Space>
-        );
-      },
-    },
-    {
-      title: 'Activity',
-      dataIndex: 'activity',
-      key: 'activity',
-      render: (text: string) => <Text strong>{text}</Text>,
-    },
-    {
-      title: 'Expected After',
-      dataIndex: 'expectedAfter',
-      key: 'expectedAfter',
-      render: (text: string) => <Text type="secondary">{text}</Text>,
-    },
-    {
-      title: 'Frequency',
-      dataIndex: 'frequency',
-      key: 'frequency',
-      render: (val: number) => formatCompactNumber(val),
-    },
-    {
-      title: 'Impact',
-      dataIndex: 'impact',
-      key: 'impact',
-      render: (impact: string) => (
-        <Tag color={impact === 'high' ? 'error' : impact === 'medium' ? 'warning' : 'success'}>
-          {impact.toUpperCase()}
-        </Tag>
-      ),
-    },
-  ];
+    enabled: !!logId,
+    retry: false, // Don't retry if model doesn't exist
+    staleTime: 5 * 60 * 1000,
+  });
 
-  const conformantCases = Math.round(5340 * (mockConformanceMetrics.fitness / 100));
-  const deviatingCases = 5340 - conformantCases;
+  log.debug('Rendering ConformanceTab', { logId, hasData: !!conformanceData });
 
-  return (
-    <div>
-      {/* Summary Stats */}
-      <Row gutter={16} style={{ marginBottom: tokens.spacing[6] }}>
-        <Col xs={24} sm={8}>
-          <MetricCard
-            title="Overall Fitness"
-            value={`${mockConformanceMetrics.fitness}%`}
-            status={mockConformanceMetrics.fitness >= 85 ? 'success' : mockConformanceMetrics.fitness >= 70 ? 'warning' : 'error'}
-          />
-        </Col>
-        <Col xs={24} sm={8}>
-          <MetricCard
-            title="Conformant Cases"
-            value={formatCompactNumber(conformantCases)}
-            prefix={<CheckCircleOutlined style={{ color: tokens.colors.success[500], marginRight: 8 }} />}
-            status="success"
-          />
-        </Col>
-        <Col xs={24} sm={8}>
-          <MetricCard
-            title="Deviating Cases"
-            value={formatCompactNumber(deviatingCases)}
-            prefix={<ExclamationCircleOutlined style={{ color: tokens.colors.warning[500], marginRight: 8 }} />}
-            status="warning"
-          />
-        </Col>
-      </Row>
+  // Loading state
+  if (isLoading) {
+    return (
+      <Card>
+        <Skeleton active paragraph={{ rows: 8 }} />
+      </Card>
+    );
+  }
 
-      <Row gutter={24}>
-        {/* Conformance Metrics Gauges */}
-        <Col xs={24} lg={10}>
-          <Card
-            title={
-              <Space>
-                <CheckCircleOutlined style={{ color: tokens.colors.success[500] }} />
-                <span>Conformance Metrics</span>
-                <Tooltip title="Measures how well your process follows the expected model">
-                  <InfoCircleOutlined style={{ color: tokens.colors.neutral[400] }} />
-                </Tooltip>
-              </Space>
-            }
-            style={{ marginBottom: tokens.spacing[6] }}
-          >
-            <Row>
-              <Col xs={12}>
-                <FitnessGauge value={mockConformanceMetrics.fitness} label="Fitness" />
-              </Col>
-              <Col xs={12}>
-                <FitnessGauge value={mockConformanceMetrics.precision} label="Precision" />
-              </Col>
-            </Row>
-            <Row style={{ marginTop: tokens.spacing[4] }}>
-              <Col xs={12}>
-                <FitnessGauge value={mockConformanceMetrics.generalization} label="Generalization" />
-              </Col>
-              <Col xs={12}>
-                <FitnessGauge value={mockConformanceMetrics.simplicity} label="Simplicity" />
-              </Col>
-            </Row>
-          </Card>
-        </Col>
+  // No logId selected
+  if (!logId) {
+    return (
+      <Card>
+        <Empty
+          image={<FileSearchOutlined style={{ fontSize: 64, color: tokens.colors.neutral[300] }} />}
+          description="Select an event log to view conformance analysis"
+        />
+      </Card>
+    );
+  }
 
-        {/* Deviation Details */}
-        <Col xs={24} lg={14}>
-          <Card
-            title={
-              <Space>
-                <ExclamationCircleOutlined style={{ color: tokens.colors.warning[500] }} />
-                <span>Top Deviations</span>
-              </Space>
-            }
-            style={{ marginBottom: tokens.spacing[6] }}
-          >
-            <Table
-              dataSource={mockDeviations}
-              columns={deviationColumns}
-              rowKey="caseId"
-              pagination={false}
-              size="middle"
+  // Conformance data available - show real metrics
+  if (conformanceData) {
+    const metrics = {
+      fitness: conformanceData.fitness * 100,
+      precision: (conformanceData.precision ?? 0) * 100,
+      generalization: (conformanceData.generalization ?? 0) * 100,
+      simplicity: (conformanceData.simplicity ?? 0) * 100,
+    };
+
+    const conformantCases = conformanceData.fittingTraces;
+    const deviatingCases = conformanceData.totalTraces - conformanceData.fittingTraces;
+
+    return (
+      <div>
+        {/* Summary Stats */}
+        <Row gutter={16} style={{ marginBottom: tokens.spacing[6] }}>
+          <Col xs={24} sm={8}>
+            <MetricCard
+              title="Overall Fitness"
+              value={`${metrics.fitness.toFixed(1)}%`}
+              status={metrics.fitness >= 85 ? 'success' : metrics.fitness >= 70 ? 'warning' : 'error'}
             />
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Deviation Impact Summary */}
-      <Card title="Deviation Impact Summary">
-        <Row gutter={24}>
-          <Col xs={24} sm={8}>
-            <div style={{ textAlign: 'center', padding: tokens.spacing[4] }}>
-              <div style={{
-                width: 64,
-                height: 64,
-                borderRadius: '50%',
-                backgroundColor: `${tokens.colors.error[500]}20`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto',
-                marginBottom: tokens.spacing[3],
-              }}>
-                <Text style={{ fontSize: tokens.fontSize['2xl'], fontWeight: tokens.fontWeight.bold, color: tokens.colors.error[500] }}>
-                  2
-                </Text>
-              </div>
-              <Text strong>High Impact</Text>
-              <div><Text type="secondary">Requires immediate attention</Text></div>
-            </div>
           </Col>
           <Col xs={24} sm={8}>
-            <div style={{ textAlign: 'center', padding: tokens.spacing[4] }}>
-              <div style={{
-                width: 64,
-                height: 64,
-                borderRadius: '50%',
-                backgroundColor: `${tokens.colors.warning[500]}20`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto',
-                marginBottom: tokens.spacing[3],
-              }}>
-                <Text style={{ fontSize: tokens.fontSize['2xl'], fontWeight: tokens.fontWeight.bold, color: tokens.colors.warning[500] }}>
-                  2
-                </Text>
-              </div>
-              <Text strong>Medium Impact</Text>
-              <div><Text type="secondary">Should be reviewed</Text></div>
-            </div>
+            <MetricCard
+              title="Conformant Cases"
+              value={formatCompactNumber(conformantCases)}
+              prefix={<CheckCircleOutlined style={{ color: tokens.colors.success[500], marginRight: 8 }} />}
+              status="success"
+            />
           </Col>
           <Col xs={24} sm={8}>
-            <div style={{ textAlign: 'center', padding: tokens.spacing[4] }}>
-              <div style={{
-                width: 64,
-                height: 64,
-                borderRadius: '50%',
-                backgroundColor: `${tokens.colors.success[500]}20`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto',
-                marginBottom: tokens.spacing[3],
-              }}>
-                <Text style={{ fontSize: tokens.fontSize['2xl'], fontWeight: tokens.fontWeight.bold, color: tokens.colors.success[500] }}>
-                  1
-                </Text>
-              </div>
-              <Text strong>Low Impact</Text>
-              <div><Text type="secondary">Minor deviations</Text></div>
-            </div>
+            <MetricCard
+              title="Deviating Cases"
+              value={formatCompactNumber(deviatingCases)}
+              prefix={<ExclamationCircleOutlined style={{ color: tokens.colors.warning[500], marginRight: 8 }} />}
+              status="warning"
+            />
           </Col>
         </Row>
-      </Card>
-    </div>
+
+        {/* Conformance Metrics Gauges */}
+        <Card
+          title={
+            <Space>
+              <CheckCircleOutlined style={{ color: tokens.colors.success[500] }} />
+              <span>Conformance Metrics</span>
+              <Tooltip title="Measures how well your process follows the expected model">
+                <InfoCircleOutlined style={{ color: tokens.colors.neutral[400] }} />
+              </Tooltip>
+            </Space>
+          }
+          style={{ marginBottom: tokens.spacing[6] }}
+        >
+          <Row>
+            <Col xs={12} sm={6}>
+              <FitnessGauge value={metrics.fitness} label="Fitness" />
+            </Col>
+            <Col xs={12} sm={6}>
+              <FitnessGauge value={metrics.precision} label="Precision" />
+            </Col>
+            <Col xs={12} sm={6}>
+              <FitnessGauge value={metrics.generalization} label="Generalization" />
+            </Col>
+            <Col xs={12} sm={6}>
+              <FitnessGauge value={metrics.simplicity} label="Simplicity" />
+            </Col>
+          </Row>
+        </Card>
+
+        {/* Conformance Status */}
+        <Card>
+          <div style={{ textAlign: 'center', padding: tokens.spacing[6] }}>
+            {conformanceData.isConformant ? (
+              <>
+                <CheckCircleOutlined style={{ fontSize: 48, color: tokens.colors.success[500], marginBottom: 16 }} />
+                <div>
+                  <Text strong style={{ fontSize: tokens.fontSize.lg }}>Process is Conformant</Text>
+                </div>
+                <Text type="secondary">
+                  {conformantCases} out of {conformanceData.totalTraces} traces fit the expected model
+                </Text>
+              </>
+            ) : (
+              <>
+                <ExclamationCircleOutlined style={{ fontSize: 48, color: tokens.colors.warning[500], marginBottom: 16 }} />
+                <div>
+                  <Text strong style={{ fontSize: tokens.fontSize.lg }}>Deviations Detected</Text>
+                </div>
+                <Text type="secondary">
+                  {deviatingCases} out of {conformanceData.totalTraces} traces deviate from the expected model
+                </Text>
+              </>
+            )}
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // No conformance data - show placeholder with instructions
+  return (
+    <Card>
+      <EmptyState
+        icon={<FileSearchOutlined />}
+        title="Conformance Analysis Not Available"
+        description="Conformance checking requires a process model. Discover a model from the Process Explorer to enable conformance analysis."
+        actionLabel="Go to Explorer"
+        onAction={() => {
+          window.location.href = `/explorer/${logId}`;
+        }}
+      />
+    </Card>
   );
 }
 

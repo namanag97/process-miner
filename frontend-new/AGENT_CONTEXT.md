@@ -21,9 +21,11 @@
 | SDK Client | `libs/shared/design-system/src/api/` |
 | Zod Schemas | `libs/shared/design-system/src/api/schemas/` |
 | Components | `libs/shared/design-system/src/components/` |
-| Hooks | `libs/shared/design-system/src/hooks/` |
+| Hooks (Design System) | `libs/shared/design-system/src/hooks/` |
+| Hooks (App) | `src/hooks/` |
 | Contexts | `src/context/` + `libs/shared/design-system/src/context/` |
 | Query Keys | `libs/shared/design-system/src/api/queryKeys.ts` |
+| Testing | `src/testing/` |
 
 ---
 
@@ -108,8 +110,9 @@ const data = validateResponse(ProcessResponseSchema, apiResponse);
 | `LoadingState` | Consistent loading (skeleton/spinner) | `@lumina/design-system` |
 | `QueryError` | Error display with retry | `@lumina/design-system` |
 | `ErrorBoundary` | Crash recovery wrapper | `@lumina/design-system` |
-| `DataTable` | Reusable table | `@lumina/design-system` |
+| `DataTable` | Reusable table with search/sort | `@lumina/design-system` |
 | `ProcessQuestion` | Question card with icon | `@lumina/design-system` |
+| `DataSourceCard` | Data source display card | `@lumina/design-system` |
 
 ---
 
@@ -147,6 +150,41 @@ Home
 
 ---
 
+## Page Structure
+
+```
+src/pages/
+├── home/
+│   ├── HomePage.tsx           # Tab container (Overview | Workspace)
+│   ├── OverviewTab.tsx        # Metrics overview
+│   └── WorkspaceTab.tsx       # Projects table + create modal
+│
+├── projects/
+│   ├── ProjectDetailPage.tsx  # Single project + data sources
+│   └── components/
+│       └── DataSourcesList.tsx
+│
+├── questions/
+│   ├── ProcessQuestionsPage.tsx  # 6 question cards
+│   └── questionsData.ts          # Question definitions
+│
+├── kpi/
+│   ├── KPIPage.tsx               # Tab container for metrics
+│   └── tabs/
+│       ├── PerformanceTab.tsx
+│       ├── DeadlinesTab.tsx
+│       ├── UnwantedActivitiesTab.tsx
+│       └── AutomationTab.tsx
+│
+├── explorer/                     # Process DFG visualization
+├── analytics/                    # Analytics tabs
+├── ai/                          # AI assistant pages
+├── logs/                        # Upload wizard, log detail
+└── settings/                    # User settings
+```
+
+---
+
 ## Design Tokens
 
 Always use tokens from `@lumina/design-system` - never hardcode colors/spacing.
@@ -167,11 +205,11 @@ const style = {
 
 | Question | Route |
 |----------|-------|
-| What does your process look like? | `/explorer` |
-| How long does your process take? | `/kpi?tab=performance` |
-| Are you meeting your deadlines? | `/kpi?tab=deadlines` |
-| How many unwanted activities? | `/kpi?tab=unwanted` |
-| How automated is your process? | `/kpi?tab=automation` |
+| What does your process look like? | `/projects/:projectId/data/:logId/explorer` |
+| How long does your process take? | `/projects/:projectId/data/:logId/kpi?tab=performance` |
+| Are you meeting your deadlines? | `/projects/:projectId/data/:logId/kpi?tab=deadlines` |
+| How many unwanted activities? | `/projects/:projectId/data/:logId/kpi?tab=unwanted` |
+| How automated is your process? | `/projects/:projectId/data/:logId/kpi?tab=automation` |
 | Want to look into something else? | Feedback modal |
 
 ---
@@ -190,35 +228,80 @@ const style = {
 | `/visualization/:id/variants` | GET | Get variants |
 | `/analytics/logs/:id/performance` | GET | Performance metrics |
 | `/analytics/logs/:id/rework` | GET | Rework analysis |
+| `/analytics/logs/:id/deadlines` | GET | Deadline metrics |
+| `/analytics/logs/:id/automation` | GET | Automation metrics |
 | `/conformance/logs/:id/check` | POST | Conformance check |
-| `/audit/logs` | GET | Audit log entries |
+| `/audit/logs` | GET/POST | Audit log entries |
 
 ---
 
 ## Current Implementation Phase
 
-**Phase 1: Foundation** (IN PROGRESS)
-- [x] Zod schemas created
-- [ ] HTTP client refactor (retry extraction, AbortController)
-- [ ] Query key constants
-- [ ] Error handling components
-- [ ] Test infrastructure
+**Phase 1: Foundation** (COMPLETED)
+- [x] Zod schemas created (7 schema files in `api/schemas/`)
+- [x] HTTP client refactor (retry extraction, AbortController, timeout)
+- [x] Query key constants (`api/queryKeys.ts`)
+- [x] Error handling components (ErrorBoundary, QueryError, LoadingState)
 
-**Phase 2: Components & Hooks**
-- [ ] Query hooks (useProcesses, useDFG, etc.)
-- [ ] State hooks (useURLState, useExplorerState)
-- [ ] New shared components
+**Phase 2: Components & Hooks** (COMPLETED)
+- [x] Query hooks (useProcesses, useDFG, useProjects, useAnalytics, etc.)
+- [x] State hooks (useURLState, useExplorerState, useAuditLogger)
+- [x] New shared components (ProcessQuestion, DataTable, DataSourceCard)
 
-**Phase 3: Page Restructure**
-- [ ] HomePage with Overview/Workspace tabs
-- [ ] ProjectDetailPage
-- [ ] ProcessQuestionsPage
-- [ ] Route updates
+**Phase 3: Page Restructure** (COMPLETED)
+- [x] HomePage with Overview/Workspace tabs
+- [x] ProjectDetailPage with data source cards
+- [x] ProcessQuestionsPage with 6 question cards
+- [x] KPIPage with 4 metric tabs
+- [x] Route updates in App.tsx
 
-**Phase 4: Polish & Testing**
-- [ ] Remove mock data
-- [ ] Audit logging
-- [ ] 85% test coverage
+**Phase 4: Polish & Integration** (COMPLETED)
+- [x] Remove mock data from AuditLogsPage (uses real API)
+- [x] Audit logging integrated in key pages
+- [x] Testing infrastructure set up (`src/testing/`)
+
+**REMAINING WORK:**
+- [ ] Write unit tests (85% coverage target)
+- [ ] Remove mock data from AIAssistantPage (needs LLM integration)
+- [ ] Remove mock data from other AI pages
+- [ ] Connect authentication to real backend
+- [ ] Production deployment configuration
+
+---
+
+## Testing Infrastructure
+
+```tsx
+import { renderWithProviders, createMockSDK, createMockProject } from '../testing';
+
+// Render with all providers
+const { getByText } = renderWithProviders(<MyComponent />);
+
+// Create mock data
+const project = createMockProject({ name: 'Test' });
+const dfg = createMockDFG();
+```
+
+**Test Files Location:**
+- `src/testing/utils.tsx` - renderWithProviders, createMockSDK
+- `src/testing/mocks/projects.ts` - Project/Process factories
+- `src/testing/mocks/dfg.ts` - DFG/Variant factories
+
+---
+
+## Audit Logging
+
+```tsx
+import { useAuditLogger, useKPIAuditLogger } from '../hooks';
+
+// General logging
+const auditLog = useAuditLogger();
+auditLog('project.created', { projectId: '123', name: 'My Project' });
+
+// Specialized loggers
+const kpiAudit = useKPIAuditLogger();
+kpiAudit.logView(processId, 'performance', projectId);
+```
 
 ---
 
@@ -245,11 +328,12 @@ npx nx graph                  # Dependency visualization
 | Task | Files to Modify |
 |------|-----------------|
 | Add new API endpoint | `api/modules/*.ts`, `api/schemas/*.ts`, `api/queryKeys.ts` |
-| Add new page | `src/pages/`, `src/App.tsx` |
+| Add new page | `src/pages/`, `src/App.tsx`, `src/pages/index.ts` |
 | Add shared component | `design-system/components/`, `design-system/index.ts` |
 | Add query hook | `design-system/hooks/`, `design-system/index.ts` |
 | Modify routing | `src/App.tsx` |
 | Update design tokens | `design-system/theme.ts` |
+| Add test | `src/testing/`, component `__tests__/` folder |
 
 ---
 
@@ -262,3 +346,4 @@ npx nx graph                  # Dependency visualization
 5. **Use URL state for shareable filters** - `useSearchParams()`
 6. **Memoize list items** - Use `React.memo()` for list components
 7. **Extract hooks for data fetching** - Don't inline `useQuery` in components
+8. **Log important actions** - Use audit logger hooks for tracking

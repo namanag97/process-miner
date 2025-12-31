@@ -11,6 +11,7 @@ import {
   createPredictionsModule,
   createSimulationModule,
   createOrganizationalModule,
+  createAuditModule,
   type ProcessesModule,
   type ProjectsModule,
   type DiscoveryModule,
@@ -20,6 +21,7 @@ import {
   type PredictionsModule,
   type SimulationModule,
   type OrganizationalModule,
+  type AuditModule,
 } from '../api/modules';
 
 // SDK type - properly typed with real modules
@@ -33,6 +35,7 @@ interface ProcessMiningSdk {
   predictions: PredictionsModule;
   simulation: SimulationModule;
   organizational: OrganizationalModule;
+  audit: AuditModule;
   visualization: {
     getDFG: (logId: string) => Promise<unknown>;
   };
@@ -99,6 +102,7 @@ export function SDKProvider({
     const predictionsModule = createPredictionsModule(client);
     const simulationModule = createSimulationModule(client);
     const organizationalModule = createOrganizationalModule(client);
+    const auditModule = createAuditModule(client);
 
     return {
       processes: processesModule,
@@ -110,6 +114,7 @@ export function SDKProvider({
       predictions: predictionsModule,
       simulation: simulationModule,
       organizational: organizationalModule,
+      audit: auditModule,
       // Visualization is an alias to discovery.buildDFG for backward compatibility
       visualization: {
         getDFG: (logId: string) => discoveryModule.buildDFG(logId),
