@@ -10,23 +10,31 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### 🆕 Added
 
-- (Document new features here)
+- **AI Assistant Page** (`/ai/assistant`) - Chat-based interface for natural language process analysis
+- **Audit Logs Page** (`/audit-logs`) - System audit trail with search, filtering, and export
+- **Test Bench Page** (`/test-bench`) - Developer tool for testing UI components and SDK endpoints
+- **Resources Tab** in Analytics - Organizational mining with workload and handover analysis
+- **SDK Modules:**
+  - `organizational` - Social network analysis, role discovery, workload distribution
+  - `simulation` - What-if simulation, capacity planning
+  - `predictions` - ML model training and prediction results
+  - `projects` - Project management and process grouping
+- **Components:**
+  - `ProcessSelector` - Process dropdown for AI Assistant
+  - `ChatMessage` - Chat bubble component with user/assistant variants
+  - `InsightCard` - AI insight display card
 
 ### 🔄 Changed
 
-- (Document changes to existing features)
-
-### ⚠️ Breaking
-
-- (Document breaking changes with migration steps)
-
-### 🗑️ Deprecated
-
-- (Document features scheduled for removal)
+- Renamed `logs` module to `processes` throughout SDK
+- Route restructure: `/logs/*` → `/processes/*`
+- `/ai` now redirects to `/ai/assistant`
+- Updated query keys from `['logs', ...]` to `['processes', ...]`
 
 ### 🐛 Fixed
 
-- (Document bug fixes)
+- SDK module exports now properly typed
+- Fixed organizational network type validation
 
 ---
 
@@ -77,13 +85,14 @@ Initial release of the Process Mining Platform frontend.
 - `MetricCard` - KPI display with trends
 - `EmptyState` - No-data feedback
 - `PageHeader` - Standardized page headers
+- `SkeletonCard` - Loading placeholders
 - `tokens` - Complete design token system
 - `luminaTheme` - Ant Design theme configuration
 
 **Infrastructure**
 
 - TanStack Query v5 with optimized caching
-- `SDKProvider` with mock API client
+- `SDKProvider` with real API client
 - React Router v6 with nested routes
 
 ---

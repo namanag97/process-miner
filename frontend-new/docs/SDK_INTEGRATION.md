@@ -30,44 +30,107 @@ graph LR
 
 ## 2. SDK Modules
 
-### logs Module
+### processes Module
 
-| Method    | Signature                                    | Returns                                         | Used By                                          |
-| --------- | -------------------------------------------- | ----------------------------------------------- | ------------------------------------------------ |
-| `list`    | `list(options?: ListOptions)`                | `Promise<{ items: EventLog[], total: number }>` | `HomePage`, `EventLogsPage`, `ExplorerIndexPage` |
-| `get`     | `get(id: string)`                            | `Promise<EventLog>`                             | `LogDetailPage`                                  |
-| `ingest`  | `ingest(file: File, metadata?: LogMetadata)` | `Promise<{ id: string }>`                       | `UploadWizardPage`                               |
-| `analyze` | `analyze(logId: string)`                     | `Promise<LogAnalysis>`                          | `LogDetailPage`                                  |
-| `delete`  | `delete(id: string)`                         | `Promise<void>`                                 | `EventLogsPage`                                  |
+| Method               | Signature                                        | Returns                                         | Used By                                          |
+| -------------------- | ------------------------------------------------ | ----------------------------------------------- | ------------------------------------------------ |
+| `list`               | `list(options?: ListProcessesOptions)`           | `Promise<{ items: EventLog[], total: number }>` | `HomePage`, `EventLogsPage`, `ExplorerIndexPage` |
+| `get`                | `get(id: string)`                                | `Promise<EventLog>`                             | `LogDetailPage`                                  |
+| `ingest`             | `ingest(file: File, metadata?: ProcessMetadata)` | `Promise<{ id: string }>`                       | `UploadWizardPage`                               |
+| `ingestWithProgress` | `ingestWithProgress(file, metadata, onProgress)` | `Promise<{ id: string }>`                       | `UploadWizardPage`                               |
+| `delete`             | `delete(id: string)`                             | `Promise<void>`                                 | `EventLogsPage`                                  |
+| `detectColumns`      | `detectColumns(file: File)`                      | `Promise<ColumnDetection>`                      | `UploadWizardPage`                               |
+| `analyze`            | `analyze(logId: string)`                         | `Promise<Record<string, unknown>>`              | `LogDetailPage`                                  |
+
+---
 
 ### discovery Module
 
-| Method     | Signature                                                  | Returns                                           | Used By               |
-| ---------- | ---------------------------------------------------------- | ------------------------------------------------- | --------------------- |
-| `discover` | `discover(options: { logId: string, minerType?: string })` | `Promise<{ modelId: string }>`                    | `ProcessExplorerPage` |
-| `buildDFG` | `buildDFG(logId: string, options?: DFGOptions)`            | `Promise<{ nodes: DFGNode[], edges: DFGEdge[] }>` | `ProcessExplorerPage` |
+| Method          | Signature                                              | Returns                        | Used By               |
+| --------------- | ------------------------------------------------------ | ------------------------------ | --------------------- |
+| `buildDFG`      | `buildDFG(logId: string, options?: DFGOptions)`        | `Promise<DFGData>`             | `ProcessExplorerPage` |
+| `getVariants`   | `getVariants(logId: string, options?: VariantOptions)` | `Promise<Variant[]>`           | `ProcessExplorerPage` |
+| `getActivities` | `getActivities(logId: string, sortBy?: string)`        | `Promise<ActivityDetail[]>`    | `ProcessExplorerPage` |
+| `discover`      | `discover({ logId, minerType?, modelName? })`          | `Promise<{ modelId: string }>` | `ProcessExplorerPage` |
 
-### visualization Module
+---
 
-| Method   | Signature               | Returns                             | Used By         |
-| -------- | ----------------------- | ----------------------------------- | --------------- |
-| `getDFG` | `getDFG(logId: string)` | `Promise<{ nodes: [], edges: [] }>` | `ProcessCanvas` |
+### analytics Module
 
-### analytics Module (Planned)
+| Method              | Signature                                         | Returns                                  | Used By           |
+| ------------------- | ------------------------------------------------- | ---------------------------------------- | ----------------- |
+| `getPerformance`    | `getPerformance(logId: string)`                   | `Promise<PerformanceData>`               | `PerformanceTab`  |
+| `getRework`         | `getRework(logId: string)`                        | `Promise<ReworkData>`                    | `ReworkTab`       |
+| `getBottlenecks`    | `getBottlenecks(logId: string)`                   | `Promise<{ bottlenecks: Bottleneck[] }>` | `PerformanceTab`  |
+| `getCycleTime`      | `getCycleTime(logId: string)`                     | `Promise<CycleTimeResponse>`             | `PerformanceTab`  |
+| `getThroughput`     | `getThroughput(logId: string)`                    | `Promise<ThroughputResponse>`            | `PerformanceTab`  |
+| `getPatterns`       | `getPatterns(logId: string, minSupport?: number)` | `Promise<PatternResponse[]>`             | `AnalyticsPage`   |
+| `getProcessSummary` | `getProcessSummary(logId: string)`                | `Promise<ProcessSummaryData>`            | `AIAssistantPage` |
 
-| Method           | Signature                       | Returns                    | Used By          |
-| ---------------- | ------------------------------- | -------------------------- | ---------------- |
-| `getPerformance` | `getPerformance(logId: string)` | `Promise<PerformanceData>` | `PerformanceTab` |
-| `getConformance` | `getConformance(logId: string)` | `Promise<ConformanceData>` | `ConformanceTab` |
-| `getRework`      | `getRework(logId: string)`      | `Promise<ReworkData>`      | `ReworkTab`      |
+---
 
-### ai Module (Planned)
+### conformance Module
 
-| Method               | Signature                        | Returns                    | Used By               |
-| -------------------- | -------------------------------- | -------------------------- | --------------------- |
-| `getInsights`        | `getInsights(logId: string)`     | `Promise<Insight[]>`       | `AIInsightsPage`      |
-| `listPredictors`     | `listPredictors()`               | `Promise<Predictor[]>`     | `PredictionsPage`     |
-| `getPredictorDetail` | `getPredictorDetail(id: string)` | `Promise<PredictorDetail>` | `PredictorDetailPage` |
+| Method  | Signature                                                 | Returns                      | Used By          |
+| ------- | --------------------------------------------------------- | ---------------------------- | ---------------- |
+| `check` | `check(logId: string, options?: ConformanceCheckOptions)` | `Promise<ConformanceResult>` | `ConformanceTab` |
+
+---
+
+### organizational Module 🆕
+
+| Method                    | Signature                                             | Returns                         | Used By        |
+| ------------------------- | ----------------------------------------------------- | ------------------------------- | -------------- |
+| `getHandoverNetwork`      | `getHandoverNetwork(logId: string)`                   | `Promise<SocialNetwork>`        | `ResourcesTab` |
+| `getCollaborationNetwork` | `getCollaborationNetwork(logId: string)`              | `Promise<SocialNetwork>`        | `ResourcesTab` |
+| `getResourceSimilarity`   | `getResourceSimilarity(logId: string)`                | `Promise<SocialNetwork>`        | `ResourcesTab` |
+| `getRoles`                | `getRoles(logId: string)`                             | `Promise<ResourceRole[]>`       | `ResourcesTab` |
+| `getResourceProfile`      | `getResourceProfile(logId: string, resource: string)` | `Promise<ResourceProfile>`      | `ResourcesTab` |
+| `getWorkload`             | `getWorkload(logId: string)`                          | `Promise<WorkloadDistribution>` | `ResourcesTab` |
+
+---
+
+### simulation Module 🆕
+
+| Method             | Signature                                                          | Returns                     | Used By          |
+| ------------------ | ------------------------------------------------------------------ | --------------------------- | ---------------- |
+| `playOut`          | `playOut(modelId: string, options: PlayOutOptions)`                | `Promise<PlayOutResult>`    | `SimulationPage` |
+| `simulate`         | `simulate(logId: string, modifications: SimulationModification[])` | `Promise<SimulationResult>` | `SimulationPage` |
+| `estimateCapacity` | `estimateCapacity(logId: string, targetThroughput: number)`        | `Promise<CapacityEstimate>` | `SimulationPage` |
+
+---
+
+### predictions Module 🆕
+
+| Method                | Signature                                         | Returns                       | Used By               |
+| --------------------- | ------------------------------------------------- | ----------------------------- | --------------------- |
+| `train`               | `train(logId: string, options: TrainOptions)`     | `Promise<Predictor>`          | `PredictionsPage`     |
+| `getResults`          | `getResults(predictorId: string, caseId: string)` | `Promise<PredictionResult>`   | `PredictorDetailPage` |
+| `getPredictorHistory` | `getPredictorHistory(predictorId: string)`        | `Promise<PredictionResult[]>` | `PredictorDetailPage` |
+
+---
+
+### ai Module
+
+| Method               | Signature                        | Returns                              | Used By               |
+| -------------------- | -------------------------------- | ------------------------------------ | --------------------- |
+| `listPredictors`     | `listPredictors()`               | `Promise<Predictor[]>`               | `PredictionsPage`     |
+| `getInsights`        | `getInsights(logId: string)`     | `Promise<{ predictions, insights }>` | `AIInsightsPage`      |
+| `getPredictorDetail` | `getPredictorDetail(id: string)` | `Promise<Predictor>`                 | `PredictorDetailPage` |
+
+---
+
+### projects Module 🆕
+
+| Method          | Signature                                             | Returns                  | Used By       |
+| --------------- | ----------------------------------------------------- | ------------------------ | ------------- |
+| `list`          | `list()`                                              | `Promise<Project[]>`     | `HomePage`    |
+| `get`           | `get(id: string)`                                     | `Promise<ProjectDetail>` | `ProjectPage` |
+| `create`        | `create(data: CreateProjectData)`                     | `Promise<Project>`       | `HomePage`    |
+| `update`        | `update(id: string, data: UpdateProjectData)`         | `Promise<Project>`       | `ProjectPage` |
+| `delete`        | `delete(id: string)`                                  | `Promise<void>`          | `ProjectPage` |
+| `addProcess`    | `addProcess(projectId: string, processId: string)`    | `Promise<void>`          | `ProjectPage` |
+| `removeProcess` | `removeProcess(projectId: string, processId: string)` | `Promise<void>`          | `ProjectPage` |
 
 ---
 
@@ -80,7 +143,7 @@ function MyComponent() {
   const sdk = useSDK();
 
   // Direct call (inside useQuery)
-  const data = await sdk.logs.list();
+  const data = await sdk.processes.list();
 }
 ```
 
@@ -90,13 +153,14 @@ function MyComponent() {
 
 ### Query Key Strategy
 
-| Data Type  | Key Pattern                  | Invalidation Trigger                     |
-| ---------- | ---------------------------- | ---------------------------------------- |
-| Logs List  | `['logs', filters]`          | `sdk.logs.ingest()`, `sdk.logs.delete()` |
-| Log Detail | `['logs', logId]`            | Log metadata update                      |
-| DFG Map    | `['dfg', logId, options]`    | Filter change                            |
-| Variants   | `['variants', logId]`        | Filter change                            |
-| Analytics  | `['analytics', type, logId]` | Log re-analysis                          |
+| Data Type      | Key Pattern                           | Invalidation Trigger                               |
+| -------------- | ------------------------------------- | -------------------------------------------------- |
+| Processes List | `['processes', filters]`              | `sdk.processes.ingest()`, `sdk.processes.delete()` |
+| Process Detail | `['processes', processId]`            | Metadata update                                    |
+| DFG Map        | `['dfg', processId, options]`         | Filter change                                      |
+| Variants       | `['variants', processId]`             | Filter change                                      |
+| Analytics      | `['analytics', type, processId]`      | Re-analysis                                        |
+| Organizational | `['organizational', type, processId]` | Re-analysis                                        |
 
 ### Custom Hook Pattern
 
@@ -104,12 +168,12 @@ function MyComponent() {
 import { useQuery } from '@tanstack/react-query';
 import { useSDK } from '@lumina/design-system';
 
-export function useEventLogs(filters?: LogFilters) {
+export function useProcesses(filters?: ListProcessesOptions) {
   const sdk = useSDK();
 
   return useQuery({
-    queryKey: ['logs', filters],
-    queryFn: () => sdk.logs.list(filters),
+    queryKey: ['processes', filters],
+    queryFn: () => sdk.processes.list(filters),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
@@ -121,15 +185,14 @@ export function useEventLogs(filters?: LogFilters) {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSDK } from '@lumina/design-system';
 
-export function useDeleteLog() {
+export function useDeleteProcess() {
   const sdk = useSDK();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => sdk.logs.delete(id),
+    mutationFn: (id: string) => sdk.processes.delete(id),
     onSuccess: () => {
-      // Invalidate logs list to refetch
-      queryClient.invalidateQueries({ queryKey: ['logs'] });
+      queryClient.invalidateQueries({ queryKey: ['processes'] });
     },
     onError: (err) => {
       toast.error(`Delete failed: ${err.message}`);
@@ -141,8 +204,6 @@ export function useDeleteLog() {
 ---
 
 ## 5. Error Handling
-
-### Levels
 
 | Level     | Mechanism                            | Example                |
 | --------- | ------------------------------------ | ---------------------- |
@@ -163,19 +224,10 @@ if (error) {
       title="Failed to load data"
       description={error.message}
       actionLabel="Retry"
-      onAction={() => queryClient.refetchQueries(['logs'])}
+      onAction={() => queryClient.refetchQueries(['processes'])}
     />
   );
 }
-```
-
-### Mutation Error Handling
-
-```tsx
-const mutation = useMutation({
-  mutationFn: (file) => sdk.logs.ingest(file),
-  onError: (err) => toast.error(`Upload failed: ${err.message}`),
-});
 ```
 
 ---
@@ -189,9 +241,9 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 10 * 60 * 1000, // 10 minutes (garbage collection)
+      gcTime: 10 * 60 * 1000, // 10 minutes
       retry: 2,
-      refetchOnWindowFocus: false, // Avoid DFG re-renders
+      refetchOnWindowFocus: false,
     },
     mutations: {
       retry: 1,
@@ -235,7 +287,15 @@ interface DFGEdge {
   frequency: number;
   performance?: number; // seconds
 }
+
+interface SocialNetwork {
+  logId: string;
+  networkType: 'handover' | 'collaboration' | 'similarity';
+  nodes: NetworkNode[];
+  edges: NetworkEdge[];
+  metrics: { density: number; avgCentrality: number };
+}
 ```
 
 > [!NOTE]
-> Full type definitions are in `libs/shared/design-system/src/context/SDKContext.tsx`. Types will be generated from OpenAPI spec when backend is finalized.
+> Full type definitions are in `libs/shared/design-system/src/api/modules/*.ts` and `libs/shared/design-system/src/api/types.ts`.

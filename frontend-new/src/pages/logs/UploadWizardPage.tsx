@@ -83,6 +83,7 @@ export function UploadWizardPage() {
   const [showDetectionTimeout, setShowDetectionTimeout] = useState(false);
   const [processingStartTime, setProcessingStartTime] = useState<number | null>(null);
   const [showProcessingTimeout, setShowProcessingTimeout] = useState(false);
+  const [uploadPercent, setUploadPercent] = useState(0);
 
   // Determine if wizard has unsaved state
   const hasUnsavedState = currentStep > 0 && !uploadedLogId;
@@ -148,25 +149,32 @@ export function UploadWizardPage() {
     },
   });
 
-  // Ingest mutation with staged progress
+  // Ingest mutation with real upload progress
   const ingestMutation = useMutation({
     mutationFn: async () => {
       if (!file) throw new Error('No file selected');
       
-      // Stage 1: Uploading
+      // Reset and start uploading
+      setUploadPercent(0);
       setProcessingStage('uploading');
-      await new Promise(resolve => setTimeout(resolve, 500)); // Brief visual delay
       
-      // Stage 2: Parsing (simulated, actual work happens on backend)
-      setProcessingStage('parsing');
-      
-      const result = await sdk.processes.ingest(file, {
-        name: file.name,
-        caseIdColumn: columnMapping.caseId,
-        activityColumn: columnMapping.activity,
-        timestampColumn: columnMapping.timestamp,
-        resourceColumn: columnMapping.resource || undefined,
-      });
+      const result = await sdk.processes.ingestWithProgress(
+        file,
+        {
+          name: file.name,
+          caseIdColumn: columnMapping.caseId,
+          activityColumn: columnMapping.activity,
+          timestampColumn: columnMapping.timestamp,
+          resourceColumn: columnMapping.resource || undefined,
+        },
+        (percent) => {
+          setUploadPercent(percent);
+          // Transition to parsing stage when upload is ~100%
+          if (percent >= 100) {
+            setProcessingStage('parsing');
+          }
+        }
+      );
       
       // Stage 3: Complete
       setProcessingStage('complete');
@@ -268,6 +276,7 @@ export function UploadWizardPage() {
     setProcessingStage('idle');
     setShowProcessingTimeout(false);
     setShowDetectionTimeout(false);
+    setUploadPercent(0);
   };
 
   const handleCancelClick = () => {
@@ -536,11 +545,11 @@ export function UploadWizardPage() {
   const getProcessingStageInfo = () => {
     switch (processingStage) {
       case 'uploading':
-        return { percent: 20, text: 'Uploading your file...', status: 'active' as const };
+        return { percent: uploadPercent, text: `Uploading your file... ${uploadPercent}%`, status: 'active' as const };
       case 'parsing':
-        return { percent: 50, text: 'Parsing columns and rows...', status: 'active' as const };
+        return { percent: 100, text: 'Processing on server...', status: 'active' as const };
       case 'analyzing':
-        return { percent: 80, text: 'Analyzing process structure...', status: 'active' as const };
+        return { percent: 100, text: 'Analyzing process structure...', status: 'active' as const };
       case 'complete':
         return { percent: 100, text: 'Complete!', status: 'success' as const };
       case 'error':
@@ -600,6 +609,7 @@ export function UploadWizardPage() {
           }
           extra={[
             <Button type="primary" key="retry" onClick={() => {
+              setUploadPercent(0);
               setProcessingStage('uploading');
               ingestMutation.mutate();
             }}>

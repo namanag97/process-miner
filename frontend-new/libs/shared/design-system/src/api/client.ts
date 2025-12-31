@@ -325,6 +325,77 @@ export class ApiClient {
     throw lastError;
   }
 
+  /**
+   * POST with FormData and progress tracking using XMLHttpRequest
+   */
+  async postFormWithProgress<T>(
+    path: string,
+    formData: FormData,
+    onProgress?: (percent: number) => void
+  ): Promise<T> {
+    if (!path.startsWith('/dev/')) {
+      logRequest('POST-FORM-PROGRESS', path, 'FormData');
+    }
+    const start = performance.now();
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const url = `${this.baseUrl}${path}`;
+
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable && onProgress) {
+          const percent = Math.round((event.loaded / event.total) * 100);
+          onProgress(percent);
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        if (!path.startsWith('/dev/')) {
+          logResponse('POST-FORM-PROGRESS', path, xhr.status, performance.now() - start);
+        }
+
+        if (xhr.status >= 200 && xhr.status < 300) {
+          this.isBackendHealthy = true;
+          try {
+            const result = JSON.parse(xhr.responseText);
+            resolve(result as T);
+          } catch {
+            reject(new APIError(xhr.status, 'Parse Error', 'Failed to parse response'));
+          }
+        } else {
+          this.isBackendHealthy = false;
+          try {
+            const errorData = JSON.parse(xhr.responseText);
+            reject(APIError.fromResponse(errorData, xhr.status));
+          } catch {
+            reject(new APIError(xhr.status, 'Error', xhr.statusText || 'Upload failed'));
+          }
+        }
+      });
+
+      xhr.addEventListener('error', () => {
+        this.isBackendHealthy = false;
+        if (!path.startsWith('/dev/')) {
+          logError(`POST-FORM-PROGRESS ${path}`, 'Network error');
+        }
+        reject(new APIError(0, 'Connection Failed', 'Unable to reach the backend server. Please ensure it is running on http://localhost:8001'));
+      });
+
+      xhr.addEventListener('abort', () => {
+        reject(new APIError(0, 'Aborted', 'Upload was cancelled'));
+      });
+
+      xhr.open('POST', url);
+      
+      const token = this.getAuthToken?.();
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+
+      xhr.send(formData);
+    });
+  }
+
   async delete<T = void>(path: string): Promise<T> {
     if (!path.startsWith('/dev/')) {
       logRequest('DELETE', path);

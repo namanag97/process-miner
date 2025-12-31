@@ -7,12 +7,14 @@ from src.models.orm import (
     ProcessCase,
     ProcessEvent,
     ProcessModel,
+    Project,
     Workflow,
     WorkflowRun,
 )
 
 __all__ = [
     "Base",
+    "Project",
     "EventLog",
     "ProcessCase",
     "ProcessEvent",

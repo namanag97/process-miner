@@ -35,6 +35,11 @@ export interface ProcessesModule {
   list: (options?: ListProcessesOptions) => Promise<{ items: EventLog[]; total: number; page: number; pageSize: number; pages: number }>;
   get: (id: string) => Promise<EventLog>;
   ingest: (file: File, metadata?: ProcessMetadata) => Promise<{ id: string }>;
+  ingestWithProgress: (
+    file: File,
+    metadata?: ProcessMetadata,
+    onProgress?: (percent: number) => void
+  ) => Promise<{ id: string }>;
   delete: (id: string) => Promise<void>;
   detectColumns: (file: File) => Promise<ColumnDetection>;
   analyze: (logId: string) => Promise<Record<string, unknown>>;
@@ -84,6 +89,38 @@ export function createProcessesModule(client: ApiClient): ProcessesModule {
       }
 
       const response = await client.postForm<ProcessResponse>('/processes/upload', formData);
+      return { id: response.id };
+    },
+
+    async ingestWithProgress(
+      file: File,
+      metadata?: ProcessMetadata,
+      onProgress?: (percent: number) => void
+    ) {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      if (metadata?.name) {
+        formData.append('name', metadata.name);
+      }
+      if (metadata?.caseIdColumn) {
+        formData.append('case_id_column', metadata.caseIdColumn);
+      }
+      if (metadata?.activityColumn) {
+        formData.append('activity_column', metadata.activityColumn);
+      }
+      if (metadata?.timestampColumn) {
+        formData.append('timestamp_column', metadata.timestampColumn);
+      }
+      if (metadata?.resourceColumn) {
+        formData.append('resource_column', metadata.resourceColumn);
+      }
+
+      const response = await client.postFormWithProgress<ProcessResponse>(
+        '/processes/upload',
+        formData,
+        onProgress
+      );
       return { id: response.id };
     },
 

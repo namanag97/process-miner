@@ -13,10 +13,13 @@
 | `MetricCard`           | Design System | Props (server data)                  | —                     |
 | `EmptyState`           | Design System | —                                    | —                     |
 | `PageHeader`           | Design System | —                                    | —                     |
+| `SkeletonCard`         | Design System | —                                    | —                     |
 | `ProcessCanvas`        | Feature       | `sdk.discovery.buildDFG()`           | `['dfg', logId]`      |
-| `FilterPanel`          | Feature       | `MockFilterOptions`                  | —                     |
+| `FilterPanel`          | Feature       | Filter state                         | —                     |
 | `VariantPanel`         | Feature       | `sdk.discovery.getVariants()`        | `['variants', logId]` |
-| `ActivityDetailsPanel` | Feature       | `sdk.discovery.getActivityDetail()`  | `['activity', id]`    |
+| `ActivityDetailsPanel` | Feature       | `sdk.discovery.getActivities()`      | `['activities', id]`  |
+| `ProcessSelector`      | Feature       | `sdk.processes.list()`               | `['processes']`       |
+| `ChatMessage`          | Feature       | Props (chat state)                   | —                     |
 
 ---
 
@@ -149,9 +152,31 @@ Standardized header for all pages, supporting breadcrumbs and action buttons.
 
 ---
 
+### 5. SkeletonCard ✅ Stable
+
+**Location:** [libs/shared/design-system/src/components/SkeletonCard.tsx](file:///Users/namanagarwal/system/frontend-new/libs/shared/design-system/src/components/SkeletonCard.tsx)
+
+Loading placeholder card with shimmer animation.
+
+#### Props
+
+| Name         | Type      | Required | Default | Description                   |
+| ------------ | --------- | :------: | ------- | ----------------------------- |
+| `rows`       | `number`  |    No    | `3`     | Number of text skeleton rows  |
+| `showAvatar` | `boolean` |    No    | `false` | Show circular avatar skeleton |
+| `height`     | `number`  |    No    | —       | Custom card height            |
+
+#### Usage
+
+```tsx
+<SkeletonCard rows={4} showAvatar />
+```
+
+---
+
 ## Feature Components
 
-### 5. ProcessCanvas 🧪 Experimental
+### 6. ProcessCanvas 🧪 Experimental
 
 **Location:** [src/pages/explorer/components/ProcessCanvas.tsx](file:///Users/namanagarwal/system/frontend-new/src/pages/explorer/components/ProcessCanvas.tsx)
 
@@ -188,7 +213,7 @@ React Flow-based DFG (Directly-Follows Graph) visualization with interactive nod
 
 ---
 
-### 6. FilterPanel ✅ Stable
+### 7. FilterPanel ✅ Stable
 
 **Location:** [src/pages/explorer/components/FilterPanel.tsx](file:///Users/namanagarwal/system/frontend-new/src/pages/explorer/components/FilterPanel.tsx)
 
@@ -198,19 +223,11 @@ Collapsible filter controls for time range, activity selection, and variant thre
 
 | Name                | Type                              | Required | Default | Description              |
 | ------------------- | --------------------------------- | :------: | ------- | ------------------------ |
-| `filterOptions`     | `MockFilterOptions`               |   Yes    | —       | Available filter values  |
+| `filterOptions`     | `FilterOptions`                   |   Yes    | —       | Available filter values  |
 | `appliedFilters`    | `AppliedFilter[]`                 |   Yes    | —       | Currently active filters |
 | `onApplyFilter`     | `(filter: AppliedFilter) => void` |    No    | —       | Apply new filter         |
 | `onRemoveFilter`    | `(filterId: string) => void`      |    No    | —       | Remove filter by ID      |
 | `onClearAllFilters` | `() => void`                      |    No    | —       | Clear all filters        |
-
-#### Filter Types
-
-| Type        | Label                      | Value                      |
-| ----------- | -------------------------- | -------------------------- |
-| `timeRange` | `"Jan 1 – Mar 31, 2024"`   | `{ start: ISO, end: ISO }` |
-| `activity`  | `"Activities: 3 selected"` | `string[]`                 |
-| `topK`      | `"Top 80% variants"`       | `number`                   |
 
 #### Usage
 
@@ -226,7 +243,7 @@ Collapsible filter controls for time range, activity selection, and variant thre
 
 ---
 
-### 7. VariantPanel ✅ Stable
+### 8. VariantPanel ✅ Stable
 
 **Location:** [src/pages/explorer/components/VariantPanel.tsx](file:///Users/namanagarwal/system/frontend-new/src/pages/explorer/components/VariantPanel.tsx)
 
@@ -236,7 +253,7 @@ Scrollable list of process variants with frequency bars and selection.
 
 | Name                 | Type                            | Required | Default | Description                |
 | -------------------- | ------------------------------- | :------: | ------- | -------------------------- |
-| `variants`           | `MockVariant[]`                 |   Yes    | —       | List of process variants   |
+| `variants`           | `Variant[]`                     |   Yes    | —       | List of process variants   |
 | `selectedVariantKey` | `string \| null`                |    No    | —       | Currently selected variant |
 | `onSelectVariant`    | `(key: string \| null) => void` |    No    | —       | Selection handler          |
 | `onFilterToVariant`  | `(key: string) => void`         |    No    | —       | Filter cases to variant    |
@@ -252,15 +269,9 @@ Scrollable list of process variants with frequency bars and selection.
 />
 ```
 
-#### Visual Indicators
-
-- ✅ **Happy Path:** Green checkmark icon
-- 📊 **Frequency:** Progress bar + percentage tag
-- ➜ **Path Preview:** Activity sequence (ellipsized)
-
 ---
 
-### 8. ActivityDetailsPanel ✅ Stable
+### 9. ActivityDetailsPanel ✅ Stable
 
 **Location:** [src/pages/explorer/components/ActivityDetailsPanel.tsx](file:///Users/namanagarwal/system/frontend-new/src/pages/explorer/components/ActivityDetailsPanel.tsx)
 
@@ -270,20 +281,10 @@ Detail drawer for selected activity node showing statistics and filter actions.
 
 | Name              | Type                           | Required | Default | Description                      |
 | ----------------- | ------------------------------ | :------: | ------- | -------------------------------- |
-| `activity`        | `MockActivityDetail \| null`   |   Yes    | —       | Activity data                    |
+| `activity`        | `ActivityDetail \| null`       |   Yes    | —       | Activity data                    |
 | `onClose`         | `() => void`                   |    No    | —       | Close panel                      |
 | `onFilterWith`    | `(activityId: string) => void` |    No    | —       | Filter to cases with activity    |
 | `onFilterWithout` | `(activityId: string) => void` |    No    | —       | Filter to cases without activity |
-
-#### Data Displayed
-
-| Field               | Example                     |
-| ------------------- | --------------------------- |
-| Total occurrences   | `12,450`                    |
-| Cases with activity | `78%`                       |
-| Average duration    | `2.4 hours`                 |
-| Duration range      | `5 min – 12 hours`          |
-| Resources           | `["User A", "User B", ...]` |
 
 #### Usage
 
@@ -295,6 +296,99 @@ Detail drawer for selected activity node showing statistics and filter actions.
   onFilterWithout={handleFilterWithout}
 />
 ```
+
+---
+
+## AI Components 🆕
+
+### 10. ProcessSelector ✅ Stable
+
+**Location:** [src/pages/ai/components/ProcessSelector.tsx](file:///Users/namanagarwal/system/frontend-new/src/pages/ai/components/ProcessSelector.tsx)
+
+Dropdown selector for choosing a process to analyze in the AI Assistant.
+
+#### Props
+
+| Name         | Type                          | Required | Default | Description                   |
+| ------------ | ----------------------------- | :------: | ------- | ----------------------------- |
+| `processes`  | `ProcessOption[]`             |   Yes    | —       | Available processes           |
+| `selectedId` | `string \| null`              |   Yes    | —       | Currently selected process ID |
+| `onSelect`   | `(processId: string) => void` |   Yes    | —       | Selection callback            |
+| `loading`    | `boolean`                     |    No    | `false` | Show loading skeleton         |
+| `disabled`   | `boolean`                     |    No    | `false` | Disable selection             |
+
+#### Usage
+
+```tsx
+<ProcessSelector
+  processes={processList}
+  selectedId={selectedProcessId}
+  onSelect={handleProcessSelect}
+  loading={isLoading}
+/>
+```
+
+---
+
+### 11. ChatMessage ✅ Stable
+
+**Location:** [src/pages/ai/components/ChatMessage.tsx](file:///Users/namanagarwal/system/frontend-new/src/pages/ai/components/ChatMessage.tsx)
+
+Chat bubble component for displaying user and AI assistant messages.
+
+#### Props
+
+| Name      | Type          | Required | Default | Description                                  |
+| --------- | ------------- | :------: | ------- | -------------------------------------------- |
+| `message` | `ChatMessage` |   Yes    | —       | Message object with role, content, timestamp |
+
+#### Message Type
+
+```typescript
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  isLoading?: boolean;
+}
+```
+
+#### Usage
+
+```tsx
+<ChatMessage
+  message={{
+    id: '1',
+    role: 'assistant',
+    content: 'Based on your process data, I found 3 bottlenecks...',
+    timestamp: new Date(),
+  }}
+/>
+```
+
+#### Visual Variants
+
+- **User Message:** Blue gradient bubble, right-aligned
+- **Assistant Message:** Glass morphism bubble, left-aligned
+- **Loading State:** Spinner with "Thinking..." text
+
+---
+
+### 12. InsightCard ✅ Stable
+
+**Location:** [src/pages/ai/components/InsightCard.tsx](file:///Users/namanagarwal/system/frontend-new/src/pages/ai/components/InsightCard.tsx)
+
+Card component for displaying AI-generated insights.
+
+#### Props
+
+| Name          | Type                                                         | Required | Default | Description        |
+| ------------- | ------------------------------------------------------------ | :------: | ------- | ------------------ |
+| `title`       | `string`                                                     |   Yes    | —       | Insight title      |
+| `description` | `string`                                                     |   Yes    | —       | Insight details    |
+| `type`        | `'bottleneck' \| 'anomaly' \| 'pattern' \| 'recommendation'` |    No    | —       | Insight category   |
+| `severity`    | `'low' \| 'medium' \| 'high'`                                |    No    | —       | Severity indicator |
 
 ---
 
@@ -312,3 +406,4 @@ The design system also exports these utilities from `@lumina/design-system`:
 | `formatPercentage`          | Function | Decimal to percent      |
 | `tokens`                    | Object   | Design tokens           |
 | `luminaTheme`               | Object   | Ant Design theme config |
+| `logAction`                 | Function | Dev logging utility     |

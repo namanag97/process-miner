@@ -12,6 +12,7 @@ import {
   SettingsPage,
   NotificationsPage,
   ActivityLogPage,
+  AuditLogsPage,
   HelpCenterPage,
   EventLogsPage,
   UploadWizardPage,
@@ -21,6 +22,7 @@ import {
   AnalyticsPage,
   AIIndexPage,
   AIInsightsPage,
+  AIAssistantPage,
   PredictionsPage,
   PredictorDetailPage,
   TestBenchPage,
@@ -79,7 +81,7 @@ function AppLayout() {
       logs: '/processes',
       explorer: '/explorer',
       analytics: '/analytics',
-      'ai-insights': '/ai/insights',
+      'ai-insights': '/ai/assistant',
       predictions: '/ai/predictions',
       settings: '/settings/profile',
       help: '/help',
@@ -106,6 +108,7 @@ function AppLayout() {
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/help" element={<HelpCenterPage />} />
         <Route path="/activity" element={<ActivityLogPage />} />
+        <Route path="/audit-logs" element={<AuditLogsPage />} />
 
         {/* Phase 2: Data Foundation */}
         <Route path="/processes" element={<EventLogsPage />} />
@@ -123,7 +126,8 @@ function AppLayout() {
         <Route path="/analytics/rework" element={<AnalyticsPage />} />
 
         {/* Phase 5: AI & Advanced */}
-        <Route path="/ai" element={<AIIndexPage />} />
+        <Route path="/ai" element={<Navigate to="/ai/assistant" replace />} />
+        <Route path="/ai/assistant" element={<AIAssistantPage />} />
         <Route path="/ai/insights" element={<AIInsightsPage />} />
         <Route path="/ai/predictions" element={<PredictionsPage />} />
         <Route path="/ai/predictions/:id" element={<PredictorDetailPage />} />

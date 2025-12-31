@@ -11,34 +11,38 @@
 
 Stored in React Context providers, accessible app-wide.
 
-| Context               | Purpose              | Key Values                                       |
-| --------------------- | -------------------- | ------------------------------------------------ |
-| `AuthContext`         | User session         | `user`, `isAuthenticated`, `login()`, `logout()` |
-| `NotificationContext` | Real-time alerts     | `notifications`, `unreadCount`, `markAsRead()`   |
-| `SDKContext`          | API client singleton | `sdk` (ProcessMiningSdk instance)                |
+| Context                | Purpose              | Key Values                                       |
+| ---------------------- | -------------------- | ------------------------------------------------ |
+| `AuthContext`          | User session         | `user`, `isAuthenticated`, `login()`, `logout()` |
+| `NotificationContext`  | Real-time alerts     | `notifications`, `unreadCount`, `markAsRead()`   |
+| `SDKContext`           | API client singleton | `sdk` (ProcessMiningSdk instance)                |
+| `BackendHealthContext` | Connection status    | `isHealthy`, `checkHealth()`                     |
 
 ### Server State (TanStack Query)
 
 Primary source of truth for all business data.
 
-| Data              | Query Key                    | Stale Time | Invalidated By  |
-| ----------------- | ---------------------------- | ---------- | --------------- |
-| Event logs list   | `['logs', filters]`          | 5 min      | Upload, delete  |
-| Single log        | `['logs', logId]`            | 5 min      | Metadata update |
-| DFG visualization | `['dfg', logId, options]`    | 5 min      | Filter change   |
-| Variants          | `['variants', logId]`        | 5 min      | Filter change   |
-| Analytics         | `['analytics', type, logId]` | 5 min      | Re-analysis     |
+| Data              | Query Key                             | Stale Time | Invalidated By  |
+| ----------------- | ------------------------------------- | ---------- | --------------- |
+| Processes list    | `['processes', filters]`              | 5 min      | Upload, delete  |
+| Single process    | `['processes', processId]`            | 5 min      | Metadata update |
+| DFG visualization | `['dfg', processId, options]`         | 5 min      | Filter change   |
+| Variants          | `['variants', processId]`             | 5 min      | Filter change   |
+| Analytics         | `['analytics', type, processId]`      | 5 min      | Re-analysis     |
+| Organizational    | `['organizational', type, processId]` | 5 min      | Re-analysis     |
+| Projects          | `['projects']`                        | 5 min      | Create, delete  |
 
 ### Local State (`useState`)
 
 Scoped to individual components.
 
-| Use Case         | Example                |
-| ---------------- | ---------------------- |
-| Form inputs      | Text before submission |
-| Modal visibility | `isModalOpen`          |
-| Tab selection    | Active tab key         |
-| Transient UI     | Dropdown open state    |
+| Use Case         | Example                   |
+| ---------------- | ------------------------- |
+| Form inputs      | Text before submission    |
+| Modal visibility | `isModalOpen`             |
+| Tab selection    | Active tab key            |
+| Transient UI     | Dropdown open state       |
+| Chat messages    | AI assistant conversation |
 
 ### URL State
 
@@ -60,6 +64,7 @@ graph TD
         Auth[AuthContext]
         Notif[NotificationContext]
         SDK[SDKContext]
+        Health[BackendHealthContext]
     end
 
     subgraph Components
@@ -91,21 +96,24 @@ graph TD
     Page --> UI
     Auth --> Page
     Notif --> Page
+    Health --> Page
 ```
 
 ---
 
 ## 3. Component → SDK → API Mapping
 
-| Component             | SDK Method                       | API Endpoint                 | Cache Key                      |
-| --------------------- | -------------------------------- | ---------------------------- | ------------------------------ |
-| `HomePage`            | `sdk.logs.list()`                | `GET /logs`                  | `['logs']`                     |
-| `EventLogsPage`       | `sdk.logs.list()`                | `GET /logs`                  | `['logs', filters]`            |
-| `LogDetailPage`       | `sdk.logs.get(id)`               | `GET /logs/:id`              | `['logs', id]`                 |
-| `UploadWizardPage`    | `sdk.logs.ingest()`              | `POST /logs/ingest`          | — (mutation)                   |
-| `ProcessExplorerPage` | `sdk.discovery.buildDFG()`       | `GET /discovery/dfg/:logId`  | `['dfg', logId]`               |
-| `AnalyticsPage`       | `sdk.analytics.getPerformance()` | `GET /analytics/performance` | `['analytics', 'perf', logId]` |
-| `AIInsightsPage`      | `sdk.ai.getInsights()`           | `GET /ai/insights/:logId`    | `['insights', logId]`          |
+| Component             | SDK Method                          | API Endpoint                            | Cache Key                                   |
+| --------------------- | ----------------------------------- | --------------------------------------- | ------------------------------------------- |
+| `HomePage`            | `sdk.processes.list()`              | `GET /processes`                        | `['processes']`                             |
+| `EventLogsPage`       | `sdk.processes.list()`              | `GET /processes`                        | `['processes', filters]`                    |
+| `LogDetailPage`       | `sdk.processes.get(id)`             | `GET /processes/:id`                    | `['processes', id]`                         |
+| `UploadWizardPage`    | `sdk.processes.ingest()`            | `POST /processes/upload`                | — (mutation)                                |
+| `ProcessExplorerPage` | `sdk.discovery.buildDFG()`          | `GET /visualization/:id/dfg`            | `['dfg', processId]`                        |
+| `AnalyticsPage`       | `sdk.analytics.getPerformance()`    | `GET /analytics/logs/:id/performance`   | `['analytics', 'perf', processId]`          |
+| `ResourcesTab`        | `sdk.organizational.getWorkload()`  | `GET /organizational/logs/:id/workload` | `['organizational', 'workload', processId]` |
+| `AIAssistantPage`     | `sdk.analytics.getProcessSummary()` | Multiple endpoints                      | `['processSummary', processId]`             |
+| `AIInsightsPage`      | `sdk.ai.getInsights()`              | `GET /predictions/logs/:id/predictions` | `['insights', processId]`                   |
 
 ---
 
@@ -116,23 +124,23 @@ graph TD
 const queryKey = ['domain', entityId, options];
 
 // Examples
-['logs'][('logs', { status: 'active' })][('logs', 'abc123')][ // All logs // Filtered logs // Single log
+['processes'][('processes', { status: 'active' })][('processes', 'abc123')][ // All processes // Filtered processes // Single process
   ('dfg', 'abc123', { threshold: 80 })
-]; // Filtered DFG
+][('organizational', 'workload', 'abc123')]; // Filtered DFG // Workload data
 ```
 
 ### Invalidation Patterns
 
 ```tsx
-// Invalidate specific log
-queryClient.invalidateQueries({ queryKey: ['logs', logId] });
+// Invalidate specific process
+queryClient.invalidateQueries({ queryKey: ['processes', processId] });
 
-// Invalidate all logs (list + details)
-queryClient.invalidateQueries({ queryKey: ['logs'] });
+// Invalidate all processes (list + details)
+queryClient.invalidateQueries({ queryKey: ['processes'] });
 
-// Invalidate all discovery data for a log
+// Invalidate all discovery data for a process
 queryClient.invalidateQueries({
-  queryKey: ['dfg', logId],
+  queryKey: ['dfg', processId],
   exact: false,
 });
 ```
@@ -143,12 +151,13 @@ queryClient.invalidateQueries({
 
 | Scenario           | State Type       | Reason                  |
 | ------------------ | ---------------- | ----------------------- |
-| Event log list     | Server (Query)   | Shared across pages     |
+| Process list       | Server (Query)   | Shared across pages     |
 | Selected table row | Local            | UI transient            |
 | Active filter      | URL              | Shareable, bookmarkable |
 | User session       | Global (Context) | App-wide access         |
 | Form draft         | Local            | Pre-submission only     |
 | Notification count | Global (Context) | Shown in AppShell       |
+| Chat messages      | Local            | Component-specific      |
 
 > [!TIP]
 > Prefer URL state over `useState` for anything the user might want to bookmark or share (e.g., a filtered process map view).

@@ -1,36 +1,36 @@
 # PAGE_MAP.md — Every Route and Its Purpose
 
 > [!NOTE]
-> This map outlines all 22 routes in the application. Routes are organized by implementation phase.
+> This map outlines all routes in the application. Routes are organized by implementation phase.
 
 ---
 
 ## Route Overview
 
-| Route                     | Page Component             | Layout     | Data Source (SDK)                | Purpose                     |
-| ------------------------- | -------------------------- | ---------- | -------------------------------- | --------------------------- |
-| `/login`                  | `LoginPage`                | None       | `sdk.auth.login()`               | User authentication         |
-| `/home`                   | `HomePage`                 | `AppShell` | `sdk.logs.list()`                | Dashboard and quick actions |
-| `/logs`                   | `EventLogsPage`            | `AppShell` | `sdk.logs.list()`                | List and manage event logs  |
-| `/logs/upload`            | `UploadWizardPage`         | `AppShell` | `sdk.logs.ingest()`              | Multi-step log upload       |
-| `/logs/:id`               | `LogDetailPage`            | `AppShell` | `sdk.logs.get(id)`               | Log details and stats       |
-| `/explorer`               | `ProcessExplorerIndexPage` | `AppShell` | `sdk.logs.list()`                | Select log to explore       |
-| `/explorer/:logId`        | `ProcessExplorerPage`      | `AppShell` | `sdk.discovery.*`                | Visual DFG exploration      |
-| `/analytics`              | `AnalyticsPage`            | `AppShell` | `sdk.analytics.*`                | Analytics dashboard         |
-| `/analytics/performance`  | `AnalyticsPage`            | `AppShell` | `sdk.analytics.getPerformance()` | Performance tab             |
-| `/analytics/conformance`  | `AnalyticsPage`            | `AppShell` | `sdk.conformance.check()`        | Conformance tab             |
-| `/analytics/rework`       | `AnalyticsPage`            | `AppShell` | `sdk.analytics.getRework()`      | Rework analysis tab         |
-| `/ai`                     | `AIIndexPage`              | `AppShell` | —                                | AI features hub             |
-| `/ai/insights`            | `AIInsightsPage`           | `AppShell` | `sdk.ai.getInsights()`           | Automated insights          |
-| `/ai/predictions`         | `PredictionsPage`          | `AppShell` | `sdk.ai.listPredictors()`        | Prediction models           |
-| `/ai/predictions/:id`     | `PredictorDetailPage`      | `AppShell` | `sdk.ai.getPredictorDetail()`    | Predictor configuration     |
-| `/settings/*`             | `SettingsPage`             | `AppShell` | `sdk.auth.getProfile()`          | User settings               |
-| `/settings/profile`       | `SettingsPage` (tab)       | `AppShell` | `sdk.auth.getProfile()`          | Profile settings            |
-| `/settings/preferences`   | `SettingsPage` (tab)       | `AppShell` | —                                | App preferences             |
-| `/settings/notifications` | `SettingsPage` (tab)       | `AppShell` | —                                | Notification settings       |
-| `/notifications`          | `NotificationsPage`        | `AppShell` | `sdk.notifications.list()`       | Notification center         |
-| `/help`                   | `HelpCenterPage`           | `AppShell` | —                                | Help and documentation      |
-| `/activity`               | `ActivityLogPage`          | `AppShell` | `sdk.activity.list()`            | User activity history       |
+| Route                    | Page Component             | Layout     | Data Source (SDK)                   | Purpose                      |
+| ------------------------ | -------------------------- | ---------- | ----------------------------------- | ---------------------------- |
+| `/login`                 | `LoginPage`                | None       | `sdk.auth.login()`                  | User authentication          |
+| `/home`                  | `HomePage`                 | `AppShell` | `sdk.processes.list()`              | Dashboard and quick actions  |
+| `/processes`             | `EventLogsPage`            | `AppShell` | `sdk.processes.list()`              | List and manage event logs   |
+| `/processes/upload`      | `UploadWizardPage`         | `AppShell` | `sdk.processes.ingest()`            | Multi-step log upload        |
+| `/processes/:id`         | `LogDetailPage`            | `AppShell` | `sdk.processes.get(id)`             | Log details and stats        |
+| `/explorer`              | `ProcessExplorerIndexPage` | `AppShell` | `sdk.processes.list()`              | Select log to explore        |
+| `/explorer/:logId`       | `ProcessExplorerPage`      | `AppShell` | `sdk.discovery.*`                   | Visual DFG exploration       |
+| `/analytics`             | `AnalyticsPage`            | `AppShell` | `sdk.analytics.*`                   | Analytics dashboard          |
+| `/analytics/performance` | `AnalyticsPage`            | `AppShell` | `sdk.analytics.getPerformance()`    | Performance tab              |
+| `/analytics/conformance` | `AnalyticsPage`            | `AppShell` | `sdk.conformance.check()`           | Conformance tab              |
+| `/analytics/rework`      | `AnalyticsPage`            | `AppShell` | `sdk.analytics.getRework()`         | Rework analysis tab          |
+| `/ai`                    | Redirect                   | —          | —                                   | Redirects to `/ai/assistant` |
+| `/ai/assistant`          | `AIAssistantPage`          | `AppShell` | `sdk.analytics.getProcessSummary()` | Chat-based AI assistant 🆕   |
+| `/ai/insights`           | `AIInsightsPage`           | `AppShell` | `sdk.ai.getInsights()`              | Automated insights           |
+| `/ai/predictions`        | `PredictionsPage`          | `AppShell` | `sdk.ai.listPredictors()`           | Prediction models            |
+| `/ai/predictions/:id`    | `PredictorDetailPage`      | `AppShell` | `sdk.ai.getPredictorDetail()`       | Predictor configuration      |
+| `/settings/*`            | `SettingsPage`             | `AppShell` | `sdk.auth.getProfile()`             | User settings                |
+| `/notifications`         | `NotificationsPage`        | `AppShell` | `sdk.notifications.list()`          | Notification center          |
+| `/help`                  | `HelpCenterPage`           | `AppShell` | —                                   | Help and documentation       |
+| `/activity`              | `ActivityLogPage`          | `AppShell` | `sdk.activity.list()`               | User activity history        |
+| `/audit-logs`            | `AuditLogsPage`            | `AppShell` | —                                   | System audit logs 🆕         |
+| `/test-bench`            | `TestBenchPage`            | `AppShell` | All SDK methods                     | Developer testing 🆕         |
 
 ---
 
@@ -40,12 +40,12 @@
 
 **File:** [src/pages/HomePage.tsx](file:///Users/namanagarwal/system/frontend-new/src/pages/HomePage.tsx)
 
-| Property   | Value                                                  |
-| ---------- | ------------------------------------------------------ |
-| Route      | `/home`                                                |
-| SDK Calls  | `sdk.logs.list()`                                      |
-| Components | `MetricCard`, `EmptyState`, `PageHeader`               |
-| User Flow  | View stats → Quick actions → Navigate to logs/explorer |
+| Property   | Value                                                       |
+| ---------- | ----------------------------------------------------------- |
+| Route      | `/home`                                                     |
+| SDK Calls  | `sdk.processes.list()`                                      |
+| Components | `MetricCard`, `EmptyState`, `PageHeader`                    |
+| User Flow  | View stats → Quick actions → Navigate to processes/explorer |
 
 ---
 
@@ -77,10 +77,11 @@
 
 **File:** [src/pages/HelpCenterPage.tsx](file:///Users/namanagarwal/system/frontend-new/src/pages/HelpCenterPage.tsx)
 
-| Property  | Value              |
-| --------- | ------------------ |
-| Route     | `/help`            |
-| SDK Calls | — (static content) |
+| Property  | Value                                        |
+| --------- | -------------------------------------------- |
+| Route     | `/help`                                      |
+| SDK Calls | — (static content)                           |
+| Sections  | Getting Started, User Guides, FAQ, Changelog |
 
 ---
 
@@ -95,6 +96,18 @@
 
 ---
 
+### Audit Logs 🆕
+
+**File:** [src/pages/AuditLogsPage.tsx](file:///Users/namanagarwal/system/frontend-new/src/pages/AuditLogsPage.tsx)
+
+| Property  | Value                                               |
+| --------- | --------------------------------------------------- |
+| Route     | `/audit-logs`                                       |
+| SDK Calls | —                                                   |
+| Features  | Searchable table, date filtering, export, IP toggle |
+
+---
+
 ## Phase 2: Data Foundation
 
 ### Event Logs List
@@ -103,8 +116,8 @@
 
 | Property   | Value                                               |
 | ---------- | --------------------------------------------------- |
-| Route      | `/logs`                                             |
-| SDK Calls  | `sdk.logs.list()`                                   |
+| Route      | `/processes`                                        |
+| SDK Calls  | `sdk.processes.list()`                              |
 | Components | `PageHeader`, Data Table, Search                    |
 | Actions    | View, Download, Delete                              |
 | User Flow  | Search/filter → Select log → View detail or Explore |
@@ -115,12 +128,12 @@
 
 **File:** [src/pages/logs/UploadWizardPage.tsx](file:///Users/namanagarwal/system/frontend-new/src/pages/logs/UploadWizardPage.tsx)
 
-| Property  | Value                                           |
-| --------- | ----------------------------------------------- |
-| Route     | `/logs/upload`                                  |
-| SDK Calls | `sdk.logs.detectColumns()`, `sdk.logs.ingest()` |
-| Steps     | Upload → Column Mapping → Confirm               |
-| Redirect  | → `/logs/:newId` on success                     |
+| Property  | Value                                                     |
+| --------- | --------------------------------------------------------- |
+| Route     | `/processes/upload`                                       |
+| SDK Calls | `sdk.processes.detectColumns()`, `sdk.processes.ingest()` |
+| Steps     | Upload → Column Mapping → Confirm                         |
+| Redirect  | → `/processes/:newId` on success                          |
 
 ---
 
@@ -128,12 +141,12 @@
 
 **File:** [src/pages/logs/LogDetailPage.tsx](file:///Users/namanagarwal/system/frontend-new/src/pages/logs/LogDetailPage.tsx)
 
-| Property  | Value                                      |
-| --------- | ------------------------------------------ |
-| Route     | `/logs/:id`                                |
-| Params    | `id` - Log ID                              |
-| SDK Calls | `sdk.logs.get(id)`, `sdk.logs.analyze(id)` |
-| Actions   | Explore, Download, Delete                  |
+| Property  | Value                                                |
+| --------- | ---------------------------------------------------- |
+| Route     | `/processes/:id`                                     |
+| Params    | `id` - Process ID                                    |
+| SDK Calls | `sdk.processes.get(id)`, `sdk.processes.analyze(id)` |
+| Actions   | Explore, Download, Delete                            |
 
 ---
 
@@ -146,7 +159,7 @@
 | Property  | Value                             |
 | --------- | --------------------------------- |
 | Route     | `/explorer`                       |
-| SDK Calls | `sdk.logs.list()`                 |
+| SDK Calls | `sdk.processes.list()`            |
 | Purpose   | Select a log to explore           |
 | Redirect  | → `/explorer/:logId` on selection |
 
@@ -190,15 +203,28 @@
 | ---------- | ------------------------------------------------------------------------------------- |
 | Route      | `/analytics`, `/analytics/performance`, `/analytics/conformance`, `/analytics/rework` |
 | Layout     | Log selector + MetricCard row + Tab content                                           |
-| Components | `MetricCard`, `PerformanceTab`, `ConformanceTab`, `ReworkTab`                         |
+| Components | `MetricCard`, `PerformanceTab`, `ConformanceTab`, `ReworkTab`, `ResourcesTab`         |
 
 #### Tab Routes
 
-| Tab         | Route                                    | SDK Call                         |
-| ----------- | ---------------------------------------- | -------------------------------- |
-| Performance | `/analytics` or `/analytics/performance` | `sdk.analytics.getPerformance()` |
-| Conformance | `/analytics/conformance`                 | `sdk.conformance.check()`        |
-| Rework      | `/analytics/rework`                      | `sdk.analytics.getRework()`      |
+| Tab         | Route                                    | SDK Call                           |
+| ----------- | ---------------------------------------- | ---------------------------------- |
+| Performance | `/analytics` or `/analytics/performance` | `sdk.analytics.getPerformance()`   |
+| Conformance | `/analytics/conformance`                 | `sdk.conformance.check()`          |
+| Rework      | `/analytics/rework`                      | `sdk.analytics.getRework()`        |
+| Resources   | `/analytics/resources` 🆕                | `sdk.organizational.getWorkload()` |
+
+---
+
+### Resources Tab 🆕
+
+**File:** [src/pages/analytics/ResourcesTab.tsx](file:///Users/namanagarwal/system/frontend-new/src/pages/analytics/ResourcesTab.tsx)
+
+| Property  | Value                                                                         |
+| --------- | ----------------------------------------------------------------------------- |
+| Route     | `/analytics/resources` (tab)                                                  |
+| SDK Calls | `sdk.organizational.getWorkload()`, `sdk.organizational.getHandoverNetwork()` |
+| Features  | Resource performance metrics, workload distribution, handover analysis        |
 
 ---
 
@@ -206,12 +232,20 @@
 
 ### AI Hub
 
-**File:** [src/pages/ai/AIIndexPage.tsx](file:///Users/namanagarwal/system/frontend-new/src/pages/ai/AIIndexPage.tsx)
+**Route:** `/ai` → Redirects to `/ai/assistant`
 
-| Property | Value                          |
-| -------- | ------------------------------ |
-| Route    | `/ai`                          |
-| Purpose  | Navigation hub for AI features |
+---
+
+### AI Assistant 🆕
+
+**File:** [src/pages/ai/AIAssistantPage.tsx](file:///Users/namanagarwal/system/frontend-new/src/pages/ai/AIAssistantPage.tsx)
+
+| Property   | Value                                                           |
+| ---------- | --------------------------------------------------------------- |
+| Route      | `/ai/assistant`                                                 |
+| SDK Calls  | `sdk.analytics.getProcessSummary()`                             |
+| Components | `ProcessSelector`, `ChatMessage`, `InsightCard`                 |
+| Features   | Natural language querying, process data context, chat interface |
 
 ---
 
@@ -248,6 +282,20 @@
 | Route     | `/ai/predictions/:id`           |
 | Params    | `id` - Predictor ID             |
 | SDK Calls | `sdk.ai.getPredictorDetail(id)` |
+
+---
+
+## Developer Tools
+
+### Test Bench 🆕
+
+**File:** [src/pages/TestBenchPage.tsx](file:///Users/namanagarwal/system/frontend-new/src/pages/TestBenchPage.tsx)
+
+| Property | Value                                                  |
+| -------- | ------------------------------------------------------ |
+| Route    | `/test-bench`                                          |
+| Purpose  | Interactive testing of UI components and SDK endpoints |
+| Features | Component showcase, API test console                   |
 
 ---
 

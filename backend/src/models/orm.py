@@ -17,6 +17,40 @@ class Base(DeclarativeBase):
     pass
 
 
+# =============================================================================
+# Projects (Organization Layer)
+# =============================================================================
+
+
+class Project(Base):
+    """Project container for organizing event logs and analyses."""
+
+    __tablename__ = "projects"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    tags_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array of tags
+
+    # Statistics
+    total_files: Mapped[int] = mapped_column(Integer, default=0)
+    total_analyses: Mapped[int] = mapped_column(Integer, default=0)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Relationships
+    event_logs: Mapped[list["EventLog"]] = relationship(
+        back_populates="project",
+        lazy="selectin",
+    )
+
+
+# =============================================================================
+# Event Logs
+# =============================================================================
+
+
 class EventLog(Base):
     """Uploaded event log metadata."""
 
@@ -26,6 +60,11 @@ class EventLog(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     source_file: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     source_format: Mapped[str] = mapped_column(String(20), default="csv")
+
+    # Project association (optional for backward compatibility)
+    project_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
+    )
 
     # Computed statistics (stored for quick access)
     total_cases: Mapped[int] = mapped_column(Integer, default=0)
@@ -69,6 +108,7 @@ class EventLog(Base):
         foreign_keys=[source_log_id],
         lazy="selectin",
     )
+    project: Mapped[Optional["Project"]] = relationship(back_populates="event_logs")
 
 
 class ProcessCase(Base):

@@ -9,12 +9,14 @@ from src.api.routers.ocpm import router as ocpm_router
 from src.api.routers.organizational import router as organizational_router
 from src.api.routers.predictions import router as predictions_router
 from src.api.routers.processes import router as processes_router
+from src.api.routers.projects import router as projects_router
 from src.api.routers.simulation import router as simulation_router
 from src.api.routers.visualization import router as visualization_router
 from src.api.routers.workflows import router as workflows_router
 
 __all__ = [
     "processes_router",
+    "projects_router",
     "discovery_router",
     "visualization_router",
     "conformance_router",
