@@ -52,7 +52,7 @@ export function ProjectDetailPage() {
   };
 
   if (isLoading) {
-    return <LoadingState type="fullPage" tip="Loading project..." />;
+    return <LoadingState type="fullPage" text="Loading project..." />;
   }
 
   if (error) {
@@ -76,14 +76,14 @@ export function ProjectDetailPage() {
     );
   }
 
-  // Transform processes to DataSourceInfo format
-  const dataSources: DataSourceInfo[] = (project.processes || []).map((p) => ({
-    id: p.id,
-    name: p.name,
-    type: p.name.endsWith('.xes') ? 'xes' : 'csv',
-    caseCount: p.totalCases,
-    eventCount: p.totalEvents,
-    uploadedAt: p.createdAt,
+  // Transform eventLogs to DataSourceInfo format
+  const dataSources: DataSourceInfo[] = (project.eventLogs || []).map((log) => ({
+    id: log.id,
+    name: log.name,
+    type: log.name.endsWith('.xes') ? 'xes' : 'csv',
+    caseCount: log.totalCases,
+    eventCount: log.totalEvents,
+    uploadedAt: log.createdAt,
     status: 'ready' as const,
   }));
 
@@ -97,7 +97,7 @@ export function ProjectDetailPage() {
           { label: 'Workspace', href: '/home?tab=workspace' },
           { label: project.name },
         ]}
-        extra={
+        actions={
           <Space>
             <Button
               icon={<ArrowLeftOutlined />}

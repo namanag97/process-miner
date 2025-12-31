@@ -3,7 +3,7 @@ import { Tabs } from 'antd';
 import { HomeOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { useSearchParams } from 'react-router-dom';
 import { PageHeader, tokens, useProjects } from '@lumina/design-system';
-import { useAuth } from '../../context/AuthContext';
+import { useUser } from '../../context/UserContext';
 import { OverviewTab } from './OverviewTab';
 import { WorkspaceTab } from './WorkspaceTab';
 
@@ -12,7 +12,7 @@ import { WorkspaceTab } from './WorkspaceTab';
  * Overview shows metrics, Workspace shows projects table
  */
 export function HomePage() {
-  const { user } = useAuth();
+  const { user } = useUser();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'workspace';
 
@@ -21,8 +21,8 @@ export function HomePage() {
 
   const stats = {
     totalProjects: projects.length,
-    totalProcesses: projects.reduce((sum, p) => sum + (p.processCount || 0), 0),
-    activeAnalyses: projects.filter((p) => p.processCount > 0).length,
+    totalProcesses: projects.reduce((sum, p) => sum + (p.totalFiles || 0), 0),
+    activeAnalyses: projects.filter((p) => p.totalFiles > 0).length,
   };
 
   const handleTabChange = (key: string) => {

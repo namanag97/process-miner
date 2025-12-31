@@ -1,14 +1,14 @@
+/**
+ * DataSourcesList - Display and manage data sources for a project
+ */
+
 import React from 'react';
-import { List, message, Popconfirm } from 'antd';
+import { List } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
-import {
-  DataSourceCard,
-  EmptyState,
-  tokens,
-  useRemoveFileFromProject,
-  type DataSourceInfo,
-} from '@lumina/design-system';
+import { DataSourceCard, EmptyState, tokens } from '@lumina/design-system';
 import { FolderOpenOutlined } from '@ant-design/icons';
+import { useRemoveFileFromProject } from '../hooks';
+import type { DataSourceInfo } from '../types';
 
 interface DataSourcesListProps {
   sources: DataSourceInfo[];
@@ -16,11 +16,11 @@ interface DataSourcesListProps {
   onUploadClick?: () => void;
 }
 
-/**
- * DataSourcesList - Display and manage data sources for a project
- * Shows cards for each data source with explore/delete actions
- */
-export function DataSourcesList({ sources, loading, onUploadClick }: DataSourcesListProps) {
+export function DataSourcesList({
+  sources,
+  loading,
+  onUploadClick,
+}: DataSourcesListProps) {
   const navigate = useNavigate();
   const { projectId } = useParams<{ projectId: string }>();
   const removeFile = useRemoveFileFromProject();
@@ -31,12 +31,7 @@ export function DataSourcesList({ sources, loading, onUploadClick }: DataSources
 
   const handleDelete = async (sourceId: string) => {
     if (!projectId) return;
-    try {
-      await removeFile.mutateAsync({ projectId, logId: sourceId });
-      message.success('Data source removed');
-    } catch (err) {
-      message.error('Failed to remove data source');
-    }
+    await removeFile.mutateAsync({ projectId, logId: sourceId });
   };
 
   if (!loading && sources.length === 0) {

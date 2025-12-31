@@ -54,20 +54,25 @@ export function PerformanceTab({ logId }: PerformanceTabProps) {
     return `${(seconds / 86400).toFixed(1)}d`;
   };
 
+  // Calculate efficiency from performance data (throughput ratio)
+  const totalCases = throughput?.total_cases ?? 0;
+  const completedCases = throughput?.completed_cases ?? 0;
+  const efficiency = totalCases > 0 ? completedCases / totalCases : 0;
+
   return (
     <div style={{ padding: tokens.spacing[4] }}>
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={8}>
           <MetricCard
             title="Avg Cycle Time"
-            value={formatDuration(cycleTime?.averageCycleTime ?? 0)}
+            value={formatDuration(cycleTime?.avg_seconds ?? 0)}
             prefix={<ClockCircleOutlined />}
           />
         </Col>
         <Col xs={24} sm={8}>
           <MetricCard
             title="Throughput"
-            value={throughput?.casesPerDay?.toFixed(1) ?? '0'}
+            value={throughput?.cases_per_day?.toFixed(1) ?? '0'}
             suffix="cases/day"
             prefix={<ThunderboltOutlined />}
             status="success"
@@ -76,9 +81,9 @@ export function PerformanceTab({ logId }: PerformanceTabProps) {
         <Col xs={24} sm={8}>
           <MetricCard
             title="Process Efficiency"
-            value={`${((performance.efficiency ?? 0) * 100).toFixed(0)}`}
+            value={`${(efficiency * 100).toFixed(0)}`}
             suffix="%"
-            status={performance.efficiency > 0.7 ? 'success' : performance.efficiency > 0.4 ? 'warning' : 'error'}
+            status={efficiency > 0.7 ? 'success' : efficiency > 0.4 ? 'warning' : 'error'}
           />
         </Col>
       </Row>
@@ -87,17 +92,17 @@ export function PerformanceTab({ logId }: PerformanceTabProps) {
         <Col xs={24} lg={12}>
           <Card title="Bottleneck Activities">
             <List
-              dataSource={performance.bottlenecks?.slice(0, 5) ?? []}
-              renderItem={(item: { activity: string; waitTime: number; impact: number }) => (
+              dataSource={performance.topBottlenecks?.slice(0, 5) ?? []}
+              renderItem={(item: { activity: string; avgWaitingTime: number; impactScore: number }) => (
                 <List.Item>
                   <List.Item.Meta
                     title={item.activity}
-                    description={`Wait time: ${formatDuration(item.waitTime)}`}
+                    description={`Wait time: ${formatDuration(item.avgWaitingTime)}`}
                   />
                   <Progress
-                    percent={Math.round(item.impact * 100)}
+                    percent={Math.round(item.impactScore * 100)}
                     size="small"
-                    status={item.impact > 0.5 ? 'exception' : 'normal'}
+                    status={item.impactScore > 0.5 ? 'exception' : 'normal'}
                     style={{ width: 100 }}
                   />
                 </List.Item>
@@ -112,16 +117,16 @@ export function PerformanceTab({ logId }: PerformanceTabProps) {
             <div style={{ display: 'flex', gap: tokens.spacing[4], flexWrap: 'wrap' }}>
               <Statistic
                 title="Minimum"
-                value={formatDuration(cycleTime?.minCycleTime ?? 0)}
+                value={formatDuration(cycleTime?.min_seconds ?? 0)}
                 prefix={<ArrowDownOutlined style={{ color: tokens.colors.success[500] }} />}
               />
               <Statistic
                 title="Median"
-                value={formatDuration(cycleTime?.medianCycleTime ?? 0)}
+                value={formatDuration(cycleTime?.median_seconds ?? 0)}
               />
               <Statistic
                 title="Maximum"
-                value={formatDuration(cycleTime?.maxCycleTime ?? 0)}
+                value={formatDuration(cycleTime?.max_seconds ?? 0)}
                 prefix={<ArrowUpOutlined style={{ color: tokens.colors.error[500] }} />}
               />
             </div>

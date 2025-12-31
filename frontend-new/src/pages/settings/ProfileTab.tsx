@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Form, Input, Button, Avatar, Upload, Space, Typography, message } from 'antd';
 import { UserOutlined, CameraOutlined } from '@ant-design/icons';
 import { tokens, toast } from '@lumina/design-system';
-import { useAuth } from '../../context/AuthContext';
+import { useUser } from '../../context/UserContext';
 import { createLogger } from '../../utils/logger';
 
 const log = createLogger('Settings');
@@ -14,7 +14,7 @@ interface ProfileFormValues {
 }
 
 export function ProfileTab() {
-  const { user } = useAuth();
+  const { user } = useUser();
   const [form] = Form.useForm<ProfileFormValues>();
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);

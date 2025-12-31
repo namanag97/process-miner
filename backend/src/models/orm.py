@@ -422,6 +422,31 @@ class Prediction(Base):
     predicted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class Recommendation(Base):
+    """Prescriptive recommendation for a process case."""
+
+    __tablename__ = "recommendations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    log_id: Mapped[str] = mapped_column(
+        ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=False
+    )
+    case_id: Mapped[str] = mapped_column(String(255), nullable=False)  # Logical ID, not FK to avoid tight coupling
+
+    # The Signal (Why we are recommending this)
+    signal_type: Mapped[str] = mapped_column(String(50), nullable=False)  # e.g. "predicted_delay"
+    signal_data_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # The Prescription (What to do)
+    action_type: Mapped[str] = mapped_column(String(50), nullable=False)  # e.g. "reassign_resource"
+    action_params_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    # Metadata
+    priority: Mapped[str] = mapped_column(String(20), default="medium")
+    state: Mapped[str] = mapped_column(String(20), default="pending")  # pending, accepted, rejected
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 # =============================================================================
 # Async Jobs
 # =============================================================================

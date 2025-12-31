@@ -49,9 +49,10 @@ export function AutomationTab({ logId }: AutomationTabProps) {
     );
   }
 
-  const overallRate = automation.overallAutomationRate ?? 0;
-  const totalSavings = automation.totalPotentialSavings ?? 0;
-  const activities: ActivityAutomation[] = automation.activities ?? [];
+  const overallRate = automation.automationRate ?? 0;
+  const totalSavings = automation.potentialSavingsHours ?? 0;
+  // Activities breakdown is not yet available from the API
+  const activities: ActivityAutomation[] = [];
 
   const columns = [
     {
@@ -154,30 +155,6 @@ export function AutomationTab({ logId }: AutomationTabProps) {
         </Col>
       </Row>
 
-      {automation.recommendations && automation.recommendations.length > 0 && (
-        <Row style={{ marginTop: tokens.spacing[4] }}>
-          <Col span={24}>
-            <Card title="Automation Recommendations">
-              <List
-                dataSource={automation.recommendations}
-                renderItem={(rec: { activity: string; recommendation: string; priority: string }) => (
-                  <List.Item>
-                    <List.Item.Meta
-                      avatar={
-                        <Tag color={rec.priority === 'high' ? 'red' : rec.priority === 'medium' ? 'orange' : 'blue'}>
-                          {rec.priority}
-                        </Tag>
-                      }
-                      title={rec.activity}
-                      description={rec.recommendation}
-                    />
-                  </List.Item>
-                )}
-              />
-            </Card>
-          </Col>
-        </Row>
-      )}
     </div>
   );
 }
