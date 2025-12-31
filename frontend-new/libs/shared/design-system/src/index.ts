@@ -58,6 +58,7 @@ export {
   logResponse,
   logError,
   flushDevLogs,
+  registerDevConsoleCallback,
 } from './utils/devLogger';
 
 // Context
@@ -87,6 +88,7 @@ export type { PaginatedResponse, DateRange, Severity, Status } from './api/schem
 export * from './api/transformers';
 export type { ColumnDetectionResponse } from './api/types';
 export type { ProcessSummaryData, PatternResponse } from './api/modules/analytics';
+export type { Project, ProjectDetail, CreateProjectData, UpdateProjectData } from './api/modules/projects';
 
 // Query Hooks
 export {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Button, Modal, Form, Input, message } from 'antd';
+import type { FormInstance } from 'antd';
 import { PlusOutlined, FolderOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -10,16 +11,8 @@ import {
   useCreateProject,
   useDeleteProject,
   type DataTableColumn,
+  type Project,
 } from '@lumina/design-system';
-
-interface Project {
-  id: string;
-  name: string;
-  description?: string;
-  processCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
 
 /**
  * WorkspaceTab - Projects table with create/manage functionality
@@ -47,29 +40,35 @@ export function WorkspaceTab() {
       key: 'description',
       title: 'Description',
       dataIndex: 'description',
-      render: (value) => value || '-',
+      render: (value: unknown) => (value as string) || '-',
       ellipsis: true,
     },
     {
-      key: 'processCount',
+      key: 'totalFiles',
       title: 'Data Sources',
-      dataIndex: 'processCount',
+      dataIndex: 'totalFiles',
       width: 120,
       align: 'center',
-      sorter: (a, b) => a.processCount - b.processCount,
+      sorter: (a, b) => a.totalFiles - b.totalFiles,
     },
     {
       key: 'updatedAt',
       title: 'Last Updated',
       dataIndex: 'updatedAt',
       width: 150,
-      render: (value: string) =>
-        new Date(value).toLocaleDateString(undefined, {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        }),
-      sorter: (a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime(),
+      render: (value: unknown) =>
+        value
+          ? new Date(value as string).toLocaleDateString(undefined, {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })
+          : '-',
+      sorter: (a, b) => {
+        const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        return dateA - dateB;
+      },
     },
   ];
 
@@ -159,7 +158,7 @@ interface CreateProjectModalProps {
   onCancel: () => void;
   onSubmit: (values: { name: string; description?: string }) => void;
   loading: boolean;
-  form: ReturnType<typeof Form.useForm>[0];
+  form: FormInstance;
 }
 
 function CreateProjectModal({ open, onCancel, onSubmit, loading, form }: CreateProjectModalProps) {

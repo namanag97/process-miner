@@ -196,13 +196,13 @@ export function AuditLogsPage() {
   // Fetch audit logs from API
   const { data: auditData, isLoading, error, refetch } = useAuditLogs(dateFilter);
 
-  const logs = auditData ?? [];
+  const logs = auditData?.items ?? [];
 
   const filteredLogs = useMemo(() => {
     if (!searchQuery) return logs;
     const query = searchQuery.toLowerCase();
     return logs.filter(
-      (entry) =>
+      (entry: AuditLogEntry) =>
         entry.userId.toLowerCase().includes(query) ||
         entry.event.toLowerCase().includes(query) ||
         JSON.stringify(entry.data).toLowerCase().includes(query)
@@ -212,7 +212,7 @@ export function AuditLogsPage() {
   const handleExport = () => {
     const csvContent = [
       ['ID', 'User ID', 'Event', 'Timestamp', 'Data'].join(','),
-      ...filteredLogs.map((log) =>
+      ...filteredLogs.map((log: AuditLogEntry) =>
         [
           log.id,
           log.userId,

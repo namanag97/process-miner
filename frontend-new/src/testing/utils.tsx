@@ -1,11 +1,13 @@
-import React, { ReactElement } from 'react';
-import { render, RenderOptions } from '@testing-library/react';
+/// <reference types="jest" />
+import React, { ReactElement, ReactNode } from 'react';
+import { render, RenderOptions, RenderResult, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, MemoryRouter } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
 import { SDKProvider, luminaTheme } from '@lumina/design-system';
-import { AuthProvider } from '../context/AuthContext';
+import { UserProvider } from '../context/UserContext';
 import { NotificationProvider } from '../context/NotificationContext';
+import { BackendHealthProvider } from '../context/BackendHealthContext';
 
 /**
  * Create a fresh QueryClient for each test
@@ -30,31 +32,60 @@ interface WrapperProps {
 }
 
 /**
+ * Options for creating a test wrapper
+ */
+interface TestWrapperOptions {
+  queryClient?: QueryClient;
+  initialEntries?: string[];
+  withRouter?: boolean;
+  withUser?: boolean; // MVP: Always includes UserProvider by default
+}
+
+/**
  * Create test providers with fresh QueryClient
  */
-function createTestWrapper(queryClient?: QueryClient) {
+function createTestWrapper(options: TestWrapperOptions = {}) {
+  const {
+    queryClient,
+    initialEntries = ['/'],
+    withRouter = true,
+    withUser = true,
+  } = options;
   const client = queryClient || createTestQueryClient();
 
   return function TestWrapper({ children }: WrapperProps) {
-    return (
+    const content = (
       <ConfigProvider theme={luminaTheme}>
         <QueryClientProvider client={client}>
           <SDKProvider baseUrl="http://localhost:8001">
-            <AuthProvider>
-              <NotificationProvider>
-                <BrowserRouter>{children}</BrowserRouter>
-              </NotificationProvider>
-            </AuthProvider>
+            <BackendHealthProvider>
+              {withUser ? (
+                <UserProvider>
+                  <NotificationProvider>{children}</NotificationProvider>
+                </UserProvider>
+              ) : (
+                children
+              )}
+            </BackendHealthProvider>
           </SDKProvider>
         </QueryClientProvider>
       </ConfigProvider>
     );
+
+    if (withRouter) {
+      return <MemoryRouter initialEntries={initialEntries}>{content}</MemoryRouter>;
+    }
+
+    return content;
   };
 }
 
 interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
   queryClient?: QueryClient;
   initialRoute?: string;
+  initialEntries?: string[];
+  withRouter?: boolean;
+  withUser?: boolean;
 }
 
 /**
@@ -63,18 +94,29 @@ interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
 export function renderWithProviders(
   ui: ReactElement,
   options: CustomRenderOptions = {}
-) {
-  const { queryClient, initialRoute, ...renderOptions } = options;
+): RenderResult & { queryClient: QueryClient } {
+  const {
+    queryClient,
+    initialRoute,
+    initialEntries,
+    withRouter = true,
+    withUser = true,
+    ...renderOptions
+  } = options;
 
-  if (initialRoute) {
-    window.history.pushState({}, 'Test page', initialRoute);
-  }
+  const entries = initialRoute ? [initialRoute] : initialEntries;
 
-  const Wrapper = createTestWrapper(queryClient);
+  const client = queryClient || createTestQueryClient();
+  const Wrapper = createTestWrapper({
+    queryClient: client,
+    initialEntries: entries,
+    withRouter,
+    withUser,
+  });
 
   return {
     ...render(ui, { wrapper: Wrapper, ...renderOptions }),
-    queryClient: queryClient || createTestQueryClient(),
+    queryClient: client,
   };
 }
 
@@ -156,6 +198,163 @@ export function createMockSDK() {
     },
     checkHealth: jest.fn().mockResolvedValue({ status: 'healthy' }),
     isHealthy: jest.fn().mockResolvedValue(true),
+  };
+}
+
+// ============================================
+// Test Assertions & Helpers
+// ============================================
+// Note: These helpers use @testing-library/jest-dom matchers
+// which are only available in test files with proper setup
+
+/**
+ * Assert that an element has specific text content
+ */
+export function expectTextContent(element: HTMLElement, text: string) {
+  expect(element.textContent).toContain(text);
+}
+
+/**
+ * Find a loading indicator (returns element or null)
+ */
+export async function findLoadingState() {
+  return screen.queryByRole('status');
+}
+
+/**
+ * Find an error message (returns element or null)
+ */
+export async function findErrorMessage(message?: string | RegExp) {
+  if (message) {
+    return screen.queryByText(message);
+  }
+  return screen.queryByRole('alert');
+}
+
+/**
+ * Wait for loading to finish (query state to settle)
+ */
+export async function waitForQueryToSettle() {
+  // Wait for any pending state updates to flush
+  await waitFor(() => {
+    const loadingIndicator = screen.queryByRole('status');
+    if (loadingIndicator) {
+      throw new Error('Still loading');
+    }
+  });
+}
+
+/**
+ * Mock localStorage for tests
+ */
+export function mockLocalStorage() {
+  const store: Record<string, string> = {};
+
+  const mockStorage = {
+    getItem: jest.fn((key: string) => store[key] || null),
+    setItem: jest.fn((key: string, value: string) => {
+      store[key] = value;
+    }),
+    removeItem: jest.fn((key: string) => {
+      delete store[key];
+    }),
+    clear: jest.fn(() => {
+      Object.keys(store).forEach((key) => delete store[key]);
+    }),
+    get length() {
+      return Object.keys(store).length;
+    },
+    key: jest.fn((index: number) => Object.keys(store)[index] || null),
+  };
+
+  Object.defineProperty(window, 'localStorage', { value: mockStorage });
+
+  return mockStorage;
+}
+
+/**
+ * Mock sessionStorage for tests
+ */
+export function mockSessionStorage() {
+  const store: Record<string, string> = {};
+
+  const mockStorage = {
+    getItem: jest.fn((key: string) => store[key] || null),
+    setItem: jest.fn((key: string, value: string) => {
+      store[key] = value;
+    }),
+    removeItem: jest.fn((key: string) => {
+      delete store[key];
+    }),
+    clear: jest.fn(() => {
+      Object.keys(store).forEach((key) => delete store[key]);
+    }),
+    get length() {
+      return Object.keys(store).length;
+    },
+    key: jest.fn((index: number) => Object.keys(store)[index] || null),
+  };
+
+  Object.defineProperty(window, 'sessionStorage', { value: mockStorage });
+
+  return mockStorage;
+}
+
+/**
+ * Create a mock user for testing
+ */
+export function createMockUser(overrides = {}) {
+  return {
+    id: 'test-user-1',
+    name: 'Test User',
+    email: 'test@example.com',
+    role: 'admin' as const,
+    ...overrides,
+  };
+}
+
+/**
+ * Create a mock guest user for testing
+ */
+export function createMockGuestUser() {
+  return {
+    id: 'guest_test-session',
+    name: 'Guest User',
+    email: 'guest@local.session',
+    role: 'guest' as const,
+    isGuest: true,
+    sessionId: 'test-session',
+  };
+}
+
+/**
+ * Create a mock process for testing
+ */
+export function createMockProcess(overrides = {}) {
+  return {
+    id: 'process-1',
+    name: 'Test Process',
+    status: 'ready' as const,
+    caseCount: 100,
+    eventCount: 1000,
+    activityCount: 10,
+    uploadedAt: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+/**
+ * Create a mock project for testing
+ */
+export function createMockProject(overrides = {}) {
+  return {
+    id: 'project-1',
+    name: 'Test Project',
+    description: 'A test project',
+    processIds: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    ...overrides,
   };
 }
 

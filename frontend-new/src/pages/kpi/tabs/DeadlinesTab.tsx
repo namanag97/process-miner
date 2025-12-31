@@ -43,8 +43,9 @@ export function DeadlinesTab({ logId }: DeadlinesTabProps) {
 
   const onTimeRate = deadlines.onTimeRate ?? 0;
   const totalCases = deadlines.totalCases ?? 0;
-  const onTimeCases = deadlines.onTimeCases ?? 0;
-  const lateCases = deadlines.lateCases ?? 0;
+  // Derive on-time and late cases from rate and total
+  const onTimeCases = Math.round(totalCases * onTimeRate);
+  const lateCases = totalCases - onTimeCases;
 
   return (
     <div style={{ padding: tokens.spacing[4] }}>
@@ -104,25 +105,7 @@ export function DeadlinesTab({ logId }: DeadlinesTabProps) {
 
         <Col xs={24} lg={12}>
           <Card title="SLA Breakdown by Type">
-            {deadlines.slaBreakdown && deadlines.slaBreakdown.length > 0 ? (
-              deadlines.slaBreakdown.map((sla: { name: string; compliance: number; target: number }, idx: number) => (
-                <div key={idx} style={{ marginBottom: tokens.spacing[3] }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <Text>{sla.name}</Text>
-                    <Text type={sla.compliance >= sla.target ? undefined : 'danger'}>
-                      {(sla.compliance * 100).toFixed(1)}% (target: {(sla.target * 100).toFixed(0)}%)
-                    </Text>
-                  </div>
-                  <Progress
-                    percent={sla.compliance * 100}
-                    showInfo={false}
-                    status={sla.compliance >= sla.target ? 'success' : 'exception'}
-                  />
-                </div>
-              ))
-            ) : (
-              <Empty description="No SLA types configured" />
-            )}
+            <Empty description="SLA breakdown requires configuration" />
           </Card>
         </Col>
       </Row>

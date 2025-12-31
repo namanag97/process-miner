@@ -1,4 +1,4 @@
-export { LoginPage } from './LoginPage';
+// LoginPage removed - MVP mode has no authentication
 export { HomePage } from './home';
 export { PlaceholderPage } from './PlaceholderPage';
 export { SettingsPage } from './settings';

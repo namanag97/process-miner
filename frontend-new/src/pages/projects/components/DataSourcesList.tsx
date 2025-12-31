@@ -32,7 +32,7 @@ export function DataSourcesList({ sources, loading, onUploadClick }: DataSources
   const handleDelete = async (sourceId: string) => {
     if (!projectId) return;
     try {
-      await removeFile.mutateAsync({ projectId, processId: sourceId });
+      await removeFile.mutateAsync({ projectId, logId: sourceId });
       message.success('Data source removed');
     } catch (err) {
       message.error('Failed to remove data source');

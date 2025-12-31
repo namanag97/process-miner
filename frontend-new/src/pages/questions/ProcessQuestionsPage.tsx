@@ -54,7 +54,7 @@ export function ProcessQuestionsPage() {
   };
 
   if (isLoading) {
-    return <LoadingState type="fullPage" tip="Loading process..." />;
+    return <LoadingState type="fullPage" text="Loading process..." />;
   }
 
   if (error) {

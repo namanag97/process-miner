@@ -77,7 +77,7 @@ export function DataTable<T extends { id?: string; key?: string }>({
   const antColumns: ColumnsType<T> = columns.map((col) => ({
     key: col.key,
     title: col.title,
-    dataIndex: col.dataIndex,
+    dataIndex: col.dataIndex as string | string[],
     width: col.width,
     render: col.render,
     sorter: col.sorter,

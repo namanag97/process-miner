@@ -10,208 +10,250 @@ npx nx serve frontend-new     # Dev server (http://localhost:4200)
 npx nx build frontend-new     # Production build
 npx nx test frontend-new      # Run tests
 
+# Generate new feature
+npx ts-node scripts/generate-feature.ts <feature-name>
+
 # Storybook
 npm run storybook             # Component development (port 6006)
-npm run build-storybook       # Build static Storybook
 
 # Quality
 npx nx lint frontend-new      # ESLint
-npx nx graph                  # Visualize project dependencies
+npx tsc --noEmit              # Type check
 ```
 
 ## Architecture
 
-Process mining frontend built with React 19 + TypeScript in an Nx monorepo. Communicates with FastAPI backend (sibling directory `../backend` on port 8001).
+Process mining & business automation SaaS frontend built with React 19 + TypeScript in an Nx monorepo.
 
 **Core Structure:**
-- `src/pages/` - Feature-organized pages (ai, analytics, explorer, logs, projects, settings)
-- `src/context/` - React Context providers (Auth, Notification, BackendHealth)
-- `libs/shared/design-system/` - Shared components, SDK client, utilities
-- `libs/shared/design-system/src/api/` - ProcessMiningSdk with 11 modules
-- `/docs/` - Comprehensive architecture documentation (see below)
+```
+src/
+├── core/                    # Core infrastructure (NEW)
+│   ├── hooks/               # createFeatureHook factory
+│   ├── components/          # FeaturePage, PageSection
+│   └── plugins/             # FeatureRegistry
+├── features/                # Feature modules (NEW)
+│   └── _template/           # Scaffold for new features
+├── pages/                   # Legacy pages (being migrated)
+├── context/                 # UserContext, Notification, BackendHealth
+└── components/              # App-level components
+
+libs/shared/design-system/   # Shared components, SDK, utilities
+```
 
 **Tech Stack:**
-Nx + React 19 + TypeScript + Ant Design 5 + TanStack Query v5 + React Router v6 + React Flow + Rspack (bundler)
+Nx + React 19 + TypeScript + Ant Design 5 + TanStack Query v5 + React Router v6 + React Flow + Rspack
 
 **State Philosophy:**
-Server-first. 90% of data lives in TanStack Query cache, 10% local state for UI transients. See STATE_ARCHITECTURE.md.
+Server-first. 90% TanStack Query cache, 10% local state for UI. See STATE_ARCHITECTURE.md.
+
+## MVP Mode (No Authentication)
+
+Authentication is disabled for MVP. All users have full access.
+
+```tsx
+import { useUser } from './context/UserContext';
+
+const { user } = useUser();
+// user is always authenticated with role: 'admin'
+```
+
+## Feature Module System (NEW)
+
+### Creating New Features
+
+```bash
+npx ts-node scripts/generate-feature.ts my-feature
+```
+
+Creates a complete feature module:
+```
+src/features/my-feature/
+├── index.ts              # Exports + config
+├── types.ts              # TypeScript types
+├── routes.tsx            # Route config
+├── hooks/index.ts        # Data hooks
+├── pages/                # Page components
+└── components/           # UI components
+```
+
+### Hook Factory (60% Less Boilerplate)
+
+```tsx
+import { createQueryHook, createMutationHook } from '@/core';
+
+// Query hook - 5 lines instead of 20+
+export const useProjectList = createQueryHook({
+  queryKey: (options) => ['projects', 'list', options],
+  queryFn: (sdk, options) => sdk.projects.list(options),
+});
+
+// Mutation with auto cache invalidation + toast
+export const useDeleteProject = createMutationHook({
+  mutationFn: (sdk, id) => sdk.projects.delete(id),
+  invalidateKeys: [['projects', 'list']],
+  onSuccessMessage: 'Project deleted',
+});
+```
+
+### FeaturePage Component
+
+Standardized page wrapper with loading/error/empty states:
+
+```tsx
+import { FeaturePage, PageSection } from '@/core';
+
+function MyPage() {
+  const { data, isLoading, error, refetch } = useMyData();
+
+  return (
+    <FeaturePage
+      title="Page Title"
+      breadcrumb={[{ label: 'Home', href: '/' }, { label: 'Current' }]}
+      isLoading={isLoading}
+      error={error}
+      onRetry={refetch}
+      isEmpty={!data}
+      emptyState={{
+        title: 'No data',
+        description: 'Create something',
+        actionLabel: 'Create',
+        onAction: () => navigate('/new'),
+      }}
+      actions={<Button>Action</Button>}
+    >
+      <PageSection title="Section">
+        <Content data={data} />
+      </PageSection>
+    </FeaturePage>
+  );
+}
+```
 
 ## SDK & Backend Communication
 
-All API calls go through `ProcessMiningSdk` exposed via `SDKContext`. Never call `fetch` directly.
+All API calls go through `ProcessMiningSdk` via `SDKContext`.
 
 ```tsx
 import { useSDK } from '@lumina/design-system';
-import { useQuery } from '@tanstack/react-query';
 
 const sdk = useSDK();
-const { data } = useQuery({
-  queryKey: ['processes', processId],
-  queryFn: () => sdk.processes.get(processId),
-});
+const result = await sdk.processes.list();
 ```
 
 **SDK Modules (11):**
 processes, discovery, analytics, conformance, organizational, simulation, predictions, ai, projects, workflows, notifications
 
-**Query Key Pattern:**
-```tsx
-['domain', entityId, options]  // Hierarchical
-// Examples:
-['processes']                         // All processes
-['processes', { status: 'active' }]   // Filtered
-['dfg', processId, { threshold: 80 }] // DFG with options
-```
-
-See SDK_INTEGRATION.md for complete module reference.
+See SDK_INTEGRATION.md for complete reference.
 
 ## Key Patterns
 
-**Error Handling:**
+**Standard Query Pattern:**
 ```tsx
-if (error) {
-  return <EmptyState icon={<WarningOutlined />} title="Failed to load"
-                     description={error.message} actionLabel="Retry" onAction={refetch} />;
-}
+const { data, isLoading, error } = useMyFeatureList(options);
 ```
 
 **Loading States:**
 ```tsx
+<FeaturePage isLoading={isLoading}>  // Auto skeleton
+// or manually:
 if (isLoading) return <Skeleton active />;
-// or for metrics: <MetricCard loading={true} />
 ```
 
-**Optimistic Updates:**
+**Error Handling:**
 ```tsx
-onMutate: async (id) => {
-  await queryClient.cancelQueries(['logs']);
-  const previous = queryClient.getQueryData(['logs']);
-  queryClient.setQueryData(['logs'], old => old.filter(l => l.id !== id));
-  return { previous };
-},
-onError: (err, id, ctx) => queryClient.setQueryData(['logs'], ctx.previous),
-onSettled: () => queryClient.invalidateQueries(['logs'])
+<FeaturePage error={error} onRetry={refetch}>  // Auto error UI
+// or manually:
+if (error) return <QueryError error={error} />;
 ```
 
-**URL State (for shareable filters):**
+**URL State (shareable filters):**
 ```tsx
 const [params, setParams] = useSearchParams();
-const variant = params.get('variant');
+const filter = params.get('status');
 ```
 
-**Protected Routes:**
-All routes except `/login` wrapped in `ProtectedRoute` (checks `useAuth().isAuthenticated`)
-
-See PATTERNS.md for 10+ implementation patterns.
+See PATTERNS.md and ERROR_HANDLING_GUIDE.md for more.
 
 ## Module Organization
 
-**Design System Exports (`@lumina/design-system`):**
-- Components: `AppShell`, `MetricCard`, `EmptyState`, `PageHeader`, `SkeletonCard`
-- SDK: `useSDK()`, `SDKProvider`, `ProcessMiningSdk`
-- Context: `AuthContext`, `NotificationContext`, `BackendHealthContext`
-- Utils: `toast`, `notify`, `formatDuration`, `formatCompactNumber`, `logAction`
+**Core Infrastructure (`src/core/`):**
+- `createQueryHook`, `createMutationHook` - Hook factories
+- `FeaturePage`, `PageSection` - Page components
+- `FeatureRegistry` - Plugin system
+
+**Design System (`@lumina/design-system`):**
+- Components: `AppShell`, `MetricCard`, `EmptyState`, `PageHeader`
+- SDK: `useSDK()`, `SDKProvider`
+- Utils: `toast`, `formatDuration`, `logAction`
 - Theme: `luminaTheme`, `tokens`
 
-**Component Location Strategy:**
-- Shared/reusable → `libs/shared/design-system/src/components/`
-- Feature-specific → `src/pages/{feature}/components/`
-- Export from design system if used across 2+ pages
-
-**Import Alias:**
+**Import Aliases:**
 ```tsx
 import { AppShell, useSDK, toast } from '@lumina/design-system';
+import { FeaturePage, createQueryHook } from '@/core';
 ```
 
 ## Adding Features
 
-**New Page:**
-1. Create in `src/pages/{feature}/NewPage.tsx`
-2. Add route in `src/app/App.tsx`
-3. Use SDK: `const sdk = useSDK()`
-4. Wrap with `useQuery` for data fetching
-5. Follow PageHeader + EmptyState patterns
+### New Feature Module (Recommended)
+
+1. Generate scaffold: `npx ts-node scripts/generate-feature.ts my-feature`
+2. Update `types.ts` with entity types
+3. Implement hooks with actual SDK methods
+4. Connect pages to hooks
+5. Add routes to App.tsx
 6. Update PAGE_MAP.md
 
-**New API Integration:**
+### New Page (Legacy Pattern)
+
+1. Create in `src/pages/{feature}/NewPage.tsx`
+2. Add route in `src/App.tsx`
+3. Use FeaturePage wrapper
+4. Use SDK hooks for data
+
+### New API Integration
+
 1. Add method to SDK module: `libs/shared/design-system/src/api/modules/{module}.ts`
-2. Define types in same file or `api/types.ts`
-3. Create custom hook pattern:
-```tsx
-export function useProcesses(filters?: ListProcessesOptions) {
-  const sdk = useSDK();
-  return useQuery({
-    queryKey: ['processes', filters],
-    queryFn: () => sdk.processes.list(filters),
-    staleTime: 5 * 60 * 1000,
-  });
-}
-```
-4. Invalidate cache in mutations: `queryClient.invalidateQueries({ queryKey: ['processes'] })`
-
-**New Component:**
-1. Determine scope (shared vs feature-specific)
-2. Create with TypeScript interface for props
-3. Add to COMPONENT_CATALOG.md if shared
-4. Export from design-system `index.ts` if shared
-
-**Backend Changes:**
-Backend is in sibling directory `../backend`. After backend API changes:
-1. Restart backend: `uvicorn src.api.main:app --reload --port 8001` (from backend dir)
-2. Update SDK types manually or regenerate if SDK generation is configured
+2. Create hook with `createQueryHook` or `createMutationHook`
+3. Export from feature's `hooks/index.ts`
 
 ## Documentation
 
-Comprehensive docs in `/docs/`:
-
 | File                      | Purpose                                          |
 | ------------------------- | ------------------------------------------------ |
+| FEATURE_BLUEPRINT.md      | Feature module templates and patterns (NEW)      |
+| ERROR_HANDLING_GUIDE.md   | Error handling strategies (NEW)                  |
 | STATE_ARCHITECTURE.md     | Data flow, query keys, state categories          |
 | SDK_INTEGRATION.md        | All 11 SDK modules with methods and types        |
 | PAGE_MAP.md               | Every route, component, SDK call mapping         |
-| COMPONENT_CATALOG.md      | All 12+ components with props reference          |
-| PATTERNS.md               | 10 implementation patterns (empty, error, etc.)  |
-| UI_FLOW_DIAGRAM.md        | User journeys with Mermaid diagram               |
-| DESIGN_TOKENS.md          | Colors, spacing, typography tokens               |
-| CHANGELOG.md              | Version history and feature tracking             |
-
-**Read docs before:**
-- Adding routes (PAGE_MAP.md)
-- Creating components (COMPONENT_CATALOG.md, PATTERNS.md)
-- Integrating backend (SDK_INTEGRATION.md, STATE_ARCHITECTURE.md)
+| COMPONENT_CATALOG.md      | All components with props reference              |
+| PATTERNS.md               | Implementation patterns                          |
 
 ## Config & Environment
 
 **Backend URL:**
-Set in `SDKContext` provider (`libs/shared/design-system/src/context/SDKContext.tsx`):
 ```tsx
 <SDKProvider baseUrl="http://localhost:8001">
 ```
 
 **TanStack Query Config:**
-- `staleTime`: 5 min (reduce API calls)
-- `gcTime`: 10 min (cache for back navigation)
+- `staleTime`: 5 min
+- `gcTime`: 10 min
 - `retry`: 2 for queries, 1 for mutations
-- `refetchOnWindowFocus`: false
 
-**TypeScript:**
-- Strict mode enabled
-- Target: ES2020
-- Config: `tsconfig.json`, `tsconfig.app.json`
+**TypeScript:** Strict mode, ES2020 target
 
 ## Process Mining Domain
 
-**Event Log Structure:**
-Required: Case ID, Activity, Timestamp | Optional: Resource, additional attributes
+**Event Log:** Case ID, Activity, Timestamp (required) + Resource, attributes (optional)
 
-**Supported Formats:**
-CSV, XES
+**Formats:** CSV, XES
 
-**Key Concepts:**
-- **DFG (Directly-Follows Graph)**: Node = activity, Edge = sequence
-- **Variant**: Unique activity sequence (e.g., A→B→C vs A→C→B)
-- **Conformance**: Process execution vs expected model
-- **Organizational Mining**: Resource interactions, handovers, workload
+**Concepts:**
+- **DFG**: Directly-Follows Graph (nodes = activities, edges = sequences)
+- **Variant**: Unique activity sequence
+- **Conformance**: Execution vs expected model
+- **Organizational**: Resource interactions, workload
 
-**PM4Py Backend:**
-Backend wraps PM4Py algorithms (Alpha, Inductive, Heuristics miners). Frontend visualizes results.
+**Backend:** FastAPI + PM4Py (../backend, port 8001)

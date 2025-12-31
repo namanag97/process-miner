@@ -44,7 +44,7 @@ export function KPIPage() {
   };
 
   if (isLoading) {
-    return <LoadingState type="fullPage" tip="Loading KPIs..." />;
+    return <LoadingState type="fullPage" text="Loading KPIs..." />;
   }
 
   if (error) {
@@ -122,7 +122,7 @@ export function KPIPage() {
           { label: 'Questions', href: `/projects/${projectId}/data/${logId}/questions` },
           { label: 'KPIs' },
         ]}
-        extra={
+        actions={
           <Button
             icon={<ArrowLeftOutlined />}
             onClick={() => navigate(`/projects/${projectId}/data/${logId}/questions`)}

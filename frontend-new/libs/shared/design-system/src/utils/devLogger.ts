@@ -1,7 +1,8 @@
 /**
  * Dev Logger - File-based logging for development debugging
- * 
+ *
  * Sends log entries to backend which appends to dev-logs/app.log
+ * Also emits to in-app DevConsole if available
  * Format: [TIMESTAMP] [TYPE] [SOURCE] → MESSAGE
  */
 
@@ -12,6 +13,18 @@ interface LogEntry {
   source: string;
   message: unknown;
   timestamp: string;
+}
+
+// Global event for DevConsole integration
+type DevConsoleCallback = (level: string, source: string, message: string, data?: unknown, extra?: { duration?: number; status?: number }) => void;
+let devConsoleCallback: DevConsoleCallback | null = null;
+
+/**
+ * Register a callback for DevConsole integration
+ * Called by DevConsole on mount
+ */
+export function registerDevConsoleCallback(callback: DevConsoleCallback | null): void {
+  devConsoleCallback = callback;
 }
 
 // Backend URL - hardcoded for dev (frontend at 5173/4200, backend at 8001)
@@ -91,6 +104,9 @@ export function logAction(source: string, message: unknown = 'triggered'): void 
 export function logRequest(method: string, path: string, payload?: unknown): void {
   const sanitized = payload ? truncate(JSON.stringify(payload)) : undefined;
   devLog('API-REQ', `${method} ${path}`, sanitized ?? 'no-body');
+
+  // Emit to DevConsole
+  devConsoleCallback?.('api-req', `${method} ${path}`, 'Request sent', payload);
 }
 
 /**
@@ -98,17 +114,24 @@ export function logRequest(method: string, path: string, payload?: unknown): voi
  */
 export function logResponse(method: string, path: string, status: number, duration: number, body?: unknown): void {
   devLog('API-RES', `${method} ${path}`, { status, ms: Math.round(duration), body: body ? truncate(JSON.stringify(body)) : undefined });
+
+  // Emit to DevConsole
+  devConsoleCallback?.('api-res', `${method} ${path}`, `${status} (${Math.round(duration)}ms)`, body, { duration: Math.round(duration), status });
 }
 
 /**
  * Log an error with context
  */
 export function logError(source: string, error: unknown, context?: Record<string, unknown>): void {
-  const errObj = error instanceof Error 
+  const errObj = error instanceof Error
     ? { message: error.message, stack: error.stack?.split('\n').slice(0, 3).join(' ') }
     : { message: String(error) };
-  
+
   devLog('ERROR', source, { ...errObj, ...context });
+
+  // Emit to DevConsole
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  devConsoleCallback?.('error', source, errorMessage, { ...errObj, ...context });
 }
 
 /**

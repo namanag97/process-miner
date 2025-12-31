@@ -67,6 +67,9 @@ class WorkflowService:
             return {"status": "completed", "variant_count": 10}
         elif step_type == "statistics":
             return {"status": "completed"}
+        elif step_type == "recommendation":
+            # This would call recommendation_service.generate_recommendations in production
+            return {"status": "completed", "generated_count": 1}
         else:
             return {"status": "skipped", "reason": f"Unknown step type: {step_type}"}
 
