@@ -3,6 +3,22 @@
  */
 
 // =============================================================================
+// Process Summary Data (from SDK/backend)
+// =============================================================================
+
+export interface ProcessSummaryData {
+  cycleTime: CycleTimeData;
+  throughput: ThroughputData;
+  bottlenecks: BottleneckItem[];
+  rework: {
+    reworkPercentage: number;
+    totalReworkCases: number;
+    activities: ReworkItem[];
+  };
+  patterns: PatternItem[];
+}
+
+// =============================================================================
 // Chat Message Types
 // =============================================================================
 

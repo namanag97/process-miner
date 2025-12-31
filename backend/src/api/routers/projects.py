@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import func
+from sqlalchemy import func, select
 
 from src.api.dependencies import DBSession
 from src.models.orm import EventLog, Project
@@ -78,7 +78,7 @@ def _event_log_to_response(log: EventLog) -> ProcessResponse:
 
 
 @router.post("", response_model=ProjectResponse, status_code=201)
-def create_project(
+async def create_project(
     db: DBSession,
     request: ProjectCreateRequest,
 ) -> ProjectResponse:
@@ -94,14 +94,14 @@ def create_project(
     )
 
     db.add(project)
-    db.commit()
-    db.refresh(project)
+    await db.commit()
+    await db.refresh(project)
 
     return _project_to_response(project)
 
 
 @router.get("", response_model=ProjectListResponse)
-def list_projects(
+async def list_projects(
     db: DBSession,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -110,47 +110,57 @@ def list_projects(
     """
     List all projects with pagination.
     """
-    query = db.query(Project)
+    # Build base query
+    query = select(Project)
 
     # Apply search filter
     if search:
         query = query.filter(Project.name.ilike(f"%{search}%"))
 
     # Get total count
-    total = query.count()
+    count_query = select(func.count()).select_from(Project)
+    if search:
+        count_query = count_query.filter(Project.name.ilike(f"%{search}%"))
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
 
     # Paginate
-    projects = (
+    query = (
         query.order_by(Project.created_at.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
-        .all()
     )
+    result = await db.execute(query)
+    projects = result.scalars().all()
 
     return ProjectListResponse(
         items=[_project_to_response(p) for p in projects],
         total=total,
         page=page,
         page_size=page_size,
-        pages=(total + page_size - 1) // page_size,
+        pages=(total + page_size - 1) // page_size if total > 0 else 0,
     )
 
 
 @router.get("/{project_id}", response_model=ProjectDetailResponse)
-def get_project(
+async def get_project(
     db: DBSession,
     project_id: str,
 ) -> ProjectDetailResponse:
     """
     Get a project by ID with its event logs.
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
+    result = await db.execute(select(Project).filter(Project.id == project_id))
+    project = result.scalar_one_or_none()
 
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
     # Get event logs for this project
-    event_logs = db.query(EventLog).filter(EventLog.project_id == project_id).all()
+    logs_result = await db.execute(
+        select(EventLog).filter(EventLog.project_id == project_id)
+    )
+    event_logs = logs_result.scalars().all()
 
     tags = []
     if project.tags_json:
@@ -173,7 +183,7 @@ def get_project(
 
 
 @router.put("/{project_id}", response_model=ProjectResponse)
-def update_project(
+async def update_project(
     db: DBSession,
     project_id: str,
     request: ProjectUpdateRequest,
@@ -181,7 +191,8 @@ def update_project(
     """
     Update a project.
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
+    result = await db.execute(select(Project).filter(Project.id == project_id))
+    project = result.scalar_one_or_none()
 
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -195,14 +206,14 @@ def update_project(
 
     project.updated_at = datetime.utcnow()
 
-    db.commit()
-    db.refresh(project)
+    await db.commit()
+    await db.refresh(project)
 
     return _project_to_response(project)
 
 
 @router.delete("/{project_id}", status_code=204)
-def delete_project(
+async def delete_project(
     db: DBSession,
     project_id: str,
 ) -> None:
@@ -212,18 +223,22 @@ def delete_project(
     Note: Event logs in this project will have their project_id set to NULL
     (they won't be deleted).
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
+    result = await db.execute(select(Project).filter(Project.id == project_id))
+    project = result.scalar_one_or_none()
 
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
     # Unlink event logs (they remain, just not in a project)
-    db.query(EventLog).filter(EventLog.project_id == project_id).update(
-        {EventLog.project_id: None}
+    from sqlalchemy import update
+    await db.execute(
+        update(EventLog)
+        .where(EventLog.project_id == project_id)
+        .values(project_id=None)
     )
 
-    db.delete(project)
-    db.commit()
+    await db.delete(project)
+    await db.commit()
 
 
 # =============================================================================
@@ -232,7 +247,7 @@ def delete_project(
 
 
 @router.post("/{project_id}/files/{log_id}", response_model=ProjectDetailResponse)
-def add_file_to_project(
+async def add_file_to_project(
     db: DBSession,
     project_id: str,
     log_id: str,
@@ -240,30 +255,32 @@ def add_file_to_project(
     """
     Add an existing event log to a project.
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
+    result = await db.execute(select(Project).filter(Project.id == project_id))
+    project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    event_log = db.query(EventLog).filter(EventLog.id == log_id).first()
+    log_result = await db.execute(select(EventLog).filter(EventLog.id == log_id))
+    event_log = log_result.scalar_one_or_none()
     if not event_log:
         raise HTTPException(status_code=404, detail="Event log not found")
 
     event_log.project_id = project_id
-    project.total_files = (
-        db.query(func.count(EventLog.id))
-        .filter(EventLog.project_id == project_id)
-        .scalar()
-        or 0
+
+    # Update total_files count
+    count_result = await db.execute(
+        select(func.count(EventLog.id)).filter(EventLog.project_id == project_id)
     )
+    project.total_files = count_result.scalar() or 0
     project.updated_at = datetime.utcnow()
 
-    db.commit()
+    await db.commit()
 
-    return get_project(db, project_id)
+    return await get_project(db, project_id)
 
 
 @router.delete("/{project_id}/files/{log_id}", status_code=204)
-def remove_file_from_project(
+async def remove_file_from_project(
     db: DBSession,
     project_id: str,
     log_id: str,
@@ -271,11 +288,13 @@ def remove_file_from_project(
     """
     Remove an event log from a project (doesn't delete the log).
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
+    result = await db.execute(select(Project).filter(Project.id == project_id))
+    project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    event_log = db.query(EventLog).filter(EventLog.id == log_id).first()
+    log_result = await db.execute(select(EventLog).filter(EventLog.id == log_id))
+    event_log = log_result.scalar_one_or_none()
     if not event_log:
         raise HTTPException(status_code=404, detail="Event log not found")
 
@@ -283,12 +302,12 @@ def remove_file_from_project(
         raise HTTPException(status_code=400, detail="Event log is not in this project")
 
     event_log.project_id = None
-    project.total_files = (
-        db.query(func.count(EventLog.id))
-        .filter(EventLog.project_id == project_id)
-        .scalar()
-        or 0
+
+    # Update total_files count
+    count_result = await db.execute(
+        select(func.count(EventLog.id)).filter(EventLog.project_id == project_id)
     )
+    project.total_files = count_result.scalar() or 0
     project.updated_at = datetime.utcnow()
 
-    db.commit()
+    await db.commit()

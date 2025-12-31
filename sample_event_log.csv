@@ -1,0 +1,6 @@
+case_id,activity_name,timestamp,resource
+case_1,login,2024-01-01T09:00:00Z,user_a
+case_1,check_balance,2024-01-01T09:05:00Z,user_a
+case_1,logout,2024-01-01T09:10:00Z,user_a
+case_2,login,2024-01-01T10:00:00Z,user_b
+case_2,logout,2024-01-01T10:01:00Z,user_b

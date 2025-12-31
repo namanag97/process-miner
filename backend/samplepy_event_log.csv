@@ -1,0 +1,6 @@
+case_id,activity,timestamp,resource,cost
+1001,Register Request,2023-01-01 09:00:00,System,0
+1001,Examine Casualty,2023-01-01 10:30:00,Dr. Smith,500
+1001,Check Ticket,2023-01-01 12:15:00,Nurse Jones,100
+1001,Decide,2023-01-02 11:00:00,Manager,0
+1001,Reject Request,2023-01-02 12:00:00,System,0

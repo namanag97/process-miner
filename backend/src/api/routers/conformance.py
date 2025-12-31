@@ -22,6 +22,7 @@ from src.models.schemas import (
     ConformanceResponse,
     DeviationResponse,
     DiagnosticsResponse,
+    QualityMetricsResponse,
 )
 from src.services.conformance import conformance_service
 
@@ -469,3 +470,90 @@ async def list_conformance_methods():
             "is_default": False,
         },
     ]
+
+
+@router.get("/quality/{log_id}/{model_id}", response_model=QualityMetricsResponse)
+async def get_quality_metrics(
+    log_id: str,
+    model_id: str,
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Get full quality metrics for a log-model pair.
+    
+    Returns all 4 quality dimensions from PM4py:
+    - **Fitness**: How well the log fits the model (0-1)
+    - **Precision**: How much the model allows for behavior not observed in log (0-1)
+    - **Generalization**: How well the model generalizes beyond observed behavior (0-1)
+    - **Simplicity**: How simple/understandable the model is (0-1)
+    - **F-score**: Harmonic mean of fitness and precision
+    
+    All metrics are higher-is-better.
+    """
+    logger.info(
+        "quality_metrics_started",
+        log_id=log_id,
+        model_id=model_id,
+    )
+    start_time = time.perf_counter()
+
+    # Get the event log
+    log_result = await session.execute(select(EventLog).where(EventLog.id == log_id))
+    event_log = log_result.scalar_one_or_none()
+
+    if not event_log:
+        raise HTTPException(status_code=404, detail="Event log not found")
+
+    # Get the process model
+    model_result = await session.execute(select(ProcessModel).where(ProcessModel.id == model_id))
+    model = model_result.scalar_one_or_none()
+
+    if not model:
+        raise HTTPException(status_code=404, detail="Process model not found")
+
+    if not model.serialized_model:
+        raise HTTPException(
+            status_code=400,
+            detail="Process model has no serialized data",
+        )
+
+    try:
+        # Get full quality metrics
+        metrics = conformance_service.get_full_quality_metrics(event_log, model)
+
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.info(
+            "quality_metrics_completed",
+            log_id=log_id,
+            model_id=model_id,
+            fitness=metrics["fitness"],
+            precision=metrics.get("precision"),
+            generalization=metrics.get("generalization"),
+            simplicity=metrics.get("simplicity"),
+            f_score=metrics.get("f_score"),
+            duration_ms=round(duration_ms, 2),
+        )
+
+        return QualityMetricsResponse(
+            log_id=log_id,
+            model_id=model_id,
+            fitness=metrics["fitness"],
+            precision=metrics.get("precision"),
+            generalization=metrics.get("generalization"),
+            simplicity=metrics.get("simplicity"),
+            f_score=metrics.get("f_score"),
+        )
+
+    except Exception as e:
+        logger.error(
+            "quality_metrics_failed",
+            log_id=log_id,
+            model_id=model_id,
+            error=str(e),
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get quality metrics: {str(e)}",
+        )
+

@@ -4,6 +4,7 @@ Endpoints returning structured data for React visualization libraries.
 """
 
 import time
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Response
 from sqlalchemy import select
@@ -375,19 +376,27 @@ async def get_explorer_data(
 
         avg_duration = sum(durations) / len(durations) if durations else None
 
-        variant_data = {
-            "variant_key": variant_key,
-            "activity_trace": variant_key,
-            "case_count": len(cases),
-            "frequency_percent": round(len(cases) / total_cases * 100, 2) if total_cases > 0 else 0,
-            "avg_duration_seconds": avg_duration,
-        }
+        # Build response with optional complexity
+        complexity_score: Optional[float] = None
+        rework_count: Optional[int] = None
+        unique_activity_count: Optional[int] = None
 
         if include_complexity:
             complexity = mining_service.calculate_variant_complexity(variant_key)
-            variant_data.update(complexity)
+            complexity_score = complexity.get("complexity_score")
+            rework_count = complexity.get("rework_count")
+            unique_activity_count = complexity.get("unique_activity_count")
 
-        variants.append(VariantResponse(**variant_data))
+        variants.append(VariantResponse(
+            variant_key=variant_key,
+            activity_trace=variant_key,
+            case_count=len(cases),
+            frequency_percent=round(len(cases) / total_cases * 100, 2) if total_cases > 0 else 0.0,
+            avg_duration_seconds=avg_duration,
+            complexity_score=complexity_score,
+            rework_count=rework_count,
+            unique_activity_count=unique_activity_count,
+        ))
 
     # Get activities
     activities_data = mining_service.get_activity_statistics(event_log)

@@ -10,9 +10,11 @@ from src.services.organizational import organizational_service
 from src.services.prediction import prediction_service
 from src.services.simulation import simulation_service
 from src.services.workflow import workflow_service
+from src.services.storage import storage_service
 
 # High-performance services
 from src.services.duckdb_ingestion import duckdb_ingestion_service
+from src.services.event_log_loader import event_log_loader
 
 __all__ = [
     "analytics_service",
@@ -25,7 +27,8 @@ __all__ = [
     "prediction_service",
     "simulation_service",
     "workflow_service",
+    "storage_service",
     # High-performance
     "duckdb_ingestion_service",
+    "event_log_loader",
 ]
-

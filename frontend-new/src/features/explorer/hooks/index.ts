@@ -4,6 +4,7 @@
  * Data fetching hooks using the createFeatureHook factory.
  */
 
+import { queryKeys } from '@lumina/design-system';
 import { createQueryHook } from '../../../core/hooks/createFeatureHook';
 
 // ============================================
@@ -15,7 +16,7 @@ import { createQueryHook } from '../../../core/hooks/createFeatureHook';
  */
 export const useDFG = createQueryHook({
   queryKey: ({ logId, options }: { logId: string; options?: { includePerformance?: boolean } }) =>
-    ['explorer', 'dfg', logId, options],
+    queryKeys.dfg.data(logId, options as any),
   queryFn: async (sdk, { logId, options }: { logId: string; options?: { includePerformance?: boolean } }) => {
     const result = await sdk.discovery.buildDFG(logId, {
       includePerformance: options?.includePerformance ?? true,
@@ -31,7 +32,7 @@ export const useDFG = createQueryHook({
  */
 export const useVariants = createQueryHook({
   queryKey: ({ logId, options }: { logId: string; options?: { topN?: number } }) =>
-    ['explorer', 'variants', logId, options],
+    queryKeys.variants.list(logId, options as any),
   queryFn: async (sdk, { logId, options }: { logId: string; options?: { topN?: number } }) => {
     const result = await sdk.discovery.getVariants(logId, {
       topN: options?.topN ?? 50,
@@ -46,7 +47,7 @@ export const useVariants = createQueryHook({
  * Hook to fetch activities for a log
  */
 export const useActivities = createQueryHook({
-  queryKey: (logId: string) => ['explorer', 'activities', logId],
+  queryKey: (logId: string) => queryKeys.activities.list(logId),
   queryFn: async (sdk, logId: string) => {
     // Use DFG to get activity information since getActivityStats may not exist
     const dfg = await sdk.discovery.buildDFG(logId);
@@ -72,7 +73,7 @@ export const useActivities = createQueryHook({
  * Hook to fetch log details
  */
 export const useLogDetail = createQueryHook({
-  queryKey: (logId: string) => ['processes', logId],
+  queryKey: (logId: string) => queryKeys.processes.detail(logId),
   queryFn: async (sdk, logId: string) => {
     const result = await sdk.processes.get(logId);
     return result;
@@ -88,7 +89,7 @@ export const useEventLogsList = createQueryHook<
   { items: Array<{ id: string; name: string; totalCases: number; totalEvents: number }>; total: number },
   { pageSize?: number } | undefined
 >({
-  queryKey: (options) => ['processes', 'list', options],
+  queryKey: (options) => queryKeys.processes.list(options as any),
   queryFn: async (sdk, options) => {
     const result = await sdk.processes.list({ pageSize: options?.pageSize ?? 50 });
     return result;

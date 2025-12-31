@@ -69,10 +69,15 @@ export function ProjectsListPage() {
   ];
 
   const handleCreateProject = async (values: CreateProjectInput) => {
-    const newProject = await createProject.mutateAsync(values);
-    setIsCreateModalOpen(false);
-    form.resetFields();
-    navigate(`/workspace/${newProject.id}`);
+    try {
+      const newProject = await createProject.mutateAsync(values);
+      setIsCreateModalOpen(false);
+      form.resetFields();
+      navigate(`/workspace/${newProject.id}`);
+    } catch (error) {
+      // Error toast is already handled by mutation hook
+      console.error('Failed to create project:', error);
+    }
   };
 
   const handleRowClick = (project: Project) => {
@@ -80,45 +85,47 @@ export function ProjectsListPage() {
   };
 
   return (
-    <FeaturePage
-      title="Projects"
-      description="Manage your process mining projects"
-      breadcrumb={[{ label: 'Projects' }]}
-      isLoading={isLoading}
-      error={error}
-      onRetry={refetch}
-      isEmpty={projects.length === 0}
-      emptyState={{
-        icon: <FolderOutlined style={{ fontSize: 48, color: tokens.colors.neutral[400] }} />,
-        title: 'No projects yet',
-        description: 'Create your first project to start analyzing your processes',
-        actionLabel: 'Create Project',
-        onAction: () => setIsCreateModalOpen(true),
-      }}
-      auditCategory="projects"
-      actions={
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setIsCreateModalOpen(true)}
-        >
-          New Project
-        </Button>
-      }
-    >
-      <PageSection noPadding>
-        <div style={{ padding: tokens.spacing[4] }}>
-          <DataTable<Project>
-            columns={columns}
-            data={projects}
-            loading={isLoading}
-            searchable
-            searchPlaceholder="Search projects..."
-            onRowClick={handleRowClick}
-            onRefresh={() => refetch()}
-          />
-        </div>
-      </PageSection>
+    <>
+      <FeaturePage
+        title="Projects"
+        description="Manage your process mining projects"
+        breadcrumb={[{ label: 'Projects' }]}
+        isLoading={isLoading}
+        error={error}
+        onRetry={refetch}
+        isEmpty={projects.length === 0}
+        emptyState={{
+          icon: <FolderOutlined style={{ fontSize: 48, color: tokens.colors.neutral[400] }} />,
+          title: 'No projects yet',
+          description: 'Create your first project to start analyzing your processes',
+          actionLabel: 'Create Project',
+          onAction: () => setIsCreateModalOpen(true),
+        }}
+        auditCategory="projects"
+        actions={
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            New Project
+          </Button>
+        }
+      >
+        <PageSection noPadding>
+          <div style={{ padding: tokens.spacing[4] }}>
+            <DataTable<Project>
+              columns={columns}
+              data={projects}
+              loading={isLoading}
+              searchable
+              searchPlaceholder="Search projects..."
+              onRowClick={handleRowClick}
+              onRefresh={() => refetch()}
+            />
+          </div>
+        </PageSection>
+      </FeaturePage>
 
       <CreateProjectModal
         open={isCreateModalOpen}
@@ -127,7 +134,7 @@ export function ProjectsListPage() {
         loading={createProject.isPending}
         form={form}
       />
-    </FeaturePage>
+    </>
   );
 }
 

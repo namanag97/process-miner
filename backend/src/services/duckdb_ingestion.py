@@ -131,8 +131,8 @@ class DuckDBIngestionService:
                     "total_cases": stats[0],
                     "total_events": stats[1],
                     "total_activities": stats[2],
-                    "start_time": stats[3],
-                    "end_time": stats[4],
+                    "start_time": stats[3].isoformat() if stats[3] else None,
+                    "end_time": stats[4].isoformat() if stats[4] else None,
                     "activities": list(stats[5]) if stats[5] else [],
                     "total_resources": stats[6],
                 },
@@ -215,21 +215,21 @@ class DuckDBIngestionService:
                 # Heuristic detection based on column name and type
                 name_lower = col_name.lower()
                 
-                if any(x in name_lower for x in ["case", "trace", "id"]) and "BIGINT" in col_type or "VARCHAR" in col_type:
+                if any(x in name_lower for x in ["case", "trace"]) or (name_lower == "id" and ("BIGINT" in col_type or "VARCHAR" in col_type)):
                     col_info["suggested_role"] = "case_id"
                     if not suggestions["case_id_column"]:
                         suggestions["case_id_column"] = col_name
-                        
+
                 elif any(x in name_lower for x in ["activity", "action", "event", "task"]):
                     col_info["suggested_role"] = "activity"
                     if not suggestions["activity_column"]:
                         suggestions["activity_column"] = col_name
-                        
-                elif any(x in name_lower for x in ["time", "date", "timestamp"]) or "TIMESTAMP" in col_type:
+
+                elif any(x in name_lower for x in ["time", "date", "stamp"]) or "TIMESTAMP" in col_type:
                     col_info["suggested_role"] = "timestamp"
                     if not suggestions["timestamp_column"]:
                         suggestions["timestamp_column"] = col_name
-                        
+
                 elif any(x in name_lower for x in ["resource", "user", "actor", "agent", "employee"]):
                     col_info["suggested_role"] = "resource"
                     if not suggestions["resource_column"]:

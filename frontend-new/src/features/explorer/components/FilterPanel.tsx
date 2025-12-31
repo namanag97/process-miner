@@ -312,7 +312,7 @@ function TimeRangeFilterSection({ timeRange, onApply }: TimeRangeFilterSectionPr
   const handlePresetClick = useCallback((preset: 'last7' | 'last30' | 'last90' | 'ytd') => {
     const now = dayjs();
     let start: dayjs.Dayjs;
-    let end: dayjs.Dayjs = now;
+    const end: dayjs.Dayjs = now;
 
     switch (preset) {
       case 'last7':

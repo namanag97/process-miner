@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { Card, Statistic, Space, Typography } from 'antd';
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import { tokens } from '../theme';
@@ -27,11 +27,44 @@ const statusColors = {
   error: tokens.colors.error[500],
 };
 
+// Static styles (extracted to avoid object recreation)
+const titleStyle = {
+  fontSize: tokens.fontSize.sm,
+  color: tokens.colors.neutral[500],
+  textTransform: 'uppercase' as const,
+  letterSpacing: '0.05em',
+  fontWeight: tokens.fontWeight.medium,
+};
+
+const valueContainerStyle = { display: 'flex', alignItems: 'baseline', gap: 8 };
+
+const suffixStyle = { fontSize: tokens.fontSize.lg, marginLeft: 4 };
+
+const getCardStyle = (hasOnClick: boolean) => ({
+  borderRadius: tokens.radius.lg,
+  cursor: hasOnClick ? 'pointer' : 'default',
+});
+
+const getValueStyle = (status: keyof typeof statusColors) => ({
+  fontSize: tokens.fontSize['3xl'],
+  fontWeight: tokens.fontWeight.bold,
+  color: statusColors[status],
+  lineHeight: 1.2,
+});
+
+const getTrendStyle = (isPositive: boolean) => ({
+  display: 'flex' as const,
+  alignItems: 'center' as const,
+  gap: 4,
+  fontSize: tokens.fontSize.sm,
+  color: isPositive ? tokens.colors.success[500] : tokens.colors.error[500],
+});
+
 /**
  * MetricCard - Compact stat card with trend indicators
  * Used for KPIs and statistics on dashboards
  */
-export function MetricCard({
+export const MetricCard = memo(function MetricCard({
   title,
   value,
   prefix,
@@ -41,67 +74,41 @@ export function MetricCard({
   loading = false,
   onClick,
 }: MetricCardProps) {
+  // Memoize dynamic styles
+  const cardStyle = useMemo(() => getCardStyle(!!onClick), [onClick]);
+  const valueStyle = useMemo(() => getValueStyle(status), [status]);
+  const trendStyle = useMemo(
+    () => trend ? getTrendStyle(trend.isPositive) : null,
+    [trend?.isPositive]
+  );
+
   return (
     <Card
       loading={loading}
       hoverable={!!onClick}
       onClick={onClick}
-      style={{
-        borderRadius: tokens.radius.lg,
-        cursor: onClick ? 'pointer' : 'default',
-        transition: `transform ${tokens.duration.moderate}ms ${tokens.easing.out}, box-shadow ${tokens.duration.moderate}ms ${tokens.easing.out}`,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-2px)';
-        e.currentTarget.style.boxShadow = '0 8px 25px -5px rgba(0, 0, 0, 0.1)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = '';
-      }}
+      className={onClick ? 'card-hover-lift' : ''}
+      style={cardStyle}
       bodyStyle={{ padding: tokens.spacing[4] }}
     >
       <Space direction="vertical" size={4} style={{ width: '100%' }}>
-        <Text
-          style={{
-            fontSize: tokens.fontSize.sm,
-            color: tokens.colors.neutral[500],
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            fontWeight: tokens.fontWeight.medium,
-          }}
-        >
+        <Text style={titleStyle}>
           {title}
         </Text>
         
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span
-            style={{
-              fontSize: tokens.fontSize['3xl'],
-              fontWeight: tokens.fontWeight.bold,
-              color: statusColors[status],
-              lineHeight: 1.2,
-            }}
-          >
+        <div style={valueContainerStyle}>
+          <span style={valueStyle}>
             {prefix}
             {value}
             {suffix && (
-              <span style={{ fontSize: tokens.fontSize.lg, marginLeft: 4 }}>
+              <span style={suffixStyle}>
                 {suffix}
               </span>
             )}
           </span>
           
-          {trend && (
-            <span
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                fontSize: tokens.fontSize.sm,
-                color: trend.isPositive ? tokens.colors.success[500] : tokens.colors.error[500],
-              }}
-            >
+          {trend && trendStyle && (
+            <span style={trendStyle}>
               {trend.isPositive ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
               {Math.abs(trend.value).toFixed(1)}%
               {trend.label && (
@@ -115,6 +122,6 @@ export function MetricCard({
       </Space>
     </Card>
   );
-}
+});
 
 export default MetricCard;

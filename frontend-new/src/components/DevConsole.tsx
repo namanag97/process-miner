@@ -56,7 +56,7 @@ interface LogEntry {
 
 const MAX_LOGS = 500;
 let logs: LogEntry[] = [];
-let listeners: Set<() => void> = new Set();
+const listeners: Set<() => void> = new Set();
 let idCounter = 0;
 
 function notifyListeners() {

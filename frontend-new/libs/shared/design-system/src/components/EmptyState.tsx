@@ -75,17 +75,6 @@ export function EmptyState({
         <Button 
           type="primary" 
           onClick={onAction}
-          style={{
-            transition: `transform ${tokens.duration.normal}ms ${tokens.easing.out}, box-shadow ${tokens.duration.normal}ms ${tokens.easing.out}`,
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.3)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '';
-          }}
         >
           {actionLabel}
         </Button>

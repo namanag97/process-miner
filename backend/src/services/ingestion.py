@@ -495,16 +495,16 @@ class IngestionService:
         filename: str,
         log_id: str,
     ) -> str:
-        """Store uploaded file."""
-        settings = get_settings()
-        log_dir = settings.upload_dir / log_id
-        log_dir.mkdir(parents=True, exist_ok=True)
-
-        file_path = log_dir / filename
-        file_path.write_bytes(content)
-
-        return str(file_path)
+        """Store uploaded file using storage service.
+        
+        Uses abstraction layer that supports local storage (dev)
+        and S3/MinIO (production) via configuration.
+        """
+        from src.services.storage import storage_service
+        
+        return await storage_service.store_event_log_file(content, log_id, filename)
 
 
 # Singleton instance
 ingestion_service = IngestionService()
+

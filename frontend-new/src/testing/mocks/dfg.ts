@@ -64,7 +64,7 @@ export function createMockDFG(overrides: Partial<MockDFG> = {}): MockDFG {
 /**
  * Create mock variants for testing
  */
-export function createMockVariants(count: number = 5): MockVariant[] {
+export function createMockVariants(count = 5): MockVariant[] {
   const baseSequence = ['Create Order', 'Review Order', 'Approve Order', 'Ship Order'];
 
   return Array.from({ length: count }, (_, i) => ({

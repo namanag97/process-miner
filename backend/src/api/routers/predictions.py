@@ -165,7 +165,7 @@ async def get_job_status(job_id: str, db: AsyncSession = Depends(get_db)) -> dic
     # Get task status from Celery
     task_status = get_task_status(job_id)
 
-    # Get job record from database
+    # Get job record from database - query by task_id (Celery task ID), not internal id
     query = select(AsyncJob).where(AsyncJob.task_id == job_id)
     result = await db.execute(query)
     job = result.scalar_one_or_none()
@@ -173,6 +173,7 @@ async def get_job_status(job_id: str, db: AsyncSession = Depends(get_db)) -> dic
     if job:
         task_status["job_type"] = job.job_type
         task_status["created_at"] = job.created_at.isoformat() if job.created_at else None
+        task_status["started_at"] = job.started_at.isoformat() if job.started_at else None
         task_status["completed_at"] = job.completed_at.isoformat() if job.completed_at else None
 
     return task_status
@@ -247,6 +248,9 @@ async def predict(
     metrics = json.loads(predictor.metrics_json) if predictor.metrics_json else {}
     activities = metrics.get("activities", [])
 
+    if not predictor.model_binary:
+        raise HTTPException(status_code=400, detail="Predictor model data is missing")
+
     if predictor.target_type == "next_activity":
         prediction_result = prediction_service.predict_next_activity(
             predictor.model_binary, request.case_prefix, activities
@@ -292,6 +296,9 @@ async def predict_batch(
 
     metrics = json.loads(predictor.metrics_json) if predictor.metrics_json else {}
     activities = metrics.get("activities", [])
+
+    if not predictor.model_binary:
+        raise HTTPException(status_code=400, detail="Predictor model data is missing")
 
     predictions = []
     for case in request.cases:

@@ -9,6 +9,7 @@ import { GlobalErrorBoundary, ErrorReport } from './components/GlobalErrorBounda
 import { PageLoader } from './components/PageLoader';
 import { DevConsole, devLog } from './components/DevConsole';
 import { createLogger } from './utils/logger';
+import { toast } from '@lumina/design-system';
 
 // ============================================
 // Lazy-loaded Page Components (Code Splitting)
@@ -58,6 +59,16 @@ const ProcessQuestionsPage = lazy(() => import('./pages/questions/ProcessQuestio
 const TestBenchPage = lazy(() => import('./pages/TestBenchPage'));
 
 const log = createLogger('Navigation');
+
+// Redirect component for deprecated /explorer routes
+function ExplorerRedirect() {
+  const navigate = useNavigate();
+  React.useEffect(() => {
+    toast.info('Explorer is now part of Workspace. Please access processes through your projects.');
+    navigate('/workspace', { replace: true });
+  }, [navigate]);
+  return <PageLoader fullPage message="Redirecting to Workspace..." />;
+}
 
 // Error reporting handler (integrate with your error tracking service)
 function handleGlobalError(report: ErrorReport): void {
@@ -180,10 +191,10 @@ function AppLayout() {
           <Route path="/workspace/:projectId/data/:logId/kpi" element={<KPIPage />} />
 
           {/* ============================================ */}
-          {/* Explorer Feature (standalone) */}
+          {/* Explorer Feature (DEPRECATED - redirects to workspace) */}
           {/* ============================================ */}
-          <Route path="/explorer" element={<ExplorerIndexPage />} />
-          <Route path="/explorer/:logId/*" element={<ExplorerDetailPage />} />
+          <Route path="/explorer" element={<ExplorerRedirect />} />
+          <Route path="/explorer/:logId/*" element={<ExplorerRedirect />} />
 
           {/* ============================================ */}
           {/* Analytics Feature */}
@@ -214,11 +225,11 @@ function AppLayout() {
           <Route path="/audit" element={<AuditLogsPage />} />
 
           {/* ============================================ */}
-          {/* Data Foundation (legacy) */}
+          {/* Data Foundation (DEPRECATED - redirect to workspace) */}
           {/* ============================================ */}
-          <Route path="/processes" element={<EventLogsPage />} />
-          <Route path="/processes/upload" element={<UploadWizardPage />} />
-          <Route path="/processes/:id/*" element={<LogDetailPage />} />
+          <Route path="/processes" element={<Navigate to="/workspace" replace />} />
+          <Route path="/processes/upload" element={<Navigate to="/workspace" replace />} />
+          <Route path="/processes/:id/*" element={<Navigate to="/workspace" replace />} />
 
           {/* ============================================ */}
           {/* Developer Tools */}

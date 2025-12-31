@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Tabs, Card, Row, Col, Button, Typography, Space, Alert, Input, message, Divider, Collapse, Select, Descriptions, Table, Progress, Tag, Tooltip, Switch } from 'antd';
+import { Tabs, Card, Row, Col, Button, Typography, Space, Alert, Input, message, Divider, Collapse, Select, Descriptions, Table, Progress, Tag, Switch } from 'antd';
 import {
   FolderOutlined,
   InboxOutlined,
@@ -9,7 +9,6 @@ import {
   LoadingOutlined,
   PlayCircleOutlined,
   DeleteOutlined,
-  UploadOutlined,
   BarChartOutlined,
   TeamOutlined,
   ExperimentOutlined,
@@ -65,7 +64,8 @@ export function TestBenchPage() {
       if (res.items.length > 0 && !logIdInput) {
         setLogIdInput(res.items[0].id);
       }
-    }).catch(() => {});
+    }).catch(() => { /* Ignore initial load errors */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Only run on mount
   }, []);
 
   // Helper to run API tests

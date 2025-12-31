@@ -152,7 +152,7 @@ export function getEdgeStyle(
   duration?: number,
   minDuration?: number,
   maxDuration?: number,
-  showPerformance: boolean = false
+  showPerformance = false
 ): EdgeStyle {
   // Calculate width based on frequency (1 to 6)
   const normalizedFreq =
@@ -201,7 +201,7 @@ export function getNodeStyle(
   isEnd: boolean,
   isSelected: boolean,
   isHighlighted: boolean,
-  showPerformance: boolean = false,
+  showPerformance = false,
   duration?: number,
   minDuration?: number,
   maxDuration?: number

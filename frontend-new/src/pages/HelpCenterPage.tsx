@@ -58,7 +58,7 @@ const gettingStartedSteps: GettingStartedStep[] = [
     icon: <UploadOutlined />,
     title: 'Upload your first file',
     description: 'Get started by uploading a CSV or XES event log file',
-    path: '/processes/upload',
+    path: '/workspace',
     completed: false,
   },
   {
@@ -106,8 +106,8 @@ interface GuideItem {
 }
 
 const guides: GuideItem[] = [
-  { title: 'Uploading CSV Files', description: 'Learn how to upload and map CSV columns', category: 'data', path: '/processes/upload' },
-  { title: 'Importing XES Files', description: 'Work with IEEE XES standard event logs', category: 'data', path: '/processes/upload' },
+  { title: 'Uploading CSV Files', description: 'Learn how to upload and map CSV columns', category: 'data', path: '/workspace' },
+  { title: 'Importing XES Files', description: 'Work with IEEE XES standard event logs', category: 'data', path: '/workspace' },
   { title: 'Column Mapping', description: 'Map your data to Case ID, Activity, and Timestamp', category: 'data', path: '/help' },
   { title: 'Process Map Visualization', description: 'Understand nodes, edges, and frequency', category: 'discovery', path: '/explorer' },
   { title: 'Variant Analysis', description: 'Explore different execution paths', category: 'discovery', path: '/explorer' },
@@ -470,7 +470,7 @@ export function HelpCenterPage() {
                     color: 'white',
                     border: 'none',
                   }}
-                  onClick={() => handleNavigate('/processes/upload')}
+                  onClick={() => handleNavigate('/workspace')}
                 >
                   Start Tutorial
                 </Button>

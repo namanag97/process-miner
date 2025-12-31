@@ -195,13 +195,14 @@ export function transformProcessDetail(be: ProcessDetailResponse): EventLog {
 }
 
 export function transformColumnDetection(be: ColumnDetectionResponse): ColumnDetection {
+  const s = be.suggestions as Record<string, string | undefined>;
   return {
     columns: be.columns,
     suggestions: {
-      caseId: be.suggestions.case_id,
-      activity: be.suggestions.activity,
-      timestamp: be.suggestions.timestamp,
-      resource: be.suggestions.resource,
+      caseId: s.case_id_column ?? s.case_id,
+      activity: s.activity_column ?? s.activity,
+      timestamp: s.timestamp_column ?? s.timestamp,
+      resource: s.resource_column ?? s.resource,
     },
     sampleRows: be.sample_rows,
     rowCount: be.row_count,

@@ -28,7 +28,7 @@ import {
   ClockCircleOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader, tokens, toast, useSDK } from '@lumina/design-system';
 import { createLogger } from '../../utils/logger';
 import { useBeforeUnload } from '../../utils/useBeforeUnload';
@@ -62,6 +62,7 @@ function getUniqueValuesFromSample(sampleRows: Record<string, unknown>[], column
 
 export function UploadWizardPage() {
   const navigate = useNavigate();
+  const { projectId } = useParams<{ projectId: string }>();
   const sdk = useSDK();
   const queryClient = useQueryClient();
   
@@ -109,17 +110,28 @@ export function UploadWizardPage() {
   }, [detectionStartTime]);
 
   // Processing timeout tracker
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
   useEffect(() => {
     if (!processingStartTime) {
       setShowProcessingTimeout(false);
+      setElapsedSeconds(0);
       return;
     }
+
+    // Update elapsed time every second
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - processingStartTime) / 1000));
+    }, 1000);
 
     const timer = setTimeout(() => {
       setShowProcessingTimeout(true);
     }, 15000); // 15 seconds
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timer);
+    };
   }, [processingStartTime]);
 
   // Detect columns mutation
@@ -153,11 +165,11 @@ export function UploadWizardPage() {
   const ingestMutation = useMutation({
     mutationFn: async () => {
       if (!file) throw new Error('No file selected');
-      
+
       // Reset and start uploading
       setUploadPercent(0);
       setProcessingStage('uploading');
-      
+
       const result = await sdk.processes.ingestWithProgress(
         file,
         {
@@ -175,7 +187,13 @@ export function UploadWizardPage() {
           }
         }
       );
-      
+
+      // Associate with project if we came from a project context
+      if (projectId) {
+        setProcessingStage('analyzing');
+        await sdk.projects.addFile(projectId, result.id);
+      }
+
       // Stage 3: Complete
       setProcessingStage('complete');
       return result;
@@ -187,6 +205,7 @@ export function UploadWizardPage() {
     onSuccess: (data) => {
       setProcessingStartTime(null);
       queryClient.invalidateQueries({ queryKey: ['processes'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
       setUploadedLogId(data.id);
       toast.success('Event log processed successfully!');
     },
@@ -258,12 +277,20 @@ export function UploadWizardPage() {
 
   const handleViewLog = () => {
     log.info('Navigating to new log');
-    navigate(`/processes/${uploadedLogId}`);
+    if (projectId) {
+      navigate(`/workspace/${projectId}/data/${uploadedLogId}/questions`);
+    } else {
+      navigate(`/processes/${uploadedLogId}`);
+    }
   };
 
   const handleExploreProcess = () => {
     log.info('Navigating to explorer for new log');
-    navigate(`/explorer/${uploadedLogId}`);
+    if (projectId) {
+      navigate(`/workspace/${projectId}/data/${uploadedLogId}/explorer`);
+    } else {
+      navigate(`/explorer/${uploadedLogId}`);
+    }
   };
 
   const handleUploadAnother = () => {
@@ -279,17 +306,19 @@ export function UploadWizardPage() {
     setUploadPercent(0);
   };
 
+  const getBackPath = () => projectId ? `/workspace/${projectId}` : '/processes';
+
   const handleCancelClick = () => {
     if (hasUnsavedState) {
       setShowCancelConfirm(true);
     } else {
-      navigate('/processes');
+      navigate(getBackPath());
     }
   };
 
   const handleConfirmCancel = () => {
     setShowCancelConfirm(false);
-    navigate('/processes');
+    navigate(getBackPath());
   };
 
   const handleCancelStay = () => {
@@ -298,73 +327,109 @@ export function UploadWizardPage() {
 
   // Step 1: File Upload
   const renderFileUpload = () => (
-    <Card>
-      <Dragger
-        name="file"
-        multiple={false}
-        customRequest={handleFileUpload}
-        showUploadList={false}
-        accept=".csv,.xes"
-        disabled={detectColumnsMutation.isPending}
+    <div className="animate-fade-in">
+      <Card 
+        className="glass-effect surface-noise"
+        style={{ borderRadius: 16, border: 'none' }}
       >
-        <p className="ant-upload-drag-icon">
-          <InboxOutlined style={{ fontSize: 48, color: tokens.colors.primary[500] }} />
-        </p>
-        <p className="ant-upload-text" style={{ fontSize: 16, fontWeight: 500 }}>
-          {detectColumnsMutation.isPending ? 'Detecting columns...' : 'Drag & drop your file here'}
-        </p>
-        <p className="ant-upload-hint">
-          or click to browse
-        </p>
-        <p style={{ marginTop: tokens.spacing[4], color: tokens.colors.neutral[400] }}>
-          Supports CSV and XES files up to 100MB
-        </p>
-      </Dragger>
-
-      {/* Detection in progress with cancel */}
-      {detectColumnsMutation.isPending && (
-        <div style={{ marginTop: tokens.spacing[4], textAlign: 'center' }}>
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            <div>
-              <Spin style={{ marginRight: tokens.spacing[2] }} />
-              <Text>Analyzing {file?.name}...</Text>
-            </div>
-            
-            {showDetectionTimeout && (
-              <Alert
-                type="warning"
-                message="Taking longer than expected"
-                description="Large files may take a minute or two to analyze. You can wait or cancel and try a smaller file."
-                icon={<ClockCircleOutlined />}
-                showIcon
-              />
-            )}
-            
+        <div style={{ padding: tokens.spacing[4] }}>
+          <Dragger
+            name="file"
+            multiple={false}
+            customRequest={handleFileUpload}
+            showUploadList={false}
+            accept=".csv,.xes"
+            disabled={detectColumnsMutation.isPending}
+            style={{ 
+              background: 'rgba(255,255,255,0.5)', 
+              borderColor: tokens.colors.primary[200],
+              borderRadius: 12,
+              padding: tokens.spacing[4]
+            }}
+            className="card-hover-lift"
+          >
+            <p className="ant-upload-drag-icon">
+              <InboxOutlined style={{ fontSize: 64, color: tokens.colors.primary[500], opacity: 0.8 }} />
+            </p>
+            <p className="ant-upload-text" style={{ fontSize: 20, fontWeight: 600, color: tokens.colors.neutral[800] }}>
+              {detectColumnsMutation.isPending ? 'Analyzing File...' : 'Upload Event Log'}
+            </p>
+            <p className="ant-upload-hint" style={{ fontSize: 16, color: tokens.colors.neutral[500] }}>
+              Drag & drop CSV or XES file
+            </p>
             <Button 
-              onClick={handleCancelDetection}
-              icon={<CloseCircleOutlined />}
+              type="primary" 
+              ghost 
+              style={{ marginTop: tokens.spacing[6], borderRadius: 20 }}
             >
-              Cancel
+              Browse Files
             </Button>
-          </Space>
+            <p style={{ marginTop: tokens.spacing[4], color: tokens.colors.neutral[400], fontSize: 12 }}>
+              Max size: 100MB • Secure processing
+            </p>
+          </Dragger>
         </div>
-      )}
 
-      {/* File selected indicator */}
-      {file && !detectColumnsMutation.isPending && (
-        <Alert
-          type="info"
-          message={
-            <Space>
-              <FileOutlined />
-              <Text strong>{file.name}</Text>
-              <Text type="secondary">({formatFileSize(file.size)})</Text>
+        {/* Detection in progress with cancel */}
+        {detectColumnsMutation.isPending && (
+          <div style={{ marginTop: tokens.spacing[6], textAlign: 'center' }} className="animate-fade-in-up">
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <div>
+                <Spin size="large" style={{ marginBottom: tokens.spacing[2] }} />
+                <Title level={5} style={{ margin: 0 }}>Analyzing structure...</Title>
+                <Text type="secondary">Reading {file?.name}</Text>
+              </div>
+              
+              {showDetectionTimeout && (
+                <Alert
+                  type="warning"
+                  message="Large file detected"
+                  description="This is taking a bit longer than usual. Please hang tight."
+                  icon={<ClockCircleOutlined />}
+                  showIcon
+                  style={{ maxWidth: 400, margin: '0 auto' }}
+                />
+              )}
+              
+              <Button 
+                onClick={handleCancelDetection}
+                type="text"
+                danger
+                icon={<CloseCircleOutlined />}
+              >
+                Cancel
+              </Button>
             </Space>
-          }
-          style={{ marginTop: tokens.spacing[4] }}
-        />
-      )}
-    </Card>
+          </div>
+        )}
+
+        {/* File selected indicator */}
+        {file && !detectColumnsMutation.isPending && (
+          <div className="animate-scale-in" style={{ marginTop: tokens.spacing[6] }}>
+            <Alert
+              type="info"
+              message={
+                <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
+                  <Space>
+                    <FileOutlined style={{ fontSize: 24, color: tokens.colors.primary[500] }} />
+                    <Space direction="vertical" size={0}>
+                      <Text strong style={{ fontSize: 16 }}>{file.name}</Text>
+                      <Text type="secondary">{formatFileSize(file.size)}</Text>
+                    </Space>
+                  </Space>
+                  <CheckCircleOutlined style={{ fontSize: 24, color: tokens.colors.success[500] }} />
+                </Space>
+              }
+              style={{ 
+                borderRadius: 12, 
+                border: `1px solid ${tokens.colors.primary[200]}`,
+                background: tokens.colors.primary[50]
+              }}
+            />
+          </div>
+        )}
+      </Card>
+    </div>
   );
 
   // Step 2: Validate & Preview
@@ -667,12 +732,19 @@ export function UploadWizardPage() {
             </Space>
           </Space>
 
+          {/* Elapsed time for long operations */}
+          {elapsedSeconds > 0 && !uploadedLogId && (
+            <Text type="secondary" style={{ display: 'block', marginTop: tokens.spacing[4] }}>
+              Elapsed: {elapsedSeconds}s
+            </Text>
+          )}
+
           {/* Timeout warning */}
           {showProcessingTimeout && (
             <Alert
               type="info"
               message="Still processing your data..."
-              description="Larger files may take a minute or two. Please don't close this page."
+              description="Large files may take several minutes. Please don't close this page."
               icon={<ClockCircleOutlined />}
               showIcon
               style={{ marginTop: tokens.spacing[6], textAlign: 'left' }}
@@ -716,10 +788,18 @@ export function UploadWizardPage() {
       <PageHeader
         title="Upload Event Log"
         description="Import your process data to start analyzing"
-        breadcrumb={[
-          { label: 'Event Logs', href: '/processes' },
-          { label: 'Upload' },
-        ]}
+        breadcrumb={
+          projectId
+            ? [
+                { label: 'Projects', href: '/workspace' },
+                { label: 'Project', href: `/workspace/${projectId}` },
+                { label: 'Upload' },
+              ]
+            : [
+                { label: 'Event Logs', href: '/processes' },
+                { label: 'Upload' },
+              ]
+        }
         actions={
           <Button
             icon={<ArrowLeftOutlined />}

@@ -4,6 +4,8 @@ Provides endpoints for bottleneck detection, rework analysis, service times,
 cycle times, throughput metrics, and performance dashboards.
 """
 
+from typing import cast
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,7 +56,7 @@ async def get_bottlenecks(
     cache_key = f"bottlenecks:{log_id}"
     cached = cache_service.get(cache_key)
     if cached:
-        return cached
+        return cast(BottleneckListResponse, cached)
 
     pm4py_log, _ = await _get_pm4py_log(log_id, db)
     result = analytics_service.detect_bottlenecks(pm4py_log)
@@ -78,7 +80,7 @@ async def get_rework(log_id: str, db: AsyncSession = Depends(get_db)) -> ReworkL
     cache_key = f"rework:{log_id}"
     cached = cache_service.get(cache_key)
     if cached:
-        return cached
+        return cast(ReworkListResponse, cached)
 
     pm4py_log, _ = await _get_pm4py_log(log_id, db)
     result = analytics_service.analyze_rework(pm4py_log)
@@ -105,7 +107,7 @@ async def get_service_times(
     cache_key = f"service_times:{log_id}"
     cached = cache_service.get(cache_key)
     if cached:
-        return cached
+        return cast(list[ServiceTimeResponse], cached)
 
     pm4py_log, _ = await _get_pm4py_log(log_id, db)
     result = analytics_service.get_service_times(pm4py_log)
@@ -166,7 +168,7 @@ async def get_rework_chains(
     cache_key = f"rework_chains:{log_id}"
     cached = cache_service.get(cache_key)
     if cached:
-        return cached
+        return cast(ReworkChainListResponse, cached)
 
     pm4py_log, _ = await _get_pm4py_log(log_id, db)
     result = analytics_service.detect_rework_chains(pm4py_log)

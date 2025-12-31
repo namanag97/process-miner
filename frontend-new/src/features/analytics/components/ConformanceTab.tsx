@@ -7,6 +7,7 @@ import {
   InfoCircleOutlined,
   FileSearchOutlined,
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { MetricCard, tokens, formatCompactNumber, useSDK, queryKeys, EmptyState } from '@lumina/design-system';
 import { createLogger } from '../../../utils/logger';
@@ -54,6 +55,7 @@ interface ConformanceTabProps {
 }
 
 export function ConformanceTab({ logId }: ConformanceTabProps) {
+  const navigate = useNavigate();
   const sdk = useSDK();
 
   // Try to fetch conformance data from the backend
@@ -212,9 +214,7 @@ export function ConformanceTab({ logId }: ConformanceTabProps) {
         title="Conformance Analysis Not Available"
         description="Conformance checking requires a process model. Discover a model from the Process Explorer to enable conformance analysis."
         actionLabel="Go to Explorer"
-        onAction={() => {
-          window.location.href = `/explorer/${logId}`;
-        }}
+        onAction={() => navigate(`/explorer/${logId}`)}
       />
     </Card>
   );
