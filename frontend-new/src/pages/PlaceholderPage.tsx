@@ -67,8 +67,8 @@ export function PlaceholderPage({ title, phase = 2 }: PlaceholderPageProps) {
         <Text type="secondary">Expected in Phase {phase}</Text>
       </div>
       
-      <Button type="primary" onClick={() => navigate('/home')}>
-        Back to Home
+      <Button type="primary" onClick={() => navigate('/workspace')}>
+        Back to Workspace
       </Button>
     </div>
   );

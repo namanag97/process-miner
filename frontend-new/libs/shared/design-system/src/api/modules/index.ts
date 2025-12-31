@@ -12,4 +12,5 @@ export { createPredictionsModule, type PredictionsModule, type TrainOptions, typ
 export { createSimulationModule, type SimulationModule, type PlayOutOptions, type SimulationModification, type SimulationResult } from './simulation';
 export { createOrganizationalModule, type OrganizationalModule, type SocialNetwork, type ResourceRole, type ResourceProfile, type WorkloadDistribution } from './organizational';
 export { createAuditModule, type AuditModule, type AuditLogEntry, type AuditEventType, type AuditFilters, type CreateAuditLogData } from './audit';
+export { createOCPMModule, type OCPMModule } from './ocpm';
 

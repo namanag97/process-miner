@@ -54,6 +54,10 @@ dependencies = [
     "scikit-learn>=1.4.0",
     "xgboost>=2.0.0",
     "networkx>=3.2",
+
+    # High-Performance Data Processing (OCEL 2.0 / Vectorized Ingestion)
+    "duckdb>=1.0.0",
+    "pyarrow>=15.0.0",
 ]
 
 [project.optional-dependencies]

@@ -15,37 +15,44 @@ import { createLogger } from './utils/logger';
 // ============================================
 // Pages are loaded on-demand to reduce initial bundle size
 
-// Core pages (loaded immediately as they're most used)
-import { HomePage } from './pages';
+// ============================================
+// Feature Module Pages
+// ============================================
 
-// Feature module pages
+// Projects feature
 const ProjectsListPage = lazy(() => import('./features/projects/pages/ProjectsListPage'));
+const ProjectDetailPage = lazy(() => import('./features/projects/pages/ProjectDetailPage'));
 
-// Lazy-loaded pages (loaded when user navigates to them)
+// Explorer feature
+const ExplorerIndexPage = lazy(() => import('./features/explorer/pages/ExplorerIndexPage'));
+const ExplorerDetailPage = lazy(() => import('./features/explorer/pages/ExplorerDetailPage'));
+
+// KPI feature
+const KPIPage = lazy(() => import('./features/kpi/pages/KPIPage'));
+
+// Analytics feature
+const AnalyticsPage = lazy(() => import('./features/analytics/pages/AnalyticsPage'));
+
+// AI feature
+const AIIndexPage = lazy(() => import('./features/ai/pages/AIIndexPage'));
+const AIAssistantPage = lazy(() => import('./features/ai/pages/AIAssistantPage'));
+const AIInsightsPage = lazy(() => import('./features/ai/pages/AIInsightsPage'));
+const PredictionsPage = lazy(() => import('./features/ai/pages/PredictionsPage'));
+const PredictorDetailPage = lazy(() => import('./features/ai/pages/PredictorDetailPage'));
+
+// ============================================
+// Legacy Pages (to be migrated)
+// ============================================
+
 const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const ActivityLogPage = lazy(() => import('./pages/ActivityLogPage'));
 const AuditLogsPage = lazy(() => import('./pages/AuditLogsPage'));
 const HelpCenterPage = lazy(() => import('./pages/HelpCenterPage'));
-
-// Data & Process pages
 const EventLogsPage = lazy(() => import('./pages/logs/EventLogsPage'));
 const UploadWizardPage = lazy(() => import('./pages/logs/UploadWizardPage'));
 const LogDetailPage = lazy(() => import('./pages/logs/LogDetailPage'));
-const ProcessExplorerIndexPage = lazy(() => import('./pages/explorer/ProcessExplorerIndexPage'));
-const ProcessExplorerPage = lazy(() => import('./pages/explorer/ProcessExplorerPage'));
-const ProjectDetailPage = lazy(() => import('./pages/projects/ProjectDetailPage'));
 const ProcessQuestionsPage = lazy(() => import('./pages/questions/ProcessQuestionsPage'));
-const KPIPage = lazy(() => import('./pages/kpi/KPIPage'));
-
-// Analytics pages
-const AnalyticsPage = lazy(() => import('./pages/analytics/AnalyticsPage'));
-
-// AI pages
-const AIAssistantPage = lazy(() => import('./pages/ai/AIAssistantPage'));
-const AIInsightsPage = lazy(() => import('./pages/ai/AIInsightsPage'));
-const PredictionsPage = lazy(() => import('./pages/ai/PredictionsPage'));
-const PredictorDetailPage = lazy(() => import('./pages/ai/PredictorDetailPage'));
 
 // Developer pages
 const TestBenchPage = lazy(() => import('./pages/TestBenchPage'));
@@ -162,18 +169,43 @@ function AppLayout() {
     >
       <Suspense fallback={<PageLoader fullPage={false} message="Loading page..." />}>
         <Routes>
-          {/* Workspace - Primary entry point (Projects-first routing) */}
+          {/* ============================================ */}
+          {/* Workspace - Primary entry point */}
+          {/* ============================================ */}
           <Route path="/workspace" element={<ProjectsListPage />} />
           <Route path="/workspace/:projectId" element={<ProjectDetailPage />} />
           <Route path="/workspace/:projectId/upload" element={<UploadWizardPage />} />
           <Route path="/workspace/:projectId/data/:logId/questions" element={<ProcessQuestionsPage />} />
-          <Route path="/workspace/:projectId/data/:logId/explorer" element={<ProcessExplorerPage />} />
+          <Route path="/workspace/:projectId/data/:logId/explorer" element={<ExplorerDetailPage />} />
           <Route path="/workspace/:projectId/data/:logId/kpi" element={<KPIPage />} />
 
-          {/* Legacy /home redirect */}
-          <Route path="/home" element={<Navigate to="/workspace" replace />} />
+          {/* ============================================ */}
+          {/* Explorer Feature (standalone) */}
+          {/* ============================================ */}
+          <Route path="/explorer" element={<ExplorerIndexPage />} />
+          <Route path="/explorer/:logId/*" element={<ExplorerDetailPage />} />
 
-          {/* Base Platform */}
+          {/* ============================================ */}
+          {/* Analytics Feature */}
+          {/* ============================================ */}
+          <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/analytics/performance" element={<AnalyticsPage />} />
+          <Route path="/analytics/conformance" element={<AnalyticsPage />} />
+          <Route path="/analytics/rework" element={<AnalyticsPage />} />
+          <Route path="/analytics/resources" element={<AnalyticsPage />} />
+
+          {/* ============================================ */}
+          {/* AI Feature */}
+          {/* ============================================ */}
+          <Route path="/ai" element={<AIIndexPage />} />
+          <Route path="/ai/assistant" element={<AIAssistantPage />} />
+          <Route path="/ai/insights" element={<AIInsightsPage />} />
+          <Route path="/ai/predictions" element={<PredictionsPage />} />
+          <Route path="/ai/predictions/:id" element={<PredictorDetailPage />} />
+
+          {/* ============================================ */}
+          {/* Platform Features */}
+          {/* ============================================ */}
           <Route path="/settings/*" element={<SettingsPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/help" element={<HelpCenterPage />} />
@@ -181,40 +213,25 @@ function AppLayout() {
           <Route path="/audit-logs" element={<AuditLogsPage />} />
           <Route path="/audit" element={<AuditLogsPage />} />
 
-          {/* Legacy project routes - redirect to workspace */}
-          <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
-          <Route path="/projects/:projectId/upload" element={<UploadWizardPage />} />
-          <Route path="/projects/:projectId/data/:logId/questions" element={<ProcessQuestionsPage />} />
-          <Route path="/projects/:projectId/data/:logId/explorer" element={<ProcessExplorerPage />} />
-          <Route path="/projects/:projectId/data/:logId/kpi" element={<KPIPage />} />
-
-          {/* Phase 2: Data Foundation (legacy routes) */}
+          {/* ============================================ */}
+          {/* Data Foundation (legacy) */}
+          {/* ============================================ */}
           <Route path="/processes" element={<EventLogsPage />} />
           <Route path="/processes/upload" element={<UploadWizardPage />} />
           <Route path="/processes/:id/*" element={<LogDetailPage />} />
 
-          {/* Phase 3: Process Discovery (legacy routes) */}
-          <Route path="/explorer" element={<ProcessExplorerIndexPage />} />
-          <Route path="/explorer/:logId/*" element={<ProcessExplorerPage />} />
-
-          {/* Phase 4: Analytics */}
-          <Route path="/analytics" element={<AnalyticsPage />} />
-          <Route path="/analytics/performance" element={<AnalyticsPage />} />
-          <Route path="/analytics/conformance" element={<AnalyticsPage />} />
-          <Route path="/analytics/rework" element={<AnalyticsPage />} />
-
-          {/* Phase 5: AI & Advanced */}
-          <Route path="/ai" element={<Navigate to="/ai/assistant" replace />} />
-          <Route path="/ai/assistant" element={<AIAssistantPage />} />
-          <Route path="/ai/insights" element={<AIInsightsPage />} />
-          <Route path="/ai/predictions" element={<PredictionsPage />} />
-          <Route path="/ai/predictions/:id" element={<PredictorDetailPage />} />
-
+          {/* ============================================ */}
           {/* Developer Tools */}
+          {/* ============================================ */}
           <Route path="/test-bench" element={<TestBenchPage />} />
 
-          {/* Default redirect */}
+          {/* ============================================ */}
+          {/* Redirects */}
+          {/* ============================================ */}
           <Route path="/" element={<Navigate to="/workspace" replace />} />
+          <Route path="/home" element={<Navigate to="/workspace" replace />} />
+          <Route path="/projects" element={<Navigate to="/workspace" replace />} />
+          <Route path="/projects/*" element={<Navigate to="/workspace" replace />} />
           <Route path="*" element={<Navigate to="/workspace" replace />} />
         </Routes>
       </Suspense>

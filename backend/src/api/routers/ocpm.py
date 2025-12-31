@@ -99,8 +99,12 @@ async def upload_ocel(
             ocel_data=content,  # Store raw OCEL for OC-DFG and other analyses
         )
         session.add(log_model)
+        await session.flush() # Get log_model.id
 
-        # Store object types
+        # Populate OCEL 2.0 relational tables
+        await ocpm_service.persist_ocel_2_0(session, ocel, source_log_id=log_model.id)
+        
+        # Store object types (legacy support)
         for ot_name in stats["object_types"]:
             ot_model = OCELObjectType(
                 log_id=log_model.id,

@@ -26,7 +26,7 @@ export function DataSourcesList({
   const removeFile = useRemoveFileFromProject();
 
   const handleExplore = (source: DataSourceInfo) => {
-    navigate(`/projects/${projectId}/data/${source.id}/questions`);
+    navigate(`/workspace/${projectId}/data/${source.id}/questions`);
   };
 
   const handleDelete = async (sourceId: string) => {

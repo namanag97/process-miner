@@ -42,6 +42,7 @@ class IngestionService:
         timestamp_col: str = "timestamp",
         resource_col: Optional[str] = None,
         delimiter: str = ",",
+        precomputed_stats: Optional[dict[str, Any]] = None,
     ) -> EventLog:
         """
         Ingest a CSV file as an event log.
@@ -67,6 +68,7 @@ class IngestionService:
             source_file=filename,
             source_format="csv",
             events_data=events_data,
+            precomputed_stats=precomputed_stats,
         )
 
         # Store the file
@@ -112,6 +114,7 @@ class IngestionService:
         activity_col: Optional[str] = None,
         timestamp_col: Optional[str] = None,
         resource_col: Optional[str] = None,
+        precomputed_stats: Optional[dict[str, Any]] = None,
     ) -> EventLog:
         """
         Ingest a file, auto-detecting format.
@@ -175,6 +178,7 @@ class IngestionService:
                 activity_col,
                 timestamp_col,
                 resource_col,
+                precomputed_stats=precomputed_stats,
             )
             duration_ms = (time.perf_counter() - start_time) * 1000
             logger.info(
@@ -292,6 +296,7 @@ class IngestionService:
         source_file: str,
         source_format: str,
         events_data: list[dict[str, Any]],
+        precomputed_stats: Optional[dict[str, Any]] = None,
     ) -> EventLog:
         """Create EventLog with cases and events from parsed data."""
 
@@ -315,6 +320,7 @@ class IngestionService:
             total_events=len(events_data),
             total_activities=len(activities),
             activities_json=json.dumps(activities),
+            statistics_json=json.dumps(precomputed_stats) if precomputed_stats else None,
         )
         session.add(event_log)
         # Flush to ensure event_log.id is populated before creating related objects

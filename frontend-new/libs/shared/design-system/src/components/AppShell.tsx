@@ -3,7 +3,6 @@ import { Layout, Menu, Button, Tooltip, Avatar, ConfigProvider } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  HomeOutlined,
   FolderOutlined,
   SearchOutlined,
   BarChartOutlined,
@@ -45,7 +44,7 @@ export interface AppShellProps {
 
 // Default navigation items per Information Architecture
 const defaultNavItems: NavItem[] = [
-  { id: 'home', label: 'Home', icon: <HomeOutlined /> },
+  { id: 'workspace', label: 'Workspace', icon: <FolderOutlined /> },
   { id: 'logs', label: 'Event Logs', icon: <FolderOutlined /> },
   { id: 'explorer', label: 'Process Explorer', icon: <SearchOutlined /> },
   { id: 'analytics', label: 'Analytics', icon: <BarChartOutlined /> },
