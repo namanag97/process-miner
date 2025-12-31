@@ -10,6 +10,7 @@
 | Category                          | Schemas                         |
 | --------------------------------- | ------------------------------- |
 | [Common](#common)                 | Pagination, Errors              |
+| [Projects](#projects)             | Create, Update, Response        |
 | [Event Logs](#event-logs)         | Process, Case, Event, Variant   |
 | [Discovery](#discovery)           | Miner, Model                    |
 | [Visualization](#visualization)   | DFG, Petri Net                  |
@@ -66,6 +67,94 @@ interface ErrorResponse {
   instance?: string; // Request path
 }
 ```
+
+---
+
+## Projects
+
+### ProjectCreateRequest
+
+```typescript
+interface ProjectCreateRequest {
+  name: string;
+  description?: string;
+  tags?: string[];
+}
+```
+
+**Python:** `src/models/schemas.py:ProjectCreateRequest`
+
+| Field         | Type     | Required | Default | Notes          |
+| ------------- | -------- | -------- | ------- | -------------- |
+| `name`        | string   | ✅       | -       | 1-255 chars    |
+| `description` | string   | ❌       | null    | Max 2000 chars |
+| `tags`        | string[] | ❌       | []      | For filtering  |
+
+### ProjectUpdateRequest
+
+```typescript
+interface ProjectUpdateRequest {
+  name?: string;
+  description?: string;
+  tags?: string[];
+}
+```
+
+| Field         | Type     | Required | Notes                   |
+| ------------- | -------- | -------- | ----------------------- |
+| `name`        | string   | ❌       | 1-255 chars if provided |
+| `description` | string   | ❌       | Max 2000 chars          |
+| `tags`        | string[] | ❌       | Replaces existing tags  |
+
+### ProjectResponse
+
+```typescript
+interface ProjectResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  tags: string[];
+  total_files: number;
+  total_analyses: number;
+  created_at: string; // ISO 8601
+  updated_at: string | null;
+}
+```
+
+**Python:** `src/models/schemas.py:ProjectResponse`
+
+| Field            | Type     | Required | Notes                        |
+| ---------------- | -------- | -------- | ---------------------------- |
+| `id`             | string   | ✅       | UUID                         |
+| `name`           | string   | ✅       | -                            |
+| `description`    | string   | ❌       | -                            |
+| `tags`           | string[] | ✅       | Empty array if none          |
+| `total_files`    | int      | ✅       | Event logs in project        |
+| `total_analyses` | int      | ✅       | Models + conformance results |
+| `created_at`     | datetime | ✅       | ISO 8601                     |
+| `updated_at`     | datetime | ❌       | null until first update      |
+
+### ProjectListResponse
+
+```typescript
+interface ProjectListResponse extends PaginatedResponse<ProjectResponse> {
+  items: ProjectResponse[];
+}
+```
+
+### ProjectDetailResponse
+
+Extends `ProjectResponse`:
+
+```typescript
+interface ProjectDetailResponse extends ProjectResponse {
+  event_logs: ProcessResponse[];
+}
+```
+
+| Field        | Type              | Notes                              |
+| ------------ | ----------------- | ---------------------------------- |
+| `event_logs` | ProcessResponse[] | All logs belonging to this project |
 
 ---
 

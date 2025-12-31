@@ -5,6 +5,7 @@
  * Wraps design-system hooks with standardized patterns.
  */
 
+import { queryKeys } from '@lumina/design-system';
 import { createQueryHook, createMutationHook } from '../../../core/hooks/createFeatureHook';
 import type {
   Project,
@@ -26,7 +27,7 @@ export const useProjectList = createQueryHook<
   ProjectListResponse,
   ProjectListOptions | undefined
 >({
-  queryKey: (options) => ['projects', 'list', options],
+  queryKey: (options) => queryKeys.projects.list(options),
   queryFn: async (sdk, options) => {
     const result = await sdk.projects.list(options);
     return result;
@@ -38,7 +39,7 @@ export const useProjectList = createQueryHook<
  * Hook to fetch single project by ID
  */
 export const useProjectDetail = createQueryHook<ProjectDetail, string>({
-  queryKey: (id) => ['projects', 'detail', id],
+  queryKey: (id) => queryKeys.projects.detail(id),
   queryFn: async (sdk, id) => {
     const result = await sdk.projects.get(id);
     return result;
@@ -59,7 +60,7 @@ export const useCreateProject = createMutationHook<Project, CreateProjectInput>(
     const result = await sdk.projects.create(input);
     return result;
   },
-  invalidateKeys: [['projects', 'list']],
+  invalidateKeys: [queryKeys.projects.all()],
   onSuccessMessage: 'Project created successfully',
   onErrorMessage: 'Failed to create project',
 });
@@ -75,7 +76,7 @@ export const useUpdateProject = createMutationHook<
     const result = await sdk.projects.update(id, data);
     return result;
   },
-  invalidateKeys: [['projects', 'list']],
+  invalidateKeys: [queryKeys.projects.all()],
   onSuccessMessage: 'Project updated',
   onErrorMessage: 'Failed to update project',
 });
@@ -87,7 +88,7 @@ export const useDeleteProject = createMutationHook<void, string>({
   mutationFn: async (sdk, id) => {
     await sdk.projects.delete(id);
   },
-  invalidateKeys: [['projects', 'list']],
+  invalidateKeys: [queryKeys.projects.all()],
   onSuccessMessage: 'Project deleted',
   onErrorMessage: 'Failed to delete project',
 });
@@ -102,7 +103,7 @@ export const useRemoveFileFromProject = createMutationHook<
   mutationFn: async (sdk, { projectId, logId }) => {
     await sdk.projects.removeFile(projectId, logId);
   },
-  invalidateKeys: [['projects']],
+  invalidateKeys: [queryKeys.projects.all()],
   onSuccessMessage: 'Data source removed',
   onErrorMessage: 'Failed to remove data source',
 });

@@ -51,8 +51,11 @@ import { hasReworkInVariant } from '../types';
 const log = createLogger('ExplorerDetailPage');
 
 export function ExplorerDetailPage() {
-  const { logId } = useParams<{ logId: string }>();
+  const { logId, projectId } = useParams<{ logId: string; projectId?: string }>();
   const navigate = useNavigate();
+
+  // Helper for context-aware navigation
+  const getBackPath = () => projectId ? `/workspace/${projectId}` : '/explorer';
 
   // UI State
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
@@ -530,11 +533,8 @@ export function ExplorerDetailPage() {
             showIcon
             action={
               <Space direction="vertical">
-                <Button type="primary" onClick={() => navigate('/processes')}>
-                  Go to Event Logs
-                </Button>
-                <Button onClick={() => navigate('/explorer')}>
-                  Back to Explorer
+                <Button type="primary" onClick={() => navigate(getBackPath())}>
+                  Go Back
                 </Button>
               </Space>
             }
@@ -569,7 +569,7 @@ export function ExplorerDetailPage() {
           type="error"
           showIcon
           action={
-            <Button onClick={() => navigate('/explorer')}>Go Back</Button>
+            <Button onClick={() => navigate(getBackPath())}>Go Back</Button>
           }
         />
       </div>
@@ -596,16 +596,24 @@ export function ExplorerDetailPage() {
           <Button
             type="text"
             icon={<ArrowLeftOutlined />}
-            onClick={() => navigate('/explorer')}
+            onClick={() => navigate(getBackPath())}
           >
             Back
           </Button>
           <Breadcrumb
-            items={[
-              { title: 'Event Logs', onClick: () => navigate('/processes') },
-              { title: logInfo?.name ?? 'Loading...' },
-              { title: 'Explorer' },
-            ]}
+            items={
+              projectId
+                ? [
+                    { title: 'Projects', onClick: () => navigate('/workspace') },
+                    { title: 'Project', onClick: () => navigate(`/workspace/${projectId}`) },
+                    { title: logInfo?.name ?? 'Loading...' },
+                    { title: 'Explorer' },
+                  ]
+                : [
+                    { title: 'Explorer', onClick: () => navigate('/explorer') },
+                    { title: logInfo?.name ?? 'Loading...' },
+                  ]
+            }
           />
         </Space>
 

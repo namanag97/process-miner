@@ -4,6 +4,7 @@
  * Re-exports and custom hooks for analytics feature.
  */
 
+import { queryKeys } from '@lumina/design-system';
 import { createQueryHook } from '../../../core/hooks/createFeatureHook';
 
 // ============================================
@@ -14,7 +15,7 @@ import { createQueryHook } from '../../../core/hooks/createFeatureHook';
  * Hook to fetch performance analytics data
  */
 export const useAnalyticsPerformance = createQueryHook({
-  queryKey: (logId: string) => ['analytics', 'performance', logId],
+  queryKey: (logId: string) => queryKeys.analytics.performance(logId),
   queryFn: async (sdk, logId: string) => {
     const result = await sdk.analytics.getPerformance(logId);
     return result;
@@ -27,7 +28,7 @@ export const useAnalyticsPerformance = createQueryHook({
  * Hook to fetch rework analytics data
  */
 export const useAnalyticsRework = createQueryHook({
-  queryKey: (logId: string) => ['analytics', 'rework', logId],
+  queryKey: (logId: string) => queryKeys.analytics.rework(logId),
   queryFn: async (sdk, logId: string) => {
     const result = await sdk.analytics.getRework(logId);
     return result;
@@ -43,7 +44,7 @@ export const useEventLogs = createQueryHook<
   { items: Array<{ id: string; name: string; totalCases: number; totalEvents: number }>; total: number },
   { pageSize?: number } | undefined
 >({
-  queryKey: (options) => ['processes', 'list', options],
+  queryKey: (options) => queryKeys.processes.list(options as any),
   queryFn: async (sdk, options) => {
     const result = await sdk.processes.list({ pageSize: options?.pageSize ?? 50 });
     return result;

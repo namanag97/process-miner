@@ -10,6 +10,7 @@
 
 | Category                            | Endpoints                        |
 | ----------------------------------- | -------------------------------- |
+| [Projects](#projects)               | Organize logs into folders       |
 | [Event Logs](#event-logs-processes) | Upload, list, analyze logs       |
 | [Discovery](#discovery)             | Mine process models              |
 | [Visualization](#visualization)     | DFG, Petri nets, SVG export      |
@@ -21,6 +22,178 @@
 | [Organizational](#organizational)   | Social network analysis          |
 | [Simulation](#simulation)           | What-if analysis, play-out       |
 | [Workflows](#workflows)             | Workflow automation              |
+
+---
+
+## Projects (`/projects`)
+
+Organize event logs into folders for better management.
+
+### POST `/projects`
+
+Create a new project.
+
+```json
+// Request
+{
+  "name": "Q4 Analysis",
+  "description": "Q4 2024 process mining project",
+  "tags": ["production", "priority"]
+}
+```
+
+| Field         | Type     | Required | Notes          |
+| ------------- | -------- | -------- | -------------- |
+| `name`        | string   | ✅       | 1-255 chars    |
+| `description` | string   | ❌       | Max 2000 chars |
+| `tags`        | string[] | ❌       | For filtering  |
+
+```json
+// Response 201
+{
+  "id": "proj_abc123",
+  "name": "Q4 Analysis",
+  "description": "Q4 2024 process mining project",
+  "tags": ["production", "priority"],
+  "total_files": 0,
+  "total_analyses": 0,
+  "created_at": "2024-12-30T10:00:00Z",
+  "updated_at": null
+}
+```
+
+---
+
+### GET `/projects`
+
+List all projects with pagination.
+
+| Param       | Type   | Default | Notes          |
+| ----------- | ------ | ------- | -------------- |
+| `page`      | int    | 1       | 1-indexed      |
+| `page_size` | int    | 20      | Max 100        |
+| `search`    | string | -       | Filter by name |
+
+```json
+// Response 200
+{
+  "items": [
+    /* ProjectResponse[] */
+  ],
+  "total": 15,
+  "page": 1,
+  "page_size": 20,
+  "pages": 1
+}
+```
+
+---
+
+### GET `/projects/{project_id}`
+
+Get project details with contained event logs.
+
+```json
+// Response 200
+{
+  "id": "proj_abc123",
+  "name": "Q4 Analysis",
+  "description": "Q4 2024 process mining project",
+  "tags": ["production"],
+  "total_files": 3,
+  "total_analyses": 12,
+  "created_at": "2024-12-30T10:00:00Z",
+  "updated_at": "2024-12-31T15:30:00Z",
+  "event_logs": [
+    {
+      "id": "log_xyz789",
+      "name": "Orders Process",
+      "source_format": "csv",
+      "total_events": 15234,
+      "total_cases": 1520,
+      "total_activities": 12,
+      "activities": ["Create", "Approve", "Ship"],
+      "created_at": "2024-12-30T10:05:00Z"
+    }
+  ]
+}
+```
+
+**Errors:**
+
+- `404` - Project not found
+
+---
+
+### PUT `/projects/{project_id}`
+
+Update project metadata.
+
+```json
+// Request (all fields optional)
+{
+  "name": "Q4 Analysis - Final",
+  "description": "Updated description",
+  "tags": ["production", "completed"]
+}
+```
+
+```json
+// Response 200
+{
+  /* ProjectResponse */
+}
+```
+
+**Errors:**
+
+- `404` - Project not found
+
+---
+
+### DELETE `/projects/{project_id}`
+
+Delete project. Event logs are **not deleted**, just unlinked.
+
+```text
+Response: 204 No Content
+```
+
+**FE Notes:** Logs remain accessible via `/processes`. Only the folder is deleted.
+
+---
+
+### POST `/projects/{project_id}/files/{log_id}`
+
+Add an existing event log to a project.
+
+```json
+// Response 200
+{
+  /* ProjectDetailResponse with updated event_logs */
+}
+```
+
+**Errors:**
+
+- `404` - Project or log not found
+
+**FE Notes:** A log can only belong to one project. Adding to a new project moves it.
+
+---
+
+### DELETE `/projects/{project_id}/files/{log_id}`
+
+Remove event log from project (doesn't delete the log).
+
+```text
+Response: 204 No Content
+```
+
+**Errors:**
+
+- `400` - Log not in this project
+- `404` - Project or log not found
 
 ---
 
@@ -600,6 +773,64 @@ Optimal alignments using PM4Py.
 ### GET `/conformance/methods`
 
 List available conformance methods.
+
+---
+
+### GET `/conformance/results`
+
+List conformance check results with pagination.
+
+| Param       | Type   | Default | Notes           |
+| ----------- | ------ | ------- | --------------- |
+| `log_id`    | string | -       | Filter by log   |
+| `model_id`  | string | -       | Filter by model |
+| `page`      | int    | 1       | 1-indexed       |
+| `page_size` | int    | 20      | Max 100         |
+
+```json
+// Response 200
+{
+  "items": [
+    /* ConformanceResponse[] */
+  ],
+  "total": 12,
+  "page": 1,
+  "page_size": 20,
+  "pages": 1
+}
+```
+
+---
+
+### GET `/conformance/results/{result_id}`
+
+Get a specific conformance check result.
+
+```json
+// Response 200
+{
+  /* ConformanceResponse */
+}
+```
+
+**Errors:**
+
+- `404` - Result not found
+
+---
+
+### DELETE `/conformance/results/{result_id}`
+
+Delete a conformance check result.
+
+```json
+// Response 200
+{ "status": "deleted", "id": "conf_result_001" }
+```
+
+**Errors:**
+
+- `404` - Result not found
 
 ---
 
@@ -1390,6 +1621,72 @@ Execute workflow.
 ### DELETE `/workflows/{workflow_id}`
 
 Delete workflow.
+
+---
+
+### GET `/workflows/templates`
+
+List predefined workflow templates.
+
+```json
+// Response 200
+[
+  {
+    "id": "full_analysis",
+    "name": "Full Analysis",
+    "description": "Discovery + Conformance + Analytics",
+    "steps": [
+      { "name": "Discover", "type": "discovery" },
+      { "name": "Check", "type": "conformance" },
+      { "name": "Analyze", "type": "bottleneck_detection" }
+    ]
+  }
+]
+```
+
+---
+
+### GET `/workflows/{workflow_id}/runs`
+
+List execution history for a workflow.
+
+```json
+// Response 200
+[
+  {
+    "id": "run_001",
+    "workflow_id": "wf_abc123",
+    "log_id": "log_xyz789",
+    "status": "completed",
+    "started_at": "2024-12-30T10:00:00Z",
+    "completed_at": "2024-12-30T10:05:00Z",
+    "error": null
+  }
+]
+```
+
+---
+
+### GET `/workflows/runs/{run_id}`
+
+Get specific workflow run details.
+
+```json
+// Response 200
+{
+  "id": "run_001",
+  "workflow_id": "wf_abc123",
+  "log_id": "log_xyz789",
+  "status": "completed",
+  "started_at": "2024-12-30T10:00:00Z",
+  "completed_at": "2024-12-30T10:05:00Z",
+  "error": null
+}
+```
+
+**Errors:**
+
+- `404` - Run not found
 
 ---
 

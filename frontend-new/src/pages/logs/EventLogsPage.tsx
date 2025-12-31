@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Table,
   Input,
@@ -24,7 +23,7 @@ import {
   FolderOpenOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { PageHeader, EmptyState, tokens, toast, useSDK, type EventLog } from '@lumina/design-system';
+import { PageHeader, EmptyState, tokens, useProcesses, useDeleteProcess, toast, type EventLog } from '@lumina/design-system';
 import { createLogger } from '../../utils/logger';
 
 const log = createLogger('EventLogsPage');
@@ -45,34 +44,16 @@ function formatRelativeTime(dateString: string): string {
 
 export function EventLogsPage() {
   const navigate = useNavigate();
-  const sdk = useSDK();
-  const queryClient = useQueryClient();
   
   const [searchText, setSearchText] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [logToDelete, setLogToDelete] = useState<EventLog | null>(null);
 
-  // Fetch logs from API
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['processes'],
-    queryFn: () => sdk.processes.list({ pageSize: 100 }),
-  });
+  // Fetch logs via standardized hook
+  const { data, isLoading, error } = useProcesses({ pageSize: 100 });
+  const deleteMutation = useDeleteProcess();
 
   const logs = Array.isArray(data?.items) ? data.items : [];
-
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => sdk.processes.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['processes'] });
-      toast.success(`"${logToDelete?.name}" has been deleted`);
-      setDeleteModalOpen(false);
-      setLogToDelete(null);
-    },
-    onError: (err) => {
-      toast.error(`Failed to delete: ${(err as Error).message}`);
-    },
-  });
 
   log.debug('Rendering EventLogsPage', { logCount: logs.length });
 
@@ -107,7 +88,14 @@ export function EventLogsPage() {
   const handleDeleteConfirm = () => {
     if (logToDelete) {
       log.info('Deleting log', { logId: logToDelete.id, name: logToDelete.name });
-      deleteMutation.mutate(logToDelete.id);
+      deleteMutation.mutate(logToDelete.id, {
+        onSuccess: () => {
+          setDeleteModalOpen(false);
+          setLogToDelete(null);
+          // Standardized hook already shows a toast, but we can add our specific one if we want
+          // toast.success(`"${logToDelete.name}" has been deleted`);
+        }
+      });
     }
   };
 
@@ -243,7 +231,7 @@ export function EventLogsPage() {
             icon={<UploadOutlined />}
             onClick={() => {
               log.info('Navigating to upload');
-              navigate('/processes/upload');
+              navigate('/workspace');
             }}
           >
             Upload File
@@ -288,7 +276,7 @@ export function EventLogsPage() {
           title="No event logs yet"
           description="Upload your first event log file to start analyzing your process"
           actionLabel="Upload File"
-          onAction={() => navigate('/processes/upload')}
+          onAction={() => navigate('/workspace')}
         />
       )}
 

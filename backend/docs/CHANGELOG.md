@@ -11,7 +11,29 @@ Legend: ⚠️ Breaking | ✅ Stable | 🆕 New | 🗑️ Deprecated
 
 ### 🆕 New Endpoints
 
+**Projects Router** — Organize event logs into folders
+
+- `POST /projects` — Create a new project
+- `GET /projects` — List projects with pagination and search
+- `GET /projects/{project_id}` — Get project with event logs
+- `PUT /projects/{project_id}` — Update project metadata
+- `DELETE /projects/{project_id}` — Delete project (logs are unlinked, not deleted)
+- `POST /projects/{project_id}/files/{log_id}` — Add log to project
+- `DELETE /projects/{project_id}/files/{log_id}` — Remove log from project
+
 - `GET /analytics/logs/{log_id}/rework-chains` — Detect consecutive activity repetitions
+
+**Conformance Results CRUD** — Manage conformance check results
+
+- `GET /conformance/results` — List conformance results with pagination
+- `GET /conformance/results/{result_id}` — Get specific conformance result
+- `DELETE /conformance/results/{result_id}` — Delete conformance result
+
+**Workflows Runs** — Execution history endpoints
+
+- `GET /workflows/templates` — List predefined workflow templates
+- `GET /workflows/{workflow_id}/runs` — List runs for a workflow
+- `GET /workflows/runs/{run_id}` — Get specific workflow run
 
 ### ✅ Enhancements
 
@@ -22,6 +44,11 @@ Legend: ⚠️ Breaking | ✅ Stable | 🆕 New | 🗑️ Deprecated
 
 | Schema                         | Change                                 | Migration              |
 | ------------------------------ | -------------------------------------- | ---------------------- |
+| `ProjectCreateRequest`         | 🆕 New schema                          | N/A                    |
+| `ProjectUpdateRequest`         | 🆕 New schema                          | N/A                    |
+| `ProjectResponse`              | 🆕 New schema                          | N/A                    |
+| `ProjectListResponse`          | 🆕 New schema                          | N/A                    |
+| `ProjectDetailResponse`        | 🆕 New schema                          | N/A                    |
 | `BottleneckResponse`           | Added `preceding_activities: string[]` | None (optional field)  |
 | `BottleneckResponse`           | Added `following_activities: string[]` | None (optional field)  |
 | `BottleneckResponse`           | Added `bottleneck_impact_score: float` | None (defaults to 0.0) |

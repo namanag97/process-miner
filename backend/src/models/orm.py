@@ -4,6 +4,7 @@ Only 8 essential tables vs the original 84.
 """
 
 from datetime import datetime
+from enum import Enum
 from typing import Optional
 from uuid import uuid4
 
@@ -15,6 +16,31 @@ class Base(DeclarativeBase):
     """Base class for all models."""
 
     pass
+
+
+# =============================================================================
+# State Machine Enums
+# =============================================================================
+
+
+class LogStatus(str, Enum):
+    """EventLog lifecycle states."""
+
+    UPLOADING = "uploading"
+    VALIDATING = "validating"
+    READY = "ready"
+    ERROR = "error"
+    ARCHIVED = "archived"
+
+
+class JobStatus(str, Enum):
+    """AsyncJob lifecycle states."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 # =============================================================================
@@ -75,6 +101,10 @@ class EventLog(Base):
     activities_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     statistics_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # Lifecycle state machine
+    status: Mapped[str] = mapped_column(String(20), default=LogStatus.READY.value)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     # Filtering support
     source_log_id: Mapped[Optional[str]] = mapped_column(
         ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=True
@@ -109,12 +139,100 @@ class EventLog(Base):
         lazy="selectin",
     )
     project: Mapped[Optional["Project"]] = relationship(back_populates="event_logs")
+    uploaded_file: Mapped[Optional["UploadedFile"]] = relationship(
+        back_populates="event_log",
+        uselist=False,
+        lazy="selectin",
+    )
+    analyses: Mapped[list["Analysis"]] = relationship(
+        back_populates="event_log",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+
+class UploadedFile(Base):
+    """Raw uploaded file metadata."""
+
+    __tablename__ = "uploaded_files"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    log_id: Mapped[str] = mapped_column(
+        ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+
+    # File info
+    filename: Mapped[str] = mapped_column(String(500), nullable=False)
+    storage_path: Mapped[str] = mapped_column(String(1000), nullable=False)
+    size_bytes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    mime_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    checksum: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)  # SHA256
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    event_log: Mapped["EventLog"] = relationship(back_populates="uploaded_file")
+
+
+class AnalysisType(str, Enum):
+    """Types of process analyses."""
+
+    DISCOVERY = "discovery"
+    CONFORMANCE = "conformance"
+    ENHANCEMENT = "enhancement"
+    VARIANTS = "variants"
+    BOTTLENECK = "bottleneck"
+
+
+class AnalysisStatus(str, Enum):
+    """Analysis job lifecycle states."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class Analysis(Base):
+    """Saved process analysis with configuration and results."""
+
+    __tablename__ = "analyses"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    log_id: Mapped[str] = mapped_column(
+        ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    analysis_type: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    # Configuration
+    config_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Status
+    status: Mapped[str] = mapped_column(String(20), default=AnalysisStatus.PENDING.value)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Cached results
+    result_summary_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Link to ProcessModel for discovery analyses
+    model_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("process_models.id", ondelete="SET NULL"), nullable=True
+    )
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Relationships
+    event_log: Mapped["EventLog"] = relationship(back_populates="analyses")
+    process_model: Mapped[Optional["ProcessModel"]] = relationship(lazy="selectin")
 
 
 class ProcessCase(Base):
     """Individual case/trace in an event log."""
 
     __tablename__ = "process_cases"
+
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     log_id: Mapped[str] = mapped_column(
@@ -200,10 +318,19 @@ class ConformanceResult(Base):
         ForeignKey("process_models.id", ondelete="CASCADE"), nullable=False
     )
 
-    # Results
+    # Results - Core metrics
     fitness: Mapped[float] = mapped_column(Float, nullable=False)
     precision: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     method: Mapped[str] = mapped_column(String(50), default="token_replay")
+
+    # Extended quality metrics (PM4py full output)
+    generalization: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    simplicity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    f_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Harmonic mean of fitness & precision
+
+    # Alignment statistics
+    non_fitting_traces: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    average_alignment_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     # Detailed diagnostics as JSON
     diagnostics_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -453,15 +580,28 @@ class Recommendation(Base):
 
 
 class AsyncJob(Base):
-    """Async job tracking for long-running operations."""
+    """Async job tracking for long-running operations with proper state machine."""
 
     __tablename__ = "async_jobs"
 
+    # Identity
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+
+    # External reference (Celery task ID) - CRITICAL for job status lookups
+    task_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True, index=True)
+
+    # Type & State
     job_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    status: Mapped[str] = mapped_column(String(20), default="pending")
+    status: Mapped[str] = mapped_column(String(20), default=JobStatus.PENDING.value)
     progress: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Input/Output
+    parameters_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     result_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Timestamps for state transitions
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

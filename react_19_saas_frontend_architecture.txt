@@ -1,0 +1,1911 @@
+================================================================================
+REACT 19 IN PRACTICE: BUILDING MODERN, PERFORMANT, AND SCALABLE FRONTEND 
+APPLICATIONS - TECHNICAL DOCUMENTATION FOR SAAS FE ARCHITECTURE
+================================================================================
+
+Document Version: 1.0
+Last Updated: December 31, 2025
+Target Audience: Frontend Engineers, Software Architects, Tech Leads
+Application Context: Enterprise B2B SaaS Process Mining Platform
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+1. EXECUTIVE SUMMARY
+2. REACT 19 MODERN FEATURES & CAPABILITIES
+3. TYPESCRIPT INTEGRATION FOR TYPE-SAFE APPLICATIONS
+4. ARCHITECTURAL PATTERNS FOR SCALABLE SAAS
+5. MICRO-FRONTEND ARCHITECTURE
+6. PERFORMANCE OPTIMIZATION & SCALABILITY
+7. STATE MANAGEMENT STRATEGIES
+8. SERVER COMPONENTS & SERVER FUNCTIONS
+9. TESTING FRAMEWORKS & STRATEGIES
+10. INFRASTRUCTURE & DEVOPS FOR AI-READY SAAS
+11. DESIGN SYSTEMS & COMPONENT LIBRARIES
+12. ACCESSIBILITY & INTERNATIONALIZATION
+13. IMPLEMENTATION ROADMAP
+14. REFERENCES & FURTHER READING
+
+================================================================================
+1. EXECUTIVE SUMMARY
+================================================================================
+
+React 19, released December 5, 2024, represents a significant evolution in
+building production-ready frontend applications for enterprise SaaS platforms.
+
+Modern SaaS frontend applications demand:
+- Scalability to handle enterprise-level data and user loads
+- Performance optimization for complex data visualizations (process mining, 
+  analytics dashboards, real-time observability)
+- Modularity through micro-frontend architectures for team autonomy
+- Type safety via TypeScript integration across full stack
+- Modern React 19 features (Server Components, Server Actions, Suspense)
+- Robust state management separating server state from client state
+- Comprehensive testing coverage (unit, integration, E2E)
+- AI/ML integration readiness with proper infrastructure
+- SOC 2, GDPR, CCPA compliance capabilities
+
+This document synthesizes best practices from the latest 2025 publications to
+guide the development of production-ready, enterprise-grade React applications
+suitable for B2B SaaS platforms serving large organizations.
+
+Key Principles for 2025:
+- Component-based architecture with clear separation of concerns
+- Type-first development using TypeScript (industry standard)
+- Performance-first mindset with measurable Core Web Vitals
+- Scalable patterns that grow with team size and application complexity
+- Infrastructure as code for predictable, compliant deployments
+- Observability and monitoring built-in from day one
+- Progressive enhancement where possible (works without JavaScript)
+- Default to Server Components, upgrade to Client Components when needed
+
+================================================================================
+2. REACT 19 MODERN FEATURES & CAPABILITIES
+================================================================================
+
+2.1 SERVER COMPONENTS
+---------------------
+React Server Components (RSC) enable rendering components on the server,
+sending only the necessary data to the client.
+
+Benefits for SaaS Applications:
+- Reduced bundle size (server-only dependencies don't ship to client)
+- Improved initial page load performance
+- Direct database/API access without client-side overhead
+- Automatic code splitting at component boundaries
+- Better SEO for public-facing pages
+
+Implementation Patterns:
+- Use Server Components for data-fetching layers
+- Client Components for interactive UI elements
+- Compose Server and Client Components strategically
+- Leverage async/await directly in Server Components
+
+Example Use Cases in Process Mining SaaS:
+- Dashboard data aggregation (server-side)
+- Complex process graph calculations (server-side)
+- Interactive visualizations and charts (client-side)
+- Real-time user interactions (client-side)
+
+2.2 SERVER FUNCTIONS (SERVER ACTIONS)
+--------------------------------------
+Server Functions allow you to define backend logic directly in your React
+components, with automatic RPC-style invocation.
+
+Key Features:
+- Progressive enhancement (works without JavaScript)
+- Built-in form handling
+- Optimistic UI updates
+- Automatic revalidation
+- Type-safe end-to-end (TypeScript)
+
+Best Practices:
+- Use for mutations (create, update, delete operations)
+- Implement proper error handling and validation
+- Add loading states for better UX
+- Combine with optimistic updates for perceived performance
+- Always validate inputs on server side
+
+SaaS Application Examples:
+- Event log upload and processing
+- Process model updates
+- User preference changes
+- Audit log creation
+
+2.3 CONCURRENT RENDERING & SUSPENSE
+------------------------------------
+React 19 enhances concurrent features for smoother user experiences,
+especially critical for data-intensive SaaS applications.
+
+Suspense Improvements:
+- Streaming SSR with selective hydration
+- Transition APIs for non-blocking updates
+- Advanced loading state management
+- Error boundaries integration
+
+Implementation Strategy:
+1. Wrap async components in Suspense boundaries
+2. Define meaningful fallback UIs
+3. Use useTransition for non-urgent updates
+4. Implement Error Boundaries for graceful degradation
+
+Performance Benefits:
+- Keep UI responsive during heavy computations
+- Prioritize user interactions over background updates
+- Stream large datasets without blocking rendering
+- Enable progressive enhancement
+
+2.4 MODERN HOOKS
+----------------
+React 19 introduces and refines hooks for common patterns:
+
+use() Hook:
+- Read resources (Promises, Context) during render
+- Simplifies async data fetching in components
+- Better than useEffect for many data-loading scenarios
+
+useOptimistic():
+- Optimistic UI updates without complex state management
+- Automatically reverts on error
+- Essential for responsive SaaS UX
+
+useFormStatus():
+- Track form submission state
+- Built-in pending states
+- Improved accessibility
+
+useTransition():
+- Mark updates as non-urgent
+- Keep UI responsive during state changes
+- Critical for large dataset rendering
+
+Best Practice: Use built-in hooks before reaching for external libraries.
+They're optimized for React's rendering model and have better performance.
+
+================================================================================
+3. TYPESCRIPT INTEGRATION FOR TYPE-SAFE APPLICATIONS
+================================================================================
+
+3.1 TYPESCRIPT BENEFITS FOR SAAS APPLICATIONS
+----------------------------------------------
+TypeScript is non-negotiable for enterprise SaaS development:
+
+- Catch errors at compile-time, not runtime
+- Self-documenting code through types
+- Enhanced IDE support (autocomplete, refactoring)
+- Better collaboration in large teams
+- Safer refactoring across large codebases
+- Integration with backend type generation
+
+3.2 ADVANCED TYPESCRIPT PATTERNS
+---------------------------------
+
+Discriminated Unions for State Management:
+type LoadingState<T> = 
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'success'; data: T }
+  | { status: 'error'; error: Error };
+
+Generic Component Patterns:
+interface DataTableProps<T> {
+  data: T[];
+  columns: ColumnDef<T>[];
+  onRowClick?: (row: T) => void;
+}
+
+Type-Safe API Clients:
+- Use code generation from OpenAPI specs
+- Leverage TypeScript's type inference
+- Create type-safe SDK modules
+
+Utility Types for Domain Models:
+type EventLog = {
+  id: string;
+  name: string;
+  uploadedAt: Date;
+  status: 'processing' | 'ready' | 'failed';
+};
+
+type EventLogDTO = Omit<EventLog, 'uploadedAt'> & {
+  uploadedAt: string; // API returns ISO string
+};
+
+3.3 TYPESCRIPT CONFIGURATION FOR SAAS
+--------------------------------------
+
+Recommended tsconfig.json settings:
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "exactOptionalPropertyTypes": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "target": "ES2022",
+    "module": "ESNext"
+  }
+}
+
+Key Settings Explained:
+- strict: Enables all strict type checking options
+- noUncheckedIndexedAccess: Prevents array/object access bugs
+- exactOptionalPropertyTypes: Distinguishes undefined from missing properties
+
+3.4 TYPE GENERATION STRATEGIES
+-------------------------------
+
+Backend-to-Frontend Type Sync:
+1. OpenAPI/Swagger code generation
+2. GraphQL codegen for GraphQL APIs
+3. tRPC for end-to-end type safety
+4. Manual schema definitions with Zod/Yup validation
+
+Recommended: OpenAPI Generator + TypeScript for REST APIs
+- Automatic type generation from backend specs
+- Keeps frontend and backend contracts in sync
+- Reduces manual typing errors
+
+================================================================================
+4. ARCHITECTURAL PATTERNS FOR SCALABLE SAAS
+================================================================================
+
+4.1 FEATURE-BASED ARCHITECTURE
+-------------------------------
+Organize code by business capability, not technical layer.
+
+Directory Structure:
+src/
+├── features/
+│   ├── explorer/          # Process Explorer feature
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   ├── api/
+│   │   ├── types/
+│   │   └── index.ts
+│   ├── analytics/         # Analytics feature
+│   ├── audit/             # Audit logging feature
+│   └── conformance/       # Conformance checking feature
+├── shared/
+│   ├── components/        # Reusable UI components
+│   ├── hooks/            # Shared hooks
+│   ├── utils/            # Utility functions
+│   └── types/            # Global types
+├── core/
+│   ├── api/              # API client & SDK
+│   ├── auth/             # Authentication
+│   └── router/           # Routing configuration
+└── app/                  # App initialization
+
+Benefits:
+- Easy to locate feature-specific code
+- Clear ownership boundaries for teams
+- Enables micro-frontend extraction if needed
+- Reduces merge conflicts
+- Better code splitting opportunities
+
+4.2 DEPENDENCY DIRECTION RULES
+-------------------------------
+Establish clear dependency hierarchies:
+
+app/ -> features/ -> shared/ -> core/
+
+Rules:
+- Features can depend on shared and core, not other features
+- Shared can only depend on core
+- Core has no internal dependencies
+- Cross-feature communication via events or context
+
+Exception: Use a shared event bus or state management for cross-feature needs.
+
+4.3 COMPONENT COMPOSITION PATTERNS
+-----------------------------------
+
+Container/Presenter Pattern:
+- Container components: Handle data fetching, state, side effects
+- Presenter components: Pure, receive props, focus on UI
+
+Example:
+// Container
+function ProcessExplorerContainer() {
+  const { data, isLoading } = useProcessData();
+  return <ProcessExplorerView data={data} loading={isLoading} />;
+}
+
+// Presenter
+function ProcessExplorerView({ data, loading }: Props) {
+  if (loading) return <LoadingSpinner />;
+  return <ProcessGraph data={data} />;
+}
+
+Compound Components Pattern:
+For complex, configurable components (tables, forms, modals):
+
+<DataTable>
+  <DataTable.Header>
+    <DataTable.Column field="name" />
+    <DataTable.Column field="status" />
+  </DataTable.Header>
+  <DataTable.Body />
+</DataTable>
+
+Benefits: Flexibility, clear API, better composition
+
+4.4 ERROR BOUNDARIES & RESILIENCE
+----------------------------------
+Implement layered error boundaries for graceful degradation:
+
+1. Page-level error boundary (catch entire page crashes)
+2. Feature-level boundaries (isolate feature failures)
+3. Component-level boundaries (protect critical UI sections)
+
+Example Structure:
+<RootErrorBoundary>
+  <Router>
+    <FeatureErrorBoundary feature="explorer">
+      <ProcessExplorer />
+    </FeatureErrorBoundary>
+  </Router>
+</RootErrorBoundary>
+
+Best Practices:
+- Log errors to monitoring service (Sentry, DataDog)
+- Show user-friendly error messages
+- Provide recovery actions when possible
+- Include error tracking IDs for support
+
+4.5 CODE SPLITTING & LAZY LOADING
+----------------------------------
+Optimize bundle size for faster initial loads:
+
+Route-based splitting:
+const ProcessExplorer = lazy(() => import('./features/explorer'));
+const Analytics = lazy(() => import('./features/analytics'));
+
+Component-based splitting:
+const HeavyChart = lazy(() => import('./components/HeavyChart'));
+
+Best Practices:
+- Split at route boundaries first
+- Lazy load heavy dependencies (charting libraries, rich editors)
+- Show meaningful loading states during split point loading
+- Preload critical routes on user interaction (hover, focus)
+
+Advanced: Use Suspense boundaries to control loading UX
+<Suspense fallback={<PageLoader />}>
+  <ProcessExplorer />
+</Suspense>
+
+================================================================================
+5. MICRO-FRONTEND ARCHITECTURE
+================================================================================
+
+5.1 WHEN TO USE MICRO-FRONTENDS
+--------------------------------
+Micro-frontends are appropriate when:
+- Multiple teams work on different product areas
+- Independent deployment cycles are required
+- Different technology stacks needed for different features
+- Application has grown beyond manageable monolith size
+- Business domains are clearly separated
+
+Warning: Don't use micro-frontends prematurely. Start with a well-architected
+monolith and extract micro-frontends when team/complexity scaling demands it.
+
+5.2 MICRO-FRONTEND PATTERNS
+----------------------------
+
+Pattern 1: Build-Time Integration
+- Each micro-frontend published as npm package
+- Main app imports and bundles at build time
+- Simplest approach, but requires coordinated deployments
+
+Pattern 2: Run-Time Integration via Module Federation
+- Webpack Module Federation or Vite Federation
+- Dynamic loading of remote modules at runtime
+- Independent deployments
+- Shared dependencies across micro-frontends
+
+Pattern 3: IFrame-Based Integration
+- Complete isolation between micro-frontends
+- Easy to implement, but performance and UX challenges
+- Useful for embedding third-party applications
+
+Pattern 4: Web Components
+- Standard-based encapsulation
+- Framework-agnostic
+- Good for sharing components across different tech stacks
+
+Recommended for React SaaS: Module Federation (Webpack 5+ or Vite)
+
+5.3 MODULE FEDERATION ARCHITECTURE
+-----------------------------------
+
+Host Application (Main Shell):
+- Provides routing, authentication, shared layout
+- Dynamically loads remote micro-frontends
+- Manages shared dependencies (React, UI library)
+
+Remote Applications (Micro-Frontends):
+- Self-contained features/domains
+- Expose components via Module Federation
+- Independent repositories and CI/CD pipelines
+
+Configuration Example (Vite):
+// vite.config.ts
+import federation from '@originjs/vite-plugin-federation';
+
+export default {
+  plugins: [
+    federation({
+      name: 'explorer',
+      filename: 'remoteEntry.js',
+      exposes: {
+        './ProcessExplorer': './src/features/explorer/index.tsx',
+      },
+      shared: ['react', 'react-dom', 'react-router-dom']
+    })
+  ]
+};
+
+5.4 SHARED STATE IN MICRO-FRONTENDS
+------------------------------------
+Challenge: How to share state across independently deployed frontends?
+
+Solutions:
+1. URL State (query params, route params)
+   - Simple, works across boundaries
+   - Limited to serializable data
+
+2. Browser Storage (localStorage, sessionStorage)
+   - Persistent across page loads
+   - Watch for storage events to sync
+
+3. Custom Events (EventBus)
+   - Pub/sub pattern for cross-feature communication
+   - Keeps micro-frontends decoupled
+
+4. Shared Context Provider (in host app)
+   - Common state (user, org, theme) in shell
+   - Remote apps consume via context
+
+5. Backend as Source of Truth
+   - For critical state, always sync through backend
+   - Ensures consistency, supports multi-tab scenarios
+
+Best Practice: Minimize shared state. Each micro-frontend should be as
+independent as possible. Share only essential global state (auth, org context).
+
+5.5 DESIGN SYSTEM CONSISTENCY
+------------------------------
+Ensure visual consistency across micro-frontends:
+
+- Publish shared component library as npm package
+- Use CSS variables for theming
+- Establish clear design tokens
+- Version component library carefully
+- Provide migration guides for breaking changes
+
+Recommended Approach:
+- Core design system package (@myapp/design-system)
+- Each micro-frontend imports and uses consistently
+- Centralized updates to design system
+- Automated visual regression testing
+
+================================================================================
+6. PERFORMANCE OPTIMIZATION & SCALABILITY
+================================================================================
+
+6.1 PERFORMANCE METRICS & TARGETS
+----------------------------------
+Define and monitor key metrics:
+
+Core Web Vitals:
+- Largest Contentful Paint (LCP): < 2.5s
+- First Input Delay (FID): < 100ms
+- Cumulative Layout Shift (CLS): < 0.1
+
+Additional SaaS Metrics:
+- Time to Interactive (TTI): < 3.5s
+- Total Blocking Time (TBT): < 300ms
+- Bundle Size: < 200KB initial (gzipped)
+- API Response Time: < 500ms (p95)
+
+Monitoring Tools:
+- Lighthouse CI in deployment pipeline
+- Real User Monitoring (RUM): DataDog, New Relic
+- Chrome DevTools Performance profiling
+
+6.2 RENDERING OPTIMIZATION
+---------------------------
+
+Use React.memo Strategically:
+- Memoize expensive pure components
+- Don't over-optimize - profile first
+- Use with proper equality checks
+
+Virtual Lists for Large Datasets:
+- react-window or react-virtual for large lists
+- Critical for process mining (thousands of events/cases)
+- Render only visible items, significantly reduces DOM nodes
+
+Example:
+import { VariableSizeList } from 'react-window';
+
+<VariableSizeList
+  height={600}
+  itemCount={events.length}
+  itemSize={(index) => getEventHeight(events[index])}
+>
+  {EventRow}
+</VariableSizeList>
+
+Debounce and Throttle:
+- Debounce search inputs, filters
+- Throttle scroll handlers, window resize
+- Use lodash or custom hooks
+
+Web Workers for Heavy Computation:
+- Offload data processing to background threads
+- Essential for complex process mining calculations
+- Use Comlink for simpler worker communication
+
+6.3 DATA FETCHING OPTIMIZATION
+-------------------------------
+
+Server Components for Initial Data:
+- Fetch data on server, stream to client
+- Reduces client-side API calls
+- Better perceived performance
+
+Parallel Data Fetching:
+- Use Promise.all for independent requests
+- Don't waterfall requests
+- Combine with React Suspense for coordinated loading
+
+Incremental Data Loading:
+- Pagination for large tables
+- Infinite scroll for feeds
+- Cursor-based pagination for consistent experience
+
+Optimistic Updates:
+- Update UI immediately, sync in background
+- Better perceived performance
+- use useOptimistic() hook in React 19
+
+Example Optimistic Update:
+const [optimisticData, setOptimisticData] = useOptimistic(
+  data,
+  (current, newItem) => [...current, newItem]
+);
+
+function handleAdd(item) {
+  setOptimisticData(item); // UI updates immediately
+  addItem(item); // Server sync happens in background
+}
+
+6.4 CACHING STRATEGIES
+-----------------------
+
+Client-Side Caching:
+- TanStack Query (React Query) for server state
+- SWR for simpler use cases
+- Cache invalidation strategies
+
+Cache Configuration:
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      cacheTime: 10 * 60 * 1000, // 10 minutes
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
+
+HTTP Caching:
+- Leverage browser cache with proper headers
+- CDN for static assets
+- Service Workers for offline support
+
+6.5 BUNDLE OPTIMIZATION
+------------------------
+
+Tree Shaking:
+- Use ES modules (import/export)
+- Avoid CommonJS requires when possible
+- Configure build tools for optimal tree shaking
+
+Dynamic Imports:
+- Route-based splitting
+- Component-based splitting for heavy components
+- Preload critical chunks
+
+Dependency Optimization:
+- Analyze bundle with webpack-bundle-analyzer
+- Replace large libraries with smaller alternatives
+- Import only what you need (lodash-es, date-fns)
+
+Example:
+// ❌ Bad: imports entire library
+import _ from 'lodash';
+
+// ✅ Good: imports only needed function
+import debounce from 'lodash-es/debounce';
+
+Asset Optimization:
+- Compress images (WebP, AVIF)
+- Lazy load images below the fold
+- Use CDN for static assets
+- Enable compression (Brotli, Gzip)
+
+================================================================================
+7. STATE MANAGEMENT STRATEGIES
+================================================================================
+
+7.1 STATE CATEGORIZATION
+-------------------------
+Not all state is the same. Categorize to choose the right solution:
+
+1. Server State (data from backend)
+   - Event logs, process models, analytics data
+   - Solution: TanStack Query, SWR
+
+2. UI State (purely frontend concerns)
+   - Modal open/closed, selected tab, form inputs
+   - Solution: useState, useReducer, local state
+
+3. Global State (shared across many components)
+   - Current user, organization, theme, feature flags
+   - Solution: Context API, Zustand, Jotai
+
+4. URL State (shareable, bookmarkable state)
+   - Filters, search queries, pagination
+   - Solution: React Router, search params
+
+5. Form State (complex form management)
+   - Multi-step forms, validation, field dependencies
+   - Solution: React Hook Form, Formik
+
+7.2 SERVER STATE MANAGEMENT
+----------------------------
+Use TanStack Query (React Query) for all server state:
+
+Benefits:
+- Automatic caching and synchronization
+- Background refetching
+- Optimistic updates
+- Request deduplication
+- Pagination and infinite queries support
+
+Example:
+function useProcessData(processId: string) {
+  return useQuery({
+    queryKey: ['process', processId],
+    queryFn: () => api.processes.getById(processId),
+    staleTime: 5 * 60 * 1000, // 5 min
+  });
+}
+
+Mutations:
+const mutation = useMutation({
+  mutationFn: (data) => api.processes.create(data),
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['processes'] });
+  },
+});
+
+7.3 GLOBAL STATE MANAGEMENT
+----------------------------
+For shared global state, use Zustand (lightweight, simple):
+
+Benefits over Redux:
+- Less boilerplate
+- Simpler API
+- Better TypeScript support
+- Smaller bundle size
+- Easier to learn
+
+Example:
+import create from 'zustand';
+
+interface AppState {
+  user: User | null;
+  organization: Organization | null;
+  setUser: (user: User) => void;
+  setOrganization: (org: Organization) => void;
+}
+
+const useAppStore = create<AppState>((set) => ({
+  user: null,
+  organization: null,
+  setUser: (user) => set({ user }),
+  setOrganization: (organization) => set({ organization }),
+}));
+
+// Usage
+function Header() {
+  const user = useAppStore((state) => state.user);
+  return <div>Welcome, {user?.name}</div>;
+}
+
+When to use Redux instead:
+- Team already experienced with Redux
+- Need Redux DevTools time-travel debugging
+- Complex state with many reducers
+- Heavy use of middleware
+
+7.4 FORM STATE MANAGEMENT
+--------------------------
+Use React Hook Form for complex forms:
+
+Benefits:
+- Minimal re-renders
+- Built-in validation
+- TypeScript support
+- Easy integration with UI libraries
+
+Example:
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+
+const schema = z.object({
+  name: z.string().min(3),
+  email: z.string().email(),
+});
+
+function CreateUserForm() {
+  const { register, handleSubmit, formState: { errors } } = useForm({
+    resolver: zodResolver(schema),
+  });
+
+  const onSubmit = (data) => {
+    // Submit to backend
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <input {...register('name')} />
+      {errors.name && <span>{errors.name.message}</span>}
+      {/* ... */}
+    </form>
+  );
+}
+
+7.5 URL STATE MANAGEMENT
+-------------------------
+Use URL for shareable, bookmarkable state:
+
+Benefits:
+- Users can bookmark filtered views
+- Deep linking support
+- Browser back/forward works naturally
+- Simplifies state persistence
+
+Example with React Router:
+import { useSearchParams } from 'react-router-dom';
+
+function ProcessList() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filter = searchParams.get('filter') || 'all';
+  const page = parseInt(searchParams.get('page') || '1', 10);
+
+  const updateFilter = (newFilter: string) => {
+    setSearchParams({ filter: newFilter, page: '1' });
+  };
+
+  // ...
+}
+
+Best Practice: Store all user-facing filters, sorts, and searches in URL.
+
+================================================================================
+8. SERVER COMPONENTS & SERVER FUNCTIONS
+================================================================================
+
+8.1 WHEN TO USE SERVER COMPONENTS
+----------------------------------
+Use Server Components for:
+- Data-heavy pages (dashboards, reports)
+- SEO-critical pages
+- Pages with minimal interactivity
+- Components that access backend directly
+- Large component libraries (charts, tables)
+
+Use Client Components for:
+- Interactive forms and inputs
+- Event handlers (onClick, onChange)
+- Browser-only APIs (localStorage, window)
+- Custom hooks with useState, useEffect
+- Real-time updates (WebSockets)
+
+8.2 SERVER COMPONENT PATTERNS
+------------------------------
+
+Direct Data Fetching:
+// Server Component (no 'use client' directive)
+async function ProcessDashboard({ processId }: Props) {
+  const process = await db.processes.findById(processId);
+  const metrics = await analytics.getMetrics(processId);
+
+  return (
+    <div>
+      <ProcessHeader data={process} />
+      <MetricsGrid metrics={metrics} />
+    </div>
+  );
+}
+
+Serial vs Parallel Fetching:
+// ❌ Serial (slow)
+const user = await fetchUser();
+const posts = await fetchPosts(user.id);
+
+// ✅ Parallel (fast)
+const [user, posts] = await Promise.all([
+  fetchUser(),
+  fetchPosts(userId),
+]);
+
+Streaming with Suspense:
+<Suspense fallback={<DashboardSkeleton />}>
+  <ProcessDashboard processId={id} />
+</Suspense>
+
+8.3 SERVER FUNCTIONS (ACTIONS)
+-------------------------------
+Server Actions enable server-side mutations from client components:
+
+Example - Form Submission:
+// actions.ts (server)
+'use server';
+
+export async function createProcess(formData: FormData) {
+  const name = formData.get('name') as string;
+  
+  // Validate
+  if (!name || name.length < 3) {
+    return { error: 'Name must be at least 3 characters' };
+  }
+
+  // Create in database
+  const process = await db.processes.create({ name });
+
+  // Revalidate cache
+  revalidatePath('/processes');
+
+  return { success: true, processId: process.id };
+}
+
+// Component (client)
+'use client';
+
+function CreateProcessForm() {
+  const [state, formAction] = useFormState(createProcess, null);
+
+  return (
+    <form action={formAction}>
+      <input name="name" type="text" />
+      <button type="submit">Create</button>
+      {state?.error && <p>{state.error}</p>}
+    </form>
+  );
+}
+
+Benefits:
+- No need to manually create API routes
+- Progressive enhancement (works without JS)
+- Automatic revalidation
+- Type-safe end-to-end
+
+8.4 OPTIMISTIC UPDATES WITH SERVER ACTIONS
+-------------------------------------------
+Combine useOptimistic with Server Actions:
+
+'use client';
+
+function ProcessList({ processes }: Props) {
+  const [optimisticProcesses, addOptimistic] = useOptimistic(
+    processes,
+    (state, newProcess) => [...state, newProcess]
+  );
+
+  async function createProcess(formData: FormData) {
+    const name = formData.get('name');
+    
+    // Optimistically add to UI
+    addOptimistic({ id: 'temp', name, status: 'creating' });
+
+    // Server action
+    await createProcessAction(formData);
+  }
+
+  return (
+    <form action={createProcess}>
+      {/* ... */}
+      <ul>
+        {optimisticProcesses.map((p) => (
+          <ProcessItem key={p.id} process={p} />
+        ))}
+      </ul>
+    </form>
+  );
+}
+
+8.5 MIGRATION STRATEGY
+-----------------------
+If migrating from traditional CSR (Client-Side Rendering):
+
+Phase 1: New pages as Server Components
+- Start using Server Components for new features
+- Keep existing pages as-is
+
+Phase 2: Convert static pages
+- Dashboard pages, landing pages
+- Pages with minimal interactivity
+
+Phase 3: Convert data-heavy pages
+- Analytics, reports, admin panels
+- Extract interactive parts as Client Components
+
+Phase 4: Optimize and refactor
+- Streaming with Suspense boundaries
+- Parallel data fetching
+- Remove unnecessary client-side state
+
+Don't rush: Incremental migration is safer and more practical.
+
+================================================================================
+9. TESTING FRAMEWORKS & STRATEGIES
+================================================================================
+
+9.1 TESTING PYRAMID FOR SAAS
+-----------------------------
+Aim for balanced test coverage:
+
+70% - Unit Tests
+  - Pure functions, utilities, hooks
+  - Fast, isolated, deterministic
+
+20% - Integration Tests
+  - Component + API integration
+  - User flows across multiple components
+
+10% - E2E Tests
+  - Critical user journeys
+  - Smoke tests for production
+
+9.2 UNIT TESTING WITH VITEST
+-----------------------------
+Vitest is the modern choice (faster than Jest, native ESM support):
+
+Setup:
+npm install -D vitest @testing-library/react @testing-library/user-event
+
+Configuration (vitest.config.ts):
+import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: './src/test/setup.ts',
+  },
+});
+
+Example Component Test:
+import { render, screen } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { ProcessCard } from './ProcessCard';
+
+describe('ProcessCard', () => {
+  it('renders process name', () => {
+    const process = { id: '1', name: 'Test Process', status: 'active' };
+    render(<ProcessCard process={process} />);
+    
+    expect(screen.getByText('Test Process')).toBeInTheDocument();
+  });
+
+  it('shows status badge', () => {
+    const process = { id: '1', name: 'Test', status: 'active' };
+    render(<ProcessCard process={process} />);
+    
+    expect(screen.getByText('Active')).toBeInTheDocument();
+  });
+});
+
+9.3 TESTING HOOKS
+------------------
+Use @testing-library/react-hooks:
+
+import { renderHook, waitFor } from '@testing-library/react';
+import { useProcessData } from './useProcessData';
+
+it('fetches process data', async () => {
+  const { result } = renderHook(() => useProcessData('123'));
+
+  expect(result.current.isLoading).toBe(true);
+
+  await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+  expect(result.current.data).toEqual({ id: '123', name: 'Test' });
+});
+
+9.4 INTEGRATION TESTING
+------------------------
+Test components with mocked APIs:
+
+import { rest } from 'msw';
+import { setupServer } from 'msw/node';
+
+const server = setupServer(
+  rest.get('/api/processes/:id', (req, res, ctx) => {
+    return res(ctx.json({ id: req.params.id, name: 'Test Process' }));
+  })
+);
+
+beforeAll(() => server.listen());
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+
+it('loads and displays process', async () => {
+  render(<ProcessDetail processId="123" />);
+  
+  await screen.findByText('Test Process');
+  expect(screen.getByRole('heading')).toHaveTextContent('Test Process');
+});
+
+9.5 E2E TESTING WITH PLAYWRIGHT
+--------------------------------
+Use Playwright for critical user flows:
+
+import { test, expect } from '@playwright/test';
+
+test('user can upload and analyze event log', async ({ page }) => {
+  await page.goto('/');
+  
+  // Login
+  await page.fill('[name=email]', 'test@example.com');
+  await page.fill('[name=password]', 'password');
+  await page.click('[type=submit]');
+
+  // Upload file
+  await page.click('text=Upload Event Log');
+  await page.setInputFiles('input[type=file]', 'test-data/sample.csv');
+  await page.click('text=Process File');
+
+  // Verify success
+  await expect(page.locator('.success-message')).toBeVisible();
+  await expect(page.locator('.process-list')).toContainText('sample.csv');
+});
+
+9.6 VISUAL REGRESSION TESTING
+------------------------------
+Use Chromatic or Percy for UI regression testing:
+
+Benefits:
+- Catch unintended visual changes
+- Review UI changes during code reviews
+- Automated screenshot comparison
+- Essential for design system changes
+
+Integration:
+- Run on every PR
+- Automated in CI/CD pipeline
+- Requires manual approval for intentional changes
+
+9.7 TEST COVERAGE GOALS
+------------------------
+Minimum Coverage Targets:
+- Overall: 80%
+- Critical business logic: 95%+
+- Utility functions: 90%+
+- UI components: 70%+
+
+Don't chase 100% coverage. Focus on:
+- Business-critical paths
+- Complex logic
+- Bug-prone areas
+- Publicly exposed APIs/components
+
+Testing Best Practices:
+- Write tests first for bugs (TDD for bug fixes)
+- Test behavior, not implementation
+- Keep tests simple and readable
+- Avoid testing implementation details
+- Mock external dependencies
+- Use meaningful test descriptions
+
+================================================================================
+10. INFRASTRUCTURE & DEVOPS FOR AI-READY SAAS
+================================================================================
+
+10.1 CORE INFRASTRUCTURE REQUIREMENTS
+--------------------------------------
+Modern SaaS applications require robust infrastructure:
+
+Auto-Scaling:
+- Horizontal scaling for frontend (CDN, edge deployment)
+- Vertical scaling for compute-heavy operations
+- Database read replicas for query performance
+
+Compliance & Security:
+- SOC 2 Type II compliance readiness
+- GDPR, CCPA data privacy controls
+- Encryption at rest and in transit
+- Regular security audits and penetration testing
+
+Observability (XOps):
+- Centralized logging (ELK, Datadog, Splunk)
+- Distributed tracing (OpenTelemetry, Jaeger)
+- Real-user monitoring (RUM)
+- Error tracking (Sentry, Rollbar)
+- Performance monitoring (Lighthouse CI, Web Vitals)
+
+10.2 DEPLOYMENT STRATEGIES
+---------------------------
+
+Modern Deployment Architecture:
+1. Static Site Generation (SSG) + CDN
+   - Pre-render static pages at build time
+   - Deploy to global CDN (Cloudflare, Fastly, AWS CloudFront)
+   - Instant page loads globally
+
+2. Server-Side Rendering (SSR) on Edge
+   - Deploy to edge runtime (Vercel, Cloudflare Workers)
+   - Render dynamic pages close to users
+   - Lower latency than centralized servers
+
+3. Hybrid Approach (Recommended for SaaS)
+   - Static pages: Marketing, docs → CDN
+   - Server Components: Dashboards → Edge SSR
+   - Client Components: Interactive features → SPA chunks
+
+CI/CD Pipeline:
+1. Code commit → automated tests run
+2. Tests pass → build production bundle
+3. Preview deployment for PRs
+4. Merge to main → deploy to staging
+5. Automated testing on staging
+6. Manual approval → production deployment
+7. Gradual rollout (canary or blue-green)
+
+Tools:
+- GitHub Actions, GitLab CI, CircleCI
+- Infrastructure as Code: Terraform, Pulumi
+- Container orchestration: Kubernetes (for complex apps)
+
+10.3 MONITORING & OBSERVABILITY
+--------------------------------
+
+Frontend Monitoring Stack:
+1. Real User Monitoring (RUM)
+   - Track actual user experiences
+   - Core Web Vitals for all pages
+   - Error rates by page/feature
+   
+2. Error Tracking
+   - Sentry for JavaScript errors
+   - Source maps for production debugging
+   - Group similar errors for triage
+   - Alert on error rate spikes
+
+3. Performance Monitoring
+   - Lighthouse CI in CI/CD
+   - Web Vitals tracking per route
+   - API response time monitoring
+   - Custom metrics for business KPIs
+
+4. User Analytics
+   - Feature usage tracking
+   - User flow analysis
+   - A/B testing results
+   - Conversion funnel metrics
+
+Example Setup (Sentry + Web Vitals):
+import * as Sentry from '@sentry/react';
+import { onCLS, onFID, onLCP } from 'web-vitals';
+
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  integrations: [new Sentry.BrowserTracing()],
+  tracesSampleRate: 0.1, // 10% of transactions
+});
+
+// Track Web Vitals
+function sendToAnalytics(metric) {
+  analytics.track('web_vital', {
+    name: metric.name,
+    value: metric.value,
+    rating: metric.rating,
+  });
+}
+
+onCLS(sendToAnalytics);
+onFID(sendToAnalytics);
+onLCP(sendToAnalytics);
+
+10.4 FEATURE FLAGS & GRADUAL ROLLOUTS
+--------------------------------------
+Use feature flags for safe, incremental deployments:
+
+Benefits:
+- Deploy code without exposing features
+- Gradual rollout to subset of users
+- Easy rollback without redeployment
+- A/B testing support
+- Separate deployment from release
+
+Tools: LaunchDarkly, Split.io, Flagsmith, or custom solution
+
+Example:
+import { useFeatureFlag } from '@/core/feature-flags';
+
+function ProcessExplorer() {
+  const newUIEnabled = useFeatureFlag('new-process-ui');
+
+  return newUIEnabled ? <NewProcessUI /> : <LegacyProcessUI />;
+}
+
+Rollout Strategy:
+1. Deploy with flag disabled (dark launch)
+2. Enable for internal users/testers
+3. Gradually increase to 10% → 25% → 50% → 100%
+4. Monitor metrics at each stage
+5. Rollback instantly if issues detected
+
+10.5 AI/ML INFRASTRUCTURE READINESS
+------------------------------------
+Prepare infrastructure for AI/ML features:
+
+Requirements:
+- GPU instances for model inference (if self-hosting)
+- Model versioning and deployment pipeline
+- A/B testing for model performance
+- Monitoring for model drift and degradation
+- Data pipelines for training data collection
+
+Architecture Options:
+1. Managed AI Services (OpenAI, Anthropic, Google AI)
+   - Fastest to market
+   - Less control over models
+   - API costs scale with usage
+
+2. Self-Hosted Models (Hugging Face, Custom)
+   - More control and customization
+   - Higher upfront infrastructure costs
+   - Requires ML expertise
+
+3. Hybrid Approach (Recommended)
+   - Managed services for general AI (chat, summarization)
+   - Custom models for domain-specific tasks (process mining insights)
+
+Example Integration:
+async function generateProcessInsights(processId: string) {
+  const processData = await fetchProcessData(processId);
+  
+  // Call AI service
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4',
+    messages: [
+      { role: 'system', content: 'You are a process mining expert.' },
+      { role: 'user', content: `Analyze this process: ${JSON.stringify(processData)}` }
+    ],
+  });
+
+  return response.choices[0].message.content;
+}
+
+================================================================================
+11. DESIGN SYSTEMS & COMPONENT LIBRARIES
+================================================================================
+
+11.1 DESIGN SYSTEM BENEFITS
+----------------------------
+A robust design system is critical for SaaS scalability:
+
+Benefits:
+- Consistency across features and teams
+- Faster development (reusable components)
+- Easier onboarding for new developers
+- Centralized accessibility improvements
+- Brand consistency
+
+Components of a Design System:
+1. Design Tokens (colors, spacing, typography)
+2. Component Library (buttons, inputs, cards, etc.)
+3. Documentation (Storybook)
+4. Usage Guidelines (when to use what)
+5. Accessibility Standards (WCAG compliance)
+
+11.2 DESIGN TOKENS
+-------------------
+Define visual primitives as tokens:
+
+// tokens.css
+:root {
+  /* Colors */
+  --color-primary-50: #eff6ff;
+  --color-primary-500: #3b82f6;
+  --color-primary-900: #1e3a8a;
+  
+  --color-neutral-50: #fafafa;
+  --color-neutral-900: #171717;
+
+  /* Spacing */
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-4: 1rem;
+  --spacing-8: 2rem;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'Fira Code', monospace;
+  
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+
+  /* Border Radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+}
+
+Benefits:
+- Easy theming (light/dark mode)
+- Consistent visual language
+- Centralized updates
+- Better collaboration with designers
+
+11.3 COMPONENT LIBRARY APPROACHES
+----------------------------------
+
+Option 1: Build Custom from Scratch
+Pros: Full control, perfect fit for brand
+Cons: Time-consuming, requires design expertise
+
+Option 2: Use Headless UI Library
+Recommended: Radix UI, Headless UI, React Aria
+
+Pros:
+- Accessibility built-in
+- Unstyled, fully customizable
+- Well-tested interaction patterns
+
+Cons: Still need to style everything
+
+Option 3: Use Full Component Library
+Options: shadcn/ui, Mantine, Chakra UI, MUI
+
+Pros: Fast to start, good defaults
+Cons: Harder to customize, larger bundle
+
+Recommendation for SaaS: Headless UI (Radix) + Custom Styling
+- Best accessibility out of the box
+- Full design control
+- Smaller bundle than full libraries
+
+11.4 COMPONENT STRUCTURE
+-------------------------
+Example: Button component with Radix + CVA (class-variance-authority)
+
+// Button.tsx
+import { cva, type VariantProps } from 'class-variance-authority';
+
+const buttonVariants = cva(
+  'inline-flex items-center justify-center rounded font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-50',
+  {
+    variants: {
+      variant: {
+        primary: 'bg-primary-500 text-white hover:bg-primary-600',
+        secondary: 'bg-neutral-200 text-neutral-900 hover:bg-neutral-300',
+        ghost: 'hover:bg-neutral-100',
+      },
+      size: {
+        sm: 'h-8 px-3 text-sm',
+        md: 'h-10 px-4 text-base',
+        lg: 'h-12 px-6 text-lg',
+      },
+    },
+    defaultVariants: {
+      variant: 'primary',
+      size: 'md',
+    },
+  }
+);
+
+interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {}
+
+export function Button({ variant, size, className, ...props }: ButtonProps) {
+  return <button className={buttonVariants({ variant, size, className })} {...props} />;
+}
+
+Usage:
+<Button variant="primary" size="lg">Save Process</Button>
+<Button variant="ghost" size="sm">Cancel</Button>
+
+11.5 DOCUMENTATION WITH STORYBOOK
+----------------------------------
+Document components for team collaboration:
+
+Installation:
+npx storybook@latest init
+
+Example Story:
+// Button.stories.tsx
+import type { Meta, StoryObj } from '@storybook/react';
+import { Button } from './Button';
+
+const meta: Meta<typeof Button> = {
+  title: 'Components/Button',
+  component: Button,
+  tags: ['autodocs'],
+};
+
+export default meta;
+type Story = StoryObj<typeof Button>;
+
+export const Primary: Story = {
+  args: {
+    variant: 'primary',
+    children: 'Click me',
+  },
+};
+
+export const AllVariants: Story = {
+  render: () => (
+    <div style={{ display: 'flex', gap: '1rem' }}>
+      <Button variant="primary">Primary</Button>
+      <Button variant="secondary">Secondary</Button>
+      <Button variant="ghost">Ghost</Button>
+    </div>
+  ),
+};
+
+Benefits:
+- Component showcase for designers/PMs
+- Interactive playground
+- Visual testing baseline
+- Generated documentation
+
+================================================================================
+12. ACCESSIBILITY & INTERNATIONALIZATION
+================================================================================
+
+12.1 ACCESSIBILITY (A11Y) REQUIREMENTS
+---------------------------------------
+SaaS applications must be accessible (legal requirement in many jurisdictions):
+
+WCAG 2.1 Level AA Compliance:
+- Perceivable: Alt text, captions, color contrast
+- Operable: Keyboard navigation, focus management
+- Understandable: Clear labels, error messages
+- Robust: Semantic HTML, ARIA attributes
+
+Key Practices:
+1. Semantic HTML
+   - Use <button> not <div onClick>
+   - Use <nav>, <main>, <aside>, <article>
+   - Proper heading hierarchy (h1 → h2 → h3)
+
+2. Keyboard Navigation
+   - All interactive elements focusable
+   - Logical tab order
+   - Skip links for main content
+   - Focus visible indicators
+
+3. Screen Reader Support
+   - ARIA labels for icon buttons
+   - ARIA live regions for dynamic updates
+   - Descriptive link text (not "click here")
+
+4. Color Contrast
+   - Minimum 4.5:1 for normal text
+   - Minimum 3:1 for large text
+   - Don't rely solely on color to convey information
+
+Testing Tools:
+- axe DevTools (browser extension)
+- Lighthouse accessibility audit
+- NVDA/JAWS screen readers
+- Keyboard-only testing
+
+12.2 ACCESSIBLE COMPONENT EXAMPLES
+-----------------------------------
+
+Modal Dialog:
+import * as Dialog from '@radix-ui/react-dialog';
+
+<Dialog.Root>
+  <Dialog.Trigger>Open Settings</Dialog.Trigger>
+  <Dialog.Portal>
+    <Dialog.Overlay />
+    <Dialog.Content aria-describedby="dialog-description">
+      <Dialog.Title>Settings</Dialog.Title>
+      <Dialog.Description id="dialog-description">
+        Update your account settings
+      </Dialog.Description>
+      {/* Form content */}
+      <Dialog.Close>Close</Dialog.Close>
+    </Dialog.Content>
+  </Dialog.Portal>
+</Dialog.Root>
+
+Benefits of Radix/Headless UI:
+- ARIA attributes automatically applied
+- Focus management built-in
+- Keyboard interactions handled
+- Screen reader announcements
+
+Form Accessibility:
+<form>
+  <label htmlFor="email">Email Address</label>
+  <input
+    id="email"
+    type="email"
+    aria-required="true"
+    aria-invalid={hasError}
+    aria-describedby={hasError ? 'email-error' : undefined}
+  />
+  {hasError && (
+    <span id="email-error" role="alert">
+      Please enter a valid email address
+    </span>
+  )}
+</form>
+
+12.3 INTERNATIONALIZATION (i18n)
+---------------------------------
+Prepare for global markets:
+
+Use react-i18next (most popular):
+
+Installation:
+npm install react-i18next i18next
+
+Setup:
+// i18n.ts
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+
+i18n.use(initReactI18next).init({
+  resources: {
+    en: {
+      translation: {
+        welcome: 'Welcome to Process Mining',
+        upload_log: 'Upload Event Log',
+      },
+    },
+    de: {
+      translation: {
+        welcome: 'Willkommen beim Process Mining',
+        upload_log: 'Ereignisprotokoll hochladen',
+      },
+    },
+  },
+  lng: 'en',
+  fallbackLng: 'en',
+  interpolation: {
+    escapeValue: false,
+  },
+});
+
+Usage:
+import { useTranslation } from 'react-i18next';
+
+function Header() {
+  const { t } = useTranslation();
+  
+  return (
+    <h1>{t('welcome')}</h1>
+    <button>{t('upload_log')}</button>
+  );
+}
+
+Best Practices:
+- Extract all user-facing strings
+- Use namespaces for organization
+- Support pluralization
+- Handle date/number formatting per locale
+- Test RTL languages (Arabic, Hebrew)
+
+12.4 LOCALE-SPECIFIC FORMATTING
+--------------------------------
+
+Dates and Numbers:
+import { format } from 'date-fns';
+import { de } from 'date-fns/locale';
+
+// Date formatting
+const formattedDate = format(new Date(), 'PPP', { locale: de });
+
+// Number formatting
+const formatter = new Intl.NumberFormat('de-DE', {
+  style: 'currency',
+  currency: 'EUR',
+});
+formatter.format(1234.56); // "1.234,56 €"
+
+================================================================================
+13. IMPLEMENTATION ROADMAP
+================================================================================
+
+13.1 PHASE 1: FOUNDATION (WEEKS 1-4)
+-------------------------------------
+Goal: Establish solid architectural foundation
+
+Tasks:
+1. Project Setup
+   - Initialize with Vite + React 19 + TypeScript
+   - Configure TypeScript with strict mode
+   - Set up ESLint, Prettier
+   - Configure path aliases
+
+2. Design System Foundation
+   - Define design tokens
+   - Choose and set up Radix UI
+   - Create core components (Button, Input, Card, etc.)
+   - Set up Storybook
+
+3. Development Infrastructure
+   - CI/CD pipeline setup
+   - Automated testing configuration (Vitest)
+   - Code quality gates (coverage, linting)
+   - Preview deployments for PRs
+
+4. Core Architecture
+   - Routing setup (React Router)
+   - Authentication context
+   - API client/SDK foundation
+   - Error boundary implementation
+
+Deliverables:
+- Working dev environment
+- Core component library
+- Authentication flow
+- Basic routing structure
+
+13.2 PHASE 2: FEATURE DEVELOPMENT (WEEKS 5-12)
+-----------------------------------------------
+Goal: Build out core SaaS features
+
+Tasks:
+1. State Management
+   - Set up TanStack Query for server state
+   - Implement Zustand stores for global state
+   - URL state management patterns
+
+2. Feature Modules
+   - Process Explorer feature
+   - Analytics dashboard
+   - Upload/ingestion flow
+   - User settings
+
+3. Data Visualization
+   - Integrate charting library (Recharts, D3)
+   - Process graph visualization
+   - KPI cards and metrics
+
+4. Performance Optimization
+   - Implement code splitting
+   - Virtual lists for large datasets
+   - Image optimization
+   - Initial performance budgets
+
+Deliverables:
+- Core features functional
+- Responsive across devices
+- Performance metrics established
+- Integration with backend APIs
+
+13.3 PHASE 3: POLISH & SCALE (WEEKS 13-16)
+-------------------------------------------
+Goal: Production readiness and scalability
+
+Tasks:
+1. Testing Coverage
+   - Unit tests for all utilities/hooks
+   - Integration tests for critical flows
+   - E2E tests for user journeys
+   - Visual regression tests
+
+2. Accessibility Audit
+   - WCAG compliance review
+   - Keyboard navigation testing
+   - Screen reader testing
+   - Contrast and color accessibility
+
+3. Performance Tuning
+   - Lighthouse CI integration
+   - Bundle size optimization
+   - Critical path optimization
+   - CDN setup and asset optimization
+
+4. Observability
+   - Error tracking (Sentry)
+   - Performance monitoring
+   - User analytics
+   - Feature flag system
+
+Deliverables:
+- >80% test coverage
+- WCAG AA compliant
+- Performance budgets met
+- Production monitoring in place
+
+13.4 PHASE 4: ADVANCED FEATURES (WEEKS 17-20)
+----------------------------------------------
+Goal: Advanced capabilities and differentiation
+
+Tasks:
+1. Server Components Migration
+   - Identify candidates for Server Components
+   - Migrate dashboard pages
+   - Implement streaming with Suspense
+
+2. AI Integration
+   - LLM-powered insights
+   - Process recommendations
+   - Natural language querying
+
+3. Advanced Visualizations
+   - Real-time updates
+   - Interactive process maps
+   - Advanced filtering/drill-down
+
+4. Micro-Frontend Preparation (if needed)
+   - Module Federation setup
+   - Host/remote architecture
+   - Independent deployment pipeline
+
+Deliverables:
+- AI features functional
+- Advanced visualizations complete
+- Scalable architecture for team growth
+
+13.5 ONGOING: MAINTENANCE & ITERATION
+--------------------------------------
+Continuous improvements:
+
+Weekly:
+- Dependency updates (security patches)
+- Bug triage and fixes
+- Performance monitoring review
+
+Monthly:
+- Feature flag cleanup
+- Component library updates
+- Accessibility re-audit
+- Bundle size review
+
+Quarterly:
+- Major dependency upgrades (React, TypeScript)
+- Architecture review
+- Technical debt prioritization
+- Performance benchmark comparison
+
+================================================================================
+14. REFERENCES & FURTHER READING
+================================================================================
+
+14.1 BOOKS (2025)
+-----------------
+1. React 19 in Practice: Building Modern, Performant, and Scalable Frontend
+   Applications by Ted E Nelson (December 2025)
+   - React 19 features deep dive
+   - Scalability patterns
+
+2. React 19 Patterns and Best Practices by Various Authors (December 2025)
+   - Architectural patterns
+   - Best practices for enterprise
+
+3. Learn React with TypeScript - Third Edition by Carl Rippon
+   - Server components and functions
+   - Next.js integration
+   - Zustand and TanStack Query
+   - Vitest testing
+
+4. Micro Frontends Architecture for Scalable Applications by Vanderlei Alves
+   da Silva (July 2025)
+   - Module federation patterns
+   - DDD and CI/CD for micro-frontends
+
+5. Building Micro-Frontends, 2nd Edition by Luca Mezzalira
+   - Practical micro-frontend strategies
+   - Team collaboration patterns
+
+6. Modernizing Core Infrastructure for AI-Ready SaaS Applications by Lee
+   Atchison
+   - Infrastructure for AI/ML SaaS
+   - Auto-scaling and compliance
+
+14.2 ONLINE RESOURCES
+----------------------
+1. Building Large Scale Web Apps | A React Field Guide
+   By Addy Osmani and Hassan Djirdeh (Google)
+   Free online guide
+   - Performance optimization
+   - State management at scale
+   - Design systems
+
+2. React Documentation (react.dev)
+   - Official React 19 docs
+   - Server Components guide
+   - Best practices
+
+3. TypeScript Documentation (typescriptlang.org)
+   - Advanced type patterns
+   - Best practices
+
+4. TanStack Query Documentation
+   - Server state management
+   - Advanced patterns
+
+14.3 TOOLS & LIBRARIES MENTIONED
+---------------------------------
+Core:
+- React 19
+- TypeScript 5.x
+- Vite (build tool)
+- React Router (routing)
+
+UI & Components:
+- Radix UI (headless components)
+- shadcn/ui (component collection)
+- Tailwind CSS (optional, utility-first CSS)
+
+State Management:
+- TanStack Query (server state)
+- Zustand (global state)
+- React Hook Form (form state)
+
+Testing:
+- Vitest (unit tests)
+- Testing Library (component tests)
+- Playwright (E2E tests)
+- MSW (API mocking)
+
+Infrastructure:
+- Sentry (error tracking)
+- Datadog / New Relic (monitoring)
+- LaunchDarkly (feature flags)
+- Storybook (component documentation)
+
+14.4 COMMUNITY & LEARNING
+--------------------------
+Stay updated:
+- React RFC discussions (github.com/reactjs/rfcs)
+- React Working Group discussions
+- TypeScript roadmap
+- Web.dev (Google's web development resources)
+- Frontend Masters courses
+- Egghead.io tutorials
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================
+
+This documentation is a living document and should be updated as new patterns,
+tools, and best practices emerge in the React ecosystem.
+
+For questions or contributions, contact the frontend architecture team.

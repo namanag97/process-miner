@@ -8,7 +8,6 @@ import {
   Table,
   Button,
   Dropdown,
-  Typography,
   Descriptions,
   Space,
   Tag,
@@ -25,45 +24,24 @@ import {
   FileOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import { PageHeader, MetricCard, tokens, toast, useSDK, formatDurationFromSeconds, type EventLog } from '@lumina/design-system';
+import { PageHeader, MetricCard, tokens, toast, useProcess, useProcessStatistics, useDeleteProcess, formatDurationFromSeconds } from '@lumina/design-system';
 import { createLogger } from '../../utils/logger';
 
 const log = createLogger('LogDetailPage');
-const { Text } = Typography;
 
 export function LogDetailPage() {
   const navigate = useNavigate();
   const { id: logId } = useParams<{ id: string }>();
-  const sdk = useSDK();
-  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Fetch log details
-  const { data: logDetail, isLoading, error } = useQuery({
-    queryKey: ['processes', logId],
-    queryFn: () => sdk.processes.get(logId!),
-    enabled: !!logId,
-  });
+  // Fetch log details via standardized hook
+  const { data: logDetail, isLoading, error } = useProcess(logId || '');
 
-  // Fetch log statistics
-  const { data: stats } = useQuery({
-    queryKey: ['processes', logId, 'stats'],
-    queryFn: () => sdk.processes.analyze(logId!),
-    enabled: !!logId,
-  });
+  // Fetch log statistics via standardized hook
+  const { data: stats } = useProcessStatistics(logId || '');
 
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => sdk.processes.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['processes'] });
-      toast.success(`"${logDetail?.name}" has been deleted`);
-      navigate('/processes');
-    },
-    onError: (err) => {
-      toast.error(`Failed to delete: ${(err as Error).message}`);
-    },
-  });
+  // Delete mutation via standardized hook
+  const deleteMutation = useDeleteProcess();
 
   log.debug('Rendering LogDetailPage', { logId, activeTab });
 
@@ -75,7 +53,11 @@ export function LogDetailPage() {
   const handleDelete = () => {
     if (logId) {
       log.info('Deleting log', { logId });
-      deleteMutation.mutate(logId);
+      deleteMutation.mutate(logId, {
+        onSuccess: () => {
+          navigate('/processes');
+        }
+      });
     }
   };
 

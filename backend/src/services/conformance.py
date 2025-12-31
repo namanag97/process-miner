@@ -66,6 +66,82 @@ class ConformanceService:
         precision = pm4py.precision_token_based_replay(pm4py_log, net, im, fm)
         return precision
 
+    def calculate_generalization(
+        self,
+        event_log: EventLog,
+        model: ProcessModel,
+    ) -> float:
+        """Calculate generalization score for log-model pair.
+        
+        Generalization measures how well the model generalizes beyond
+        the observed behavior in the log.
+        """
+        pm4py_log = mining_service._to_pm4py_log(event_log)
+        net, im, fm = self._get_petri_net(model)
+        
+        try:
+            # PM4py's generalization function
+            generalization = pm4py.generalization_tbr(pm4py_log, net, im, fm)
+            return generalization
+        except Exception:
+            return None
+
+    def calculate_simplicity(
+        self,
+        model: ProcessModel,
+    ) -> float:
+        """Calculate simplicity score for a process model.
+        
+        Simplicity measures how simple/understandable the model is,
+        typically based on the number of elements.
+        """
+        net, im, fm = self._get_petri_net(model)
+        
+        try:
+            # PM4py's simplicity function for Petri nets
+            simplicity = pm4py.simplicity_petri_net(net, im, fm)
+            return simplicity
+        except Exception:
+            return None
+
+    def calculate_f_score(
+        self,
+        fitness: float,
+        precision: float,
+    ) -> float:
+        """Calculate F-score (harmonic mean of fitness and precision).
+        
+        F-score balances fitness and precision into a single quality metric.
+        """
+        if fitness is None or precision is None:
+            return None
+        if fitness + precision == 0:
+            return 0.0
+        return 2 * (fitness * precision) / (fitness + precision)
+
+    def get_full_quality_metrics(
+        self,
+        event_log: EventLog,
+        model: ProcessModel,
+    ) -> dict[str, Any]:
+        """Get all 4 quality dimensions: fitness, precision, generalization, simplicity.
+        
+        Plus computed f_score.
+        """
+        fitness = self.calculate_fitness(event_log, model)
+        precision = self.calculate_precision(event_log, model)
+        generalization = self.calculate_generalization(event_log, model)
+        simplicity = self.calculate_simplicity(model)
+        f_score = self.calculate_f_score(fitness, precision)
+        
+        return {
+            "fitness": fitness,
+            "precision": precision,
+            "generalization": generalization,
+            "simplicity": simplicity,
+            "f_score": f_score,
+        }
+
     def get_diagnostics(
         self,
         event_log: EventLog,

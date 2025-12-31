@@ -36,6 +36,7 @@ const bottlenecks = await sdk.analytics.getBottlenecks(log.id);
 
 ```
 sdk.auth          → Authentication
+sdk.projects      → Project management
 sdk.logs          → Event log operations
 sdk.discovery     → Process model discovery
 sdk.conformance   → Conformance checking
@@ -57,6 +58,39 @@ sdk.processMining → PM4Py advanced features
 ---
 
 ## Clients Reference
+
+### `sdk.projects` — Project Management
+
+| Method                         | Endpoint                              | Return Type             |
+| ------------------------------ | ------------------------------------- | ----------------------- |
+| `create(request)`              | `POST /projects`                      | `ProjectResponse`       |
+| `list(options?)`               | `GET /projects`                       | `ProjectListResponse`   |
+| `get(projectId)`               | `GET /projects/{id}`                  | `ProjectDetailResponse` |
+| `update(projectId, request)`   | `PUT /projects/{id}`                  | `ProjectResponse`       |
+| `delete(projectId)`            | `DELETE /projects/{id}`               | `void`                  |
+| `addFile(projectId, logId)`    | `POST /projects/{id}/files/{logId}`   | `ProjectDetailResponse` |
+| `removeFile(projectId, logId)` | `DELETE /projects/{id}/files/{logId}` | `void`                  |
+
+```typescript
+// Create a project
+const project = await sdk.projects.create({
+  name: "Q4 Analysis",
+  description: "Q4 2024 process mining",
+  tags: ["production"],
+});
+
+// List with search
+const projects = await sdk.projects.list({ search: "Q4" });
+
+// Add event log to project
+await sdk.projects.addFile(project.id, logId);
+
+// Get project with its logs
+const detail = await sdk.projects.get(project.id);
+console.log(`${detail.event_logs.length} logs in project`);
+```
+
+---
 
 ### `sdk.logs` — Event Log Operations
 

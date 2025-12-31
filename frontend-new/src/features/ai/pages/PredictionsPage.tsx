@@ -250,7 +250,7 @@ export function PredictionsPage() {
           title="No event logs available"
           description="Upload an event log to train prediction models"
           actionLabel="Upload Event Log"
-          onAction={() => navigate('/processes/upload')}
+          onAction={() => navigate('/workspace')}
         />
       </div>
     );

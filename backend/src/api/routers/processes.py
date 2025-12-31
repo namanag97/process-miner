@@ -63,8 +63,11 @@ def validate_file_upload(file: UploadFile) -> None:
             detail=f"Invalid file type. Allowed extensions: {', '.join(allowed_extensions)}",
         )
 
-    # Validate content type
-    allowed_mimetypes = {"text/csv", "application/csv", "application/xml", "text/xml"}
+    # Validate content type (allow common browser defaults)
+    allowed_mimetypes = {
+        "text/csv", "application/csv", "application/xml", "text/xml",
+        "application/octet-stream", "text/plain",  # Common browser defaults
+    }
     if file.content_type and file.content_type not in allowed_mimetypes:
         logger.warning(
             "upload_rejected_mimetype",
@@ -136,7 +139,12 @@ async def upload_process(
     # Validate file type and extension
     validate_file_upload(file)
 
-    logger.info("upload_started", filename=file.filename, name=name)
+    # Ensure filename is present (FastAPI UploadFile can have None filename)
+    filename = file.filename
+    if not filename:
+        raise HTTPException(status_code=400, detail="Filename is required")
+
+    logger.info("upload_started", filename=filename, name=name)
     start_time = time.perf_counter()
 
     content = await file.read()
@@ -144,14 +152,14 @@ async def upload_process(
     logger.info("file_read", size_mb=round(file_size_mb, 2))
 
     # Validate file signature to prevent spoofing
-    await validate_file_signature(content, file.filename)
+    await validate_file_signature(content, filename)
 
     try:
         # Use DuckDB for high-performance CSV ingestion if it's a CSV file
-        ext = os.path.splitext(file.filename)[1].lower()
+        ext = os.path.splitext(filename)[1].lower()
         if ext == ".csv":
             # DuckDB vectorized parse
-            logger.info("using_duckdb_ingestion", filename=file.filename)
+            logger.info("using_duckdb_ingestion", filename=filename)
             duck_result = duckdb_ingestion_service.parse_csv_fast(
                 file_content=content,
                 case_id_col=case_id_column or "case_id",
@@ -159,13 +167,13 @@ async def upload_process(
                 timestamp_col=timestamp_column or "timestamp",
                 resource_col=resource_column,
             )
-            
+
             # For now, we still save to SQLite through ingestion_service's logic
             # but we use the pre-parsed statistics and Arrow conversion
             event_log = await ingestion_service.ingest_file(
                 session=db,
                 file_content=content,
-                filename=file.filename,
+                filename=filename,
                 name=name,
                 case_id_col=case_id_column,
                 activity_col=activity_column,
@@ -177,7 +185,7 @@ async def upload_process(
             event_log = await ingestion_service.ingest_file(
                 session=db,
                 file_content=content,
-                filename=file.filename,
+                filename=filename,
                 name=name,
                 case_id_col=case_id_column,
                 activity_col=activity_column,
@@ -208,10 +216,10 @@ async def upload_process(
             created_at=event_log.created_at,
         )
     except ValidationError as e:
-        logger.warning("upload_validation_error", error=e.message, filename=file.filename)
+        logger.warning("upload_validation_error", error=e.message, filename=filename)
         raise HTTPException(status_code=422, detail=e.message)
     except Exception as e:
-        logger.error("upload_error", error=str(e), filename=file.filename, exc_info=True)
+        logger.error("upload_error", error=str(e), filename=filename, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -227,7 +235,12 @@ async def detect_columns(
     # Validate file type and extension
     validate_file_upload(file)
 
-    logger.info("detect_columns_started", filename=file.filename)
+    # Ensure filename is present
+    filename = file.filename
+    if not filename:
+        raise HTTPException(status_code=400, detail="Filename is required")
+
+    logger.info("detect_columns_started", filename=filename)
     start_time = time.perf_counter()
 
     content = await file.read()
@@ -236,11 +249,11 @@ async def detect_columns(
     logger.debug("file_read_for_detection", size_mb=round(file_size_mb, 2), duration_ms=round(read_time_ms, 2))
 
     # Validate file signature to prevent spoofing
-    await validate_file_signature(content, file.filename)
+    await validate_file_signature(content, filename)
 
     detection_start = time.perf_counter()
-    
-    ext = os.path.splitext(file.filename)[1].lower()
+
+    ext = os.path.splitext(filename)[1].lower()
     if ext == ".csv":
         # Use DuckDB's native schema inference for 10x speedup
         result = duckdb_ingestion_service.detect_columns_fast(content)
@@ -625,20 +638,37 @@ async def get_variants(
 
         avg_duration = sum(durations) / len(durations) if durations else None
 
-        variant_data = {
-            "variant_key": variant_key,
-            "activity_trace": variant_key,
-            "case_count": len(cases),
-            "frequency_percent": round(len(cases) / total_cases * 100, 2) if total_cases > 0 else 0,
-            "avg_duration_seconds": avg_duration,
-        }
+        # Build response with optional complexity
+        complexity_score: Optional[float] = None
+        rework_count: Optional[int] = None
+        unique_activity_count: Optional[int] = None
 
-        # Add complexity metrics if requested
         if include_complexity:
             complexity = mining_service.calculate_variant_complexity(variant_key)
-            variant_data.update(complexity)
+            complexity_score = complexity.get("complexity_score")
+            rework_count = complexity.get("rework_count")
+            unique_activity_count = complexity.get("unique_activity_count")
 
-        variants.append(VariantResponse(**variant_data))
+        # Parse activities from variant_key using standard separator
+        # Variant key format: "A → B → C" or "A -> B -> C"
+        if " → " in variant_key:
+            activities = [a.strip() for a in variant_key.split(" → ")]
+        elif " -> " in variant_key:
+            activities = [a.strip() for a in variant_key.split(" -> ")]
+        else:
+            activities = [variant_key.strip()] if variant_key.strip() else []
+
+        variants.append(VariantResponse(
+            variant_key=variant_key,
+            activity_trace=variant_key,
+            activities=activities,
+            case_count=len(cases),
+            frequency_percent=round(len(cases) / total_cases * 100, 2) if total_cases > 0 else 0.0,
+            avg_duration_seconds=avg_duration,
+            complexity_score=complexity_score,
+            rework_count=rework_count,
+            unique_activity_count=unique_activity_count,
+        ))
 
     # Apply sorting if specified
     if sort_by == "complexity" and include_complexity:

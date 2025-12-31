@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Form, Input, Button, Avatar, Upload, Space, Typography, message } from 'antd';
+import { Card, Form, Input, Button, Avatar, Space, Typography, message } from 'antd';
 import { UserOutlined, CameraOutlined } from '@ant-design/icons';
 import { tokens, toast } from '@lumina/design-system';
 import { useUser } from '../../context/UserContext';

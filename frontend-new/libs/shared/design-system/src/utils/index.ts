@@ -71,3 +71,9 @@ export const notify = {
   info: ({ title, description }: { title: string; description?: string }) =>
     notification.info({ message: title, description }),
 };
+
+// Date utilities
+export { formatTimeAgo, formatDateRange } from './date';
+// Re-export formatDuration for consistency (overrides the one above for seconds-based API)
+export { formatDuration as formatDurationSeconds } from './date';
+

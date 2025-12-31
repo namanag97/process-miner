@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Card, Input, Button, Space, Typography, Row, Col, Tooltip, Divider, Empty } from 'antd';
 import {
   SendOutlined,
@@ -11,14 +11,17 @@ import {
   InfoCircleOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
-import { PageHeader, MetricCard, EmptyState, useSDK, tokens } from '@lumina/design-system';
-import type { ProcessSummaryData } from '@lumina/design-system';
+import { useNavigate } from 'react-router-dom';
+import { PageHeader, MetricCard, EmptyState, tokens } from '@lumina/design-system';
+import { FeaturePage } from '../../../core/components/FeaturePage';
 import { ProcessSelector } from '../components/ProcessSelector';
 import type { ProcessOption } from '../components/ProcessSelector';
 import { ChatMessage } from '../components/ChatMessage';
 import { InsightCard } from '../components/InsightCard';
 import { buildProcessContext, buildQuickContext } from '../utils/processContextBuilder';
 import { ChatMessage as ChatMessageType, DEFAULT_PROMPTS, ProcessInsight } from '../types';
+import type { ProcessSummaryData } from '@lumina/design-system';
+import { useAIProcesses, useAIProcessSummary } from '../hooks';
 import { createLogger } from '../../../utils/logger';
 
 const { Text, Title, Paragraph } = Typography;
@@ -46,75 +49,56 @@ function formatDuration(seconds: number): string {
 }
 
 export function AIAssistantPage() {
-  const sdk = useSDK();
+  const navigate = useNavigate();
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // State
-  const [processes, setProcesses] = useState<ProcessOption[]>([]);
+  // Data fetching with React Query hooks
+  const {
+    data: processesData,
+    isLoading: processesLoading,
+    error: processesError,
+    refetch: refetchProcesses,
+  } = useAIProcesses({ pageSize: 100 });
+
+  // Local state
   const [selectedProcessId, setSelectedProcessId] = useState<string | null>(null);
-  const [processSummary, setProcessSummary] = useState<ProcessSummaryData | null>(null);
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [processesLoading, setProcessesLoading] = useState(true);
-  const [summaryLoading, setSummaryLoading] = useState(false);
 
-  // Load processes on mount
+  // Fetch process summary when selection changes
+  const {
+    data: processSummary,
+    isLoading: summaryLoading,
+    error: summaryError,
+  } = useAIProcessSummary(selectedProcessId || '');
+
+  // Transform processes data to ProcessOption[]
+  const processes = useMemo<ProcessOption[]>(() => {
+    if (!processesData?.items) return [];
+    return processesData.items.map((p) => ({
+      id: p.id,
+      name: p.name,
+      totalCases: p.totalCases,
+      totalActivities: p.totalActivities,
+      sourceFormat: p.sourceFormat,
+    }));
+  }, [processesData]);
+
+  // Add welcome message when summary loads
   useEffect(() => {
-    async function loadProcesses() {
-      try {
-        setProcessesLoading(true);
-        const response = await sdk.processes.list({ pageSize: 100 });
-        const processOptions: ProcessOption[] = response.items.map((p) => ({
-          id: p.id,
-          name: p.name,
-          totalCases: p.totalCases,
-          totalActivities: p.totalActivities,
-          sourceFormat: p.sourceFormat,
-        }));
-        setProcesses(processOptions);
-        log.info('Loaded processes', { count: processOptions.length });
-      } catch (error) {
-        log.error('Failed to load processes', { error });
-      } finally {
-        setProcessesLoading(false);
-      }
+    if (processSummary && selectedProcessId) {
+      const selectedProcess = processes.find((p) => p.id === selectedProcessId);
+      setMessages([
+        {
+          id: generateId(),
+          role: 'assistant',
+          content: `I'm ready to help you analyze the **${selectedProcess?.name || 'process'}**. I have access to performance metrics, bottleneck analysis, rework patterns, and more.\n\nAsk me anything about this process, or try one of the suggestions below!`,
+          timestamp: new Date(),
+        },
+      ]);
     }
-    loadProcesses();
-  }, [sdk]);
-
-  // Load process summary when selection changes
-  useEffect(() => {
-    if (!selectedProcessId) {
-      setProcessSummary(null);
-      return;
-    }
-
-    async function loadSummary() {
-      try {
-        setSummaryLoading(true);
-        const summary = await sdk.analytics.getProcessSummary(selectedProcessId!);
-        setProcessSummary(summary);
-        log.info('Loaded process summary', { processId: selectedProcessId });
-
-        // Add welcome message
-        const selectedProcess = processes.find((p) => p.id === selectedProcessId);
-        setMessages([
-          {
-            id: generateId(),
-            role: 'assistant',
-            content: `I'm ready to help you analyze the **${selectedProcess?.name || 'process'}**. I have access to performance metrics, bottleneck analysis, rework patterns, and more.\n\nAsk me anything about this process, or try one of the suggestions below!`,
-            timestamp: new Date(),
-          },
-        ]);
-      } catch (error) {
-        log.error('Failed to load process summary', { error });
-      } finally {
-        setSummaryLoading(false);
-      }
-    }
-    loadSummary();
-  }, [selectedProcessId, sdk, processes]);
+  }, [processSummary, selectedProcessId, processes]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -159,7 +143,7 @@ export function AIAssistantPage() {
       const context = buildProcessContext(processSummary, selectedProcess?.name || 'Process');
       
       // Generate contextual mock response based on the question
-      let response = generateMockResponse(inputValue, processSummary, selectedProcess?.name || 'Process');
+      const response = generateMockResponse(inputValue, processSummary, selectedProcess?.name || 'Process');
 
       setMessages((prev) => [
         ...prev.slice(0, -1), // Remove loading message
@@ -188,6 +172,19 @@ export function AIAssistantPage() {
     [handleSendMessage]
   );
 
+  // Error state
+  if (processesError) {
+    return (
+      <FeaturePage
+        title="AI Assistant"
+        error={processesError}
+        onRetry={() => refetchProcesses()}
+      >
+        {null}
+      </FeaturePage>
+    );
+  }
+
   // Empty state when no processes
   if (!processesLoading && processes.length === 0) {
     return (
@@ -200,8 +197,8 @@ export function AIAssistantPage() {
           icon={<FileTextOutlined />}
           title="No processes available"
           description="Upload an event log to start analyzing with AI"
-          actionLabel="Upload Process"
-          onAction={() => (window.location.href = '/processes/upload')}
+          actionLabel="Go to Workspace"
+          onAction={() => navigate('/workspace')}
         />
       </div>
     );

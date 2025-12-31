@@ -163,13 +163,14 @@ class EventResponse(BaseModel):
 
 
 class VariantResponse(BaseModel):
-    """Process variant response."""
+    """Process variant response with both trace string and parsed activities array."""
 
     variant_key: str
-    activity_trace: str  # Human-readable: "A -> B -> C"
+    activity_trace: str  # Human-readable: "A → B → C" (for display)
+    activities: list[str]  # Pre-parsed array: ["A", "B", "C"] (for FE consumption)
     case_count: int
     frequency_percent: float
-    avg_duration_seconds: Optional[float]
+    avg_duration_seconds: Optional[float] = None
     # Complexity metrics (optional, populated when requested)
     complexity_score: Optional[float] = None
     rework_count: Optional[int] = None
@@ -396,11 +397,32 @@ class DiagnosticsResponse(BaseModel):
     precision: Optional[float]
     generalization: Optional[float] = None
     simplicity: Optional[float] = None
+    f_score: Optional[float] = None  # Harmonic mean of fitness & precision
     total_traces: int
     fitting_traces: int
     non_fitting_traces: int
     fitness_ratio: float
+    average_alignment_cost: Optional[float] = None
     deviations: Optional[list[DeviationDetail]] = None  # Structured deviations
+
+
+class QualityMetricsResponse(BaseModel):
+    """Full quality metrics for a process model.
+    
+    Contains all 4 quality dimensions from PM4py:
+    - Fitness: How well the log fits the model
+    - Precision: How much the model allows for behavior not in the log  
+    - Generalization: How well the model generalizes beyond observed behavior
+    - Simplicity: How simple/understandable the model is
+    """
+
+    log_id: str
+    model_id: str
+    fitness: float
+    precision: Optional[float] = None
+    generalization: Optional[float] = None
+    simplicity: Optional[float] = None
+    f_score: Optional[float] = None  # Harmonic mean of fitness & precision
 
 
 # =============================================================================
@@ -1092,5 +1114,67 @@ class SimulationResponse(BaseModel):
     impact: dict[str, float]
 
 
+# =============================================================================
+# Analyses (Saved Process Analyses)
+# =============================================================================
+
+
+class AnalysisCreateRequest(BaseModel):
+    """Request to create a new analysis."""
+
+    name: str = Field(..., min_length=1, max_length=255)
+    analysis_type: str = Field(..., description="Type: discovery, conformance, variants, bottleneck")
+    config: dict[str, Any] = Field(default_factory=dict, description="Analysis configuration")
+
+
+class AnalysisResponse(BaseModel):
+    """Analysis response."""
+
+    id: str
+    log_id: str
+    name: str
+    analysis_type: str
+    status: str
+    config: Optional[dict[str, Any]] = None
+    result_summary: Optional[dict[str, Any]] = None
+    model_id: Optional[str] = None
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+    error_message: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class AnalysisListResponse(PaginatedResponse):
+    """Paginated analysis list."""
+
+    items: list[AnalysisResponse]
+
+
+class AnalysisDetailResponse(AnalysisResponse):
+    """Detailed analysis with full results."""
+
+    dfg: Optional[DFGResponse] = None
+    variants: Optional[list[VariantResponse]] = None
+    statistics: Optional[StatisticsResponse] = None
+
+
+class UploadedFileResponse(BaseModel):
+    """Uploaded file metadata response."""
+
+    id: str
+    filename: str
+    storage_path: str
+    size_bytes: Optional[int] = None
+    mime_type: Optional[str] = None
+    checksum: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # Rebuild models with forward references
 ProcessExplorerDataResponse.model_rebuild()
+

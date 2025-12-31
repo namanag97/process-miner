@@ -59,6 +59,32 @@ export const tokens = {
       cardHover: '#F9FAFB',
       dark: '#1A1A2E',
     },
+    // Status colors for object lifecycle states
+    status: {
+      pending: '#FCD34D',    // Awaiting action
+      running: '#60A5FA',    // In progress
+      completed: '#34D399',  // Successfully done
+      failed: '#F87171',     // Error state
+      stale: '#9CA3AF',      // Outdated/needs refresh
+      active: '#10B981',     // Currently active
+      archived: '#6B7280',   // Archived/inactive
+      draft: '#A78BFA',      // Not yet activated
+    },
+    // Severity colors for alerts and deviations
+    severity: {
+      critical: '#DC2626',   // Immediate action required
+      high: '#F59E0B',       // High priority
+      medium: '#3B82F6',     // Normal priority
+      low: '#10B981',        // Low priority
+      info: '#6B7280',       // Informational
+    },
+    // Process node type colors for DFG/BPMN visualization
+    nodeType: {
+      activity: '#0F52FF',   // Standard activity
+      gateway: '#F59E0B',    // Decision point
+      event: '#10B981',      // Start/end/intermediate event
+      placeholder: '#D1D5DB',// Unknown/pending
+    },
   },
   // Spacing (4px base unit)
   spacing: {

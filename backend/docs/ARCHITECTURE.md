@@ -22,6 +22,7 @@ backend/
 │   │       ├── organizational.py # GET /organizational/*
 │   │       ├── predictions.py  # POST/GET /predictions/*
 │   │       ├── processes.py    # POST/GET/DELETE /processes/*
+│   │       ├── projects.py     # POST/GET/PUT/DELETE /projects/*
 │   │       ├── simulation.py   # POST /simulation/*
 │   │       ├── visualization.py # GET /visualization/*
 │   │       └── workflows.py    # POST/GET /workflows/*

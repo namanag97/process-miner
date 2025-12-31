@@ -54,7 +54,7 @@ export function ExplorerIndexPage() {
         title: 'No event logs available',
         description: 'Upload an event log first to start exploring your process',
         actionLabel: 'Upload File',
-        onAction: () => navigate('/processes/upload'),
+        onAction: () => navigate('/workspace'),
       }}
     >
       {/* Search Bar */}
@@ -83,10 +83,10 @@ export function ExplorerIndexPage() {
             <Card
               hoverable
               onClick={() => handleExplore(logItem)}
+              className="card-hover-lift"
               style={{
                 borderRadius: tokens.radius.lg,
                 height: '100%',
-                transition: `transform ${tokens.duration.moderate}ms ${tokens.easing.out}, box-shadow ${tokens.duration.moderate}ms ${tokens.easing.out}`,
               }}
               styles={{
                 body: {
@@ -94,14 +94,6 @@ export function ExplorerIndexPage() {
                   flexDirection: 'column',
                   height: '100%',
                 },
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 28px -8px rgba(0, 0, 0, 0.12)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '';
               }}
             >
               <Space direction="vertical" size="small" style={{ width: '100%', flex: 1 }}>
