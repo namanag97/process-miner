@@ -239,3 +239,81 @@ export interface PredictionResponse {
   confidence: number;
   alternatives?: Array<{ activity: string; probability: number }>;
 }
+
+// ============================================
+// OCEL (Object-Centric Event Logs)
+// ============================================
+
+export interface OCELLogResponse {
+  id: string;
+  name: string;
+  source_file?: string;
+  source_format: string;
+  total_events: number;
+  total_objects: number;
+  total_object_types: number;
+  object_types: string[];
+  activities: string[];
+  created_at: string;
+}
+
+export interface OCELLogListResponse {
+  logs: OCELLogResponse[];
+  total: number;
+}
+
+export interface OCELObjectTypeResponse {
+  name: string;
+  object_count: number;
+  attributes: string[];
+}
+
+export interface OCELStatisticsResponse {
+  log_id: string;
+  total_events: number;
+  total_objects: number;
+  total_object_types: number;
+  total_activities: number;
+  object_types: string[];
+  activities: string[];
+  objects_per_type: Record<string, number>;
+}
+
+export interface OCPetriNetResponse {
+  id: string;
+  log_id: string;
+  name: string;
+  object_types: string[];
+  created_at: string;
+}
+
+export interface OCDFGNode {
+  id: string;
+  name: string;
+  object_type: string;
+  frequency: number;
+}
+
+export interface OCDFGEdge {
+  source: string;
+  target: string;
+  object_type: string;
+  frequency: number;
+}
+
+export interface OCDFGTypeGraph {
+  object_type: string;
+  nodes: OCDFGNode[];
+  edges: OCDFGEdge[];
+  start_activities: string[];
+  end_activities: string[];
+}
+
+export interface OCDFGResponse {
+  log_id: string;
+  object_types: string[];
+  activities: string[];
+  graphs_by_type: Record<string, OCDFGTypeGraph>;
+  total_events: number;
+  total_objects: number;
+}

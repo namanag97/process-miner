@@ -73,7 +73,7 @@ export function ProcessQuestionsPage() {
         title="Process not found"
         description="The process you're looking for doesn't exist"
         actionLabel="Go Back"
-        onAction={() => navigate(`/projects/${projectId}`)}
+        onAction={() => navigate(`/workspace/${projectId}`)}
       />
     );
   }
@@ -84,8 +84,8 @@ export function ProcessQuestionsPage() {
         title="Explore Your Process"
         description={`Analyzing: ${process.name}`}
         breadcrumb={[
-          { label: 'Home', href: '/home' },
-          { label: 'Project', href: `/projects/${projectId}` },
+          { label: 'Workspace', href: '/workspace' },
+          { label: 'Project', href: `/workspace/${projectId}` },
           { label: 'Questions' },
         ]}
       />

@@ -89,7 +89,7 @@ export type { PaginatedResponse, DateRange, Severity, Status } from './api/schem
 
 // API Types and Transformers
 export * from './api/transformers';
-export type { ColumnDetectionResponse } from './api/types';
+export type { ColumnDetectionResponse, OCELLogResponse, OCELStatisticsResponse, OCPetriNetResponse, OCDFGResponse } from './api/types';
 export type { ProcessSummaryData, PatternResponse } from './api/modules/analytics';
 export type { Project, ProjectDetail, CreateProjectData, UpdateProjectData } from './api/modules/projects';
 

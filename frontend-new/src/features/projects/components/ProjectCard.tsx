@@ -23,7 +23,7 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
     if (onClick) {
       onClick();
     } else {
-      navigate(`/projects/${project.id}`);
+      navigate(`/workspace/${project.id}`);
     }
   };
 

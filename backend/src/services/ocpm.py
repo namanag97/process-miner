@@ -14,9 +14,18 @@ Provides OCEL 2.0 support for Object-Centric Process Mining including:
 import os
 import pickle
 import tempfile
-from typing import Any
+from typing import Any, Optional
 
 import pm4py
+from sqlalchemy.ext.asyncio import AsyncSession
+from src.models.ocel2 import (
+    OCEL2EventType,
+    OCEL2ObjectType,
+    OCEL2Event,
+    OCEL2Object,
+    E2ORelation,
+    O2ORelation,
+)
 
 
 class OCPMService:
@@ -335,6 +344,101 @@ class OCPMService:
                 }
 
         return result
+
+
+    async def persist_ocel_2_0(self, session: AsyncSession, ocel, source_log_id: Optional[str] = None):
+        """Persist OCEL 2.0 data into the relational OCEL2 tables.
+        
+        This enables deep object-centric queries without re-parsing the blob.
+        """
+        # 1. Create Event Types
+        event_types = {}
+        activities = self.get_activities(ocel)
+        for act in activities:
+            et = OCEL2EventType(name=act)
+            session.add(et)
+            event_types[act] = et
+        
+        # 2. Create Object Types
+        object_types = {}
+        ot_names = self.get_object_types(ocel)
+        for ot in ot_names:
+            obj_type = OCEL2ObjectType(name=ot)
+            session.add(obj_type)
+            object_types[ot] = obj_type
+            
+        await session.flush() # Get IDs
+        
+        # 3. Create Objects
+        objects = {}
+        for ot in ot_names:
+            obj_ids = self.get_objects_by_type(ocel, ot)
+            for oid in obj_ids:
+                obj = OCEL2Object(
+                    object_type_id=object_types[ot].id,
+                    object_id=oid,
+                    attributes={} # Could be populated from ocel.objects
+                )
+                session.add(obj)
+                objects[oid] = obj
+                
+        await session.flush()
+        
+        # 4. Create Events and E2O Relations
+        events_df = ocel.events
+        for _, row in events_df.iterrows():
+            activity = row["ocel:activity"]
+            timestamp = row["ocel:timestamp"]
+            event_id = row["ocel:eid"]
+            
+            event = OCEL2Event(
+                event_type_id=event_types[activity].id,
+                activity=activity,
+                timestamp=timestamp,
+                source_log_id=source_log_id,
+                attributes={} # Could be populated from other cols
+            )
+            session.add(event)
+            
+            # Relationships
+            # In OCEL 2.0/PM4Py, related objects are in columns prefixed with ocel:type:
+            for col in events_df.columns:
+                if col.startswith("ocel:type:"):
+                    ot_name = col.replace("ocel:type:", "")
+                    related_val = row[col]
+                    if related_val and isinstance(related_val, (list, set)):
+                        for r_oid in related_val:
+                            if r_oid in objects:
+                                rel = E2ORelation(
+                                    event=event,
+                                    object=objects[r_oid],
+                                    qualifier="involved"
+                                )
+                                session.add(rel)
+                    elif related_val and isinstance(related_val, str):
+                        if related_val in objects:
+                             rel = E2ORelation(
+                                event=event,
+                                object=objects[related_val],
+                                qualifier="involved"
+                            )
+                             session.add(rel)
+
+        # 5. O2O Relations
+        try:
+            o2o = pm4py.ocel_o2o_graph(ocel)
+            for (src_oid, tgt_oid), freq in o2o.items():
+                if src_oid in objects and tgt_oid in objects:
+                    rel = O2ORelation(
+                        source_object_id=objects[src_oid].id,
+                        target_object_id=objects[tgt_oid].id,
+                        qualifier="related"
+                    )
+                    session.add(rel)
+        except Exception:
+            pass # O2O might not be available
+            
+        await session.commit()
 
 
 # Singleton instance

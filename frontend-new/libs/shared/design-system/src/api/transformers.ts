@@ -14,6 +14,9 @@ import type {
   PerformanceDashboardResponse,
   ReworkListResponse,
   BottleneckResponse,
+  OCELLogResponse,
+  OCELStatisticsResponse,
+  OCDFGResponse,
 } from './types';
 
 // ============================================
@@ -139,6 +142,30 @@ export interface ReworkData {
   }>;
   totalReworkCases: number;
   reworkPercentage: number;
+}
+
+export interface OCELLog {
+  id: string;
+  name: string;
+  sourceFile?: string;
+  sourceFormat: string;
+  totalEvents: number;
+  totalObjects: number;
+  totalObjectTypes: number;
+  objectTypes: string[];
+  activities: string[];
+  createdAt: string;
+}
+
+export interface OCELStatistics {
+  logId: string;
+  totalEvents: number;
+  totalObjects: number;
+  totalObjectTypes: number;
+  totalActivities: number;
+  objectTypes: string[];
+  activities: string[];
+  objectsPerType: Record<string, number>;
 }
 
 // ============================================
@@ -327,5 +354,33 @@ export function transformRework(be: ReworkListResponse): ReworkData {
     })),
     totalReworkCases: be.total_rework_cases,
     reworkPercentage: be.rework_percentage,
+  };
+}
+
+export function transformOCELLog(be: OCELLogResponse): OCELLog {
+  return {
+    id: be.id,
+    name: be.name,
+    sourceFile: be.source_file,
+    sourceFormat: be.source_format,
+    totalEvents: be.total_events,
+    totalObjects: be.total_objects,
+    totalObjectTypes: be.total_object_types,
+    objectTypes: be.object_types,
+    activities: be.activities,
+    createdAt: be.created_at,
+  };
+}
+
+export function transformOCELStatistics(be: OCELStatisticsResponse): OCELStatistics {
+  return {
+    logId: be.log_id,
+    totalEvents: be.total_events,
+    totalObjects: be.total_objects,
+    totalObjectTypes: be.total_object_types,
+    totalActivities: be.total_activities,
+    objectTypes: be.object_types,
+    activities: be.activities,
+    objectsPerType: be.objects_per_type,
   };
 }

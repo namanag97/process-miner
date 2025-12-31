@@ -247,9 +247,9 @@ export class GlobalErrorBoundary extends Component<GlobalErrorBoundaryProps, Glo
   };
 
   handleGoHome = (): void => {
-    // Navigate to home and reset
+    // Navigate to workspace and reset
     this.handleReset();
-    window.location.href = '/home';
+    window.location.href = '/workspace';
   };
 
   handleRefresh = (): void => {

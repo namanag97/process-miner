@@ -11,6 +11,9 @@ from src.services.prediction import prediction_service
 from src.services.simulation import simulation_service
 from src.services.workflow import workflow_service
 
+# High-performance services
+from src.services.duckdb_ingestion import duckdb_ingestion_service
+
 __all__ = [
     "analytics_service",
     "conformance_service",
@@ -22,4 +25,7 @@ __all__ = [
     "prediction_service",
     "simulation_service",
     "workflow_service",
+    # High-performance
+    "duckdb_ingestion_service",
 ]
+
