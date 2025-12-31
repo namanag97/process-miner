@@ -317,11 +317,14 @@ class IngestionService:
             activities_json=json.dumps(activities),
         )
         session.add(event_log)
+        # Flush to ensure event_log.id is populated before creating related objects
+        await session.flush()
 
         # Create cases and events
         for case_id, case_events in cases_dict.items():
             # Sort by timestamp
             case_events.sort(key=lambda e: e["timestamp"])
+
 
             # Create variant key (activity sequence)
             variant_key = " -> ".join(e["activity"] for e in case_events)
@@ -337,8 +340,11 @@ class IngestionService:
                 end_time=max(timestamps) if timestamps else None,
             )
             session.add(case)
+            # Flush to ensure case.id is populated before creating events
+            await session.flush()
 
             for event_data in case_events:
+
                 # Extract attributes (non-standard fields)
                 attributes = {
                     k: v

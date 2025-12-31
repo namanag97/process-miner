@@ -4,9 +4,11 @@ export { PlaceholderPage } from './PlaceholderPage';
 export { SettingsPage } from './settings';
 export { NotificationsPage } from './NotificationsPage';
 export { ActivityLogPage } from './ActivityLogPage';
+export { AuditLogsPage } from './AuditLogsPage';
 export { HelpCenterPage } from './HelpCenterPage';
 export { EventLogsPage, UploadWizardPage, LogDetailPage } from './logs';
 export { ProcessExplorerIndexPage, ProcessExplorerPage } from './explorer';
 export { AnalyticsPage } from './analytics';
-export { AIIndexPage, AIInsightsPage, PredictionsPage, PredictorDetailPage } from './ai';
+export { AIIndexPage, AIInsightsPage, AIAssistantPage, PredictionsPage, PredictorDetailPage } from './ai';
 export { TestBenchPage } from './TestBenchPage';
+

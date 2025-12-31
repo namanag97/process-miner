@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ApiClient } from '../api/client';
 import {
   createProcessesModule,
+  createProjectsModule,
   createDiscoveryModule,
   createAnalyticsModule,
   createConformanceModule,
@@ -11,6 +12,7 @@ import {
   createSimulationModule,
   createOrganizationalModule,
   type ProcessesModule,
+  type ProjectsModule,
   type DiscoveryModule,
   type AnalyticsModule,
   type ConformanceModule,
@@ -23,6 +25,7 @@ import {
 // SDK type - properly typed with real modules
 interface ProcessMiningSdk {
   processes: ProcessesModule;
+  projects: ProjectsModule;
   discovery: DiscoveryModule;
   analytics: AnalyticsModule;
   conformance: ConformanceModule;
@@ -88,6 +91,7 @@ export function SDKProvider({
     });
 
     const processesModule = createProcessesModule(client);
+    const projectsModule = createProjectsModule(client);
     const discoveryModule = createDiscoveryModule(client);
     const analyticsModule = createAnalyticsModule(client);
     const conformanceModule = createConformanceModule(client);
@@ -98,6 +102,7 @@ export function SDKProvider({
 
     return {
       processes: processesModule,
+      projects: projectsModule,
       discovery: discoveryModule,
       analytics: analyticsModule,
       conformance: conformanceModule,

@@ -20,6 +20,7 @@ from src.api.routers import (
     organizational_router,
     predictions_router,
     processes_router,
+    projects_router,
     simulation_router,
     visualization_router,
     workflows_router,
@@ -159,6 +160,7 @@ def create_app() -> FastAPI:
         }
 
     # Include routers with API prefix
+    app.include_router(projects_router, prefix=settings.api_prefix)
     app.include_router(processes_router, prefix=settings.api_prefix)
     app.include_router(discovery_router, prefix=settings.api_prefix)
     app.include_router(visualization_router, prefix=settings.api_prefix)

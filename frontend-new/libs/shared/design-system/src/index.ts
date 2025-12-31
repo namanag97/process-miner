@@ -44,4 +44,4 @@ export { SDKProvider, useSDK, queryClient } from './context/SDKContext';
 export * from './api/transformers';
 export { APIError } from './api/client';
 export type { ColumnDetectionResponse } from './api/types';
-
+export type { ProcessSummaryData, PatternResponse } from './api/modules/analytics';

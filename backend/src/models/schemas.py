@@ -32,6 +32,55 @@ class PaginatedResponse(BaseModel):
 
 
 # =============================================================================
+# Projects
+# =============================================================================
+
+
+class ProjectCreateRequest(BaseModel):
+    """Request to create a project."""
+
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = Field(None, max_length=2000)
+    tags: list[str] = Field(default_factory=list)
+
+
+class ProjectUpdateRequest(BaseModel):
+    """Request to update a project."""
+
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    tags: Optional[list[str]] = None
+
+
+class ProjectResponse(BaseModel):
+    """Project response."""
+
+    id: str
+    name: str
+    description: Optional[str]
+    tags: list[str]
+    total_files: int
+    total_analyses: int
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class ProjectListResponse(PaginatedResponse):
+    """Paginated project list."""
+
+    items: list[ProjectResponse]
+
+
+class ProjectDetailResponse(ProjectResponse):
+    """Detailed project response with event logs."""
+
+    event_logs: list["ProcessResponse"]
+
+
+# =============================================================================
 # Processes (Event Logs)
 # =============================================================================
 
