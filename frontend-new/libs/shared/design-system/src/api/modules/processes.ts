@@ -116,11 +116,12 @@ export function createProcessesModule(client: ApiClient): ProcessesModule {
         formData.append('resource_column', metadata.resourceColumn);
       }
 
-      const response = await client.postFormWithProgress<ProcessResponse>(
+      const { promise } = client.postFormWithProgress<ProcessResponse>(
         '/processes/upload',
         formData,
         onProgress
       );
+      const response = await promise;
       return { id: response.id };
     },
 

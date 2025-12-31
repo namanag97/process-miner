@@ -11,3 +11,5 @@ export { createAIModule, type AIModule, type Predictor } from './ai';
 export { createPredictionsModule, type PredictionsModule, type TrainOptions, type PredictionResult } from './predictions';
 export { createSimulationModule, type SimulationModule, type PlayOutOptions, type SimulationModification, type SimulationResult } from './simulation';
 export { createOrganizationalModule, type OrganizationalModule, type SocialNetwork, type ResourceRole, type ResourceProfile, type WorkloadDistribution } from './organizational';
+export { createAuditModule, type AuditModule, type AuditLogEntry, type AuditEventType, type AuditFilters, type CreateAuditLogData } from './audit';
+
