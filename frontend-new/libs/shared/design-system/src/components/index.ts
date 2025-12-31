@@ -36,3 +36,6 @@ export type { DataTableProps, DataTableColumn } from './DataTable';
 
 export { DataSourceCard } from './DataSourceCard';
 export type { DataSourceCardProps, DataSourceInfo } from './DataSourceCard';
+
+export { ProcessNode } from './ProcessNode';
+export type { ProcessNodeData } from './ProcessNode';

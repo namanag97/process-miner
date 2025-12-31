@@ -708,3 +708,132 @@ Context: `conformance.py` Token Replay.
 Critique: We burn billions of cycles to tell the user "70% match."
 Concern: Efficiency matters. If we can make this 1000x more efficient, we can run it on every keystroke, not every day.
 Hypothesis: We treat compute as infinite. It is not.
+
+Group: THE DESIGN SYSTEM SCHISM
+Reviewer: Fictive Kin (Lead: Cameron Koczon / Josh Smith)
+Priority: HIGH
+Question: Why is the "Brain" (SDK) living in the "Skin" (Design System)?
+Context: `frontend-new/libs/shared/design-system/src/context/SDKContext.tsx` bundles the entire API client.
+Critique: A Design System should be a library of visual and interactive components, not a service locator for business logic. This coupling makes it impossible to use the DS in a different context (e.g., a static style guide) without dragging the entire backend dependency tree with it.
+Agency Perspective: We build systems of lasting value. This is a system of "Convenience Debt." The SDK should be a peer, not a parent.
+
+Group: EMOTIONAL STATE ARCHITECTURE
+Reviewer: Fictive Kin
+Priority: MED
+Question: What is the UX of a "Failure to Mine"?
+Context: `ProcessExplorerPage.tsx` (Lines 576-644) handles errors with standard alerts.
+Critique: In a high-stakes business environment, a "Failed to load process map" error is a moment of high anxiety. The current architecture treats errors as a terminal state.
+Agency Perspective: We need "Resilient UX." If the DFG fails, can the user still see the Variants? Error states should be modular and allow partial success, preserving the user's dignity and workflow.
+
+Group: THE LOADING DISSONANCE
+Reviewer: Fictive Kin
+Priority: LOW
+Question: Why do we use "Binary" Skeletons instead of Staggered Entrances?
+Context: `LoadingState.tsx` provides a monolithic skeleton for the whole page.
+Critique: Layout shift is the enemy of polish. When data arrives, the current skeletons "pop" out of existence.
+Agency Perspective: We should implement "Progressive Disclosure." Skeletons should mirror the precise grid of the final content, and components should "stagger" in (using the `stagger-X` classes in `styles.css`) to create a sense of fluidity and speed, regardless of actual latency.
+
+Group: INFORMATION DENSITY ROI
+Reviewer: Fictive Kin
+Priority: HIGH
+Question: Is the Explorer a "Dashboard" or a "Deep Work" tool?
+Context: The 360px right panel in `ProcessExplorerPage.tsx`.
+Critique: We are cramming Variants, Activities, and Edges into a narrow sidebar while the Canvas has 70% of the screen.
+Agency Perspective: We need "Focus Modes." An architectural shift to a "Multi-Pane Master-Detail" layout would allow the user to toggle between "Bird's Eye" (Canvas-heavy) and "Forensic" (Data-heavy) views without the emotional cost of visual clutter.
+
+Group: THE CANVAS IS NOT AN ISLAND
+Reviewer: Fictive Kin
+Priority: MED
+Question: Why does the Process Map feel like a "Plugin"?
+Context: The boundary between `ProcessCanvas.tsx` (ReactFlow) and the rest of the React UI.
+Critique: The interaction between the "List" (Variants) and the "Visual" (Map) is high-latency (callback chains). 
+Agency Perspective: The Map should be the "Source of Truth" for the UI state, not just a visualization. We should move towards a "Shared Interaction Model" where nodes and side-panels share a single animation context.
+
+Group: THE 13" ECONOMY
+Reviewer: Fictive Kin
+Priority: MEDIUM
+Question: Can a Senior Auditor use this on a plane?
+Context: Hardcoded widths like `width: 360` and `height: 56`.
+Critique: Enterprise users are often on laptops. The "Fat Header" + "Fixed Sidebar" + "KPI Bar" is eating 25% of the vertical space before we even see a node.
+Agency Perspective: We should audit for "Vertical Efficiency." Every pixel must earn its keep. Consider a "Auto-Hiding KPI Bar" or a "Compact Header" mode to maximize the meaningful data area.
+
+Group: SEMANTIC COLOR DEBT
+Reviewer: Fictive Kin
+Priority: LOW
+Question: Are we using color for "Meaning" or "Vibe"?
+Context: `ProcessKPIBar.tsx` uses 6 different colors for various metrics.
+Critique: When everything is colorful, nothing is important. 
+Agency Perspective: We should enforce a "Monochrome-First" policy. Color should be reserved ONLY for status (Success/Error) or critical performance thresholds. Using blue, purple, and sky-blue for "Total Cases" vs "Variants" is aesthetic noise that dilutes the "Human" response to critical data.
+
+Group: THE TYPOGRAPHY SYSTEM SMOG
+Reviewer: Fictive Kin
+Priority: MEDIUM
+Question: Do we really need 10 font sizes?
+Context: `theme.ts` (Lines 86-97) defines xs through 5xl.
+Critique: A Design System with too many choices is just a CSS file with extra steps. 
+Agency Perspective: Reduce the cognitive load for developers. A "Scale-based" system (e.g., 1.25x) with 4-5 clearly defined roles (Display, Header, Body, Caption) creates a more cohesive "Graphic Rhythm."
+
+Group: THE "DELIGHT" ARCHITECTURE
+Reviewer: Fictive Kin
+Priority: LOW
+Question: Where is the "Reward" for discovery?
+Context: The transition from "File Upload" to "Process Explorer."
+Critique: The transition is a hard redirect or a simple loading bar. 
+Agency Perspective: This is a "Success Moment." We should architect a "Smooth Morph" transition where the file upload card "becomes" the project header, signaling to the user that their data has successfully "transformed" into value.
+
+Group: ACCESSIBILITY BEYOND CHECKBOXES
+Reviewer: Fictive Kin
+Priority: HIGH
+Question: How does an Executive with Color Blindness read the DFG?
+Context: Edge performance is often communicated via "Red/Green" scales.
+Critique: Our `colorScales.ts` (implied) and `ProcessKPIBar` use green/red/orange.
+Agency Perspective (Cameron Koczon): Accessibility is an architectural requirement, not a feature. We should bake "Double Encoding" (color + icon/thickness) into the core Design System components so that "Insight" is not dependent on specific vision. "Design is a means to a business outcome," and leaving out a segment of users is an ROI failure.
+
+
+Group: THE EXPORT LIE
+Priority: HIGH
+Question: Do we ship the "Whole Truth" or just the "Page 1 Truth"?
+Context: AuditLogsPage.tsx (handleExport function)
+Critique: The export function generates a CSV from the client-side filteredLogs array. If the table is paginated server-side (as implied by useAuditLogs), this button only exports the visible rows, not the complete dataset.
+Concern: In a compliance audit, generating a "Partial Export" without warning is a data integrity failure. The user believes they have the "Log," but they only have "Page 1."
+Hypothesis: We are delegating "Data Exchange" to the Browser instead of the Server, creating a "False sense of completeness."
+
+Group: THE IDENTITY VOID
+Priority: MEDIUM
+Question: Are we building a "Process" for "Ghosts"?
+Context: UserContext.tsx (Line 46: DEFAULT_USER "Process Analyst")
+Critique: The system uses a hardcoded stub user for MVP. While acceptable for a prototype, the lack of an abstract "Identity Provider" interface means every service currently assumes a trusted singelton user.
+Concern: "Retrofitting" auth is the most expensive architectural change. By not injecting an "Identity Principal" into the Service Layer now, we are baking "Insecurity" into the core domain logic.
+Hypothesis: We treat Identity as a "Login Screen" feature rather than a "Contextual Constraint" on every business operation.
+
+Group: THE REFERENTIAL ABYSS
+Priority: HIGH
+Question: Why is a Recommendation an "Orphan"?
+Context: orm.py (Recommendation.case_id is String, not ForeignKey)
+Critique: You explicitly avoided a Foreign Key to "avoid tight coupling."
+Concern: In a relational system, a "Loose String Link" is not decoupling; it is "Data Corruption" waiting to happen. If a Case is re-keyed or deleted, the Recommendation points to the void.
+Hypothesis: We are confusing "Microservice Independence" with "Relational Integrity." Within a single Bounded Context (Process Mining), referential consistency should be enforced, not feared.
+
+Group: STATE DRIFT
+Priority: MEDIUM
+Question: Do we trust the Ledger or the Counter?
+Context: EventLog.total_events (orm.py) vs count(ProcessEvent)
+Critique: You denyormalize the event count onto the Log entity.
+Concern: Denormalization is an optimization that requires strict synchronization. Without database triggers or a "Transactional Aggregate Root" managing this count, a single raw SQL insert or crashed transaction will cause the "Header" to lie about the "Lines."
+Hypothesis: We are manually managing state that the Database Engine is designed to calculate for us.
+
+Group: QUERY IMPEDANCE MATCHING
+Priority: HIGH
+Question: Why are we asking for "Lists" when we need "Graphs"?
+Context: REST API endpoints for Process Maps.
+Critique: Process Mining is inherently Graph-based (Nodes and Edges). REST APIs return Lists of Resources.
+Concern: To reconstruct the Graph on the frontend, we fetch lists of nodes and edges, often over-fetching or under-fetching attributes. A Graph Query Language (GraphQL) would allow the client to request exactly the traversal depth needed.
+Hypothesis: We are fitting a "Round Peg" (Graph Data) into a "Square Hole" (REST Resources), paying the price in network chatiness and payload size.
+
+Group: MEMORY MANAGED BY HOPE
+Priority: CRITICAL
+Question: What happens when the Log is bigger than RAM?
+Context: mining.py (PM4Py conversion loads all events)
+Critique: The bridge between ORM and PM4Py materializes the full dataset in Python memory.
+Concern: Python's overhead for objects is high (small integers are 28 bytes). Loading 1M events might consume 1GB+ of RAM. A 10M event log will crash the container.
+Hypothesis: We lack a "Streaming Architecture." We assume "Small Data" in a "Big Data" domain. We need to process via Batches or Streams, or push compute to the DB/Native layer.

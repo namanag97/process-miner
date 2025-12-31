@@ -22,6 +22,7 @@ export {
   ProcessQuestion,
   DataTable,
   DataSourceCard,
+  ProcessNode,
 } from './components';
 export type {
   AppShellProps,
@@ -40,6 +41,7 @@ export type {
   DataTableColumn,
   DataSourceCardProps,
   DataSourceInfo,
+  ProcessNodeData,
 } from './components';
 
 // Utils
@@ -63,6 +65,7 @@ export {
 
 // Context
 export { SDKProvider, useSDK, queryClient } from './context/SDKContext';
+export type { ProcessMiningSdk } from './context/SDKContext';
 
 // API Client
 export { APIError, API_ERRORS, validateApiResponse } from './api/client';

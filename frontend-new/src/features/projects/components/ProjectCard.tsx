@@ -66,7 +66,7 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
 
         <Text type="secondary" style={{ fontSize: tokens.fontSize.sm }}>
           <ClockCircleOutlined style={{ marginRight: 4 }} />
-          Updated {formatDate(project.updatedAt)}
+          Updated {formatDate(project.updatedAt ?? project.createdAt)}
         </Text>
       </Space>
     </Card>

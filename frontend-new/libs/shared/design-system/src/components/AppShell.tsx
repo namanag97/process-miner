@@ -142,6 +142,7 @@ export function AppShell({
           collapsedWidth={tokens.sidebar.collapsedWidth}
           trigger={null}
           style={siderStyle}
+          className="glass-effect"
         >
           {/* Logo */}
           <div
@@ -319,10 +320,12 @@ export function AppShell({
               zIndex: 10,
               height: 56,
             }}
+            className="glass-effect"
           >
             {/* Header content can be passed as a prop or rendered here */}
           </Header>
           <Content
+            className="surface-noise"
             style={{
               padding: 24,
               minHeight: 'calc(100vh - 56px)',

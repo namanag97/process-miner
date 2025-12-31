@@ -42,7 +42,7 @@ import { tokens } from '@lumina/design-system';
 import { createLogger } from '../../../utils/logger';
 
 // Import utilities and custom nodes
-import { EnhancedActivityNode, EnhancedActivityNodeData } from './EnhancedActivityNode';
+import { ProcessNode, ProcessNodeData } from '@lumina/design-system';
 import {
   applyDagreLayout,
   LayoutDirection,
@@ -99,8 +99,12 @@ export interface ProcessCanvasProps {
 // =============================================================================
 
 const nodeTypes = {
-  enhanced: EnhancedActivityNode,
+  processNode: ProcessNode,
 };
+
+// ============================================
+// INNER CANVAS
+// ============================================
 
 // =============================================================================
 // INNER CANVAS (with ReactFlow hooks)
@@ -160,7 +164,7 @@ function InnerCanvas({
   const processedNodes = useMemo(() => {
     const showPerformance = metricMode === 'performance';
 
-    return dfgNodes.map((node): Node<EnhancedActivityNodeData> => {
+    return dfgNodes.map((node): Node<ProcessNodeData> => {
       const scale = calculateNodeScale(
         node.frequency,
         stats.frequency.max,
@@ -179,22 +183,15 @@ function InnerCanvas({
 
       return {
         id: node.id,
-        type: 'enhanced',
-        position: { x: 0, y: 0 }, // Will be set by layout
+        type: 'processNode',
+        position: { x: 0, y: 0 },
         data: {
           label: node.label,
-          frequency: node.frequency,
-          frequencyPercent: (node.frequency / stats.frequency.max) * 100,
-          avgDuration: node.avgDuration,
-          minDuration: node.minDuration,
-          maxDuration: node.maxDuration,
+          count: node.frequency,
+          performance: node.avgDuration,
           isStart: node.isStart,
           isEnd: node.isEnd,
-          isSelected: node.id === selectedNodeId,
-          isHighlighted: highlightedPath.includes(node.id),
-          showPerformance,
-          performanceColor,
-          scale,
+          isActive: node.id === selectedNodeId,
         },
       };
     });
@@ -343,11 +340,9 @@ function InnerCanvas({
       <MiniMap
         position="bottom-right"
         nodeColor={(node) => {
-          const data = node.data as EnhancedActivityNodeData;
+          const data = node.data as ProcessNodeData;
           if (data?.isStart) return COLORS.border.start;
           if (data?.isEnd) return COLORS.border.end;
-          if (data?.isHighlighted) return COLORS.edge.highlighted;
-          if (data?.showPerformance && data?.performanceColor) return data.performanceColor;
           return tokens.colors.neutral[400];
         }}
         maskColor="rgba(255, 255, 255, 0.85)"

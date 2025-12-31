@@ -1,349 +1,347 @@
-# Process Mining Frontend - Agent Context
+Plan Summary:
 
-> **Copy this document into each new Claude chat to provide context without re-searching the codebase.**
+- 6 Phases covering all migrations and cleanup
+- 4 Features to migrate: Explorer, Analytics, KPI, AI
+- Pattern: Each feature gets index.ts, types.ts, routes.tsx, hooks/, pages/, components/
+- Route Cleanup: Remove all legacy /projects, /home, top-level /explorer, /analytics, /ai routes
+- Navigation: Update AppShell label from "Home" to "Workspace"
 
----
+Key Files to Modify:
 
-## Tech Stack
-- React 19 + TypeScript + Nx Monorepo
-- Ant Design 5 + TanStack Query v5 + React Router v6 + React Flow
-- Bundler: Rspack
-- Backend: FastAPI on port 8001
+- frontend-new/src/App.tsx - Route cleanup
+- frontend-new/libs/shared/design-system/src/components/AppShell.tsx - Nav label
+- frontend-new/src/features/ - 4 new feature directories
 
----
+Files to Delete After Migration:
 
-## Key File Locations
+- src/pages/explorer/, src/pages/kpi/, src/pages/analytics/, src/pages/ai/
+- Legacy src/pages/projects/, src/pages/home/WorkspaceTab.tsx
 
-| Category | Path |
-|----------|------|
-| Pages | `src/pages/` |
-| Design System | `libs/shared/design-system/src/` |
-| SDK Client | `libs/shared/design-system/src/api/` |
-| Zod Schemas | `libs/shared/design-system/src/api/schemas/` |
-| Components | `libs/shared/design-system/src/components/` |
-| Hooks (Design System) | `libs/shared/design-system/src/hooks/` |
-| Hooks (App) | `src/hooks/` |
-| Contexts | `src/context/` + `libs/shared/design-system/src/context/` |
-| Query Keys | `libs/shared/design-system/src/api/queryKeys.ts` |
-| Testing | `src/testing/` |
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Ready to code?
 
----
+Here is Claude's plan:
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+Frontend Feature Migration & Route Cleanup Plan
 
-## SDK Usage Pattern
+Decisions Made
 
-```tsx
-import { useSDK } from '@lumina/design-system';
+- ✅ Migrate all 4 features in order: Explorer → Analytics → KPI → AI
+- ✅ Remove legacy routes completely (no redirects)
+- ✅ Rename navigation "Home" → "Workspace"
 
-function MyComponent() {
-  const sdk = useSDK();
+Overview
 
-  // Use with TanStack Query
-  const { data } = useQuery({
-    queryKey: queryKeys.processes.all(),
-    queryFn: () => sdk.processes.list(),
-  });
-}
-```
+Complete migration of remaining pages to the feature module pattern established in projects, plus route cleanup and navigation improvements.
 
 ---
 
-## Query Hook Pattern
+Phase 1: Explorer Feature Migration
 
-```tsx
-import { useProcesses, useDFG, useProject } from '@lumina/design-system';
+1.1 Create Feature Structure
 
-// Automatically handles loading, error, caching
-const { data, isLoading, error } = useProcesses();
-const { data: dfg } = useDFG(logId);
-```
+src/features/explorer/
+├── index.ts # Feature entry + FeatureRegistry
+├── types.ts # DFG, Variant, Activity types
+├── routes.tsx # Route config with lazy loading
+├── hooks/
+│ └── index.ts # useDFG, useVariants, useActivities
+├── pages/
+│ ├── index.ts
+│ ├── ExplorerIndexPage.tsx # Process selection list
+│ └── ExplorerDetailPage.tsx # Main DFG canvas view
+├── components/
+│ ├── index.ts
+│ ├── ProcessCanvas.tsx # React Flow DFG (move from pages)
+│ ├── ProcessKPIBar.tsx
+│ ├── VariantPanel.tsx
+│ ├── ActivityDetailsPanel.tsx
+│ ├── EdgeDetailsPanel.tsx
+│ ├── FilterPanel.tsx
+│ └── EnhancedActivityNode.tsx
+└── utils/
+├── layoutAlgorithms.ts # Dagre layout
+└── colorScales.ts # Performance colors
 
----
+1.2 Files to Move/Refactor
 
-## Query Keys
+| Source                                      | Destination                                    | Action          |
+| ------------------------------------------- | ---------------------------------------------- | --------------- |
+| pages/explorer/ProcessExplorerIndexPage.tsx | features/explorer/pages/ExplorerIndexPage.tsx  | Move + refactor |
+| pages/explorer/ProcessExplorerPage.tsx      | features/explorer/pages/ExplorerDetailPage.tsx | Move + refactor |
+| pages/explorer/components/\*                | features/explorer/components/\*                | Move            |
+| pages/explorer/utils/\*                     | features/explorer/utils/\*                     | Move            |
 
-```tsx
-import { queryKeys } from '@lumina/design-system';
+1.3 New Hooks to Create (using createQueryHook factory)
 
-queryKeys.projects.all()              // ['projects']
-queryKeys.projects.detail(id)         // ['projects', id]
-queryKeys.processes.all()             // ['processes']
-queryKeys.processes.detail(id)        // ['processes', id]
-queryKeys.dfg.data(logId)             // ['dfg', logId]
-queryKeys.variants.list(logId)        // ['variants', logId]
-queryKeys.analytics.performance(logId) // ['analytics', 'performance', logId]
-queryKeys.analytics.rework(logId)      // ['analytics', 'rework', logId]
-queryKeys.audit.logs()                 // ['audit']
-```
+// hooks/index.ts
+export const useDFG = createQueryHook({
+queryKey: (logId) => ['explorer', 'dfg', logId],
+queryFn: (sdk, logId) => sdk.discovery.buildDFG(logId),
+staleTime: 5 _ 60 _ 1000,
+});
 
----
+export const useVariants = createQueryHook({
+queryKey: (logId) => ['explorer', 'variants', logId],
+queryFn: (sdk, logId) => sdk.discovery.getVariants(logId),
+});
 
-## Zod Validation
+export const useActivities = createQueryHook({
+queryKey: (logId) => ['explorer', 'activities', logId],
+queryFn: (sdk, logId) => sdk.discovery.getActivities(logId),
+});
 
-All API responses are validated at runtime using Zod schemas.
+1.4 Feature Registration
 
-```tsx
-import { validateResponse, ProcessResponseSchema } from '@lumina/design-system';
-
-// In SDK modules - validation happens automatically
-const data = validateResponse(ProcessResponseSchema, apiResponse);
-```
-
-**Schema Files:**
-- `schemas/common.ts` - PaginatedResponse, APIError, validateResponse()
-- `schemas/processes.ts` - EventLog, ColumnDetection, Statistics
-- `schemas/discovery.ts` - DFGNode, DFGEdge, Variant, Activity
-- `schemas/analytics.ts` - Performance, Rework, Bottleneck, CycleTime
-- `schemas/organizational.ts` - SocialNetwork, ResourceProfile, Workload
-- `schemas/projects.ts` - Project, ProjectDetail, CreateProject
-- `schemas/predictions.ts` - Predictor, Prediction, Conformance, Insight
-
----
-
-## Component Library
-
-| Component | Purpose | Import |
-|-----------|---------|--------|
-| `AppShell` | Main layout with sidebar | `@lumina/design-system` |
-| `PageHeader` | Page title + breadcrumb + actions | `@lumina/design-system` |
-| `MetricCard` | KPI display with trend | `@lumina/design-system` |
-| `EmptyState` | No data feedback with action | `@lumina/design-system` |
-| `LoadingState` | Consistent loading (skeleton/spinner) | `@lumina/design-system` |
-| `QueryError` | Error display with retry | `@lumina/design-system` |
-| `ErrorBoundary` | Crash recovery wrapper | `@lumina/design-system` |
-| `DataTable` | Reusable table with search/sort | `@lumina/design-system` |
-| `ProcessQuestion` | Question card with icon | `@lumina/design-system` |
-| `DataSourceCard` | Data source display card | `@lumina/design-system` |
-
----
-
-## User Flow (Primary)
-
-```
-Home
-  └─→ Workspace Tab
-        └─→ Projects Table
-              └─→ Add Project (modal)
-                    └─→ Project Detail Page
-                          └─→ Upload Data (wizard)
-                                └─→ Back to Project
-                                      └─→ Click "Explore" on data
-                                            └─→ Process Questions Page
-                                                  ├─→ Process Explorer (DFG)
-                                                  ├─→ KPI Page (metrics)
-                                                  └─→ Audit Logs
-```
+// index.ts
+FeatureRegistry.register({
+id: 'explorer',
+name: 'Process Explorer',
+version: '1.0.0',
+icon: 'BranchesOutlined',
+navPath: '/explorer',
+navOrder: 3,
+routes: explorerRouteConfig,
+});
 
 ---
 
-## Route Structure
+Phase 2: KPI Feature Migration
 
-```tsx
-/login                                    → LoginPage
-/home                                     → HomePage (Overview | Workspace tabs)
-/projects/:projectId                      → ProjectDetailPage
-/projects/:projectId/upload               → UploadWizardPage
-/projects/:projectId/data/:logId/questions → ProcessQuestionsPage
-/projects/:projectId/data/:logId/explorer  → ProcessExplorerPage
-/projects/:projectId/data/:logId/kpi       → KPIPage
-/audit                                    → AuditLogsPage
-```
+2.1 Create Feature Structure
 
----
+src/features/kpi/
+├── index.ts
+├── types.ts # Performance, CycleTime types
+├── routes.tsx
+├── hooks/
+│ └── index.ts # usePerformance, useCycleTime, etc.
+├── pages/
+│ ├── index.ts
+│ └── KPIPage.tsx # Main KPI page with tabs
+└── components/
+├── index.ts
+├── PerformanceTab.tsx
+├── DeadlinesTab.tsx
+├── UnwantedActivitiesTab.tsx
+└── AutomationTab.tsx
 
-## Page Structure
+2.2 Files to Move/Refactor
 
-```
-src/pages/
-├── home/
-│   ├── HomePage.tsx           # Tab container (Overview | Workspace)
-│   ├── OverviewTab.tsx        # Metrics overview
-│   └── WorkspaceTab.tsx       # Projects table + create modal
-│
-├── projects/
-│   ├── ProjectDetailPage.tsx  # Single project + data sources
-│   └── components/
-│       └── DataSourcesList.tsx
-│
-├── questions/
-│   ├── ProcessQuestionsPage.tsx  # 6 question cards
-│   └── questionsData.ts          # Question definitions
-│
-├── kpi/
-│   ├── KPIPage.tsx               # Tab container for metrics
-│   └── tabs/
-│       ├── PerformanceTab.tsx
-│       ├── DeadlinesTab.tsx
-│       ├── UnwantedActivitiesTab.tsx
-│       └── AutomationTab.tsx
-│
-├── explorer/                     # Process DFG visualization
-├── analytics/                    # Analytics tabs
-├── ai/                          # AI assistant pages
-├── logs/                        # Upload wizard, log detail
-└── settings/                    # User settings
-```
+| Source                | Destination                    | Action                   |
+| --------------------- | ------------------------------ | ------------------------ |
+| pages/kpi/KPIPage.tsx | features/kpi/pages/KPIPage.tsx | Move + refactor          |
+| pages/kpi/tabs/\*     | features/kpi/components/\*     | Move (tabs → components) |
+
+2.3 Feature Registration
+
+FeatureRegistry.register({
+id: 'kpi',
+name: 'KPI Dashboard',
+version: '1.0.0',
+icon: 'DashboardOutlined',
+navPath: '/workspace/:projectId/data/:logId/kpi',
+navOrder: 4,
+routes: kpiRouteConfig,
+});
 
 ---
 
-## Design Tokens
+Phase 3: Analytics Feature Migration
 
-Always use tokens from `@lumina/design-system` - never hardcode colors/spacing.
+3.1 Create Feature Structure
 
-```tsx
-import { tokens } from '@lumina/design-system';
+src/features/analytics/
+├── index.ts
+├── types.ts # PerformanceData, Conformance, Rework types
+├── routes.tsx
+├── hooks/
+│ └── index.ts # useAnalyticsPerformance, useRework, etc.
+├── pages/
+│ ├── index.ts
+│ └── AnalyticsPage.tsx # Main analytics with tabs
+└── components/
+├── index.ts
+├── PerformanceTab.tsx
+├── ConformanceTab.tsx
+├── ReworkTab.tsx
+└── ResourcesTab.tsx
 
-const style = {
-  backgroundColor: tokens.colors.primary[50],
-  padding: tokens.spacing[4],
-  borderRadius: tokens.radius.md,
-};
-```
+3.2 Files to Move/Refactor
 
----
+| Source                            | Destination                                | Action          |
+| --------------------------------- | ------------------------------------------ | --------------- |
+| pages/analytics/AnalyticsPage.tsx | features/analytics/pages/AnalyticsPage.tsx | Move + refactor |
+| pages/analytics/\*Tab.tsx         | features/analytics/components/\*Tab.tsx    | Move            |
 
-## Process Questions (6 Cards)
+3.3 Feature Registration
 
-| Question | Route |
-|----------|-------|
-| What does your process look like? | `/projects/:projectId/data/:logId/explorer` |
-| How long does your process take? | `/projects/:projectId/data/:logId/kpi?tab=performance` |
-| Are you meeting your deadlines? | `/projects/:projectId/data/:logId/kpi?tab=deadlines` |
-| How many unwanted activities? | `/projects/:projectId/data/:logId/kpi?tab=unwanted` |
-| How automated is your process? | `/projects/:projectId/data/:logId/kpi?tab=automation` |
-| Want to look into something else? | Feedback modal |
-
----
-
-## Backend API Endpoints
-
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/processes` | GET | List all event logs |
-| `/processes/:id` | GET | Get single event log |
-| `/processes/upload` | POST | Upload CSV/XES file |
-| `/processes/:id` | DELETE | Delete event log |
-| `/projects` | GET/POST | List/Create projects |
-| `/projects/:id` | GET/PUT/DELETE | Project CRUD |
-| `/visualization/:id/dfg` | GET | Get DFG data |
-| `/visualization/:id/variants` | GET | Get variants |
-| `/analytics/logs/:id/performance` | GET | Performance metrics |
-| `/analytics/logs/:id/rework` | GET | Rework analysis |
-| `/analytics/logs/:id/deadlines` | GET | Deadline metrics |
-| `/analytics/logs/:id/automation` | GET | Automation metrics |
-| `/conformance/logs/:id/check` | POST | Conformance check |
-| `/audit/logs` | GET/POST | Audit log entries |
+FeatureRegistry.register({
+id: 'analytics',
+name: 'Analytics',
+version: '1.0.0',
+icon: 'BarChartOutlined',
+navPath: '/analytics',
+navOrder: 5,
+routes: analyticsRouteConfig,
+});
 
 ---
 
-## Current Implementation Phase
+Phase 4: AI Feature Migration
 
-**Phase 1: Foundation** (COMPLETED)
-- [x] Zod schemas created (7 schema files in `api/schemas/`)
-- [x] HTTP client refactor (retry extraction, AbortController, timeout)
-- [x] Query key constants (`api/queryKeys.ts`)
-- [x] Error handling components (ErrorBoundary, QueryError, LoadingState)
+4.1 Create Feature Structure
 
-**Phase 2: Components & Hooks** (COMPLETED)
-- [x] Query hooks (useProcesses, useDFG, useProjects, useAnalytics, etc.)
-- [x] State hooks (useURLState, useExplorerState, useAuditLogger)
-- [x] New shared components (ProcessQuestion, DataTable, DataSourceCard)
+src/features/ai/
+├── index.ts
+├── types.ts # ChatMessage, ProcessInsight, etc. (from pages/ai/types/)
+├── routes.tsx
+├── hooks/
+│ └── index.ts # useProcessSummary, useChat
+├── pages/
+│ ├── index.ts
+│ ├── AIIndexPage.tsx # AI feature hub
+│ ├── AIAssistantPage.tsx # Chat interface
+│ ├── AIInsightsPage.tsx # Automated insights
+│ ├── PredictionsPage.tsx # ML predictions list
+│ └── PredictorDetailPage.tsx # Single predictor
+├── components/
+│ ├── index.ts
+│ ├── ProcessSelector.tsx
+│ ├── ChatMessage.tsx
+│ └── InsightCard.tsx
+└── utils/
+└── processContextBuilder.ts
 
-**Phase 3: Page Restructure** (COMPLETED)
-- [x] HomePage with Overview/Workspace tabs
-- [x] ProjectDetailPage with data source cards
-- [x] ProcessQuestionsPage with 6 question cards
-- [x] KPIPage with 4 metric tabs
-- [x] Route updates in App.tsx
+4.2 Files to Move/Refactor
 
-**Phase 4: Polish & Integration** (COMPLETED)
-- [x] Remove mock data from AuditLogsPage (uses real API)
-- [x] Audit logging integrated in key pages
-- [x] Testing infrastructure set up (`src/testing/`)
+| Source                    | Destination               | Action             |
+| ------------------------- | ------------------------- | ------------------ |
+| pages/ai/\*.tsx (5 pages) | features/ai/pages/\*.tsx  | Move + refactor    |
+| pages/ai/types/ai.ts      | features/ai/types.ts      | Move + consolidate |
+| pages/ai/components/\*    | features/ai/components/\* | Move               |
+| pages/ai/utils/\*         | features/ai/utils/\*      | Move               |
 
-**REMAINING WORK:**
-- [ ] Write unit tests (85% coverage target)
-- [ ] Remove mock data from AIAssistantPage (needs LLM integration)
-- [ ] Remove mock data from other AI pages
-- [ ] Connect authentication to real backend
-- [ ] Production deployment configuration
+4.3 Feature Registration
 
----
-
-## Testing Infrastructure
-
-```tsx
-import { renderWithProviders, createMockSDK, createMockProject } from '../testing';
-
-// Render with all providers
-const { getByText } = renderWithProviders(<MyComponent />);
-
-// Create mock data
-const project = createMockProject({ name: 'Test' });
-const dfg = createMockDFG();
-```
-
-**Test Files Location:**
-- `src/testing/utils.tsx` - renderWithProviders, createMockSDK
-- `src/testing/mocks/projects.ts` - Project/Process factories
-- `src/testing/mocks/dfg.ts` - DFG/Variant factories
+FeatureRegistry.register({
+id: 'ai',
+name: 'AI & Predictions',
+version: '1.0.0',
+icon: 'RobotOutlined',
+navPath: '/ai',
+navOrder: 6,
+routes: aiRouteConfig,
+});
 
 ---
 
-## Audit Logging
+Phase 5: Route Cleanup (Remove Legacy Routes)
 
-```tsx
-import { useAuditLogger, useKPIAuditLogger } from '../hooks';
+5.1 Remove Legacy Routes from App.tsx
 
-// General logging
-const auditLog = useAuditLogger();
-auditLog('project.created', { projectId: '123', name: 'My Project' });
+Delete the following route definitions entirely:
 
-// Specialized loggers
-const kpiAudit = useKPIAuditLogger();
-kpiAudit.logView(processId, 'performance', projectId);
-```
+- /projects and /projects/\* routes
+- /home route
+- Top-level /explorer (will be replaced by feature route)
+- Top-level /analytics (will be replaced by feature route)
+- Top-level /ai/\* routes (will be replaced by feature route)
 
----
+Keep only workspace-centric routes:
+// Primary routes after cleanup
+{ path: '/workspace', element: <ProjectsListPage /> },
+{ path: '/workspace/:projectId', element: <ProjectDetailPage /> },
+{ path: '/workspace/:projectId/data/:logId/_', /_ nested feature routes \*/ },
 
-## Commands
+5.2 Component Navigation Fixes
 
-```bash
-# Development
-npx nx serve frontend-new     # Dev server (http://localhost:4200)
-npx nx build frontend-new     # Production build
-npx nx test frontend-new      # Run tests
+| File                                                | Current                                     | Fix To                                       |
+| --------------------------------------------------- | ------------------------------------------- | -------------------------------------------- |
+| features/projects/components/ProjectCard.tsx:26     | /projects/${id}                             | /workspace/${id}                             |
+| features/projects/components/DataSourcesList.tsx:29 | /projects/${projectId}/data/${id}/questions | /workspace/${projectId}/data/${id}/questions |
+| pages/home/WorkspaceTab.tsx                         | /projects/{id}                              | /workspace/{id}                              |
+| pages/projects/ProjectDetailPage.tsx                | navigate('/home?tab=workspace')             | navigate('/workspace')                       |
 
-# Storybook
-npm run storybook             # Component dev (port 6006)
+5.3 Clean Up Duplicates
 
-# Quality
-npx nx lint frontend-new      # ESLint
-npx nx graph                  # Dependency visualization
-```
-
----
-
-## Key Files for Common Tasks
-
-| Task | Files to Modify |
-|------|-----------------|
-| Add new API endpoint | `api/modules/*.ts`, `api/schemas/*.ts`, `api/queryKeys.ts` |
-| Add new page | `src/pages/`, `src/App.tsx`, `src/pages/index.ts` |
-| Add shared component | `design-system/components/`, `design-system/index.ts` |
-| Add query hook | `design-system/hooks/`, `design-system/index.ts` |
-| Modify routing | `src/App.tsx` |
-| Update design tokens | `design-system/theme.ts` |
-| Add test | `src/testing/`, component `__tests__/` folder |
+- Remove legacy pages/projects/ProjectDetailPage.tsx (replaced by features/projects/pages/ProjectDetailPage.tsx)
+- Remove legacy pages/home/WorkspaceTab.tsx (replaced by features/projects/pages/ProjectsListPage.tsx)
 
 ---
 
-## Important Patterns
+Phase 6: Navigation Updates (Home → Workspace)
 
-1. **Never use `fetch` directly** - Always use SDK via `useSDK()`
-2. **Always validate API responses** - Use Zod schemas
-3. **Use query keys from constants** - Never hardcode query key strings
-4. **Handle all states** - Loading, Error, Empty, Success
-5. **Use URL state for shareable filters** - `useSearchParams()`
-6. **Memoize list items** - Use `React.memo()` for list components
-7. **Extract hooks for data fetching** - Don't inline `useQuery` in components
-8. **Log important actions** - Use audit logger hooks for tracking
+6.1 AppShell Navigation Changes
+
+File: libs/shared/design-system/src/components/AppShell.tsx
+
+Update default nav items array (~line 47):
+// Before
+{ id: 'home', label: 'Home', icon: 'home' }
+
+// After
+{ id: 'workspace', label: 'Workspace', icon: 'folder' }
+
+6.2 App.tsx Navigation Mapping Updates
+
+File: src/App.tsx
+
+Update getActiveId() function (~line 117):
+
+- Remove 'home' case
+- Keep 'workspace' for /workspace paths
+
+Update handleNavigate() function (~line 136):
+
+- Remove 'home' → '/workspace' mapping (use 'workspace' only)
+
+  6.3 Remove HomePage References
+
+- Delete or update any remaining /home path references
+- Update breadcrumbs that reference "Home" to "Workspace"
+
+---
+
+Implementation Order (Recommended)
+
+1.  Explorer - Most isolated, good for validating pattern
+2.  Analytics - Similar tab structure, standalone
+3.  KPI - Depends on project context (workspace routes)
+4.  AI - Multiple pages, test full feature pattern
+5.  Route Cleanup - After all features migrated
+6.  Navigation Updates - Final polish
+
+---
+
+Files to Delete After Migration
+
+src/pages/explorer/ # Entire directory
+src/pages/kpi/ # Entire directory
+src/pages/analytics/ # Entire directory
+src/pages/ai/ # Entire directory
+src/pages/projects/ # Legacy duplicate
+src/pages/home/WorkspaceTab.tsx # Replaced
+
+---
+
+Verification Checklist
+
+Per Feature:
+
+- Feature structure created
+- Types extracted to types.ts
+- Hooks converted to factory pattern
+- Pages wrapped with FeaturePage
+- Routes configured with lazy loading
+- Feature registered with FeatureRegistry
+- Old files deleted
+- App.tsx routes updated
+- Navigation working
+
+Final:
+
+- All legacy routes redirect correctly
+- No broken navigation links
+- Build passes with no errors
+- All features accessible from sidebar

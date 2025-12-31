@@ -8,13 +8,13 @@ export const tokens = {
   // Primary Palette
   colors: {
     primary: {
-      50: '#EBF5FF',
-      100: '#D6EBFF',
-      200: '#B3D7FF',
-      400: '#4D9FFF',
-      500: '#2563EB',  // Main brand blue
-      600: '#1D4ED8',
-      700: '#1E40AF',
+      50: '#F0F7FF',
+      100: '#E0EFFF',
+      200: '#BADAFF',
+      400: '#4D96FF',
+      500: '#0F52FF',  // Precision Cobalt
+      600: '#0041E6',
+      700: '#0031B3',
     },
     success: {
       50: '#ECFDF5',
@@ -76,10 +76,12 @@ export const tokens = {
   },
   // Border Radius
   radius: {
+    none: 0,
+    xs: 2,   // Architectural precision
     sm: 4,
-    md: 6,
-    lg: 8,
-    xl: 12,
+    md: 8,   // Standard container
+    lg: 16,  // Page surface
+    xl: 24,
     full: 9999,
   },
   // Typography
@@ -87,13 +89,13 @@ export const tokens = {
     xs: 11,
     sm: 12,
     base: 14,
-    md: 15,
-    lg: 16,
-    xl: 18,
-    '2xl': 20,
-    '3xl': 24,
-    '4xl': 32,
-    '5xl': 40,
+    md: 18.66,   // 14 * 1.333
+    lg: 24.88,   // 18.66 * 1.333
+    xl: 33.17,   // 24.88 * 1.333
+    '2xl': 44.22,
+    '3xl': 58.95,
+    '4xl': 78.58,
+    '5xl': 104.75,
   },
   fontWeight: {
     regular: 400,
@@ -163,8 +165,8 @@ export const luminaTheme: ThemeConfig = {
     paddingXS: tokens.spacing[2],
     
     // Layout
-    controlHeight: 36,
-    controlHeightLG: 40,
+    controlHeight: 40,   // More breathing room
+    controlHeightLG: 48,
     controlHeightSM: 32,
   },
   components: {
@@ -180,15 +182,22 @@ export const luminaTheme: ThemeConfig = {
       itemHoverBg: tokens.colors.neutral[200],
     },
     Button: {
-      fontWeight: 500,
-      primaryShadow: tokens.shadow.xs,
+      fontWeight: 600,
+      primaryShadow: '0 4px 12px rgba(15, 82, 255, 0.2)',
+      borderRadius: tokens.radius.xs, // Precise sharp buttons
     },
     Card: {
-      paddingLG: tokens.spacing[4],
+      paddingLG: tokens.spacing[6],
       borderRadiusLG: tokens.radius.lg,
+      boxShadow: tokens.shadow.md,
     },
     Input: {
-      paddingInline: tokens.spacing[3],
+      paddingInline: tokens.spacing[4],
+      borderRadius: tokens.radius.xs,
+    },
+    Table: {
+      borderRadius: tokens.radius.none,
+      fontSize: tokens.fontSize.base,
     },
   },
 };

@@ -18,6 +18,9 @@ import { createLogger } from './utils/logger';
 // Core pages (loaded immediately as they're most used)
 import { HomePage } from './pages';
 
+// Feature module pages
+const ProjectsListPage = lazy(() => import('./features/projects/pages/ProjectsListPage'));
+
 // Lazy-loaded pages (loaded when user navigates to them)
 const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
@@ -113,8 +116,9 @@ function AppLayout() {
   // Determine active nav item from URL
   const getActiveId = () => {
     const path = location.pathname;
-    if (path.startsWith('/home')) return 'home';
-    if (path.startsWith('/projects')) return 'home'; // Projects are part of workspace
+    if (path.startsWith('/workspace')) return 'workspace';
+    if (path.startsWith('/home')) return 'workspace'; // Legacy redirect
+    if (path.startsWith('/projects')) return 'workspace'; // Projects are part of workspace
     if (path.startsWith('/processes')) return 'logs';
     if (path.startsWith('/explorer')) return 'explorer';
     if (path.startsWith('/analytics')) return 'analytics';
@@ -126,12 +130,13 @@ function AppLayout() {
     if (path.startsWith('/activity')) return 'activity';
     if (path.startsWith('/test-bench')) return 'test-bench';
     if (path.startsWith('/audit')) return 'audit-logs';
-    return 'home';
+    return 'workspace';
   };
 
   const handleNavigate = (id: string) => {
     const routes: Record<string, string> = {
-      home: '/home',
+      workspace: '/workspace',
+      home: '/workspace', // Legacy - redirect to workspace
       logs: '/processes',
       explorer: '/explorer',
       analytics: '/analytics',
@@ -144,7 +149,7 @@ function AppLayout() {
       'test-bench': '/test-bench',
     };
     log.debug('Navigating', { from: location.pathname, to: routes[id] });
-    navigate(routes[id] || '/home');
+    navigate(routes[id] || '/workspace');
   };
 
   return (
@@ -157,8 +162,18 @@ function AppLayout() {
     >
       <Suspense fallback={<PageLoader fullPage={false} message="Loading page..." />}>
         <Routes>
-          {/* Phase 1: Base Platform */}
-          <Route path="/home" element={<HomePage />} />
+          {/* Workspace - Primary entry point (Projects-first routing) */}
+          <Route path="/workspace" element={<ProjectsListPage />} />
+          <Route path="/workspace/:projectId" element={<ProjectDetailPage />} />
+          <Route path="/workspace/:projectId/upload" element={<UploadWizardPage />} />
+          <Route path="/workspace/:projectId/data/:logId/questions" element={<ProcessQuestionsPage />} />
+          <Route path="/workspace/:projectId/data/:logId/explorer" element={<ProcessExplorerPage />} />
+          <Route path="/workspace/:projectId/data/:logId/kpi" element={<KPIPage />} />
+
+          {/* Legacy /home redirect */}
+          <Route path="/home" element={<Navigate to="/workspace" replace />} />
+
+          {/* Base Platform */}
           <Route path="/settings/*" element={<SettingsPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/help" element={<HelpCenterPage />} />
@@ -166,7 +181,7 @@ function AppLayout() {
           <Route path="/audit-logs" element={<AuditLogsPage />} />
           <Route path="/audit" element={<AuditLogsPage />} />
 
-          {/* Project-centric flow (new primary flow) */}
+          {/* Legacy project routes - redirect to workspace */}
           <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
           <Route path="/projects/:projectId/upload" element={<UploadWizardPage />} />
           <Route path="/projects/:projectId/data/:logId/questions" element={<ProcessQuestionsPage />} />
@@ -199,8 +214,8 @@ function AppLayout() {
           <Route path="/test-bench" element={<TestBenchPage />} />
 
           {/* Default redirect */}
-          <Route path="/" element={<Navigate to="/home" replace />} />
-          <Route path="*" element={<Navigate to="/home" replace />} />
+          <Route path="/" element={<Navigate to="/workspace" replace />} />
+          <Route path="*" element={<Navigate to="/workspace" replace />} />
         </Routes>
       </Suspense>
     </AppShell>
