@@ -23,6 +23,7 @@ logger = get_logger(__name__)
 class FilterType:
     """Filter type constants."""
 
+    # Basic filters
     TIME_RANGE = "time_range"
     VARIANTS_TOP_K = "variants_top_k"
     VARIANTS_COVERAGE = "variants_coverage"
@@ -32,6 +33,16 @@ class FilterType:
     START_ACTIVITIES = "start_activities"
     END_ACTIVITIES = "end_activities"
     ATTRIBUTE_VALUES = "attribute_values"
+    
+    # Advanced filters (Phase 4 PM4py integration)
+    DIRECTLY_FOLLOWS = "directly_follows"          # Keep cases with A directly before B
+    EVENTUALLY_FOLLOWS = "eventually_follows"      # Keep cases with A eventually before B
+    BETWEEN = "between"                            # Extract sub-cases between two activities
+    FOUR_EYES = "four_eyes"                        # Governance: different resources for A and B
+    REWORK = "rework"                              # Cases with activity repetition
+    PREFIXES = "prefixes"                          # Extract case prefixes
+    SUFFIXES = "suffixes"                          # Extract case suffixes
+    PATH_PERFORMANCE = "path_performance"          # Filter by path duration
 
 
 class FilteringService:
@@ -397,6 +408,317 @@ class FilteringService:
         duration = (time.perf_counter() - start) * 1000
         logger.info(
             "filtering_attribute_values_completed",
+            filtered_traces=len(filtered),
+            duration_ms=round(duration, 2),
+        )
+        return filtered
+
+    # =========================================================================
+    # Advanced Filtering (Phase 4 PM4py Integration)
+    # =========================================================================
+
+    def filter_directly_follows(
+        self,
+        pm4py_log: PM4PyLog,
+        activity_a: str,
+        activity_b: str,
+        retain: bool = True,
+    ) -> PM4PyLog:
+        """
+        Filter cases where activity A directly precedes activity B.
+        
+        Args:
+            pm4py_log: PM4Py event log
+            activity_a: First activity
+            activity_b: Second activity (must directly follow A)
+            retain: If True, keep matching cases; if False, exclude
+            
+        Returns:
+            Filtered PM4Py log
+        """
+        logger.info(
+            "filtering_directly_follows",
+            activity_a=activity_a,
+            activity_b=activity_b,
+            original_traces=len(pm4py_log),
+        )
+        start = time.perf_counter()
+
+        filtered = pm4py.filter_directly_follows_relation(
+            pm4py_log,
+            [activity_a, activity_b],
+            retain=retain,
+        )
+
+        duration = (time.perf_counter() - start) * 1000
+        logger.info(
+            "filtering_directly_follows_completed",
+            filtered_traces=len(filtered),
+            duration_ms=round(duration, 2),
+        )
+        return filtered
+
+    def filter_eventually_follows(
+        self,
+        pm4py_log: PM4PyLog,
+        activity_a: str,
+        activity_b: str,
+        retain: bool = True,
+    ) -> PM4PyLog:
+        """
+        Filter cases where activity A eventually precedes activity B.
+        
+        Args:
+            pm4py_log: PM4Py event log
+            activity_a: First activity
+            activity_b: Second activity (must eventually follow A)
+            retain: If True, keep matching cases; if False, exclude
+            
+        Returns:
+            Filtered PM4Py log
+        """
+        logger.info(
+            "filtering_eventually_follows",
+            activity_a=activity_a,
+            activity_b=activity_b,
+            original_traces=len(pm4py_log),
+        )
+        start = time.perf_counter()
+
+        filtered = pm4py.filter_eventually_follows_relation(
+            pm4py_log,
+            [activity_a, activity_b],
+            retain=retain,
+        )
+
+        duration = (time.perf_counter() - start) * 1000
+        logger.info(
+            "filtering_eventually_follows_completed",
+            filtered_traces=len(filtered),
+            duration_ms=round(duration, 2),
+        )
+        return filtered
+
+    def filter_between(
+        self,
+        pm4py_log: PM4PyLog,
+        activity_a: str,
+        activity_b: str,
+    ) -> PM4PyLog:
+        """
+        Extract sub-cases between two activities.
+        
+        Creates new traces containing only events between A and B (inclusive).
+        
+        Args:
+            pm4py_log: PM4Py event log
+            activity_a: Start activity
+            activity_b: End activity
+            
+        Returns:
+            Log with sub-traces between A and B
+        """
+        logger.info(
+            "filtering_between",
+            activity_a=activity_a,
+            activity_b=activity_b,
+            original_traces=len(pm4py_log),
+        )
+        start = time.perf_counter()
+
+        filtered = pm4py.filter_between(pm4py_log, activity_a, activity_b)
+
+        duration = (time.perf_counter() - start) * 1000
+        logger.info(
+            "filtering_between_completed",
+            filtered_traces=len(filtered),
+            duration_ms=round(duration, 2),
+        )
+        return filtered
+
+    def filter_four_eyes_principle(
+        self,
+        pm4py_log: PM4PyLog,
+        activity_a: str,
+        activity_b: str,
+    ) -> PM4PyLog:
+        """
+        Filter cases where activities A and B are done by different resources.
+        
+        Governance filter for separation of duties compliance.
+        
+        Args:
+            pm4py_log: PM4Py event log
+            activity_a: First activity
+            activity_b: Second activity
+            
+        Returns:
+            Cases where A and B have different resources
+        """
+        logger.info(
+            "filtering_four_eyes_principle",
+            activity_a=activity_a,
+            activity_b=activity_b,
+            original_traces=len(pm4py_log),
+        )
+        start = time.perf_counter()
+
+        filtered = pm4py.filter_four_eyes_principle(pm4py_log, activity_a, activity_b)
+
+        duration = (time.perf_counter() - start) * 1000
+        logger.info(
+            "filtering_four_eyes_completed",
+            filtered_traces=len(filtered),
+            duration_ms=round(duration, 2),
+        )
+        return filtered
+
+    def filter_rework(
+        self,
+        pm4py_log: PM4PyLog,
+        activity: str,
+        min_occurrences: int = 2,
+    ) -> PM4PyLog:
+        """
+        Filter cases with activity rework (repeated execution).
+        
+        Args:
+            pm4py_log: PM4Py event log
+            activity: Activity to check for repetition
+            min_occurrences: Minimum number of occurrences to consider rework
+            
+        Returns:
+            Cases where activity appears multiple times
+        """
+        logger.info(
+            "filtering_rework",
+            activity=activity,
+            min_occurrences=min_occurrences,
+            original_traces=len(pm4py_log),
+        )
+        start = time.perf_counter()
+
+        try:
+            filtered = pm4py.filter_activities_rework(pm4py_log, activity, min_occurrences)
+        except Exception:
+            # Fallback: manual filtering
+            result = PM4PyLog()
+            for trace in pm4py_log:
+                count = sum(1 for e in trace if e.get("concept:name") == activity)
+                if count >= min_occurrences:
+                    result.append(trace)
+            filtered = result
+
+        duration = (time.perf_counter() - start) * 1000
+        logger.info(
+            "filtering_rework_completed",
+            filtered_traces=len(filtered),
+            duration_ms=round(duration, 2),
+        )
+        return filtered
+
+    def filter_prefixes(
+        self,
+        pm4py_log: PM4PyLog,
+        length: int = 5,
+    ) -> PM4PyLog:
+        """
+        Extract prefix of each case up to specified length.
+        
+        Args:
+            pm4py_log: PM4Py event log
+            length: Maximum prefix length
+            
+        Returns:
+            Log with truncated traces (prefixes only)
+        """
+        logger.info(
+            "filtering_prefixes",
+            length=length,
+            original_traces=len(pm4py_log),
+        )
+        start = time.perf_counter()
+
+        filtered = pm4py.filter_prefixes(pm4py_log, length)
+
+        duration = (time.perf_counter() - start) * 1000
+        logger.info(
+            "filtering_prefixes_completed",
+            filtered_traces=len(filtered),
+            duration_ms=round(duration, 2),
+        )
+        return filtered
+
+    def filter_suffixes(
+        self,
+        pm4py_log: PM4PyLog,
+        length: int = 5,
+    ) -> PM4PyLog:
+        """
+        Extract suffix of each case (last N events).
+        
+        Args:
+            pm4py_log: PM4Py event log
+            length: Maximum suffix length
+            
+        Returns:
+            Log with truncated traces (suffixes only)
+        """
+        logger.info(
+            "filtering_suffixes",
+            length=length,
+            original_traces=len(pm4py_log),
+        )
+        start = time.perf_counter()
+
+        filtered = pm4py.filter_suffixes(pm4py_log, length)
+
+        duration = (time.perf_counter() - start) * 1000
+        logger.info(
+            "filtering_suffixes_completed",
+            filtered_traces=len(filtered),
+            duration_ms=round(duration, 2),
+        )
+        return filtered
+
+    def filter_paths_performance(
+        self,
+        pm4py_log: PM4PyLog,
+        path: list[str],
+        min_duration: Optional[float] = None,
+        max_duration: Optional[float] = None,
+    ) -> PM4PyLog:
+        """
+        Filter cases by performance (duration) along a specific path.
+        
+        Args:
+            pm4py_log: PM4Py event log
+            path: Activity sequence to measure
+            min_duration: Minimum path duration in seconds
+            max_duration: Maximum path duration in seconds
+            
+        Returns:
+            Cases where path duration is within bounds
+        """
+        logger.info(
+            "filtering_paths_performance",
+            path=path,
+            min_duration=min_duration,
+            max_duration=max_duration,
+            original_traces=len(pm4py_log),
+        )
+        start = time.perf_counter()
+
+        filtered = pm4py.filter_paths_performance(
+            pm4py_log,
+            path,
+            min_performance=min_duration or 0,
+            max_performance=max_duration or float("inf"),
+        )
+
+        duration = (time.perf_counter() - start) * 1000
+        logger.info(
+            "filtering_paths_performance_completed",
             filtered_traces=len(filtered),
             duration_ms=round(duration, 2),
         )

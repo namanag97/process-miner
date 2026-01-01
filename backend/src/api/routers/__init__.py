@@ -1,5 +1,6 @@
 """API routers."""
 
+from src.api.routers.analyses import router as analyses_router
 from src.api.routers.analytics import router as analytics_router
 from src.api.routers.conformance import router as conformance_router
 from src.api.routers.dev_log import router as dev_log_router
@@ -15,6 +16,7 @@ from src.api.routers.visualization import router as visualization_router
 from src.api.routers.workflows import router as workflows_router
 
 __all__ = [
+    "analyses_router",
     "processes_router",
     "projects_router",
     "discovery_router",
@@ -29,3 +31,4 @@ __all__ = [
     "simulation_router",
     "dev_log_router",
 ]
+

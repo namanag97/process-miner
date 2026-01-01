@@ -71,8 +71,8 @@ class IngestionService:
             precomputed_stats=precomputed_stats,
         )
 
-        # Store the file
-        await self._store_file(file_content, filename, event_log.id)
+        # Store the file and create UploadedFile record
+        await self._store_file(session, file_content, filename, event_log.id)
 
         return event_log
 
@@ -99,8 +99,8 @@ class IngestionService:
             events_data=events_data,
         )
 
-        # Store the file
-        await self._store_file(file_content, filename, event_log.id)
+        # Store the file and create UploadedFile record
+        await self._store_file(session, file_content, filename, event_log.id)
 
         return event_log
 
@@ -491,20 +491,39 @@ class IngestionService:
 
     async def _store_file(
         self,
+        session,
         content: bytes,
         filename: str,
         log_id: str,
+        mime_type: str = None,
     ) -> str:
-        """Store uploaded file using storage service.
+        """Store uploaded file and create UploadedFile record.
         
         Uses abstraction layer that supports local storage (dev)
         and S3/MinIO (production) via configuration.
         """
         from src.services.storage import storage_service
+        from src.models.orm import UploadedFile
+        import hashlib
         
-        return await storage_service.store_event_log_file(content, log_id, filename)
+        # Store to filesystem/S3
+        storage_path = await storage_service.store_event_log_file(content, log_id, filename)
+        
+        # Create DB record
+        uploaded_file = UploadedFile(
+            log_id=log_id,
+            filename=filename,
+            storage_path=storage_path,
+            size_bytes=len(content),
+            mime_type=mime_type,
+            checksum=hashlib.sha256(content).hexdigest(),
+        )
+        session.add(uploaded_file)
+        
+        return storage_path
 
 
 # Singleton instance
 ingestion_service = IngestionService()
+
 

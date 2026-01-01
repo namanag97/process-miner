@@ -327,6 +327,271 @@ class ConformanceService:
             "case_alignments": case_alignments,
         }
 
+    # =========================================================================
+    # Declarative Conformance (Phase 2 PM4py Integration)
+    # =========================================================================
+
+    def check_declare_conformance(
+        self,
+        event_log: EventLog,
+        declare_model: dict | None = None,
+    ) -> dict[str, Any]:
+        """
+        Check conformance against DECLARE constraints.
+        
+        If no model is provided, discovers one from the log first.
+        
+        Args:
+            event_log: The event log to check
+            declare_model: Optional DECLARE model (discovered if not provided)
+            
+        Returns:
+            Dictionary with constraint conformance details
+        """
+        pm4py_log = mining_service._to_pm4py_log(event_log)
+        
+        # Discover DECLARE model if not provided
+        if declare_model is None:
+            declare_model = pm4py.discover_declare(pm4py_log)
+        
+        # Check conformance
+        conformance = pm4py.conformance_declare(pm4py_log, declare_model)
+        
+        # Aggregate results
+        total_traces = len(conformance)
+        conforming_traces = sum(1 for c in conformance if c.get("is_conformant", False))
+        
+        # Extract constraint violations
+        violations = []
+        for i, trace_conf in enumerate(conformance[:50]):  # Limit to 50 traces
+            if not trace_conf.get("is_conformant", True):
+                violations.append({
+                    "trace_index": i,
+                    "violated_constraints": list(trace_conf.get("violated_constraints", []))[:5],
+                })
+        
+        return {
+            "method": "declare",
+            "total_traces": total_traces,
+            "conforming_traces": conforming_traces,
+            "conformance_ratio": conforming_traces / total_traces if total_traces > 0 else 0,
+            "violations": violations,
+            "is_conformant": conforming_traces == total_traces,
+        }
+
+    def check_log_skeleton_conformance(
+        self,
+        event_log: EventLog,
+        log_skeleton: dict | None = None,
+        noise_threshold: float = 0.0,
+    ) -> dict[str, Any]:
+        """
+        Check conformance against a Log Skeleton model.
+        
+        Log Skeleton captures activity occurrence and ordering constraints.
+        
+        Args:
+            event_log: The event log to check
+            log_skeleton: Optional log skeleton model (discovered if not provided)
+            noise_threshold: Fraction of traces allowed to violate constraints
+            
+        Returns:
+            Dictionary with conformance details
+        """
+        pm4py_log = mining_service._to_pm4py_log(event_log)
+        
+        # Discover log skeleton if not provided
+        if log_skeleton is None:
+            log_skeleton = pm4py.discover_log_skeleton(pm4py_log, noise_threshold=noise_threshold)
+        
+        # Check conformance
+        conformance = pm4py.conformance_log_skeleton(pm4py_log, log_skeleton)
+        
+        # Analyze results
+        total_traces = len(conformance)
+        deviations = []
+        conforming_count = 0
+        
+        for i, (is_fit, details) in enumerate(conformance):
+            if is_fit:
+                conforming_count += 1
+            elif i < 50:  # Limit deviation details
+                deviations.append({
+                    "trace_index": i,
+                    "deviation_details": str(details)[:200] if details else None,
+                })
+        
+        return {
+            "method": "log_skeleton",
+            "total_traces": total_traces,
+            "conforming_traces": conforming_count,
+            "conformance_ratio": conforming_count / total_traces if total_traces > 0 else 0,
+            "deviations": deviations,
+            "is_conformant": conforming_count == total_traces,
+        }
+
+    def check_temporal_profile_conformance(
+        self,
+        event_log: EventLog,
+        temporal_profile: dict | None = None,
+        zeta: float = 2.0,
+    ) -> dict[str, Any]:
+        """
+        Check conformance against temporal constraints.
+        
+        Detects activities with unusual time intervals (anomalies).
+        
+        Args:
+            event_log: The event log to check
+            temporal_profile: Optional temporal profile (discovered if not provided)
+            zeta: Number of standard deviations for anomaly threshold
+            
+        Returns:
+            Dictionary with temporal conformance and detected anomalies
+        """
+        pm4py_log = mining_service._to_pm4py_log(event_log)
+        
+        # Discover temporal profile if not provided
+        if temporal_profile is None:
+            temporal_profile = pm4py.discover_temporal_profile(pm4py_log)
+        
+        # Check conformance
+        conformance = pm4py.conformance_temporal_profile(
+            pm4py_log, 
+            temporal_profile,
+            zeta=zeta
+        )
+        
+        # Collect anomalies
+        anomalies = []
+        traces_with_anomalies = 0
+        
+        for i, trace_anomalies in enumerate(conformance):
+            if trace_anomalies:  # Has anomalies
+                traces_with_anomalies += 1
+                if i < 50:  # Limit output
+                    for anomaly in trace_anomalies[:3]:  # Max 3 per trace
+                        anomalies.append({
+                            "trace_index": i,
+                            "activity_pair": anomaly[0] if len(anomaly) > 0 else None,
+                            "expected_avg": anomaly[1] if len(anomaly) > 1 else None,
+                            "expected_std": anomaly[2] if len(anomaly) > 2 else None,
+                            "actual_duration": anomaly[3] if len(anomaly) > 3 else None,
+                        })
+        
+        total_traces = len(conformance)
+        
+        return {
+            "method": "temporal_profile",
+            "total_traces": total_traces,
+            "traces_with_anomalies": traces_with_anomalies,
+            "conformance_ratio": 1 - (traces_with_anomalies / total_traces) if total_traces > 0 else 1,
+            "zeta_threshold": zeta,
+            "anomalies": anomalies[:100],  # Cap anomalies
+            "is_conformant": traces_with_anomalies == 0,
+        }
+
+    # =========================================================================
+    # Model Quality Analysis (Phase 2 PM4py Integration)
+    # =========================================================================
+
+    def check_soundness(
+        self,
+        model: ProcessModel,
+    ) -> dict[str, Any]:
+        """
+        Check if a Petri net is sound (proper completion, no deadlocks).
+        
+        A sound workflow net guarantees that every started case can 
+        complete properly.
+        
+        Returns:
+            Dictionary with soundness verdict and diagnostics
+        """
+        net, im, fm = self._get_petri_net(model)
+        
+        try:
+            is_sound = pm4py.check_soundness(net, im, fm)
+            
+            return {
+                "is_sound": is_sound[0] if isinstance(is_sound, tuple) else is_sound,
+                "diagnostics": is_sound[1] if isinstance(is_sound, tuple) and len(is_sound) > 1 else None,
+            }
+        except Exception as e:
+            return {
+                "is_sound": None,
+                "error": str(e),
+            }
+
+    def calculate_earth_movers_distance(
+        self,
+        event_log: EventLog,
+        model: ProcessModel,
+    ) -> dict[str, float]:
+        """
+        Calculate Earth Mover's Distance between log and model.
+        
+        EMD measures the effort required to transform the log language
+        into the model language. Lower is better.
+        
+        Returns:
+            Dictionary with EMD value
+        """
+        pm4py_log = mining_service._to_pm4py_log(event_log)
+        net, im, fm = self._get_petri_net(model)
+        
+        try:
+            emd = pm4py.compute_emd(pm4py_log, net, im, fm)
+            return {
+                "earth_movers_distance": emd,
+                "interpretation": "Lower EMD indicates better model fit",
+            }
+        except Exception as e:
+            return {
+                "earth_movers_distance": None,
+                "error": str(e),
+            }
+
+    def calculate_model_similarity(
+        self,
+        model1: ProcessModel,
+        model2: ProcessModel,
+    ) -> dict[str, Any]:
+        """
+        Calculate behavioral and structural similarity between two models.
+        
+        Returns:
+            Dictionary with similarity scores
+        """
+        net1, im1, fm1 = self._get_petri_net(model1)
+        net2, im2, fm2 = self._get_petri_net(model2)
+        
+        result = {}
+        
+        # Structural similarity (based on edit distance)
+        try:
+            structural_sim = pm4py.structural_similarity(
+                (net1, im1, fm1),
+                (net2, im2, fm2)
+            )
+            result["structural_similarity"] = structural_sim
+        except Exception as e:
+            result["structural_similarity"] = None
+            result["structural_error"] = str(e)
+        
+        # Behavioral similarity (based on language)
+        try:
+            behavioral_sim = pm4py.behavioral_similarity(
+                (net1, im1, fm1),
+                (net2, im2, fm2)
+            )
+            result["behavioral_similarity"] = behavioral_sim
+        except Exception as e:
+            result["behavioral_similarity"] = None
+            result["behavioral_error"] = str(e)
+        
+        return result
+
     def _token_replay(
         self,
         log,
