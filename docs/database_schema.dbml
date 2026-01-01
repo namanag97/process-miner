@@ -1,0 +1,381 @@
+// DBML - Database Markup Language
+// Use DBML to define your database structure
+// Use this to visualize your database schema at https://dbdiagram.io
+
+Project ProcessMiner {
+  database_type: 'PostgreSQL'
+  Note: 'Process Mining SaaS Database Schema'
+}
+
+// =============================================================================
+// State Machine Enums
+// =============================================================================
+
+Enum LogStatus {
+  uploading
+  validating
+  ready
+  error
+  archived
+}
+
+Enum JobStatus {
+  pending
+  running
+  completed
+  failed
+  cancelled
+}
+
+Enum AnalysisType {
+  discovery
+  conformance
+  enhancement
+  variants
+  bottleneck
+}
+
+Enum AnalysisStatus {
+  pending
+  running
+  completed
+  failed
+}
+
+// =============================================================================
+// Projects (Organization Layer)
+// =============================================================================
+
+Table projects {
+  id varchar(36) [pk, note: 'UUID']
+  name varchar(255) [not null]
+  description text
+  tags_json text [note: 'JSON array of tags']
+  total_files integer [default: 0]
+  total_analyses integer [default: 0]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+}
+
+// =============================================================================
+// Event Logs
+// =============================================================================
+
+Table event_logs {
+  id varchar(36) [pk, note: 'UUID']
+  name varchar(255) [not null]
+  source_file varchar(500)
+  source_format varchar(20) [default: 'csv']
+  project_id varchar(36)
+  total_cases integer [default: 0]
+  total_events integer [default: 0]
+  total_activities integer [default: 0]
+  activities_json text [note: 'Cached activity list']
+  statistics_json text [note: 'Cached stats']
+  status varchar(20) [default: 'ready']
+  error_message text
+  source_log_id varchar(36) [note: 'Parent log for filtered logs']
+  filter_config_json text
+  is_filtered boolean [default: false]
+  filter_stats_json text
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+}
+
+Table uploaded_files {
+  id varchar(36) [pk, note: 'UUID']
+  log_id varchar(36) [unique, not null]
+  filename varchar(500) [not null]
+  storage_path varchar(1000) [not null]
+  size_bytes integer
+  mime_type varchar(100)
+  checksum varchar(64) [note: 'SHA256']
+  created_at timestamp [default: `now()`]
+}
+
+Table analyses {
+  id varchar(36) [pk, note: 'UUID']
+  log_id varchar(36) [not null]
+  name varchar(255) [not null]
+  analysis_type varchar(50) [not null]
+  config_json text
+  status varchar(20) [default: 'pending']
+  error_message text
+  result_summary_json text
+  model_id varchar(36)
+  created_at timestamp [default: `now()`]
+  completed_at timestamp
+}
+
+Table process_cases {
+  id varchar(36) [pk, note: 'UUID']
+  log_id varchar(36) [not null]
+  case_id varchar(255) [not null]
+  variant_key text
+  start_time timestamp
+  end_time timestamp
+}
+
+Table process_events {
+  id varchar(36) [pk, note: 'UUID']
+  case_ref_id varchar(36) [not null]
+  activity varchar(255) [not null]
+  timestamp timestamp [not null]
+  resource varchar(255)
+  attributes_json text
+}
+
+Table process_models {
+  id varchar(36) [pk, note: 'UUID']
+  name varchar(255) [not null]
+  log_id varchar(36)
+  miner_type varchar(50) [not null]
+  model_format varchar(50) [not null]
+  serialized_model bytea [note: 'Pickled PM4Py model']
+  fitness float
+  precision float
+  created_at timestamp [default: `now()`]
+}
+
+Table conformance_results {
+  id varchar(36) [pk, note: 'UUID']
+  log_id varchar(36) [not null]
+  model_id varchar(36) [not null]
+  fitness float [not null]
+  precision float
+  method varchar(50) [default: 'token_replay']
+  generalization float
+  simplicity float
+  f_score float
+  non_fitting_traces integer
+  average_alignment_cost float
+  diagnostics_json text
+  created_at timestamp [default: `now()`]
+}
+
+// =============================================================================
+// Workflows & Async Jobs
+// =============================================================================
+
+Table workflows {
+  id varchar(36) [pk, note: 'UUID']
+  name varchar(255) [not null]
+  steps_json text [not null]
+  schedule varchar(100)
+  is_active boolean [default: true]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+}
+
+Table workflow_runs {
+  id varchar(36) [pk, note: 'UUID']
+  workflow_id varchar(36) [not null]
+  log_id varchar(36)
+  status varchar(50) [default: 'pending']
+  result_json text
+  error text
+  started_at timestamp
+  completed_at timestamp
+}
+
+Table async_jobs {
+  id varchar(36) [pk, note: 'UUID']
+  task_id varchar(255) [unique]
+  job_type varchar(50) [not null]
+  status varchar(20) [default: 'pending']
+  progress integer [default: 0]
+  parameters_json text
+  result_json text
+  error text
+  created_at timestamp [default: `now()`]
+  started_at timestamp
+  completed_at timestamp
+  updated_at timestamp
+}
+
+// =============================================================================
+// OCEL 1.0 (Legacy Object-Centric support)
+// =============================================================================
+
+Table ocel_logs {
+  id varchar(36) [pk]
+  name varchar(255) [not null]
+  source_file varchar(500)
+  source_format varchar(20) [default: 'jsonocel']
+  total_events integer [default: 0]
+  total_objects integer [default: 0]
+  total_object_types integer [default: 0]
+  metadata_json text
+  ocel_data bytea [note: 'Raw OCEL for re-parsing']
+  created_at timestamp [default: `now()`]
+}
+
+Table ocel_object_types {
+  id varchar(36) [pk]
+  log_id varchar(36) [not null]
+  name varchar(255) [not null]
+  object_count integer [default: 0]
+  attributes_schema_json text
+}
+
+Table oc_petri_nets {
+  id varchar(36) [pk]
+  log_id varchar(36) [not null]
+  name varchar(255) [not null]
+  object_types_json text
+  serialized_model bytea
+  created_at timestamp [default: `now()`]
+}
+
+// =============================================================================
+// OCEL 2.0 (Modern Object-Centric standard)
+// =============================================================================
+
+Table ocel2_event_types {
+  id varchar(36) [pk]
+  name varchar(255) [unique, not null]
+  attributes_schema jsonb
+}
+
+Table ocel2_object_types {
+  id varchar(36) [pk]
+  name varchar(255) [unique, not null]
+  attributes_schema jsonb
+}
+
+Table ocel2_events {
+  id varchar(36) [pk]
+  event_type_id varchar(36) [not null]
+  activity varchar(255) [not null]
+  timestamp timestamp [not null]
+  attributes jsonb
+  source_log_id varchar(36)
+  created_at timestamp [default: `now()`]
+}
+
+Table ocel2_objects {
+  id varchar(36) [pk]
+  object_type_id varchar(36) [not null]
+  object_id varchar(255) [not null]
+  attributes jsonb
+  created_at timestamp [default: `now()`]
+}
+
+Table ocel2_e2o_relations {
+  id varchar(36) [pk]
+  event_id varchar(36) [not null]
+  object_id varchar(36) [not null]
+  qualifier varchar(50) [default: 'involved']
+}
+
+Table ocel2_o2o_relations {
+  id varchar(36) [pk]
+  source_object_id varchar(36) [not null]
+  target_object_id varchar(36) [not null]
+  qualifier varchar(50) [not null]
+  attributes jsonb
+  created_at timestamp [default: `now()`]
+}
+
+Table ocel2_object_attribute_changes {
+  id varchar(36) [pk]
+  object_id varchar(36) [not null]
+  event_id varchar(36)
+  attribute_name varchar(255) [not null]
+  old_value text
+  new_value text
+  changed_at timestamp [default: `now()`]
+}
+
+// =============================================================================
+// Analytics & Prediction
+// =============================================================================
+
+Table analytics_cache {
+  id varchar(36) [pk]
+  log_id varchar(36) [not null]
+  metric_type varchar(50) [not null]
+  result_json text
+  computed_at timestamp [default: `now()`]
+  ttl_seconds integer [default: 3600]
+}
+
+Table social_networks {
+  id varchar(36) [pk]
+  log_id varchar(36) [not null]
+  network_type varchar(50) [not null]
+  graph_json text
+  metrics_json text
+  created_at timestamp [default: `now()`]
+}
+
+Table prediction_models {
+  id varchar(36) [pk]
+  log_id varchar(36) [not null]
+  target_type varchar(50) [not null]
+  algorithm varchar(50) [not null]
+  model_binary bytea
+  metrics_json text
+  trained_at timestamp [default: `now()`]
+}
+
+Table predictions {
+  id varchar(36) [pk]
+  model_id varchar(36) [not null]
+  case_prefix_json text
+  prediction_json text
+  confidence float
+  predicted_at timestamp [default: `now()`]
+}
+
+Table recommendations {
+  id varchar(36) [pk]
+  log_id varchar(36) [not null]
+  case_id varchar(255) [not null]
+  signal_type varchar(50) [not null]
+  signal_data_json text
+  action_type varchar(50) [not null]
+  action_params_json text
+  priority varchar(20) [default: 'medium']
+  state varchar(20) [default: 'pending']
+  created_at timestamp [default: `now()`]
+}
+
+// =============================================================================
+// Relationships (Foreign Keys)
+// =============================================================================
+
+Ref: event_logs.project_id > projects.id [delete: set null]
+Ref: event_logs.source_log_id > event_logs.id [delete: cascade]
+Ref: uploaded_files.log_id - event_logs.id [delete: cascade]
+Ref: analyses.log_id > event_logs.id [delete: cascade]
+Ref: analyses.model_id > process_models.id [delete: set null]
+Ref: process_cases.log_id > event_logs.id [delete: cascade]
+Ref: process_events.case_ref_id > process_cases.id [delete: cascade]
+Ref: process_models.log_id > event_logs.id [delete: set null]
+Ref: conformance_results.log_id > event_logs.id [delete: cascade]
+Ref: conformance_results.model_id > process_models.id [delete: cascade]
+Ref: workflow_runs.workflow_id > workflows.id [delete: cascade]
+Ref: workflow_runs.log_id > event_logs.id [delete: set null]
+
+// Legacy OCEL Relationships
+Ref: ocel_object_types.log_id > ocel_logs.id [delete: cascade]
+Ref: oc_petri_nets.log_id > ocel_logs.id [delete: cascade]
+
+// OCEL 2.0 Relationships
+Ref: ocel2_events.event_type_id > ocel2_event_types.id [delete: cascade]
+Ref: ocel2_events.source_log_id > event_logs.id [delete: set null]
+Ref: ocel2_objects.object_type_id > ocel2_object_types.id [delete: cascade]
+Ref: ocel2_e2o_relations.event_id > ocel2_events.id [delete: cascade]
+Ref: ocel2_e2o_relations.object_id > ocel2_objects.id [delete: cascade]
+Ref: ocel2_o2o_relations.source_object_id > ocel2_objects.id [delete: cascade]
+Ref: ocel2_o2o_relations.target_object_id > ocel2_objects.id [delete: cascade]
+Ref: ocel2_object_attribute_changes.object_id > ocel2_objects.id [delete: cascade]
+Ref: ocel2_object_attribute_changes.event_id > ocel2_events.id [delete: set null]
+
+// Analytics Relationships
+Ref: analytics_cache.log_id > event_logs.id [delete: cascade]
+Ref: social_networks.log_id > event_logs.id [delete: cascade]
+Ref: prediction_models.log_id > event_logs.id [delete: cascade]
+Ref: predictions.model_id > prediction_models.id [delete: cascade]
+Ref: recommendations.log_id > event_logs.id [delete: cascade]

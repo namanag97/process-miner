@@ -17,6 +17,8 @@ import {
   CloseOutlined,
 } from '@ant-design/icons';
 import { registerDevConsoleCallback } from '@lumina/design-system';
+import { useBackendLogs } from '../hooks/useBackendLogs';
+import { BackendMetricsPanel } from './BackendMetricsPanel';
 
 const { Text } = Typography;
 
@@ -236,6 +238,9 @@ export function DevConsole() {
     };
   }, []);
 
+  // Connect to backend SSE stream for observability logs
+  const backendObservability = useBackendLogs();
+
   // Keyboard shortcut: Ctrl+Shift+D
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -342,6 +347,9 @@ export function DevConsole() {
           </Space>
         }
       >
+        {/* Backend Metrics Panel */}
+        <BackendMetricsPanel observability={backendObservability} />
+
         {/* Tabs & Filter */}
         <div style={{ marginBottom: 12, display: 'flex', gap: 12, alignItems: 'center' }}>
           <Tabs

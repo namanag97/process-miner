@@ -30,10 +30,13 @@ from src.models.schemas import (
 from src.services.ingestion import ingestion_service
 from src.services.mining import mining_service
 from src.services.duckdb_ingestion import duckdb_ingestion_service
+# Domain model imports for new architecture
+from src.domain.repositories import SQLAlchemyEventLogRepository
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/processes", tags=["Processes"])
+
 
 
 # =============================================================================
@@ -737,3 +740,115 @@ async def get_activities(
         duration_ms=round(duration_ms, 2),
     )
     return activities
+
+
+# =============================================================================
+# Domain Model Integration (New Architecture Demo)
+# =============================================================================
+
+
+@router.get("/{process_id}/domain/analysis")
+async def get_domain_analysis(
+    db: DBSession,
+    process_id: str,
+):
+    """
+    Get process analysis using the new rich domain model.
+    
+    This endpoint demonstrates the improved architecture:
+    1. Repository pattern for data access
+    2. EventLogAggregate for domain logic
+    3. PM4Py log caching (single conversion)
+    4. Computed properties on domain entities
+    
+    Returns aggregate statistics, variant analysis, and PM4Py cache status.
+    """
+    import pm4py
+    
+    logger.info("domain_analysis_started", process_id=process_id)
+    start_time = time.perf_counter()
+    
+    # 1. Load via repository (eager loading)
+    repo = SQLAlchemyEventLogRepository(db)
+    aggregate = await repo.get(process_id)
+    
+    if not aggregate:
+        logger.warning("process_not_found", process_id=process_id)
+        raise HTTPException(status_code=404, detail=f"Process not found: {process_id}")
+    
+    repo_load_ms = (time.perf_counter() - start_time) * 1000
+    
+    # 2. First PM4Py conversion (builds cache)
+    pm4py_start = time.perf_counter()
+    pm4py_log = aggregate.to_pm4py_log()
+    first_conversion_ms = (time.perf_counter() - pm4py_start) * 1000
+    
+    # 3. Second PM4Py access (cache hit)
+    cache_start = time.perf_counter()
+    pm4py_log_cached = aggregate.to_pm4py_log()  # Should be instant
+    cache_hit_ms = (time.perf_counter() - cache_start) * 1000
+    
+    # 4. Use PM4Py for analysis (uses cached log)
+    pm4py_analysis_start = time.perf_counter()
+    dfg, start_acts, end_acts = pm4py.discover_dfg(pm4py_log_cached)
+    pm4py_analysis_ms = (time.perf_counter() - pm4py_analysis_start) * 1000
+    
+    # 5. Get domain computed properties
+    stats = aggregate.statistics
+    variant_stats = aggregate.get_variant_stats(top_n=5)
+    
+    total_ms = (time.perf_counter() - start_time) * 1000
+    
+    logger.info(
+        "domain_analysis_completed",
+        process_id=process_id,
+        repo_load_ms=round(repo_load_ms, 2),
+        first_conversion_ms=round(first_conversion_ms, 2),
+        cache_hit_ms=round(cache_hit_ms, 2),
+        pm4py_analysis_ms=round(pm4py_analysis_ms, 2),
+        total_ms=round(total_ms, 2),
+    )
+    
+    return {
+        "process_id": aggregate.id,
+        "name": aggregate.name,
+        
+        # Statistics from domain aggregate
+        "statistics": {
+            "total_events": stats.total_events,
+            "total_cases": stats.total_cases,
+            "total_activities": stats.total_activities,
+            "total_variants": stats.total_variants,
+            "avg_events_per_case": round(stats.avg_events_per_case, 2),
+            "avg_case_duration_seconds": stats.avg_case_duration_seconds,
+        },
+        
+        # Top variants from domain model
+        "top_variants": [
+            {
+                "variant": v.sequence.to_trace_string(),
+                "case_count": v.case_count,
+                "frequency_percent": round(v.frequency_percent, 2),
+                "complexity_score": round(v.complexity_score, 4),
+                "has_rework": v.sequence.has_rework,
+            }
+            for v in variant_stats
+        ],
+        
+        # DFG summary from PM4Py (using cached log)
+        "dfg_summary": {
+            "edges_count": len(dfg),
+            "start_activities": list(start_acts.keys())[:5],
+            "end_activities": list(end_acts.keys())[:5],
+        },
+        
+        # Performance metrics (demonstrates caching benefit)
+        "performance": {
+            "repository_load_ms": round(repo_load_ms, 2),
+            "first_pm4py_conversion_ms": round(first_conversion_ms, 2),
+            "cached_pm4py_access_ms": round(cache_hit_ms, 2),
+            "pm4py_dfg_analysis_ms": round(pm4py_analysis_ms, 2),
+            "total_ms": round(total_ms, 2),
+            "cache_speedup": f"{round(first_conversion_ms / max(cache_hit_ms, 0.001), 1)}x",
+        },
+    }
