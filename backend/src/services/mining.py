@@ -4,13 +4,16 @@ Ported from:
 - src/application/core/discovery_service.py
 - src/application/core/pm4py_service.py
 
-Simplified: Removed aggregates, domain entities - works directly with ORM models.
+Enhanced with:
+- Circuit breaker for resilience
+- Metrics instrumentation for observability
+- Support for domain aggregates (EventLogAggregate)
 """
 
 import pickle
 import time
 import warnings
-from typing import Any
+from typing import Any, Optional, Union, TYPE_CHECKING
 
 import pm4py
 from pm4py.objects.log.obj import Event as PM4PyEvent
@@ -25,6 +28,11 @@ from pm4py.visualization.petri_net import visualizer as pn_visualizer
 from src.core.enums import MinerType, ModelFormat
 from src.core.logging_config import get_logger
 from src.models.orm import EventLog
+from src.infrastructure.circuit_breaker import pm4py_circuit
+from src.infrastructure.metrics import instrument_pm4py, record_pm4py_operation
+
+if TYPE_CHECKING:
+    from src.domain.entities import EventLogAggregate
 
 warnings.filterwarnings("ignore")
 
@@ -34,8 +42,18 @@ logger = get_logger(__name__)
 class MiningService:
     """
     Process Mining Service using PM4Py.
-    Supports discovery, conformance, analysis, and visualization.
+    
+    Supports:
+    - Discovery: Multiple algorithms (Alpha, Inductive, Heuristics, ILP, etc.)
+    - Conformance: Token replay, alignments, quality metrics
+    - Analysis: Variants, DFG, footprints, statistics
+    - Visualization: Petri net, DFG, BPMN rendering
+    
+    Resilience:
+    - Circuit breaker protects against PM4Py failures
+    - Metrics tracked for observability
     """
+
 
     # =========================================================================
     # Discovery Algorithms

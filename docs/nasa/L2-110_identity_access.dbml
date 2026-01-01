@@ -1,0 +1,447 @@
+// ============================================================================
+// L2-110: IDENTITY & ACCESS MANAGEMENT SYSTEM (IAMS)
+// File: L1-100_ground_segment/L2-110_identity_access.dbml
+// Segment: L1-100 Ground Segment
+// ============================================================================
+// Subsystems:
+//   L3-111: Authentication Subsystem
+//   L3-112: Authorization Subsystem
+//   L3-113: Session Management Subsystem
+// ============================================================================
+// Interfaces:
+//   IF-001: Provides auth tokens to ALL systems
+//   IF-IAMS-001: Receives user credentials
+//   IF-IAMS-002: Integrates with SSO providers
+// ============================================================================
+
+// ============================================================================
+// L3-111: AUTHENTICATION SUBSYSTEM
+// ============================================================================
+
+Table auth_providers {
+  id uuid [pk, default: `gen_random_uuid()`, note: 'Provider instance ID']
+  org_id uuid [ref: > organizations.id, note: 'FK to tenant']
+  
+  provider_type sso_provider_type [not null, note: 'SAML, OIDC, etc.']
+  name varchar(255) [not null, note: 'Display name']
+  is_enabled boolean [default: true]
+  is_default boolean [default: false, note: 'Default for org']
+  
+  // Provider Configuration (encrypted)
+  config_encrypted text [not null, note: 'Encrypted JSON config']
+  
+  // SAML specific
+  entity_id varchar(500) [default: null]
+  sso_url varchar(500) [default: null]
+  certificate text [default: null]
+  
+  // OIDC specific
+  client_id varchar(255) [default: null]
+  client_secret_encrypted varchar(500) [default: null]
+  authorization_url varchar(500) [default: null]
+  token_url varchar(500) [default: null]
+  userinfo_url varchar(500) [default: null]
+  
+  // Attribute Mapping
+  attribute_mapping jsonb [default: '{}', note: 'Maps provider attrs to user fields']
+  
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  indexes {
+    (org_id, provider_type)
+    (org_id, is_default)
+  }
+  
+  Note: 'SSO provider configurations for federated authentication'
+}
+
+Table auth_attempts {
+  id uuid [pk, default: `gen_random_uuid()`]
+  
+  email varchar(255) [not null]
+  org_id uuid [ref: > organizations.id, default: null]
+  user_id uuid [ref: > users.id, default: null]
+  
+  attempt_type auth_attempt_type [not null]
+  status auth_attempt_status [not null]
+  
+  // Context
+  ip_address inet [not null]
+  user_agent text [default: null]
+  
+  // Geo (resolved async)
+  geo_country varchar(2) [default: null]
+  geo_region varchar(100) [default: null]
+  geo_city varchar(100) [default: null]
+  
+  // Failure details
+  failure_reason varchar(100) [default: null]
+  
+  created_at timestamp [default: `now()`]
+  
+  indexes {
+    (email, created_at)
+    (user_id, created_at)
+    (ip_address, created_at)
+    (status, created_at)
+  }
+  
+  Note: 'Tracks all authentication attempts for security monitoring'
+}
+
+Table password_reset_tokens {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [ref: > users.id, not null]
+  
+  token_hash varchar(255) [not null, unique]
+  
+  expires_at timestamp [not null]
+  used_at timestamp [default: null]
+  
+  // Context
+  requested_ip inet [default: null]
+  used_ip inet [default: null]
+  
+  created_at timestamp [default: `now()`]
+  
+  indexes {
+    token_hash [unique]
+    (user_id, expires_at)
+  }
+  
+  Note: 'Password reset tokens with expiration'
+}
+
+Table mfa_configurations {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [ref: > users.id, not null, unique]
+  
+  is_enabled boolean [default: false]
+  
+  // TOTP
+  totp_secret_encrypted varchar(255) [default: null]
+  totp_verified_at timestamp [default: null]
+  
+  // Backup codes
+  backup_codes_hash text[] [default: '{}', note: 'Hashed backup codes']
+  backup_codes_used int [default: 0]
+  
+  // Recovery
+  recovery_email varchar(255) [default: null]
+  recovery_phone varchar(20) [default: null]
+  
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  indexes {
+    user_id [unique]
+  }
+  
+  Note: 'MFA configuration per user'
+}
+
+Table mfa_challenges {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [ref: > users.id, not null]
+  session_id uuid [ref: > sessions.id, default: null]
+  
+  challenge_type mfa_challenge_type [not null]
+  status mfa_challenge_status [default: 'PENDING']
+  
+  // For email/SMS codes
+  code_hash varchar(255) [default: null]
+  
+  attempts int [default: 0]
+  max_attempts int [default: 3]
+  
+  expires_at timestamp [not null]
+  verified_at timestamp [default: null]
+  
+  created_at timestamp [default: `now()`]
+  
+  indexes {
+    (user_id, status, expires_at)
+  }
+  
+  Note: 'Active MFA challenges'
+}
+
+// ============================================================================
+// L3-112: AUTHORIZATION SUBSYSTEM
+// ============================================================================
+
+Table roles {
+  id uuid [pk, default: `gen_random_uuid()`]
+  org_id uuid [ref: > organizations.id, default: null, note: 'null = system role']
+  
+  name varchar(100) [not null]
+  display_name varchar(255) [not null]
+  description text [default: null]
+  
+  is_system boolean [default: false, note: 'Built-in immutable role']
+  is_default boolean [default: false, note: 'Assigned to new users']
+  
+  // Role hierarchy
+  parent_role_id uuid [ref: > roles.id, default: null]
+  
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  indexes {
+    (org_id, name) [unique]
+    (org_id, is_default)
+  }
+  
+  Note: 'Role definitions (system and custom)'
+}
+
+Table permissions {
+  id uuid [pk, default: `gen_random_uuid()`]
+  
+  resource_type varchar(100) [not null, note: 'Entity type (process, dashboard, etc.)']
+  action varchar(50) [not null, note: 'Action (create, read, update, delete, execute)']
+  
+  name varchar(100) [not null, unique]
+  display_name varchar(255) [not null]
+  description text [default: null]
+  
+  // Grouping
+  category varchar(100) [default: null]
+  
+  created_at timestamp [default: `now()`]
+  
+  indexes {
+    (resource_type, action) [unique]
+    category
+  }
+  
+  Note: 'Permission definitions (system-managed)'
+}
+
+Table role_permissions {
+  id uuid [pk, default: `gen_random_uuid()`]
+  role_id uuid [ref: > roles.id, not null]
+  permission_id uuid [ref: > permissions.id, not null]
+  
+  // Conditions (optional ABAC)
+  conditions jsonb [default: null, note: 'Attribute-based conditions']
+  
+  granted_at timestamp [default: `now()`]
+  
+  indexes {
+    (role_id, permission_id) [unique]
+    permission_id
+  }
+  
+  Note: 'Role-to-permission assignments'
+}
+
+Table user_roles {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [ref: > users.id, not null]
+  role_id uuid [ref: > roles.id, not null]
+  
+  // Scope (optional - for resource-specific roles)
+  scope_type varchar(100) [default: null, note: 'e.g., process, project']
+  scope_id uuid [default: null, note: 'Specific resource ID']
+  
+  granted_by uuid [ref: > users.id, default: null]
+  granted_at timestamp [default: `now()`]
+  expires_at timestamp [default: null]
+  
+  indexes {
+    (user_id, role_id, scope_type, scope_id) [unique]
+    (role_id)
+    (scope_type, scope_id)
+  }
+  
+  Note: 'User-to-role assignments with optional scoping'
+}
+
+Table resource_permissions {
+  id uuid [pk, default: `gen_random_uuid()`]
+  
+  resource_type varchar(100) [not null]
+  resource_id uuid [not null]
+  
+  // Grantee (one of these)
+  user_id uuid [ref: > users.id, default: null]
+  team_id uuid [ref: > teams.id, default: null]
+  role_id uuid [ref: > roles.id, default: null]
+  
+  permission permission_level [not null]
+  
+  // Inheritance
+  inherited_from uuid [ref: > resource_permissions.id, default: null]
+  
+  granted_by uuid [ref: > users.id]
+  granted_at timestamp [default: `now()`]
+  expires_at timestamp [default: null]
+  
+  indexes {
+    (resource_type, resource_id)
+    user_id
+    team_id
+    role_id
+  }
+  
+  Note: 'Direct resource-level permissions'
+}
+
+// ============================================================================
+// L3-113: SESSION MANAGEMENT SUBSYSTEM
+// ============================================================================
+
+Table sessions {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [ref: > users.id, not null]
+  
+  // Token
+  token_hash varchar(255) [not null, unique]
+  refresh_token_hash varchar(255) [default: null]
+  
+  // Device info
+  device_id varchar(255) [default: null]
+  device_name varchar(255) [default: null]
+  device_type device_type [default: null]
+  
+  // Context
+  ip_address inet [default: null]
+  user_agent text [default: null]
+  
+  // Geo
+  geo_country varchar(2) [default: null]
+  geo_city varchar(100) [default: null]
+  
+  // Lifecycle
+  is_active boolean [default: true]
+  last_activity_at timestamp [default: `now()`]
+  expires_at timestamp [not null]
+  revoked_at timestamp [default: null]
+  revoked_reason varchar(100) [default: null]
+  
+  created_at timestamp [default: `now()`]
+  
+  indexes {
+    token_hash [unique]
+    (user_id, is_active)
+    (user_id, expires_at)
+    last_activity_at
+  }
+  
+  Note: 'Active user sessions'
+}
+
+Table api_keys {
+  id uuid [pk, default: `gen_random_uuid()`]
+  org_id uuid [ref: > organizations.id, not null]
+  user_id uuid [ref: > users.id, default: null, note: 'null = org-level key']
+  
+  name varchar(255) [not null]
+  description text [default: null]
+  
+  key_prefix varchar(10) [not null, note: 'First 8 chars for identification']
+  key_hash varchar(255) [not null, unique]
+  
+  // Permissions
+  scopes text[] [default: '{}', note: 'Allowed API scopes']
+  
+  // Restrictions
+  allowed_ips inet[] [default: null, note: 'IP whitelist']
+  rate_limit_per_minute int [default: 60]
+  
+  status api_key_status [default: 'ACTIVE']
+  
+  // Usage tracking
+  last_used_at timestamp [default: null]
+  last_used_ip inet [default: null]
+  total_requests bigint [default: 0]
+  
+  expires_at timestamp [default: null]
+  
+  created_at timestamp [default: `now()`]
+  revoked_at timestamp [default: null]
+  revoked_by uuid [ref: > users.id, default: null]
+  
+  indexes {
+    key_prefix
+    key_hash [unique]
+    (org_id, status)
+    (user_id, status)
+  }
+  
+  Note: 'API keys for programmatic access'
+}
+
+Table oauth_tokens {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [ref: > users.id, not null]
+  provider_id uuid [ref: > auth_providers.id, not null]
+  
+  access_token_encrypted text [not null]
+  refresh_token_encrypted text [default: null]
+  
+  token_type varchar(50) [default: 'Bearer']
+  scope text [default: null]
+  
+  expires_at timestamp [default: null]
+  refresh_expires_at timestamp [default: null]
+  
+  // Provider user info
+  provider_user_id varchar(255) [default: null]
+  provider_email varchar(255) [default: null]
+  
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  indexes {
+    (user_id, provider_id) [unique]
+  }
+  
+  Note: 'OAuth tokens from external providers'
+}
+
+// ============================================================================
+// SUPPORTING ENUMS FOR THIS SYSTEM
+// ============================================================================
+
+Enum auth_attempt_type {
+  PASSWORD [note: 'Username/password login']
+  SSO [note: 'SSO provider login']
+  API_KEY [note: 'API key auth']
+  MFA [note: 'MFA verification']
+  REFRESH [note: 'Token refresh']
+}
+
+Enum auth_attempt_status {
+  SUCCESS
+  FAILED_CREDENTIALS
+  FAILED_MFA
+  FAILED_LOCKED
+  FAILED_DISABLED
+  FAILED_EXPIRED
+}
+
+Enum mfa_challenge_type {
+  TOTP [note: 'Time-based OTP']
+  SMS [note: 'SMS code']
+  EMAIL [note: 'Email code']
+  BACKUP_CODE [note: 'Backup code']
+  PUSH [note: 'Push notification']
+}
+
+Enum mfa_challenge_status {
+  PENDING
+  VERIFIED
+  FAILED
+  EXPIRED
+}
+
+Enum device_type {
+  DESKTOP
+  MOBILE
+  TABLET
+  API
+  UNKNOWN
+}

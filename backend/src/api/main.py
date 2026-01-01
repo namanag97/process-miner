@@ -33,6 +33,7 @@ from src.api.routers import (
     workflows_router,
 )
 from src.api.routers.health import router as health_router, mark_startup_complete
+from src.api.routers.dev_logs_stream import router as dev_logs_stream_router
 from src.core.config import get_settings
 from src.core.exceptions import AppException
 from src.core.logging_config import configure_logging, get_logger
@@ -265,6 +266,7 @@ def create_app() -> FastAPI:
     app.include_router(predictions_router, prefix=settings.api_prefix)
     app.include_router(simulation_router, prefix=settings.api_prefix)
     app.include_router(dev_log_router, prefix=settings.api_prefix)
+    app.include_router(dev_logs_stream_router, prefix=settings.api_prefix)
 
     return app
 
