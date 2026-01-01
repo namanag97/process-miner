@@ -78,6 +78,29 @@ class MiningService:
             result = self._discover_heuristics(pm4py_log), ModelFormat.PETRI_NET
         elif miner_type == MinerType.DFG:
             result = self._discover_dfg(pm4py_log), ModelFormat.DFG
+        elif miner_type == MinerType.PERFORMANCE_DFG:
+            result = self._discover_performance_dfg(pm4py_log), ModelFormat.PERFORMANCE_DFG
+        # Advanced algorithms (Phase 1 PM4py integration)
+        elif miner_type == MinerType.ILP:
+            result = pm4py.discover_petri_net_ilp(pm4py_log), ModelFormat.PETRI_NET
+        elif miner_type == MinerType.POWL:
+            result = pm4py.discover_powl(pm4py_log), ModelFormat.POWL
+        elif miner_type == MinerType.BPMN_INDUCTIVE:
+            result = pm4py.discover_bpmn_inductive(pm4py_log), ModelFormat.BPMN
+        elif miner_type == MinerType.DECLARE:
+            result = pm4py.discover_declare(pm4py_log), ModelFormat.DECLARE
+        elif miner_type == MinerType.LOG_SKELETON:
+            result = pm4py.discover_log_skeleton(pm4py_log), ModelFormat.LOG_SKELETON
+        elif miner_type == MinerType.TEMPORAL_PROFILE:
+            result = pm4py.discover_temporal_profile(pm4py_log), ModelFormat.TEMPORAL_PROFILE
+        elif miner_type == MinerType.PREFIX_TREE:
+            result = pm4py.discover_prefix_tree(pm4py_log), ModelFormat.PREFIX_TREE
+        elif miner_type == MinerType.TRANSITION_SYSTEM:
+            result = pm4py.discover_transition_system(pm4py_log), ModelFormat.TRANSITION_SYSTEM
+        elif miner_type == MinerType.BATCHES:
+            result = pm4py.discover_batches(pm4py_log), ModelFormat.BATCHES
+        elif miner_type == MinerType.CORRELATION:
+            result = pm4py.correlation_miner(pm4py_log), ModelFormat.DFG
         else:
             raise ValueError(f"Unknown miner type: {miner_type}")
 
@@ -119,6 +142,270 @@ class MiningService:
     def _discover_performance_dfg(self, log: PM4PyLog) -> tuple[dict, dict, dict]:
         """Directly-Follows Graph with performance metrics."""
         return pm4py.discover_performance_dfg(log)
+
+    # =========================================================================
+    # Advanced Discovery Algorithms (Phase 1 PM4py Integration)
+    # =========================================================================
+
+    def discover_ilp(self, event_log: EventLog, alpha: float = 1.0) -> tuple[Any, ModelFormat]:
+        """
+        ILP Miner - Integer Linear Programming based discovery.
+        
+        Produces block-structured Petri nets with guaranteed soundness.
+        
+        Args:
+            event_log: Source event log
+            alpha: Noise filtering parameter (0.0-1.0, default 1.0 = no filtering)
+            
+        Returns:
+            Tuple of ((net, im, fm), ModelFormat.PETRI_NET)
+        """
+        logger.info("discover_ilp_started", log_id=event_log.id, alpha=alpha)
+        start_time = time.perf_counter()
+        
+        pm4py_log = self._to_pm4py_log(event_log)
+        net, im, fm = pm4py.discover_petri_net_ilp(pm4py_log, alpha=alpha)
+        
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.info("discover_ilp_completed", duration_ms=round(duration_ms, 2))
+        return (net, im, fm), ModelFormat.PETRI_NET
+
+    def discover_powl(self, event_log: EventLog) -> tuple[Any, ModelFormat]:
+        """
+        POWL - Partially Ordered Workflow Language discovery.
+        
+        Discovers models with partial order semantics, suitable for 
+        representing concurrent activities without explicit synchronization.
+        
+        Args:
+            event_log: Source event log
+            
+        Returns:
+            Tuple of (powl_model, ModelFormat.POWL)
+        """
+        logger.info("discover_powl_started", log_id=event_log.id)
+        start_time = time.perf_counter()
+        
+        pm4py_log = self._to_pm4py_log(event_log)
+        powl_model = pm4py.discover_powl(pm4py_log)
+        
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.info("discover_powl_completed", duration_ms=round(duration_ms, 2))
+        return powl_model, ModelFormat.POWL
+
+    def discover_bpmn(self, event_log: EventLog) -> tuple[Any, ModelFormat]:
+        """
+        Direct BPMN discovery using Inductive Miner.
+        
+        Produces BPMN 2.0 compliant models directly without conversion.
+        
+        Args:
+            event_log: Source event log
+            
+        Returns:
+            Tuple of (bpmn_model, ModelFormat.BPMN)
+        """
+        logger.info("discover_bpmn_started", log_id=event_log.id)
+        start_time = time.perf_counter()
+        
+        pm4py_log = self._to_pm4py_log(event_log)
+        bpmn_model = pm4py.discover_bpmn_inductive(pm4py_log)
+        
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.info("discover_bpmn_completed", duration_ms=round(duration_ms, 2))
+        return bpmn_model, ModelFormat.BPMN
+
+    def discover_declare(self, event_log: EventLog) -> tuple[Any, ModelFormat]:
+        """
+        DECLARE model discovery.
+        
+        Discovers declarative constraints (e.g., response, precedence, 
+        existence) rather than imperative control-flow.
+        
+        Args:
+            event_log: Source event log
+            
+        Returns:
+            Tuple of (declare_model, ModelFormat.DECLARE)
+        """
+        logger.info("discover_declare_started", log_id=event_log.id)
+        start_time = time.perf_counter()
+        
+        pm4py_log = self._to_pm4py_log(event_log)
+        declare_model = pm4py.discover_declare(pm4py_log)
+        
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.info("discover_declare_completed", duration_ms=round(duration_ms, 2))
+        return declare_model, ModelFormat.DECLARE
+
+    def discover_log_skeleton(
+        self, 
+        event_log: EventLog, 
+        noise_threshold: float = 0.0
+    ) -> tuple[Any, ModelFormat]:
+        """
+        Log Skeleton discovery.
+        
+        Discovers a set of declarative constraints based on activity 
+        occurrences and ordering in the log.
+        
+        Args:
+            event_log: Source event log
+            noise_threshold: Fraction of traces that can violate constraints (0.0-1.0)
+            
+        Returns:
+            Tuple of (log_skeleton, ModelFormat.LOG_SKELETON)
+        """
+        logger.info("discover_log_skeleton_started", log_id=event_log.id)
+        start_time = time.perf_counter()
+        
+        pm4py_log = self._to_pm4py_log(event_log)
+        log_skeleton = pm4py.discover_log_skeleton(pm4py_log, noise_threshold=noise_threshold)
+        
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.info("discover_log_skeleton_completed", duration_ms=round(duration_ms, 2))
+        return log_skeleton, ModelFormat.LOG_SKELETON
+
+    def discover_temporal_profile(self, event_log: EventLog) -> tuple[Any, ModelFormat]:
+        """
+        Temporal Profile discovery.
+        
+        Discovers average and standard deviation of time between activities,
+        useful for detecting temporal anomalies.
+        
+        Args:
+            event_log: Source event log
+            
+        Returns:
+            Tuple of (temporal_profile, ModelFormat.TEMPORAL_PROFILE)
+        """
+        logger.info("discover_temporal_profile_started", log_id=event_log.id)
+        start_time = time.perf_counter()
+        
+        pm4py_log = self._to_pm4py_log(event_log)
+        temporal_profile = pm4py.discover_temporal_profile(pm4py_log)
+        
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.info("discover_temporal_profile_completed", duration_ms=round(duration_ms, 2))
+        return temporal_profile, ModelFormat.TEMPORAL_PROFILE
+
+    def discover_prefix_tree(self, event_log: EventLog) -> tuple[Any, ModelFormat]:
+        """
+        Prefix Tree (Trie) discovery.
+        
+        Discovers an automaton representing all unique prefixes in the log.
+        Useful for prefix-based prediction models.
+        
+        Args:
+            event_log: Source event log
+            
+        Returns:
+            Tuple of (prefix_tree, ModelFormat.PREFIX_TREE)
+        """
+        logger.info("discover_prefix_tree_started", log_id=event_log.id)
+        start_time = time.perf_counter()
+        
+        pm4py_log = self._to_pm4py_log(event_log)
+        prefix_tree = pm4py.discover_prefix_tree(pm4py_log)
+        
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.info("discover_prefix_tree_completed", duration_ms=round(duration_ms, 2))
+        return prefix_tree, ModelFormat.PREFIX_TREE
+
+    def discover_transition_system(
+        self, 
+        event_log: EventLog,
+        direction: str = "forward",
+        window: int = 2
+    ) -> tuple[Any, ModelFormat]:
+        """
+        Transition System discovery.
+        
+        Discovers a state-based model where states are defined by 
+        activity sequences (windows).
+        
+        Args:
+            event_log: Source event log
+            direction: "forward", "backward", or "both"
+            window: Size of the activity window for state definition
+            
+        Returns:
+            Tuple of (transition_system, ModelFormat.TRANSITION_SYSTEM)
+        """
+        logger.info("discover_transition_system_started", log_id=event_log.id)
+        start_time = time.perf_counter()
+        
+        pm4py_log = self._to_pm4py_log(event_log)
+        ts = pm4py.discover_transition_system(
+            pm4py_log, 
+            direction=direction, 
+            window=window
+        )
+        
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.info("discover_transition_system_completed", duration_ms=round(duration_ms, 2))
+        return ts, ModelFormat.TRANSITION_SYSTEM
+
+    def discover_batches(self, event_log: EventLog) -> tuple[Any, ModelFormat]:
+        """
+        Batch activity detection.
+        
+        Identifies activities that are executed in batches (multiple 
+        instances processed together).
+        
+        Args:
+            event_log: Source event log
+            
+        Returns:
+            Tuple of (batches_dict, ModelFormat.BATCHES)
+        """
+        logger.info("discover_batches_started", log_id=event_log.id)
+        start_time = time.perf_counter()
+        
+        pm4py_log = self._to_pm4py_log(event_log)
+        batches = pm4py.discover_batches(pm4py_log)
+        
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.info("discover_batches_completed", duration_ms=round(duration_ms, 2))
+        return batches, ModelFormat.BATCHES
+
+    def discover_correlation(
+        self, 
+        event_log: EventLog,
+        activity_key: str = "concept:name",
+        timestamp_key: str = "time:timestamp",
+        start_timestamp_key: str | None = None
+    ) -> tuple[Any, ModelFormat]:
+        """
+        Correlation Miner - DFG discovery without case IDs.
+        
+        Discovers directly-follows relationships using timestamps alone,
+        useful when case IDs are missing or unreliable.
+        
+        Args:
+            event_log: Source event log
+            activity_key: Column name for activity
+            timestamp_key: Column name for end timestamp
+            start_timestamp_key: Optional column for start timestamp
+            
+        Returns:
+            Tuple of ((dfg, performance_dfg), ModelFormat.DFG)
+        """
+        logger.info("discover_correlation_started", log_id=event_log.id)
+        start_time = time.perf_counter()
+        
+        pm4py_log = self._to_pm4py_log(event_log)
+        result = pm4py.correlation_miner(
+            pm4py_log,
+            activity_key=activity_key,
+            timestamp_key=timestamp_key,
+            start_timestamp_key=start_timestamp_key
+        )
+        
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.info("discover_correlation_completed", duration_ms=round(duration_ms, 2))
+        return result, ModelFormat.DFG
+
 
     # =========================================================================
     # Petri Net Operations
@@ -562,41 +849,126 @@ class MiningService:
     def get_available_miners(self) -> list[dict[str, str]]:
         """Get list of available mining algorithms."""
         return [
+            # Classic algorithms
             {
                 "id": MinerType.INDUCTIVE.value,
                 "name": "Inductive Miner",
                 "description": "Recommended - produces sound, fitting process trees",
                 "output_format": ModelFormat.PROCESS_TREE.value,
+                "category": "classic",
             },
             {
                 "id": MinerType.ALPHA.value,
                 "name": "Alpha Miner",
                 "description": "Classic algorithm, produces Petri nets",
                 "output_format": ModelFormat.PETRI_NET.value,
+                "category": "classic",
             },
             {
                 "id": MinerType.ALPHA_PLUS.value,
                 "name": "Alpha+ Miner",
                 "description": "Enhanced Alpha, handles short loops",
                 "output_format": ModelFormat.PETRI_NET.value,
+                "category": "classic",
             },
             {
                 "id": MinerType.INDUCTIVE_INFREQUENT.value,
                 "name": "Inductive Miner (Infrequent)",
                 "description": "Handles noise, filters infrequent behavior",
                 "output_format": ModelFormat.PROCESS_TREE.value,
+                "category": "classic",
             },
             {
                 "id": MinerType.HEURISTICS.value,
                 "name": "Heuristics Miner",
                 "description": "Frequency-based, handles noise well",
                 "output_format": ModelFormat.PETRI_NET.value,
+                "category": "classic",
             },
             {
                 "id": MinerType.DFG.value,
                 "name": "Directly-Follows Graph",
                 "description": "Simple activity flow visualization",
                 "output_format": ModelFormat.DFG.value,
+                "category": "classic",
+            },
+            {
+                "id": MinerType.PERFORMANCE_DFG.value,
+                "name": "Performance DFG",
+                "description": "DFG with timing metrics between activities",
+                "output_format": ModelFormat.PERFORMANCE_DFG.value,
+                "category": "classic",
+            },
+            # Advanced algorithms
+            {
+                "id": MinerType.ILP.value,
+                "name": "ILP Miner",
+                "description": "Integer Linear Programming - guaranteed sound Petri nets",
+                "output_format": ModelFormat.PETRI_NET.value,
+                "category": "advanced",
+            },
+            {
+                "id": MinerType.POWL.value,
+                "name": "POWL",
+                "description": "Partially Ordered Workflow Language - handles concurrency",
+                "output_format": ModelFormat.POWL.value,
+                "category": "advanced",
+            },
+            {
+                "id": MinerType.BPMN_INDUCTIVE.value,
+                "name": "BPMN Inductive",
+                "description": "Direct BPMN 2.0 discovery without conversion",
+                "output_format": ModelFormat.BPMN.value,
+                "category": "advanced",
+            },
+            {
+                "id": MinerType.DECLARE.value,
+                "name": "DECLARE",
+                "description": "Declarative constraints (response, precedence, existence)",
+                "output_format": ModelFormat.DECLARE.value,
+                "category": "declarative",
+            },
+            {
+                "id": MinerType.LOG_SKELETON.value,
+                "name": "Log Skeleton",
+                "description": "Activity occurrence and ordering constraints",
+                "output_format": ModelFormat.LOG_SKELETON.value,
+                "category": "declarative",
+            },
+            {
+                "id": MinerType.TEMPORAL_PROFILE.value,
+                "name": "Temporal Profile",
+                "description": "Time statistics between activities for anomaly detection",
+                "output_format": ModelFormat.TEMPORAL_PROFILE.value,
+                "category": "declarative",
+            },
+            {
+                "id": MinerType.PREFIX_TREE.value,
+                "name": "Prefix Tree",
+                "description": "Automaton of unique trace prefixes for prediction",
+                "output_format": ModelFormat.PREFIX_TREE.value,
+                "category": "advanced",
+            },
+            {
+                "id": MinerType.TRANSITION_SYSTEM.value,
+                "name": "Transition System",
+                "description": "State-based model from activity windows",
+                "output_format": ModelFormat.TRANSITION_SYSTEM.value,
+                "category": "advanced",
+            },
+            {
+                "id": MinerType.BATCHES.value,
+                "name": "Batch Detection",
+                "description": "Identifies activities executed in batches",
+                "output_format": ModelFormat.BATCHES.value,
+                "category": "analysis",
+            },
+            {
+                "id": MinerType.CORRELATION.value,
+                "name": "Correlation Miner",
+                "description": "DFG discovery without case IDs using timestamps",
+                "output_format": ModelFormat.DFG.value,
+                "category": "advanced",
             },
         ]
 

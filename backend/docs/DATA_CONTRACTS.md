@@ -1196,12 +1196,25 @@ interface SimulationResponse {
 
 ```typescript
 type MinerType =
+  // Classic algorithms
   | "alpha"
   | "alpha_plus"
   | "inductive"
   | "inductive_infrequent"
   | "heuristics"
-  | "dfg";
+  | "dfg"
+  | "performance_dfg"
+  // Advanced algorithms (PM4py integration)
+  | "ilp" // Integer Linear Programming
+  | "powl" // Partially Ordered Workflow Language
+  | "bpmn_inductive" // Direct BPMN discovery
+  | "declare" // Declarative constraints
+  | "log_skeleton" // Log skeleton model
+  | "temporal_profile" // Temporal constraints
+  | "prefix_tree" // Prefix tree automaton
+  | "transition_system" // State-based model
+  | "batches" // Batch detection
+  | "correlation"; // Correlation miner (no case ID)
 ```
 
 **Python:** `src/core/enums.py:MinerType`
@@ -1209,7 +1222,19 @@ type MinerType =
 ### ModelFormat
 
 ```typescript
-type ModelFormat = "petri_net" | "process_tree" | "dfg" | "bpmn";
+type ModelFormat =
+  | "petri_net"
+  | "process_tree"
+  | "dfg"
+  | "performance_dfg"
+  | "bpmn"
+  | "powl"
+  | "declare"
+  | "log_skeleton"
+  | "temporal_profile"
+  | "prefix_tree"
+  | "transition_system"
+  | "batches";
 ```
 
 ### SourceFormat
@@ -1221,7 +1246,39 @@ type SourceFormat = "csv" | "xes" | "ocel_json" | "ocel_sqlite";
 ### ConformanceMethod
 
 ```typescript
-type ConformanceMethod = "token_replay" | "alignment";
+type ConformanceMethod =
+  | "token_replay"
+  | "alignment"
+  // Declarative conformance (PM4py integration)
+  | "declare"
+  | "log_skeleton"
+  | "temporal_profile"
+  | "footprints";
+```
+
+### FilterType
+
+```typescript
+type FilterType =
+  // Basic filters
+  | "time_range"
+  | "variants_top_k"
+  | "variants_coverage"
+  | "activities"
+  | "case_performance"
+  | "case_size"
+  | "start_activities"
+  | "end_activities"
+  | "attribute_values"
+  // Advanced filters (PM4py integration)
+  | "directly_follows"
+  | "eventually_follows"
+  | "between"
+  | "four_eyes"
+  | "rework"
+  | "prefixes"
+  | "suffixes"
+  | "path_performance";
 ```
 
 ### WorkflowStatus

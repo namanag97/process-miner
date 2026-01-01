@@ -345,6 +345,268 @@ class OCPMService:
 
         return result
 
+    # =========================================================================
+    # Object Graphs (Phase 3 PM4py Integration)
+    # =========================================================================
+
+    def discover_object_graph(
+        self, 
+        ocel, 
+        graph_type: str = "object_interaction"
+    ) -> dict[str, Any]:
+        """
+        Discover object relationships graph of specified type.
+        
+        Args:
+            ocel: PM4Py OCEL object
+            graph_type: One of:
+                - 'object_interaction': Objects that participate in same events
+                - 'object_descendants': Parent-child object relationships
+                - 'object_inheritance': Type hierarchy relationships
+                - 'object_cobirth': Objects created in same event
+                - 'object_codeath': Objects terminated in same event
+                
+        Returns:
+            Object graph as dictionary with nodes and edges
+        """
+        try:
+            graph = pm4py.discover_objects_graph(ocel, graph_type=graph_type)
+            
+            # Convert to frontend-friendly format
+            nodes = set()
+            edges = []
+            
+            for (src, tgt), data in graph.items():
+                nodes.add(src)
+                nodes.add(tgt)
+                edges.append({
+                    "source": src,
+                    "target": tgt,
+                    "weight": data if isinstance(data, (int, float)) else 1,
+                })
+            
+            return {
+                "graph_type": graph_type,
+                "nodes": [{"id": n} for n in nodes],
+                "edges": edges,
+                "total_nodes": len(nodes),
+                "total_edges": len(edges),
+            }
+        except Exception as e:
+            return {"error": str(e), "graph_type": graph_type}
+
+    def get_all_object_graphs(self, ocel) -> dict[str, Any]:
+        """
+        Get all available object graph types.
+        
+        Returns:
+            Dictionary with all graph types and their data
+        """
+        graph_types = [
+            "object_interaction",
+            "object_descendants", 
+            "object_inheritance",
+            "object_cobirth",
+            "object_codeath",
+        ]
+        
+        result = {}
+        for gt in graph_types:
+            result[gt] = self.discover_object_graph(ocel, gt)
+        
+        return result
+
+    # =========================================================================
+    # OCEL Enrichment (Phase 3 PM4py Integration)
+    # =========================================================================
+
+    def enrich_ocel_o2o(self, ocel):
+        """
+        Enrich OCEL with object-to-object relationships.
+        
+        Adds o2o relationships based on event participation patterns.
+        
+        Args:
+            ocel: PM4Py OCEL object
+            
+        Returns:
+            Enriched OCEL object
+        """
+        return pm4py.ocel_o2o_enrichment(ocel)
+
+    def enrich_ocel_e2o_lifecycle(self, ocel):
+        """
+        Enrich OCEL with event-to-object lifecycle information.
+        
+        Adds lifecycle qualifiers (create, use, terminate) to e2o relationships.
+        
+        Args:
+            ocel: PM4Py OCEL object
+            
+        Returns:
+            Enriched OCEL object
+        """
+        return pm4py.ocel_e2o_lifecycle_enrichment(ocel)
+
+    # =========================================================================
+    # OCEL Sampling & Clustering (Phase 3 PM4py Integration)
+    # =========================================================================
+
+    def sample_ocel_objects(
+        self, 
+        ocel, 
+        num_objects: int = 100,
+        object_type: str | None = None
+    ):
+        """
+        Sample OCEL by selecting a subset of objects.
+        
+        Useful for processing large OCELs incrementally.
+        
+        Args:
+            ocel: PM4Py OCEL object
+            num_objects: Number of objects to sample
+            object_type: Optional object type to filter by
+            
+        Returns:
+            Sampled OCEL object
+        """
+        if object_type:
+            return pm4py.sample_ocel_objects(
+                ocel, 
+                num_entities=num_objects,
+                object_type=object_type
+            )
+        return pm4py.sample_ocel_objects(ocel, num_entities=num_objects)
+
+    def sample_ocel_connected_components(
+        self, 
+        ocel, 
+        max_components: int = 10
+    ):
+        """
+        Sample OCEL by selecting connected components.
+        
+        Preserves complete object interactions within components.
+        
+        Args:
+            ocel: PM4Py OCEL object
+            max_components: Maximum number of connected components
+            
+        Returns:
+            Sampled OCEL object
+        """
+        return pm4py.sample_ocel_connected_components(ocel, max_entities=max_components)
+
+    def cluster_equivalent_ocel(self, ocel) -> dict[str, Any]:
+        """
+        Cluster OCEL events by equivalent object sets.
+        
+        Groups events that involve the same set of objects.
+        
+        Args:
+            ocel: PM4Py OCEL object
+            
+        Returns:
+            Clustering result with cluster assignments
+        """
+        try:
+            clusters = pm4py.cluster_equivalent_ocel(ocel)
+            return {
+                "total_clusters": len(set(clusters.values())) if clusters else 0,
+                "event_to_cluster": clusters,
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
+    # =========================================================================
+    # OCEL Utilities (Phase 3 PM4py Integration)
+    # =========================================================================
+
+    def drop_duplicates(self, ocel):
+        """
+        Remove duplicate events from OCEL.
+        
+        Args:
+            ocel: PM4Py OCEL object
+            
+        Returns:
+            OCEL with duplicates removed
+        """
+        return pm4py.ocel_drop_duplicates(ocel)
+
+    def merge_duplicates(self, ocel):
+        """
+        Merge duplicate events in OCEL.
+        
+        Combines duplicate events while preserving object relationships.
+        
+        Args:
+            ocel: PM4Py OCEL object
+            
+        Returns:
+            OCEL with duplicates merged
+        """
+        return pm4py.ocel_merge_duplicates(ocel)
+
+    def get_temporal_summary(self, ocel) -> dict[str, Any]:
+        """
+        Get temporal summary of OCEL.
+        
+        Returns time-based statistics about events and objects.
+        
+        Args:
+            ocel: PM4Py OCEL object
+            
+        Returns:
+            Temporal summary dictionary
+        """
+        try:
+            summary = pm4py.ocel_temporal_summary(ocel)
+            return dict(summary) if summary else {}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def get_objects_summary(self, ocel) -> dict[str, Any]:
+        """
+        Get detailed summary of objects in OCEL.
+        
+        Args:
+            ocel: PM4Py OCEL object
+            
+        Returns:
+            Objects summary with counts and attributes
+        """
+        try:
+            summary = pm4py.ocel_objects_summary(ocel)
+            # Convert to serializable format
+            if hasattr(summary, 'to_dict'):
+                return summary.to_dict('records')
+            return dict(summary) if summary else {}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def get_interactions_summary(self, ocel) -> dict[str, Any]:
+        """
+        Get summary of object interactions in OCEL.
+        
+        Shows how different object types interact with each other.
+        
+        Args:
+            ocel: PM4Py OCEL object
+            
+        Returns:
+            Interactions summary
+        """
+        try:
+            summary = pm4py.ocel_objects_interactions_summary(ocel)
+            # Convert to serializable format  
+            if hasattr(summary, 'to_dict'):
+                return summary.to_dict('records')
+            return dict(summary) if summary else {}
+        except Exception as e:
+            return {"error": str(e)}
+
 
     async def persist_ocel_2_0(self, session: AsyncSession, ocel, source_log_id: Optional[str] = None):
         """Persist OCEL 2.0 data into the relational OCEL2 tables.

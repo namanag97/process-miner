@@ -22,6 +22,8 @@
 | [Organizational](#organizational)   | Social network analysis          |
 | [Simulation](#simulation)           | What-if analysis, play-out       |
 | [Workflows](#workflows)             | Workflow automation              |
+| [LLM](#llm)                         | AI-enhanced analysis _(NEW)_     |
+| [Privacy](#privacy)                 | Differential privacy _(NEW)_     |
 
 ---
 
@@ -490,11 +492,11 @@ Discover process model from event log.
 }
 ```
 
-| Field        | Type   | Required | Values                                                                          |
-| ------------ | ------ | -------- | ------------------------------------------------------------------------------- |
-| `log_id`     | string | ✅       | -                                                                               |
-| `miner_type` | enum   | ❌       | `alpha`, `alpha_plus`, `inductive`, `inductive_infrequent`, `heuristics`, `dfg` |
-| `model_name` | string | ❌       | -                                                                               |
+| Field        | Type   | Required | Values                                                                                                                                                                                                                                           |
+| ------------ | ------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `log_id`     | string | ✅       | -                                                                                                                                                                                                                                                |
+| `miner_type` | enum   | ❌       | `alpha`, `alpha_plus`, `inductive`, `inductive_infrequent`, `heuristics`, `dfg`, `performance_dfg`, `ilp`, `powl`, `bpmn_inductive`, `declare`, `log_skeleton`, `temporal_profile`, `prefix_tree`, `transition_system`, `batches`, `correlation` |
+| `model_name` | string | ❌       | -                                                                                                                                                                                                                                                |
 
 ```json
 // Response 200
@@ -1687,6 +1689,138 @@ Get specific workflow run details.
 **Errors:**
 
 - `404` - Run not found
+
+---
+
+## LLM (`/llm`) - AI-Enhanced Analysis
+
+> **Added in PM4py Integration Phase 5**
+
+### POST `/llm/analyze`
+
+AI-powered process analysis using LLM providers.
+
+```json
+// Request
+{
+  "log_id": "log_abc123",
+  "provider": "openai",
+  "analysis_type": "general",
+  "api_key": "sk-..."
+}
+```
+
+| Field           | Type   | Required | Values                                |
+| --------------- | ------ | -------- | ------------------------------------- |
+| `log_id`        | string | ✅       | Event log ID                          |
+| `provider`      | enum   | ❌       | `openai`, `google`, `anthropic`       |
+| `analysis_type` | enum   | ❌       | `general`, `bottleneck`, `compliance` |
+| `api_key`       | string | ✅       | Provider API key                      |
+
+```json
+// Response 200
+{
+  "analysis_type": "general",
+  "provider": "openai",
+  "response": "The process shows a linear flow with 5 main activities..."
+}
+```
+
+---
+
+### POST `/llm/abstract`
+
+Generate text abstraction of log/model for LLM context.
+
+```json
+// Request
+{
+  "log_id": "log_abc123",
+  "abstraction_type": "dfg"
+}
+```
+
+| Field              | Type | Values                                                          |
+| ------------------ | ---- | --------------------------------------------------------------- |
+| `abstraction_type` | enum | `dfg`, `variants`, `attributes`, `features`, `temporal`, `ocel` |
+
+---
+
+### POST `/llm/hypotheses`
+
+Generate automated hypotheses about the process.
+
+```json
+// Response 200
+{
+  "hypotheses": [
+    ["Activity 'Approve' causes bottleneck", 0.85],
+    ["Cases with 'Rework' have 3x longer duration", 0.72]
+  ]
+}
+```
+
+---
+
+## Privacy (`/privacy`) - Differential Privacy
+
+> **Added in PM4py Integration Phase 6**
+
+### POST `/privacy/anonymize`
+
+Anonymize event log using differential privacy.
+
+```json
+// Request
+{
+  "log_id": "log_abc123",
+  "epsilon": 1.0,
+  "k": 10,
+  "p": 20
+}
+```
+
+| Field     | Type  | Default | Notes                                 |
+| --------- | ----- | ------- | ------------------------------------- |
+| `epsilon` | float | 1.0     | Privacy budget (lower = more private) |
+| `k`       | int   | 10      | K-anonymity parameter                 |
+| `p`       | int   | 20      | PRIPEL percentage                     |
+
+```json
+// Response 200
+{
+  "anonymized_log_id": "log_anon_xyz",
+  "metrics": {
+    "original_variants": 85,
+    "anonymized_variants": 42,
+    "variant_preservation_ratio": 0.78
+  }
+}
+```
+
+---
+
+### POST `/privacy/suppress`
+
+Remove sensitive attributes from log.
+
+```json
+// Request
+{
+  "log_id": "log_abc123",
+  "attributes": ["org:resource", "customer_email"]
+}
+```
+
+---
+
+### POST `/privacy/generalize-timestamps`
+
+Generalize timestamps to reduce re-identification risk.
+
+| Field       | Type | Values                         |
+| ----------- | ---- | ------------------------------ |
+| `precision` | enum | `year`, `month`, `day`, `hour` |
 
 ---
 
