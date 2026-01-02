@@ -66,16 +66,19 @@ export type Env = z.infer<typeof envSchema>;
 // ============================================
 
 function parseEnv(): Env {
+  // Safety check: ensure import.meta.env exists
+  const metaEnv = import.meta.env || {};
+
   // Map Vite env vars to our schema
   const rawEnv = {
-    API_BASE_URL: import.meta.env.VITE_API_BASE_URL,
-    USE_REAL_AUTH: import.meta.env.VITE_USE_REAL_AUTH,
-    AUTH_API_URL: import.meta.env.VITE_AUTH_API_URL,
-    ENABLE_DEV_TOOLS: import.meta.env.VITE_ENABLE_DEV_TOOLS,
-    ENABLE_MOCK_DATA: import.meta.env.VITE_ENABLE_MOCK_DATA,
-    SENTRY_DSN: import.meta.env.VITE_SENTRY_DSN,
-    NODE_ENV: import.meta.env.MODE,
-    APP_VERSION: import.meta.env.VITE_APP_VERSION,
+    API_BASE_URL: metaEnv.VITE_API_BASE_URL,
+    USE_REAL_AUTH: metaEnv.VITE_USE_REAL_AUTH,
+    AUTH_API_URL: metaEnv.VITE_AUTH_API_URL,
+    ENABLE_DEV_TOOLS: metaEnv.VITE_ENABLE_DEV_TOOLS,
+    ENABLE_MOCK_DATA: metaEnv.VITE_ENABLE_MOCK_DATA,
+    SENTRY_DSN: metaEnv.VITE_SENTRY_DSN,
+    NODE_ENV: metaEnv.MODE,
+    APP_VERSION: metaEnv.VITE_APP_VERSION,
   };
 
   // Parse and validate
@@ -92,7 +95,7 @@ function parseEnv(): Env {
     );
 
     // In development, show detailed error
-    if (import.meta.env.DEV) {
+    if (metaEnv.DEV) {
       throw new Error(`Invalid environment configuration:\n${errors}`);
     }
 

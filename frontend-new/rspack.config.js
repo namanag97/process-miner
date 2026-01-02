@@ -5,25 +5,33 @@ const rspack = require('@rspack/core');
 const dotenv = require('dotenv');
 
 // Load environment variables from .env file
-const envVars = dotenv.config().parsed || {};
+const envResult = dotenv.config();
+const envVars = envResult.parsed || {};
 
-console.log('[Rspack Config] Loaded env vars:', envVars);
+if (envResult.error) {
+  console.warn('[Rspack Config] Warning: Could not load .env file:', envResult.error.message);
+} else {
+  console.log('[Rspack Config] Loaded env vars:', Object.keys(envVars));
+}
+
+// Build the complete import.meta.env object
+const importMetaEnv = {
+  // Standard Vite env vars
+  MODE: process.env.NODE_ENV || 'development',
+  DEV: process.env.NODE_ENV !== 'production',
+  PROD: process.env.NODE_ENV === 'production',
+  SSR: false,
+  // User env vars from .env file
+  ...envVars,
+};
 
 // Build environment definitions for DefinePlugin
-const envKeys = {};
+const envKeys = {
+  // Define the entire import.meta.env object
+  'import.meta.env': JSON.stringify(importMetaEnv),
+};
 
-// Add each env var as a separate property
-Object.keys(envVars).forEach((key) => {
-  envKeys[`import.meta.env.${key}`] = JSON.stringify(envVars[key]);
-});
-
-// Add standard Vite env vars
-envKeys['import.meta.env.MODE'] = JSON.stringify(process.env.NODE_ENV || 'development');
-envKeys['import.meta.env.DEV'] = JSON.stringify(process.env.NODE_ENV !== 'production');
-envKeys['import.meta.env.PROD'] = JSON.stringify(process.env.NODE_ENV === 'production');
-envKeys['import.meta.env.SSR'] = JSON.stringify(false);
-
-console.log('[Rspack Config] DefinePlugin keys:', Object.keys(envKeys));
+console.log('[Rspack Config] Environment:', importMetaEnv);
 
 module.exports = {
   output: {
