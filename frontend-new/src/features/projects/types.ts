@@ -30,6 +30,11 @@ export interface ProjectDetail extends Project {
 }
 
 /**
+ * Dataset status for lifecycle tracking
+ */
+export type DatasetStatus = 'unstructured' | 'analyzing' | 'ready' | 'error';
+
+/**
  * Dataset summary within a project
  */
 export interface DatasetSummary {
@@ -42,6 +47,8 @@ export interface DatasetSummary {
   activities: string[];
   createdAt: string;
   sourceFile: string | null;
+  status: DatasetStatus;
+  errorMessage?: string;
 }
 
 /**
@@ -54,7 +61,8 @@ export interface DataSourceInfo {
   caseCount: number;
   eventCount: number;
   uploadedAt: string;
-  status: 'processing' | 'ready' | 'error';
+  status: DatasetStatus;
+  errorMessage?: string;
 }
 
 // ============================================
@@ -118,6 +126,7 @@ export function toDataSources(datasets: DatasetSummary[]): DataSourceInfo[] {
     caseCount: dataset.totalCases,
     eventCount: dataset.totalEvents,
     uploadedAt: dataset.createdAt,
-    status: 'ready' as const,
+    status: dataset.status || 'ready',
+    errorMessage: dataset.errorMessage,
   }));
 }

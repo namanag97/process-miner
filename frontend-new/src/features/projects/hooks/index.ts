@@ -107,3 +107,18 @@ export const useRemoveFileFromProject = createMutationHook<
   onSuccessMessage: 'Data source removed',
   onErrorMessage: 'Failed to remove data source',
 });
+
+// ============================================
+// Simple Upload & Analyze Hooks
+// ============================================
+
+export { useUploadDataset } from './useUploadDataset';
+export {
+  useDetectColumns,
+  useStartAnalysis,
+  useJobStatus,
+  type ColumnMapping,
+  type ColumnDetectionResponse,
+  type JobStatus,
+} from './useAnalyzeDataset';
+
