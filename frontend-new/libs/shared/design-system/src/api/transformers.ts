@@ -243,11 +243,12 @@ export function transformDFG(be: DFGResponse): DFGData {
 }
 
 export function transformVariant(be: VariantResponse): Variant {
-  // Robust activity trace parsing - handles multiple separator formats
-  let activities: string[] = [];
+  // Backend now sends pre-parsed activities array - use it directly
+  let activities: string[] = be.activities || [];
 
-  if (be.activity_trace) {
-    // Try multiple separators (→, ->, ,) in order of preference
+  // Fallback: If backend doesn't send activities array (backwards compatibility),
+  // parse from activity_trace string
+  if (activities.length === 0 && be.activity_trace) {
     const separators = ['→', '->', ' -> ', ','];
 
     for (const sep of separators) {
@@ -264,11 +265,6 @@ export function transformVariant(be: VariantResponse): Variant {
     if (activities.length === 0 && be.activity_trace.trim()) {
       activities = [be.activity_trace.trim()];
     }
-  }
-
-  // Validation logging
-  if (activities.length === 0 && be.activity_trace) {
-    console.warn('[transformVariant] Failed to parse activity_trace:', be.activity_trace);
   }
 
   return {

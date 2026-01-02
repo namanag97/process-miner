@@ -52,14 +52,18 @@ const possibleActivities = ['Submit', 'Review', 'Approve', 'Reject', 'Revise', '
 
 export function PredictorDetailPage() {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const { id, projectId } = useParams<{ id: string; projectId?: string }>();
   const [isLoading, setIsLoading] = useState(false);
   const [testInput, setTestInput] = useState('');
   const [testResult, setTestResult] = useState<{ prediction: string; confidence: number } | null>(null);
   const [isTesting, setIsTesting] = useState(false);
 
   const handleBack = () => {
-    navigate('/ai/predictions');
+    if (projectId) {
+      navigate(`/workspace/${projectId}/ai/predictions`);
+    } else {
+      navigate('/ai/predictions');
+    }
   };
 
   const handleDelete = () => {
@@ -72,7 +76,11 @@ export function PredictorDetailPage() {
       onOk: () => {
         log.info('Deleting predictor', { id });
         toast.success('Predictor deleted');
-        navigate('/ai/predictions');
+        if (projectId) {
+          navigate(`/workspace/${projectId}/ai/predictions`);
+        } else {
+          navigate('/ai/predictions');
+        }
       },
     });
   };
@@ -123,10 +131,27 @@ export function PredictorDetailPage() {
     },
   ];
 
+  // Build breadcrumbs based on context
+  const getBreadcrumbs = () => {
+    if (projectId) {
+      return [
+        { label: 'Workspace', href: '/workspace' },
+        { label: 'Project', href: `/workspace/${projectId}` },
+        { label: 'Predictions', href: `/workspace/${projectId}/ai/predictions` },
+        { label: mockPredictor.name },
+      ];
+    }
+    return [
+      { label: 'AI', href: '/ai' },
+      { label: 'Predictions', href: '/ai/predictions' },
+      { label: mockPredictor.name },
+    ];
+  };
+
   if (isLoading) {
     return (
       <div>
-        <PageHeader title="Predictor Details" />
+        <PageHeader title="Predictor Details" breadcrumb={getBreadcrumbs()} />
         <Card>
           <Skeleton active paragraph={{ rows: 10 }} />
         </Card>
@@ -139,11 +164,7 @@ export function PredictorDetailPage() {
       <PageHeader
         title={mockPredictor.name}
         description={mockPredictor.typeLabel}
-        breadcrumb={[
-          { label: 'AI & Advanced', href: '/ai' },
-          { label: 'Predictions', href: '/ai/predictions' },
-          { label: mockPredictor.name },
-        ]}
+        breadcrumb={getBreadcrumbs()}
         actions={
           <Space>
             <Button icon={<ArrowLeftOutlined />} onClick={handleBack}>

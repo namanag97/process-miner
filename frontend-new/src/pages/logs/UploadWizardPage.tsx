@@ -174,6 +174,7 @@ export function UploadWizardPage() {
         file,
         {
           name: file.name,
+          projectId: projectId,
           caseIdColumn: columnMapping.caseId,
           activityColumn: columnMapping.activity,
           timestampColumn: columnMapping.timestamp,
@@ -206,6 +207,10 @@ export function UploadWizardPage() {
       setProcessingStartTime(null);
       queryClient.invalidateQueries({ queryKey: ['processes'] });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      // Explicitly invalidate the specific project detail to ensure immediate refresh
+      if (projectId) {
+        queryClient.invalidateQueries({ queryKey: ['projects', projectId] });
+      }
       setUploadedLogId(data.id);
       toast.success('Event log processed successfully!');
     },
@@ -304,6 +309,14 @@ export function UploadWizardPage() {
     setShowProcessingTimeout(false);
     setShowDetectionTimeout(false);
     setUploadPercent(0);
+  };
+
+  const handleDone = () => {
+    if (projectId) {
+      navigate(`/workspace/${projectId}`);
+    } else {
+      navigate('/processes');
+    }
   };
 
   const getBackPath = () => projectId ? `/workspace/${projectId}` : '/processes';
@@ -638,11 +651,11 @@ export function UploadWizardPage() {
             </Space>
           }
           extra={[
-            <Button type="primary" size="large" key="explore" onClick={handleExploreProcess}>
-              Explore Process
+            <Button type="primary" size="large" key="done" onClick={handleDone}>
+              Done
             </Button>,
-            <Button key="view" onClick={handleViewLog}>
-              View Event Log Details
+            <Button key="explore" onClick={handleExploreProcess}>
+              Explore Analysis
             </Button>,
             <Button key="another" onClick={handleUploadAnother}>
               Upload Another

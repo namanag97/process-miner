@@ -59,14 +59,24 @@ class EventLogLoader:
             logger.warning("event_log_loader_non_sqlite", database_url=db_url)
 
     def _get_connection(self):
-        """Get DuckDB connection with SQLite attached."""
+        """Get DuckDB connection with SQLite attached.
+
+        IMPORTANT: This reads directly from the SQLite file on disk, bypassing
+        SQLAlchemy's transaction buffer. Any uncommitted SQLAlchemy changes will
+        NOT be visible to DuckDB queries.
+
+        To avoid "transactional ghosting" issues:
+        - Ensure all SQLAlchemy changes are committed before using this loader
+        - FastAPI endpoints auto-commit via get_db() dependency
+        - For manual usage, call session.commit() before loading
+        """
         duckdb = _get_duckdb()
         conn = duckdb.connect(":memory:")
-        
+
         if self._sqlite_path:
             # Attach SQLite database as 'db'
             conn.execute(f"ATTACH '{self._sqlite_path}' AS db (TYPE SQLITE)")
-        
+
         return conn
 
     def load_as_dataframe(

@@ -82,7 +82,7 @@ class OCEL2Event(Base):
     
     # Source log reference (for imports from traditional logs)
     source_log_id: Mapped[Optional[str]] = mapped_column(
-        ForeignKey("event_logs.id", ondelete="SET NULL"), nullable=True
+        ForeignKey("datasets.id", ondelete="SET NULL"), nullable=True
     )
     
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

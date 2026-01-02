@@ -51,11 +51,11 @@ import { hasReworkInVariant } from '../types';
 const log = createLogger('ExplorerDetailPage');
 
 export function ExplorerDetailPage() {
-  const { logId, projectId } = useParams<{ logId: string; projectId?: string }>();
+  const { logId, projectId } = useParams<{ logId: string; projectId: string }>();
   const navigate = useNavigate();
 
-  // Helper for context-aware navigation
-  const getBackPath = () => projectId ? `/workspace/${projectId}` : '/explorer';
+  // Navigate back to project
+  const getBackPath = () => `/workspace/${projectId}`;
 
   // UI State
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
@@ -608,19 +608,12 @@ export function ExplorerDetailPage() {
             Back
           </Button>
           <Breadcrumb
-            items={
-              projectId
-                ? [
-                    { title: 'Projects', onClick: () => navigate('/workspace') },
-                    { title: 'Project', onClick: () => navigate(`/workspace/${projectId}`) },
-                    { title: logInfo?.name ?? 'Loading...' },
-                    { title: 'Explorer' },
-                  ]
-                : [
-                    { title: 'Explorer', onClick: () => navigate('/explorer') },
-                    { title: logInfo?.name ?? 'Loading...' },
-                  ]
-            }
+            items={[
+              { title: 'Projects', onClick: () => navigate('/workspace') },
+              { title: 'Project', onClick: () => navigate(`/workspace/${projectId}`) },
+              { title: logInfo?.name ?? 'Loading...' },
+              { title: 'Explorer' },
+            ]}
           />
         </Space>
 

@@ -9,7 +9,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Row, Col, Card, Tabs, Select, Space, Typography, Skeleton, Alert } from 'antd';
 import {
@@ -31,6 +31,7 @@ export function AnalyticsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const { projectId } = useParams<{ projectId?: string; tab?: string }>();
   const sdk = useSDK();
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
 
@@ -81,10 +82,20 @@ export function AnalyticsPage() {
   const handleTabChange = (key: string) => {
     logAction('AnalyticsPage', 'tab_changed', { from: getActiveTab(), to: key });
     log.debug('Tab changed', { tab: key });
-    if (key === 'performance') {
-      navigate('/analytics');
+    if (projectId) {
+      // Project-scoped navigation
+      if (key === 'performance') {
+        navigate(`/workspace/${projectId}/analytics`);
+      } else {
+        navigate(`/workspace/${projectId}/analytics/${key}`);
+      }
     } else {
-      navigate(`/analytics/${key}`);
+      // Standalone navigation
+      if (key === 'performance') {
+        navigate('/analytics');
+      } else {
+        navigate(`/analytics/${key}`);
+      }
     }
   };
 
@@ -148,6 +159,21 @@ export function AnalyticsPage() {
     },
   ];
 
+  // Build breadcrumbs based on context
+  const getBreadcrumbs = () => {
+    if (projectId) {
+      return [
+        { label: 'Workspace', href: '/workspace' },
+        { label: 'Project', href: `/workspace/${projectId}` },
+        { label: 'Analytics' },
+      ];
+    }
+    return [
+      { label: 'Workspace', href: '/workspace' },
+      { label: 'Analytics' },
+    ];
+  };
+
   // Error state
   if (logsError) {
     return (
@@ -155,10 +181,7 @@ export function AnalyticsPage() {
         <PageHeader
           title="Analytics"
           description="Analyze your process performance, conformance, and rework patterns"
-          breadcrumb={[
-            { label: 'Workspace', href: '/workspace' },
-            { label: 'Analytics' },
-          ]}
+          breadcrumb={getBreadcrumbs()}
         />
         <Alert
           message="Failed to load event logs"
@@ -177,17 +200,14 @@ export function AnalyticsPage() {
         <PageHeader
           title="Analytics"
           description="Analyze your process performance, conformance, and rework patterns"
-          breadcrumb={[
-            { label: 'Workspace', href: '/workspace' },
-            { label: 'Analytics' },
-          ]}
+          breadcrumb={getBreadcrumbs()}
         />
         <EmptyState
           icon={<BarChartOutlined />}
           title="No event logs available"
           description="Upload an event log to start analyzing your processes"
           actionLabel="Upload Event Log"
-          onAction={() => navigate('/workspace')}
+          onAction={() => navigate(projectId ? `/workspace/${projectId}` : '/workspace')}
         />
       </div>
     );
@@ -198,10 +218,7 @@ export function AnalyticsPage() {
       <PageHeader
         title="Analytics"
         description="Analyze your process performance, conformance, and rework patterns"
-        breadcrumb={[
-          { label: 'Workspace', href: '/workspace' },
-          { label: 'Analytics' },
-        ]}
+        breadcrumb={getBreadcrumbs()}
         actions={
           <Space>
             <Text type="secondary">Analyzing:</Text>

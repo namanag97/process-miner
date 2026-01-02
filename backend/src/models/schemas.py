@@ -190,6 +190,15 @@ class ColumnMapping(BaseModel):
     resource: Optional[str] = Field(None, description="Column name for resource")
 
 
+class IngestRequest(BaseModel):
+    """Request to trigger background ingestion with column mapping."""
+
+    case_id_column: str = Field(..., description="Column name for case ID")
+    activity_column: str = Field(..., description="Column name for activity")
+    timestamp_column: str = Field(..., description="Column name for timestamp")
+    resource_column: Optional[str] = Field(None, description="Column name for resource")
+
+
 class DatasetUploadRequest(BaseModel):
     """Request for file upload with column mapping."""
 
@@ -212,6 +221,7 @@ class DatasetResponse(BaseModel):
     activities: list[str]
     created_at: datetime
     source_file: Optional[str] = None  # FE expects this for display
+    status: str = "ready"  # Dataset lifecycle: unstructured, analyzing, ready, error
 
     class Config:
         from_attributes = True

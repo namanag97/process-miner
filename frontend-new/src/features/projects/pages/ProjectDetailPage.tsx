@@ -71,9 +71,9 @@ export function ProjectDetailPage() {
     navigate(`/workspace/${projectId}/upload`);
   };
 
-  const handleConnectDepot = () => {
-    logAction('ProjectDetailPage', 'connect_depot_clicked', { projectId });
-    message.info('Data depot connection coming soon');
+  const handleConnectDatabase = () => {
+    logAction('ProjectDetailPage', 'add_database_clicked', { projectId });
+    message.info('Database connection coming soon');
   };
 
   const handleDeleteProject = async () => {
@@ -86,32 +86,32 @@ export function ProjectDetailPage() {
 
   const handleRunAnalysis = (analysisType: string) => {
     const dataSources = project?.datasets ? toDataSources(project.datasets) : [];
-    
+
     if (dataSources.length === 0) {
       logAction('ProjectDetailPage', 'analysis_blocked_no_data', { projectId, analysisType });
       message.warning('Please upload data before running analysis');
       return;
     }
-    
-    // Navigate to appropriate analysis page
+
+    // Navigate to appropriate analysis page (project-scoped)
     const logId = dataSources[0].id;  // Use first data source
     logAction('ProjectDetailPage', 'run_analysis_clicked', { projectId, analysisType, logId });
-    
+
     switch (analysisType) {
       case 'discovery':
-        navigate(`/explorer/${logId}`);
+        navigate(`/workspace/${projectId}/data/${logId}/explorer`);
         break;
       case 'conformance':
-        navigate(`/analytics/conformance?logId=${logId}`);
+        navigate(`/workspace/${projectId}/analytics/conformance?logId=${logId}`);
         break;
       case 'variants':
-        navigate(`/explorer/${logId}?tab=variants`);
+        navigate(`/workspace/${projectId}/data/${logId}/explorer?tab=variants`);
         break;
       case 'performance':
-        navigate(`/analytics/performance?logId=${logId}`);
+        navigate(`/workspace/${projectId}/analytics/performance?logId=${logId}`);
         break;
       default:
-        navigate(`/explorer/${logId}`);
+        navigate(`/workspace/${projectId}/data/${logId}/explorer`);
     }
   };
 
@@ -238,7 +238,7 @@ export function ProjectDetailPage() {
               <Col>
                 <Card
                   hoverable
-                  onClick={handleConnectDepot}
+                  onClick={handleConnectDatabase}
                   style={{
                     width: 200,
                     textAlign: 'center',
@@ -250,10 +250,10 @@ export function ProjectDetailPage() {
                     style={{ fontSize: 32, color: tokens.colors.primary[500], marginBottom: 12 }}
                   />
                   <div>
-                    <Text strong>Connect Depot</Text>
+                    <Text strong>Add Database</Text>
                     <br />
                     <Text type="secondary" style={{ fontSize: tokens.fontSize.sm }}>
-                      Data source connection
+                      SQL, Snowflake, or SAP
                     </Text>
                   </div>
                 </Card>

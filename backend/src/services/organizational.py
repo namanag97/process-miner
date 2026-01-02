@@ -26,7 +26,13 @@ class OrganizationalService:
 
         try:
             hw_values = pm4py.discover_handover_of_work_network(pm4py_log)
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "organizational_mining_fallback",
+                algorithm="discover_handover_of_work_network",
+                fallback_to="manual_handover_computation",
+                reason=str(e)[:200],
+            )
             hw_values = self._compute_handover_manually(pm4py_log)
 
         nodes, edges = self._network_to_graph(hw_values)
@@ -49,7 +55,13 @@ class OrganizationalService:
 
         try:
             wt_values = pm4py.discover_working_together_network(pm4py_log)
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "organizational_mining_fallback",
+                algorithm="discover_working_together_network",
+                fallback_to="manual_working_together_computation",
+                reason=str(e)[:200],
+            )
             wt_values = self._compute_working_together_manually(pm4py_log)
 
         nodes, edges = self._network_to_graph(wt_values)

@@ -39,7 +39,7 @@ try:
     from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor, ConsoleSpanExporter
     from opentelemetry.trace import Status, StatusCode, Span
     OTEL_AVAILABLE = True
 except ImportError:
@@ -59,9 +59,10 @@ def setup_tracing(
     environment: str = "development",
     otlp_endpoint: Optional[str] = None,
     console_export: bool = True,
+    devconsole_export: bool = True,
 ) -> None:
     """Initialize OpenTelemetry tracing for the application.
-    
+
     Args:
         app: FastAPI application instance
         service_name: Service identifier in traces
@@ -69,50 +70,64 @@ def setup_tracing(
         environment: Deployment environment
         otlp_endpoint: OTLP exporter endpoint (optional)
         console_export: Whether to export to console (for dev)
+        devconsole_export: Whether to export to DevConsole SSE stream (for dev)
     """
     global _tracer
-    
+
     if not OTEL_AVAILABLE:
-        logger.warning("opentelemetry_not_available", 
+        logger.warning("opentelemetry_not_available",
                       message="Install opentelemetry-* packages for tracing")
         return
-    
+
     # Resource attributes
     resource = Resource.create({
         "service.name": service_name,
         "service.version": service_version,
         "deployment.environment": environment,
     })
-    
+
     # Create tracer provider
     provider = TracerProvider(resource=resource)
-    
+
     # Add exporters
     if console_export:
         provider.add_span_processor(
             BatchSpanProcessor(ConsoleSpanExporter())
         )
-    
+
+    # Add DevConsole exporter for real-time trace visualization
+    # Use SimpleSpanProcessor for immediate export (no batching delay)
+    if devconsole_export:
+        try:
+            from src.infrastructure.devconsole_exporter import DevConsoleSpanExporter
+            provider.add_span_processor(
+                SimpleSpanProcessor(DevConsoleSpanExporter())
+            )
+            logger.info("devconsole_exporter_enabled")
+        except ImportError:
+            logger.debug("devconsole_exporter_not_available")
+
     if otlp_endpoint:
         otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint, insecure=True)
         provider.add_span_processor(
             BatchSpanProcessor(otlp_exporter)
         )
-    
+
     # Set as global provider
     trace.set_tracer_provider(provider)
-    
+
     # Get tracer
     _tracer = trace.get_tracer(service_name, service_version)
-    
+
     # Instrument FastAPI
     FastAPIInstrumentor.instrument_app(app)
-    
+
     logger.info(
         "tracing_initialized",
         service_name=service_name,
         otlp_endpoint=otlp_endpoint,
         console_export=console_export,
+        devconsole_export=devconsole_export,
     )
 
 

@@ -12,7 +12,7 @@ settings = get_settings()
 logger = get_logger(__name__)
 
 # Create async engine
-engine = create_async_engine(
+async_engine = create_async_engine(
     settings.database_url,
     echo=settings.debug,
     future=True,
@@ -20,7 +20,7 @@ engine = create_async_engine(
 
 # Session factory
 async_session_maker = async_sessionmaker(
-    engine,
+    async_engine,
     class_=AsyncSession,
     expire_on_commit=False,
     autocommit=False,
@@ -60,7 +60,7 @@ async def init_database() -> None:
     from src.models.orm import Base
 
     logger.info("database_initializing", url=settings.database_url)
-    async with engine.begin() as conn:
+    async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("database_initialized")
 
@@ -68,5 +68,5 @@ async def init_database() -> None:
 async def close_database() -> None:
     """Close database connections."""
     logger.info("database_closing")
-    await engine.dispose()
+    await async_engine.dispose()
     logger.info("database_closed")

@@ -65,10 +65,28 @@ class DevLogEntry(BaseModel):
     status: Optional[int] = None
     request_id: Optional[str] = None
     trace_id: Optional[str] = None
+    span_id: Optional[str] = None
+    parent_span_id: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
-    
+
     # Performance breakdown (for API responses)
     timing: Optional[Dict[str, float]] = None  # db_ms, pm4py_ms, serialize_ms
+
+
+class TraceSpan(BaseModel):
+    """OpenTelemetry trace span for DevConsole visualization."""
+    trace_id: str
+    span_id: str
+    parent_span_id: Optional[str] = None
+    name: str
+    kind: str  # INTERNAL, SERVER, CLIENT, PRODUCER, CONSUMER
+    start_time: str  # ISO timestamp
+    end_time: str  # ISO timestamp
+    duration_ms: float
+    status: str  # OK, ERROR, UNSET
+    attributes: Dict[str, Any] = Field(default_factory=dict)
+    events: List[Dict[str, Any]] = Field(default_factory=list)
+    links: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class SystemMetrics(BaseModel):
@@ -97,19 +115,13 @@ class HeartbeatMessage(BaseModel):
 # Enhanced Log Buffer with Metrics
 # =============================================================================
 
-MAX_BUFFER_SIZE = 500
-_log_buffer: Deque[DevLogEntry] = deque(maxlen=MAX_BUFFER_SIZE)
-_log_id_counter = 0
-
-# Metrics tracking
+# Metrics tracking (kept local per worker)
 _request_times: Deque[float] = deque(maxlen=100)  # Last 100 request times
 _request_timestamps: Deque[float] = deque(maxlen=100)  # When requests happened
 _error_count = 0
 _slow_request_count = 0
 _active_requests = 0
-
-# Subscribers
-_subscribers: Set[asyncio.Queue] = set()
+_log_id_counter = 0
 
 
 def _create_log_entry(
@@ -123,10 +135,10 @@ def _create_log_entry(
     tags: Optional[List[str]] = None,
     timing: Optional[Dict[str, float]] = None,
 ) -> DevLogEntry:
-    """Create an enhanced log entry."""
+    """Create an enhanced log entry and publish to Redis."""
     global _log_id_counter
     _log_id_counter += 1
-    
+
     entry = DevLogEntry(
         id=f"be-{_log_id_counter}",
         timestamp=datetime.utcnow().isoformat() + "Z",
@@ -140,17 +152,21 @@ def _create_log_entry(
         tags=tags or [],
         timing=timing,
     )
-    
-    _log_buffer.append(entry)
-    
-    # Notify subscribers (non-blocking)
-    message_json = entry.model_dump_json()
-    for queue in list(_subscribers):
-        try:
-            queue.put_nowait(("log", message_json))
-        except asyncio.QueueFull:
-            pass
-    
+
+    # Publish to Redis (broadcast to all workers)
+    # Note: This is a sync function, so we need to handle async carefully
+    # We'll use asyncio.create_task to publish without blocking
+    try:
+        from src.infrastructure.log_broker import log_broker
+        # Schedule publish as background task (don't await)
+        asyncio.create_task(log_broker.publish_log(entry.model_dump()))
+    except RuntimeError:
+        # No event loop (shouldn't happen in FastAPI, but handle gracefully)
+        pass
+    except Exception:
+        # Don't let logging errors break the application
+        pass
+
     return entry
 
 
@@ -344,6 +360,35 @@ def log_perf_warning(
     )
 
 
+def log_trace_span(span: TraceSpan) -> None:
+    """Log OpenTelemetry span to DevConsole for trace visualization."""
+    try:
+        from src.infrastructure.log_broker import log_broker
+        import asyncio
+
+        # Get or create event loop
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No event loop running, skip (shouldn't happen in FastAPI)
+            print(f"[log_trace_span] No event loop, skipping span: {span.name}")
+            return
+
+        # Publish span directly to Redis (for trace visualization)
+        asyncio.create_task(
+            log_broker.publish_log({
+                "type": "trace_span",
+                "span": span.model_dump(),
+            })
+        )
+        print(f"[log_trace_span] Published span: {span.name}")  # DEBUG
+    except Exception as e:
+        # Don't let logging errors break the application
+        print(f"[log_trace_span] Error: {e}")  # DEBUG
+        import traceback
+        traceback.print_exc()
+
+
 # =============================================================================
 # System Metrics Collection
 # =============================================================================
@@ -390,17 +435,13 @@ def _get_system_metrics() -> SystemMetrics:
 # =============================================================================
 
 async def _stream_logs(request: Request, include_recent: bool = True) -> AsyncGenerator[str, None]:
-    """Generate SSE events with logs and periodic heartbeats."""
-    queue: asyncio.Queue = asyncio.Queue(maxsize=100)
-    _subscribers.add(queue)
-    
+    """Generate SSE events with logs and periodic heartbeats using Redis pubsub."""
+    from src.infrastructure.log_broker import log_broker
+
+    # Ensure broker is connected
+    await log_broker.connect()
+
     try:
-        # Send initial state
-        if include_recent:
-            # Send recent logs
-            for entry in list(_log_buffer)[-50:]:
-                yield f"data: {entry.model_dump_json()}\n\n"
-        
         # Send initial metrics
         metrics = _get_system_metrics()
         heartbeat = HeartbeatMessage(
@@ -410,36 +451,38 @@ async def _stream_logs(request: Request, include_recent: bool = True) -> AsyncGe
             slow_requests=_slow_request_count,
         )
         yield f"event: heartbeat\ndata: {heartbeat.model_dump_json()}\n\n"
-        
+
         last_heartbeat = time.time()
-        
-        while True:
+
+        # Subscribe to Redis pubsub (receives logs from ALL workers)
+        async for event_type, data in log_broker.subscribe_logs(include_recent=include_recent):
+            # Check if client disconnected
             if await request.is_disconnected():
                 break
-            
-            try:
-                # Wait for message or timeout (15s for reduced CPU usage)
-                msg_type, data = await asyncio.wait_for(queue.get(), timeout=15.0)
+
+            # Send log or heartbeat event
+            if event_type == "log":
                 yield f"data: {data}\n\n"
-                
-            except asyncio.TimeoutError:
-                # Send heartbeat every 15 seconds (reduced from 5s for lower CPU)
-                now = time.time()
-                if now - last_heartbeat >= 15:
-                    metrics = _get_system_metrics()
-                    heartbeat = HeartbeatMessage(
-                        timestamp=datetime.utcnow().isoformat() + "Z",
-                        metrics=metrics,
-                        recent_errors=_error_count,
-                        slow_requests=_slow_request_count,
-                    )
-                    yield f"event: heartbeat\ndata: {heartbeat.model_dump_json()}\n\n"
-                    last_heartbeat = now
-                else:
-                    yield ": keepalive\n\n"
-                    
-    finally:
-        _subscribers.discard(queue)
+            elif event_type == "heartbeat":
+                yield f"event: heartbeat\ndata: {data}\n\n"
+
+            # Also send periodic heartbeats (every 15s)
+            now = time.time()
+            if now - last_heartbeat >= 15:
+                metrics = _get_system_metrics()
+                heartbeat = HeartbeatMessage(
+                    timestamp=datetime.utcnow().isoformat() + "Z",
+                    metrics=metrics,
+                    recent_errors=_error_count,
+                    slow_requests=_slow_request_count,
+                )
+                await log_broker.publish_heartbeat(heartbeat.model_dump())
+                last_heartbeat = now
+
+    except Exception as e:
+        logger.error("stream_logs_error", error=str(e), exc_info=True)
+        # Send error to client
+        yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
 
 
 @router.get("/stream")
@@ -487,29 +530,31 @@ async def get_recent_logs(
     """Get recent logs with optional filtering."""
     if not settings.debug:
         return {"error": "Dev logs only available in debug mode"}
-    
-    logs = list(_log_buffer)[-limit:]
-    
+
+    from src.infrastructure.log_broker import log_broker
+    logs = log_broker.get_recent_logs(limit=limit)
+
     if level:
-        logs = [l for l in logs if l.level == level]
+        logs = [l for l in logs if l.get("level") == level]
     if tag:
-        logs = [l for l in logs if tag in l.tags]
-    
-    return [entry.model_dump() for entry in logs]
+        logs = [l for l in logs if tag in l.get("tags", [])]
+
+    return logs
 
 
 @router.delete("/clear")
 async def clear_logs():
     """Clear the log buffer and reset metrics."""
     global _error_count, _slow_request_count
-    
+
     if not settings.debug:
         return {"error": "Dev logs only available in debug mode"}
-    
-    _log_buffer.clear()
+
+    from src.infrastructure.log_broker import log_broker
+    log_broker._local_buffer.clear()
     _request_times.clear()
     _request_timestamps.clear()
     _error_count = 0
     _slow_request_count = 0
-    
+
     return {"status": "cleared", "timestamp": datetime.utcnow().isoformat()}

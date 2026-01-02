@@ -11,7 +11,7 @@ import {
   InfoCircleOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader, MetricCard, EmptyState, tokens } from '@lumina/design-system';
 import { FeaturePage } from '../../../core/components/FeaturePage';
 import { ProcessSelector } from '../components/ProcessSelector';
@@ -50,6 +50,7 @@ function formatDuration(seconds: number): string {
 
 export function AIAssistantPage() {
   const navigate = useNavigate();
+  const { projectId } = useParams<{ projectId?: string }>();
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Data fetching with React Query hooks
@@ -185,6 +186,21 @@ export function AIAssistantPage() {
     );
   }
 
+  // Build breadcrumbs based on context
+  const getBreadcrumbs = () => {
+    if (projectId) {
+      return [
+        { label: 'Workspace', href: '/workspace' },
+        { label: 'Project', href: `/workspace/${projectId}` },
+        { label: 'AI Assistant' },
+      ];
+    }
+    return [
+      { label: 'AI', href: '/ai' },
+      { label: 'Assistant' },
+    ];
+  };
+
   // Empty state when no processes
   if (!processesLoading && processes.length === 0) {
     return (
@@ -192,13 +208,14 @@ export function AIAssistantPage() {
         <PageHeader
           title="AI Assistant"
           description="Get intelligent insights about your processes"
+          breadcrumb={getBreadcrumbs()}
         />
         <EmptyState
           icon={<FileTextOutlined />}
           title="No processes available"
           description="Upload an event log to start analyzing with AI"
           actionLabel="Go to Workspace"
-          onAction={() => navigate('/workspace')}
+          onAction={() => navigate(projectId ? `/workspace/${projectId}` : '/workspace')}
         />
       </div>
     );
@@ -209,6 +226,7 @@ export function AIAssistantPage() {
       <PageHeader
         title="AI Assistant"
         description="Ask questions about your processes and get data-driven insights"
+        breadcrumb={getBreadcrumbs()}
         actions={
           <ProcessSelector
             processes={processes}

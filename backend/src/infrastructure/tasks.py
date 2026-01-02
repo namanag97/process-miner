@@ -240,6 +240,224 @@ async def train_prediction_model_task(
         raise
 
 
+@celery_app.task(bind=True, base=AsyncTask, name="ingest_dataset")
+async def ingest_dataset_task(
+    self,
+    dataset_id: str,
+    mapping: dict[str, str],
+) -> dict[str, Any]:
+    """Async task for background dataset ingestion.
+
+    Phase 2 of deferred ingestion:
+    1. Load raw file from storage
+    2. Parse with DuckDB (vectorized)
+    3. Compute variants and statistics
+    4. Bulk insert cases/events to DB
+    5. Update dataset status to READY
+
+    Args:
+        dataset_id: Dataset ID to ingest
+        mapping: Column mapping dict with case_id_column, activity_column, etc.
+
+    Returns:
+        dict with dataset_id, stats, and duration info
+    """
+    logger.info(
+        "ingest_dataset_task_started",
+        dataset_id=dataset_id,
+        task_id=self.request.id,
+    )
+    start = time.perf_counter()
+
+    try:
+        self.update_state(
+            state="PROGRESS",
+            meta={"status": "Loading file", "progress": 5},
+        )
+
+        async with AsyncSessionLocal() as db:
+            from src.models.orm import (
+                AsyncJob,
+                Dataset,
+                DatasetStatus,
+                ProcessCase,
+                ProcessEvent,
+                UploadedFile,
+            )
+            from src.services.storage import storage_service
+            from src.services.duckdb_ingestion import duckdb_ingestion_service
+            import json
+
+            # Load dataset and file
+            result = await db.execute(
+                select(Dataset).where(Dataset.id == dataset_id)
+            )
+            dataset = result.scalar_one_or_none()
+            if not dataset:
+                raise ValueError(f"Dataset not found: {dataset_id}")
+
+            result = await db.execute(
+                select(UploadedFile).where(UploadedFile.dataset_id == dataset_id)
+            )
+            uploaded_file = result.scalar_one_or_none()
+            if not uploaded_file:
+                raise ValueError(f"No uploaded file for dataset: {dataset_id}")
+
+            # Update progress
+            self.update_state(
+                state="PROGRESS",
+                meta={"status": "Reading file from storage", "progress": 10},
+            )
+
+            # Read file content
+            file_content = await storage_service.backend.retrieve(
+                f"{dataset_id}/{uploaded_file.filename}"
+            )
+
+            # Update progress
+            self.update_state(
+                state="PROGRESS",
+                meta={"status": "Parsing with DuckDB", "progress": 20},
+            )
+
+            # Parse with DuckDB
+            duck_result = duckdb_ingestion_service.parse_csv_fast(
+                file_content=file_content,
+                case_id_col=mapping.get("case_id_column", "case_id"),
+                activity_col=mapping.get("activity_column", "activity"),
+                timestamp_col=mapping.get("timestamp_column", "timestamp"),
+                resource_col=mapping.get("resource_column"),
+            )
+
+            stats = duck_result["statistics"]
+            cases_arrow = duck_result["cases_arrow"]
+
+            # Update progress
+            self.update_state(
+                state="PROGRESS",
+                meta={"status": "Creating cases and events", "progress": 50},
+            )
+
+            # Convert Arrow to pandas for iteration
+            cases_df = cases_arrow.to_pandas()
+            events_df = duck_result["events_arrow"].to_pandas()
+
+            # Bulk create cases
+            case_id_map = {}  # original case_id -> ProcessCase.id
+            for _, row in cases_df.iterrows():
+                case = ProcessCase(
+                    dataset_id=dataset_id,
+                    case_id=str(row["case_id"]),
+                    variant_key=row["variant"],
+                    start_time=row["start_time"],
+                    end_time=row["end_time"],
+                )
+                db.add(case)
+                await db.flush()
+                case_id_map[str(row["case_id"])] = case.id
+
+            # Update progress
+            self.update_state(
+                state="PROGRESS",
+                meta={"status": "Creating events", "progress": 70},
+            )
+
+            # Bulk create events
+            for _, row in events_df.iterrows():
+                case_ref_id = case_id_map.get(str(row["case_id"]))
+                if case_ref_id:
+                    event = ProcessEvent(
+                        case_ref_id=case_ref_id,
+                        activity=str(row["activity"]),
+                        timestamp=row["timestamp"],
+                        resource=str(row["resource"]) if row["resource"] else None,
+                    )
+                    db.add(event)
+
+            # Update progress
+            self.update_state(
+                state="PROGRESS",
+                meta={"status": "Finalizing dataset", "progress": 90},
+            )
+
+            # Update dataset with stats
+            dataset.total_cases = stats["total_cases"]
+            dataset.total_events = stats["total_events"]
+            dataset.total_activities = stats["total_activities"]
+            dataset.activities_json = json.dumps(stats.get("activities", []))
+            dataset.statistics_json = json.dumps(stats)
+            dataset.status = DatasetStatus.READY.value
+            dataset.error_message = None
+
+            # Update AsyncJob
+            job_result = await db.execute(
+                select(AsyncJob).where(AsyncJob.task_id == self.request.id)
+            )
+            job = job_result.scalar_one_or_none()
+            if job:
+                job.status = "completed"
+                job.progress = 100
+                job.result_json = json.dumps({
+                    "dataset_id": dataset_id,
+                    "total_cases": stats["total_cases"],
+                    "total_events": stats["total_events"],
+                })
+                job.completed_at = datetime.utcnow()
+
+            await db.commit()
+
+            duration = (time.perf_counter() - start) * 1000
+            logger.info(
+                "ingest_dataset_task_completed",
+                dataset_id=dataset_id,
+                total_cases=stats["total_cases"],
+                total_events=stats["total_events"],
+                duration_ms=round(duration, 2),
+                task_id=self.request.id,
+            )
+
+            return {
+                "dataset_id": dataset_id,
+                "total_cases": stats["total_cases"],
+                "total_events": stats["total_events"],
+                "total_activities": stats["total_activities"],
+                "duration_ms": round(duration, 2),
+            }
+
+    except Exception as e:
+        logger.error(
+            "ingest_dataset_task_failed",
+            error=str(e),
+            dataset_id=dataset_id,
+            task_id=self.request.id,
+        )
+
+        # Update dataset and job status
+        async with AsyncSessionLocal() as db:
+            from src.models.orm import AsyncJob, Dataset, DatasetStatus
+
+            result = await db.execute(
+                select(Dataset).where(Dataset.id == dataset_id)
+            )
+            dataset = result.scalar_one_or_none()
+            if dataset:
+                dataset.status = DatasetStatus.ERROR.value
+                dataset.error_message = str(e)
+
+            job_result = await db.execute(
+                select(AsyncJob).where(AsyncJob.task_id == self.request.id)
+            )
+            job = job_result.scalar_one_or_none()
+            if job:
+                job.status = "failed"
+                job.error = str(e)
+                job.completed_at = datetime.utcnow()
+
+            await db.commit()
+
+        raise
+
+
 def get_task_status(task_id: str) -> dict[str, Any]:
     """Get status of a Celery task.
 

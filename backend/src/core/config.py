@@ -59,6 +59,11 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
 
+    @property
+    def redis_url(self) -> str:
+        """Construct Redis URL from components."""
+        return f"redis://{self.redis_host}:{self.redis_port}/{self.redis_db}"
+
     def ensure_directories(self) -> None:
         """Create required directories if they don't exist."""
         self.upload_dir.mkdir(parents=True, exist_ok=True)

@@ -72,12 +72,8 @@ async def discover_model(
     )
     start_time = time.perf_counter()
 
-    # Load event log with cases and events
-    query = (
-        select(Dataset)
-        .options(selectinload(Dataset.cases).selectinload(ProcessCase.events))
-        .where(Dataset.id == request.log_id)
-    )
+    # Load event log metadata only (discovery uses event_log_loader internally)
+    query = select(Dataset).where(Dataset.id == request.log_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
 

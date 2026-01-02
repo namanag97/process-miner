@@ -40,7 +40,12 @@ def _get_duckdb():
 
 class DuckDBIngestionService:
     """High-performance data ingestion using DuckDB."""
-    
+
+    def _get_manager(self):
+        """Get the DuckDB manager instance."""
+        from src.infrastructure.duckdb import duckdb_manager
+        return duckdb_manager
+
     def parse_csv_fast(
         self,
         file_content: bytes,
@@ -52,16 +57,13 @@ class DuckDBIngestionService:
     ) -> dict[str, Any]:
         """
         Parse CSV using DuckDB for vectorized performance.
-        
+
         Returns:
             Dictionary with parsed data and statistics.
         """
-        duckdb = _get_duckdb()
+        duckdb_manager = self._get_manager()
         
         logger.info("duckdb_parse_started", size_bytes=len(file_content))
-        
-        # Create in-memory connection
-        conn = duckdb.connect(":memory:")
         
         # Write content to temp file (DuckDB reads from file path)
         with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as f:
@@ -72,17 +74,24 @@ class DuckDBIngestionService:
             # Build column selection
             resource_select = f'"{resource_col}"' if resource_col else "NULL"
             
-            # Let DuckDB parse the CSV natively with automatic type detection
+            # Use shared connection but isolate with a unique table or subquery if possible
+            # For data loading, we might want to just read directly. 
+            # Since we are using read_csv_auto, we can just query the file.
+            
+            # NOTE: For MVP phase 1, we still return Arrow/Dicts to memory.
+            # We are just using the manager to get the connection.
+
+            conn = duckdb_manager.get_connection()
             conn.execute(f"""
-                CREATE TABLE events AS 
-                SELECT 
+                CREATE TABLE events AS
+                SELECT
                     "{case_id_col}"::VARCHAR as case_id,
                     "{activity_col}"::VARCHAR as activity,
                     "{timestamp_col}"::TIMESTAMP as timestamp,
                     {resource_select}::VARCHAR as resource,
                     ROW_NUMBER() OVER () as row_num
                 FROM read_csv_auto('{temp_path}', delim='{delimiter}', header=true)
-                WHERE "{case_id_col}" IS NOT NULL 
+                WHERE "{case_id_col}" IS NOT NULL
                   AND "{activity_col}" IS NOT NULL
                   AND "{timestamp_col}" IS NOT NULL
             """)

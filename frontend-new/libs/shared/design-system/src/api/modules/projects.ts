@@ -149,7 +149,7 @@ export function createProjectsModule(client: ApiClient): ProjectsModule {
     },
 
     async update(id: string, data: UpdateProjectData) {
-      const response = await client.post<ProjectApiResponse>(`/projects/${id}`, data);
+      const response = await client.put<ProjectApiResponse>(`/projects/${id}`, data);
       return transformProject(response);
     },
 

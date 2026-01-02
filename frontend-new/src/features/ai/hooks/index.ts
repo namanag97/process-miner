@@ -5,13 +5,19 @@
  * Uses createFeatureHook factory for standardized patterns.
  */
 
-import { createQueryHook } from '../../../core/hooks/createFeatureHook';
+import { createQueryHook, createMutationHook } from '../../../core/hooks/createFeatureHook';
 import type { ProcessSummaryData } from '@lumina/design-system';
 import type { Predictor } from '@lumina/design-system/api/modules/predictions';
 
 // ============================================
 // Types
 // ============================================
+
+export interface TrainPredictorRequest {
+  targetType: string;
+  algorithm?: string;
+  outcomeAttribute?: string;
+}
 
 interface ProcessListItem {
   id: string;
@@ -71,3 +77,34 @@ export const useAIPredictors = createQueryHook<Predictor[], string>({
   enabled: (logId) => !!logId && logId.length > 0,
   staleTime: 5 * 60 * 1000,
 });
+
+// ============================================
+// Mutation Hooks
+// ============================================
+
+/**
+ * Hook to train a new predictor
+ * TODO: Implement train() method in predictions module
+ */
+// export const useTrainPredictor = createMutationHook<
+//   Predictor,
+//   { logId: string; request: TrainPredictorRequest }
+// >({
+//   mutationFn: async (sdk, { logId, request }) => {
+//     return sdk.predictions.train(logId, request);
+//   },
+//   invalidateKeys: (data, { logId }) => [['ai', 'predictors', logId]],
+//   onSuccessMessage: 'Predictor training started successfully',
+// });
+
+/**
+ * Hook to delete a predictor
+ * TODO: Implement delete() method in predictions module
+ */
+// export const useDeletePredictor = createMutationHook<void, string>({
+//   mutationFn: async (sdk, predictorId) => {
+//     return sdk.predictions.delete(predictorId);
+//   },
+//   invalidateKeys: [['ai', 'predictors']], // Invalidate all predictor lists
+//   onSuccessMessage: 'Predictor deleted successfully',
+// });

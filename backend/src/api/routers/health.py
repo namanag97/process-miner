@@ -85,13 +85,14 @@ def get_uptime() -> float:
 
 async def check_database() -> ComponentHealth:
     """Check database connectivity."""
+    from sqlalchemy import text
     from src.models.database import async_engine
     
     start = time.perf_counter()
     try:
         # Simple connectivity check
         async with async_engine.connect() as conn:
-            await conn.execute("SELECT 1")
+            await conn.execute(text("SELECT 1"))
         
         latency = (time.perf_counter() - start) * 1000
         return ComponentHealth(
