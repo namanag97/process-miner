@@ -190,6 +190,17 @@ function AppLayout() {
           <Route path="/workspace/:projectId/data/:logId/explorer" element={<ExplorerDetailPage />} />
           <Route path="/workspace/:projectId/data/:logId/kpi" element={<KPIPage />} />
 
+          {/* Project-scoped Analytics */}
+          <Route path="/workspace/:projectId/analytics" element={<AnalyticsPage />} />
+          <Route path="/workspace/:projectId/analytics/:tab" element={<AnalyticsPage />} />
+
+          {/* Project-scoped AI */}
+          <Route path="/workspace/:projectId/ai" element={<AIIndexPage />} />
+          <Route path="/workspace/:projectId/ai/assistant" element={<AIAssistantPage />} />
+          <Route path="/workspace/:projectId/ai/insights" element={<AIInsightsPage />} />
+          <Route path="/workspace/:projectId/ai/predictions" element={<PredictionsPage />} />
+          <Route path="/workspace/:projectId/ai/predictions/:id" element={<PredictorDetailPage />} />
+
           {/* ============================================ */}
           {/* Explorer Feature (DEPRECATED - redirects to workspace) */}
           {/* ============================================ */}

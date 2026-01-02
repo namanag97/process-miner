@@ -36,6 +36,8 @@ from src.api.routers import (
 )
 from src.api.routers.health import router as health_router, mark_startup_complete
 from src.api.routers.dev_logs_stream import router as dev_logs_stream_router
+from src.api.routers.telemetry_proxy import router as telemetry_proxy_router
+from src.api.routers.telemetry_test import router as telemetry_test_router
 from src.core.config import get_settings
 from src.core.exceptions import AppException
 from src.core.logging_config import configure_logging, get_logger
@@ -95,6 +97,7 @@ def _setup_observability(app: FastAPI) -> None:
             service_version=settings.app_version,
             environment="development" if settings.debug else "production",
             console_export=settings.debug,
+            devconsole_export=settings.debug,  # Real-time trace visualization in DevConsole
         )
         
         # Set app info metric
@@ -365,6 +368,11 @@ JWT-based authentication with optional workspace context.
     app.include_router(simulation_router, prefix=settings.api_prefix)
     app.include_router(dev_log_router, prefix=settings.api_prefix)
     app.include_router(dev_logs_stream_router, prefix=settings.api_prefix)
+    app.include_router(telemetry_proxy_router, prefix=settings.api_prefix)
+
+    # Test endpoint for telemetry (debug mode only)
+    if settings.debug:
+        app.include_router(telemetry_test_router, prefix=settings.api_prefix)
 
     return app
 

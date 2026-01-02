@@ -24,12 +24,30 @@ interface BackendLogEntry {
   duration?: number;
   status?: number;
   request_id?: string;
+  trace_id?: string;
+  span_id?: string;
+  parent_span_id?: string;
   tags?: string[];
   timing?: {
     db_ms?: number;
     pm4py_ms?: number;
     serialize_ms?: number;
   };
+}
+
+interface TraceSpan {
+  trace_id: string;
+  span_id: string;
+  parent_span_id?: string;
+  name: string;
+  kind: string;
+  start_time: string;
+  end_time: string;
+  duration_ms: number;
+  status: string;
+  attributes: Record<string, any>;
+  events: Array<{ name: string; timestamp: string; attributes: Record<string, any> }>;
+  links: Array<any>;
 }
 
 interface SystemMetrics {
@@ -62,11 +80,13 @@ export interface BackendObservability {
 }
 
 // =============================================================================
-// Global State for Metrics (shared across components)
+// Global State for Metrics and Traces (shared across components)
 // =============================================================================
 
 let globalMetrics: SystemMetrics | null = null;
+let globalTraceSpans: TraceSpan[] = [];
 let globalListeners: Set<() => void> = new Set();
+const MAX_TRACE_SPANS = 100;
 
 function notifyMetricsListeners() {
   globalListeners.forEach(fn => fn());
@@ -76,9 +96,18 @@ export function getGlobalMetrics(): SystemMetrics | null {
   return globalMetrics;
 }
 
+export function getGlobalTraceSpans(): TraceSpan[] {
+  return globalTraceSpans;
+}
+
 export function subscribeToMetrics(listener: () => void): () => void {
   globalListeners.add(listener);
   return () => globalListeners.delete(listener);
+}
+
+function addTraceSpan(span: TraceSpan) {
+  globalTraceSpans = [span, ...globalTraceSpans].slice(0, MAX_TRACE_SPANS);
+  notifyMetricsListeners();
 }
 
 // =============================================================================
@@ -138,14 +167,53 @@ export function useBackendLogs(enabled: boolean = true): BackendObservability {
       // Handle log messages
       source.onmessage = (event) => {
         try {
-          const log: BackendLogEntry = JSON.parse(event.data);
-          
-          // Deduplicate
-          if (seenIdsRef.current.has(log.id)) {
+          const message = JSON.parse(event.data);
+
+          // Check if this is a trace span message
+          if (message.type === 'trace_span' && message.span) {
+            const span: TraceSpan = message.span;
+            addTraceSpan(span);
+
+            // Log trace span to DevConsole as well
+            const kindEmoji = {
+              'SERVER': '🌐',
+              'CLIENT': '📡',
+              'INTERNAL': '⚙️',
+              'PRODUCER': '📤',
+              'CONSUMER': '📥',
+            }[span.kind] || '🔵';
+
+            const statusEmoji = span.status === 'OK' ? '✓' : span.status === 'ERROR' ? '✗' : '○';
+
+            devConsoleLog(
+              'info',
+              `${kindEmoji} ${span.name}`,
+              `${statusEmoji} ${span.duration_ms.toFixed(2)}ms`,
+              {
+                trace_id: span.trace_id,
+                span_id: span.span_id,
+                parent_span_id: span.parent_span_id,
+                attributes: span.attributes,
+                events: span.events,
+              },
+              {
+                duration: Math.round(span.duration_ms),
+              }
+            );
             return;
           }
-          seenIdsRef.current.add(log.id);
-          
+
+          // Regular log message
+          const log: BackendLogEntry = message;
+
+          // Deduplicate
+          if (log.id && seenIdsRef.current.has(log.id)) {
+            return;
+          }
+          if (log.id) {
+            seenIdsRef.current.add(log.id);
+          }
+
           // Trim seen IDs set
           if (seenIdsRef.current.size > 500) {
             const entries = Array.from(seenIdsRef.current);
@@ -153,7 +221,7 @@ export function useBackendLogs(enabled: boolean = true): BackendObservability {
           }
 
           // Map circuit breaker logs to state level for DevConsole
-          const level = log.level === 'circuit' ? 'state' : 
+          const level = log.level === 'circuit' ? 'state' :
                        log.level === 'perf' ? 'info' :
                        log.level as 'info' | 'api-req' | 'api-res' | 'error' | 'action' | 'state';
 
@@ -165,6 +233,9 @@ export function useBackendLogs(enabled: boolean = true): BackendObservability {
             }),
             ...(log.tags && log.tags.length > 0 && {
               '🏷️ Tags': log.tags,
+            }),
+            ...(log.trace_id && {
+              '🔗 Trace ID': log.trace_id,
             }),
           };
 

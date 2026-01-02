@@ -24,13 +24,21 @@ class Base(DeclarativeBase):
 
 
 class DatasetStatus(str, Enum):
-    """Dataset lifecycle states."""
+    """Dataset lifecycle states for deferred ingestion.
 
-    UPLOADING = "uploading"
-    VALIDATING = "validating"
-    READY = "ready"
-    ERROR = "error"
-    ARCHIVED = "archived"
+    Lifecycle:
+    - UNSTRUCTURED: File uploaded but not yet analyzed (mapping missing)
+    - ANALYZING: Background job in progress (parsing, computing variants)
+    - READY: Fully ingested and ready for analysis
+    - ERROR: Analysis failed (check error_message)
+    - ARCHIVED: Soft-deleted/archived
+    """
+
+    UNSTRUCTURED = "unstructured"  # File exists, mapping missing
+    ANALYZING = "analyzing"        # Background job in progress
+    READY = "ready"                # Fully ingested and ready
+    ERROR = "error"                # Analysis failed
+    ARCHIVED = "archived"          # Soft-deleted
 
 
 class JobStatus(str, Enum):
@@ -211,9 +219,12 @@ class Dataset(Base):
     activities_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     statistics_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # Lifecycle state machine
-    status: Mapped[str] = mapped_column(String(20), default=DatasetStatus.READY.value)
+    # Lifecycle state machine (deferred ingestion)
+    status: Mapped[str] = mapped_column(String(20), default=DatasetStatus.UNSTRUCTURED.value)
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Column mapping for deferred ingestion (JSON: {"case_id": "col1", "activity": "col2", ...})
+    mapping_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Filtering support
     source_dataset_id: Mapped[Optional[str]] = mapped_column(
@@ -227,14 +238,16 @@ class Dataset(Base):
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     # Relationships
+    # CRITICAL: Never load cases eagerly - datasets can have 100K+ cases
+    # Use explicit queries or event_log_loader for data access
     cases: Mapped[list["ProcessCase"]] = relationship(
         back_populates="dataset",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="raise",  # Prevent accidental N+1 - forces explicit loading
     )
     models: Mapped[list["ProcessModel"]] = relationship(
         back_populates="source_dataset",
-        lazy="selectin",
+        lazy="select",  # Models are typically small, but don't eager load
     )
     source_dataset: Mapped[Optional["Dataset"]] = relationship(
         "Dataset",
@@ -246,7 +259,7 @@ class Dataset(Base):
         "Dataset",
         back_populates="source_dataset",
         foreign_keys=[source_dataset_id],
-        lazy="selectin",
+        lazy="select",  # Filtered datasets are typically small
     )
     project: Mapped[Optional["Project"]] = relationship(back_populates="datasets")
     uploaded_file: Mapped[Optional["UploadedFile"]] = relationship(
@@ -257,7 +270,7 @@ class Dataset(Base):
     analyses: Mapped[list["Analysis"]] = relationship(
         back_populates="dataset",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="select",  # Analyses are typically small
     )
 
 
@@ -359,10 +372,12 @@ class ProcessCase(Base):
 
     # Relationships
     dataset: Mapped["Dataset"] = relationship(back_populates="cases")
+    # CRITICAL: Never load events eagerly - cases can have 100+ events each
+    # Use explicit queries or event_log_loader for data access
     events: Mapped[list["ProcessEvent"]] = relationship(
         back_populates="case",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="raise",  # Prevent accidental N+1 - forces explicit loading
         order_by="ProcessEvent.timestamp",
     )
 

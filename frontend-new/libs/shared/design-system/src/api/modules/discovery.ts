@@ -45,7 +45,7 @@ export function createDiscoveryModule(client: ApiClient): DiscoveryModule {
     },
 
     async getVariants(logId: string, options?: VariantOptions) {
-      const response = await client.get<VariantResponse[]>(`/processes/${logId}/variants`, {
+      const response = await client.get<VariantResponse[]>(`/datasets/${logId}/variants`, {
         top_n: options?.topN ?? 20,
         top_k_percent: options?.topKPercent,
         include_complexity: options?.includeComplexity ?? false,
@@ -55,7 +55,7 @@ export function createDiscoveryModule(client: ApiClient): DiscoveryModule {
     },
 
     async getActivities(logId: string, sortBy?: string) {
-      const response = await client.get<ActivityDetailResponse[]>(`/processes/${logId}/activities`, {
+      const response = await client.get<ActivityDetailResponse[]>(`/datasets/${logId}/activities`, {
         sort_by: sortBy,
       });
       return transformActivityDetails(response);

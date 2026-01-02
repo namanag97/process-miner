@@ -32,7 +32,10 @@ class ConformanceService:
         Returns:
             Dictionary with fitness, precision, method, and diagnostics
         """
-        pm4py_log = mining_service._to_pm4py_log(event_log)
+        # Use fast path: event_log_loader instead of ORM iteration
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
+
         net, im, fm = self._get_petri_net(model)
 
         if method == ConformanceMethod.TOKEN_REPLAY:
@@ -48,7 +51,10 @@ class ConformanceService:
         model: ProcessModel,
     ) -> float:
         """Calculate fitness score for log-model pair."""
-        pm4py_log = mining_service._to_pm4py_log(event_log)
+        # Use fast path: event_log_loader instead of ORM iteration
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
+
         net, im, fm = self._get_petri_net(model)
 
         fitness = pm4py.fitness_token_based_replay(pm4py_log, net, im, fm)
@@ -60,7 +66,10 @@ class ConformanceService:
         model: ProcessModel,
     ) -> float:
         """Calculate precision score for log-model pair."""
-        pm4py_log = mining_service._to_pm4py_log(event_log)
+        # Use fast path: event_log_loader instead of ORM iteration
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
+
         net, im, fm = self._get_petri_net(model)
 
         precision = pm4py.precision_token_based_replay(pm4py_log, net, im, fm)
@@ -72,13 +81,16 @@ class ConformanceService:
         model: ProcessModel,
     ) -> float:
         """Calculate generalization score for log-model pair.
-        
+
         Generalization measures how well the model generalizes beyond
         the observed behavior in the log.
         """
-        pm4py_log = mining_service._to_pm4py_log(event_log)
+        # Use fast path: event_log_loader instead of ORM iteration
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
+
         net, im, fm = self._get_petri_net(model)
-        
+
         try:
             # PM4py's generalization function
             generalization = pm4py.generalization_tbr(pm4py_log, net, im, fm)
@@ -148,7 +160,10 @@ class ConformanceService:
         model: ProcessModel,
     ) -> dict[str, Any]:
         """Get detailed conformance diagnostics."""
-        pm4py_log = mining_service._to_pm4py_log(event_log)
+        # Use fast path: event_log_loader instead of ORM iteration
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
+
         net, im, fm = self._get_petri_net(model)
 
         # Token replay diagnostics
@@ -197,7 +212,10 @@ class ConformanceService:
         threshold: float = 0.8,
     ) -> list[dict[str, Any]]:
         """Detect specific deviations from the model."""
-        pm4py_log = mining_service._to_pm4py_log(event_log)
+        # Use fast path: event_log_loader instead of ORM iteration
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
+
         net, im, fm = self._get_petri_net(model)
 
         diagnostics = pm4py.conformance_diagnostics_token_based_replay(pm4py_log, net, im, fm)
@@ -249,7 +267,10 @@ class ConformanceService:
         Returns:
             Dictionary with alignment diagnostics per case
         """
-        pm4py_log = mining_service._to_pm4py_log(event_log)
+        # Use fast path: event_log_loader instead of ORM iteration
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
+
         net, im, fm = self._get_petri_net(model)
 
         # Get alignment diagnostics using PM4Py
@@ -338,17 +359,19 @@ class ConformanceService:
     ) -> dict[str, Any]:
         """
         Check conformance against DECLARE constraints.
-        
+
         If no model is provided, discovers one from the log first.
-        
+
         Args:
             event_log: The event log to check
             declare_model: Optional DECLARE model (discovered if not provided)
-            
+
         Returns:
             Dictionary with constraint conformance details
         """
-        pm4py_log = mining_service._to_pm4py_log(event_log)
+        # Use fast path: event_log_loader instead of ORM iteration
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
         
         # Discover DECLARE model if not provided
         if declare_model is None:
@@ -387,18 +410,20 @@ class ConformanceService:
     ) -> dict[str, Any]:
         """
         Check conformance against a Log Skeleton model.
-        
+
         Log Skeleton captures activity occurrence and ordering constraints.
-        
+
         Args:
             event_log: The event log to check
             log_skeleton: Optional log skeleton model (discovered if not provided)
             noise_threshold: Fraction of traces allowed to violate constraints
-            
+
         Returns:
             Dictionary with conformance details
         """
-        pm4py_log = mining_service._to_pm4py_log(event_log)
+        # Use fast path: event_log_loader instead of ORM iteration
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
         
         # Discover log skeleton if not provided
         if log_skeleton is None:
@@ -438,18 +463,20 @@ class ConformanceService:
     ) -> dict[str, Any]:
         """
         Check conformance against temporal constraints.
-        
+
         Detects activities with unusual time intervals (anomalies).
-        
+
         Args:
             event_log: The event log to check
             temporal_profile: Optional temporal profile (discovered if not provided)
             zeta: Number of standard deviations for anomaly threshold
-            
+
         Returns:
             Dictionary with temporal conformance and detected anomalies
         """
-        pm4py_log = mining_service._to_pm4py_log(event_log)
+        # Use fast path: event_log_loader instead of ORM iteration
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
         
         # Discover temporal profile if not provided
         if temporal_profile is None:
@@ -530,14 +557,17 @@ class ConformanceService:
     ) -> dict[str, float]:
         """
         Calculate Earth Mover's Distance between log and model.
-        
+
         EMD measures the effort required to transform the log language
         into the model language. Lower is better.
-        
+
         Returns:
             Dictionary with EMD value
         """
-        pm4py_log = mining_service._to_pm4py_log(event_log)
+        # Use fast path: event_log_loader instead of ORM iteration
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
+
         net, im, fm = self._get_petri_net(model)
         
         try:

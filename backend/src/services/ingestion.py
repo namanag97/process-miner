@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import get_settings
 from src.core.exceptions import ValidationError
 from src.core.logging_config import get_logger
-from src.models.orm import Dataset, ProcessCase, ProcessEvent
+from src.models.orm import Dataset, DatasetStatus, ProcessCase, ProcessEvent, UploadedFile
 
 logger = get_logger(__name__)
 
@@ -194,6 +194,73 @@ class IngestionService:
             logger.warning("unsupported_file_format", extension=extension)
             raise ValidationError(f"Unsupported file format: {extension}")
 
+    async def store_only(
+        self,
+        session: AsyncSession,
+        file_content: bytes,
+        filename: str,
+        name: Optional[str] = None,
+        project_id: Optional[str] = None,
+    ) -> Dataset:
+        """
+        Store file without parsing (Phase 1 of deferred ingestion).
+
+        Creates Dataset with status=UNSTRUCTURED and stores raw file.
+        User must call /ingest endpoint with mapping to trigger parsing.
+
+        Returns:
+            Dataset with status=UNSTRUCTURED
+        """
+        import hashlib
+        from src.services.storage import storage_service
+
+        logger.info("store_only_started", filename=filename, name=name)
+        start_time = time.perf_counter()
+
+        extension = Path(filename).suffix.lower()
+        log_name = name or Path(filename).stem
+
+        # Create dataset record (UNSTRUCTURED - no stats yet)
+        dataset = Dataset(
+            name=log_name,
+            source_file=filename,
+            source_format=extension.lstrip("."),
+            status=DatasetStatus.UNSTRUCTURED.value,
+            project_id=project_id,
+            total_cases=0,
+            total_events=0,
+            total_activities=0,
+        )
+        session.add(dataset)
+        await session.flush()
+
+        # Store raw file
+        storage_path = await storage_service.store_event_log_file(
+            file_content, dataset.id, filename
+        )
+
+        # Create UploadedFile record
+        uploaded_file = UploadedFile(
+            dataset_id=dataset.id,
+            filename=filename,
+            storage_path=storage_path,
+            size_bytes=len(file_content),
+            checksum=hashlib.sha256(file_content).hexdigest(),
+        )
+        session.add(uploaded_file)
+        await session.flush()
+        await session.refresh(dataset)
+
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.info(
+            "store_only_completed",
+            dataset_id=dataset.id,
+            storage_path=storage_path,
+            duration_ms=round(duration_ms, 2),
+        )
+
+        return dataset
+
     def detect_columns(
         self,
         file_content: bytes,
@@ -339,7 +406,7 @@ class IngestionService:
             timestamps = [self._parse_timestamp(e["timestamp"]) for e in case_events]
 
             case = ProcessCase(
-                log_id=event_log.id,
+                dataset_id=event_log.id,
                 case_id=case_id,
                 variant_key=variant_key,
                 start_time=min(timestamps) if timestamps else None,
@@ -511,7 +578,7 @@ class IngestionService:
         
         # Create DB record
         uploaded_file = UploadedFile(
-            log_id=log_id,
+            dataset_id=log_id,
             filename=filename,
             storage_path=storage_path,
             size_bytes=len(content),

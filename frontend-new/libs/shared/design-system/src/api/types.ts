@@ -16,6 +16,37 @@ export interface PaginatedResponse<T> {
 }
 
 // ============================================
+// Enterprise Hierarchy: Organization → Workspace → User
+// ============================================
+
+export interface OrganizationResponse {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface WorkspaceResponse {
+  id: string;
+  org_id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface UserResponse {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  created_at: string;
+  last_login_at: string | null;
+}
+
+// ============================================
 // Event Logs / Processes
 // ============================================
 
@@ -99,6 +130,7 @@ export interface DFGResponse {
 export interface VariantResponse {
   variant_key: string;
   activity_trace: string;
+  activities: string[]; // Pre-parsed array of activities for FE consumption
   case_count: number;
   frequency_percent: number;
   avg_duration_seconds?: number;

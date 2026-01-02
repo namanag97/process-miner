@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Table, Button, Space, Typography, Tag, Modal, Form, Input, Select, Card, Progress, Skeleton } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Table, Button, Space, Typography, Tag, Modal, Form, Input, Select, Card, Skeleton } from 'antd';
 import {
   PlusOutlined,
   ExperimentOutlined,
@@ -11,61 +11,18 @@ import {
   ClockCircleOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
-import { PageHeader, EmptyState, tokens, toast } from '@lumina/design-system';
+import { PageHeader, EmptyState, tokens } from '@lumina/design-system';
 import { createLogger } from '../../../utils/logger';
+import { useAIProcesses, useAIPredictors/*, useTrainPredictor, useDeletePredictor*/ } from '../hooks';
 
 const { Text } = Typography;
 const log = createLogger('PredictionsPage');
-
-// Mock logs for selector
-const mockLogs = [
-  { id: '1', name: 'Orders_2024.csv' },
-  { id: '2', name: 'Claims_Process.xes' },
-  { id: '3', name: 'Purchase_Orders.csv' },
-];
 
 // Predictor types
 const predictorTypes = [
   { value: 'next_activity', label: 'Next Activity Prediction' },
   { value: 'remaining_time', label: 'Remaining Time Prediction' },
   { value: 'outcome', label: 'Outcome Prediction' },
-];
-
-// Mock predictors data
-const mockPredictors = [
-  {
-    id: '1',
-    name: 'Order Next Step',
-    type: 'next_activity',
-    logId: '1',
-    logName: 'Orders_2024.csv',
-    accuracy: 87.5,
-    status: 'ready',
-    createdAt: '2024-12-28T10:30:00Z',
-    predictions: 456,
-  },
-  {
-    id: '2',
-    name: 'Claims Duration',
-    type: 'remaining_time',
-    logId: '2',
-    logName: 'Claims_Process.xes',
-    accuracy: 82.3,
-    status: 'ready',
-    createdAt: '2024-12-27T14:20:00Z',
-    predictions: 234,
-  },
-  {
-    id: '3',
-    name: 'PO Outcome',
-    type: 'outcome',
-    logId: '3',
-    logName: 'Purchase_Orders.csv',
-    accuracy: 91.2,
-    status: 'training',
-    createdAt: '2024-12-30T08:00:00Z',
-    predictions: 0,
-  },
 ];
 
 // Status config
@@ -77,63 +34,63 @@ const statusConfig = {
 
 export function PredictionsPage() {
   const navigate = useNavigate();
+  const { projectId } = useParams<{ projectId?: string }>();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isTraining, setIsTraining] = useState(false);
-  const [trainingProgress, setTrainingProgress] = useState(0);
   const [form] = Form.useForm();
-  const [predictors, setPredictors] = useState(mockPredictors);
-  const [isLoading, setIsLoading] = useState(false);
+
+  // Data Fetching
+  const { data: processesData } = useAIProcesses({});
+  const processes = processesData?.items || [];
+
+  const [selectedLogId, setSelectedLogId] = useState<string>('');
+
+  // Auto-select first log
+  useEffect(() => {
+    if (!selectedLogId && processes.length > 0) {
+      setSelectedLogId(processes[0].id);
+    }
+  }, [processes, selectedLogId]);
+
+  const { data: predictors = [], isLoading: isPredictorsLoading } = useAIPredictors(selectedLogId);
+  // const trainPredictor = useTrainPredictor();
+  // const deletePredictor = useDeletePredictor();
 
   const handleTrainNew = () => {
     log.debug('Opening train predictor modal');
+    form.setFieldsValue({ logId: selectedLogId });
     setIsModalOpen(true);
   };
 
   const handleModalCancel = () => {
     setIsModalOpen(false);
-    setIsTraining(false);
-    setTrainingProgress(0);
     form.resetFields();
   };
 
   const handleTrain = async (values: { name: string; logId: string; type: string }) => {
     log.info('Training new predictor', values);
-    setIsTraining(true);
-    setTrainingProgress(0);
 
-    // Simulate training progress
-    const interval = setInterval(() => {
-      setTrainingProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 300);
-
-    setTimeout(() => {
-      clearInterval(interval);
-      setIsTraining(false);
-      setIsModalOpen(false);
-      form.resetFields();
-      setTrainingProgress(0);
-
-      // Add new predictor to list
-      const newPredictor = {
-        id: String(Date.now()),
-        name: values.name,
-        type: values.type,
-        logId: values.logId,
-        logName: mockLogs.find((l) => l.id === values.logId)?.name || 'Unknown',
-        accuracy: Math.round(75 + Math.random() * 20),
-        status: 'ready' as const,
-        createdAt: new Date().toISOString(),
-        predictions: 0,
-      };
-      setPredictors([newPredictor, ...predictors]);
-      toast.success('Predictor trained successfully!');
-    }, 3500);
+    // trainPredictor.mutate(
+    //   {
+    //     logId: values.logId,
+    //     request: {
+    //       targetType: values.type,
+    //       // Default algorithm for now, could add to form
+    //       algorithm: 'random_forest'
+    //     }
+    //   },
+    //   {
+    //     onSuccess: () => {
+    //       setIsModalOpen(false);
+    //       form.resetFields();
+    //       // Ideally we'd switch view to the log we just trained on
+    //       if (values.logId !== selectedLogId) {
+    //         setSelectedLogId(values.logId);
+    //       }
+    //     }
+    //   }
+    // );
+    console.warn('Training not implemented yet due to missing hooks');
+    setIsModalOpen(false);
   };
 
   const handleDelete = (id: string) => {
@@ -145,32 +102,36 @@ export function PredictionsPage() {
       okType: 'danger',
       onOk: () => {
         log.info('Deleting predictor', { id });
-        setPredictors(predictors.filter((p) => p.id !== id));
-        toast.success('Predictor deleted');
+        // deletePredictor.mutate(id);
+        console.warn('Deletion not implemented yet due to missing hooks');
       },
     });
   };
 
   const handleView = (id: string) => {
     log.debug('Viewing predictor', { id });
-    navigate(`/ai/predictions/${id}`);
+    if (projectId) {
+      navigate(`/workspace/${projectId}/ai/predictions/${id}`);
+    } else {
+      navigate(`/ai/predictions/${id}`);
+    }
   };
 
   const columns = [
     {
       title: 'Name',
-      dataIndex: 'name',
+      dataIndex: 'id', // PredictorResponse might not have 'name' yet, check schema? Schema has no name.
       key: 'name',
-      render: (name: string, record: typeof mockPredictors[0]) => (
+      render: (id: string, record: any) => (
         <Space>
           <ExperimentOutlined style={{ color: tokens.colors.primary[500] }} />
-          <Text strong>{name}</Text>
+          <Text strong>{record.target_type} Model ({record.algorithm})</Text>
         </Space>
       ),
     },
     {
       title: 'Type',
-      dataIndex: 'type',
+      dataIndex: 'target_type',
       key: 'type',
       render: (type: string) => (
         <Tag color="blue">{predictorTypes.find((t) => t.value === type)?.label || type}</Tag>
@@ -178,29 +139,33 @@ export function PredictionsPage() {
     },
     {
       title: 'Event Log',
-      dataIndex: 'logName',
+      dataIndex: 'log_id',
       key: 'logName',
-      render: (name: string) => <Text type="secondary">{name}</Text>,
+      render: (logId: string) => {
+        const logName = processes.find(p => p.id === logId)?.name || logId;
+        return <Text type="secondary">{logName}</Text>;
+      },
     },
     {
       title: 'Accuracy',
-      dataIndex: 'accuracy',
+      dataIndex: 'metrics',
       key: 'accuracy',
-      render: (accuracy: number, record: typeof mockPredictors[0]) =>
-        record.status === 'training' ? (
-          <Text type="secondary">Training...</Text>
-        ) : (
+      render: (metrics: any) => {
+        const accuracy = metrics?.accuracy ? Math.round(metrics.accuracy * 100) : 0;
+        return (
           <Text style={{ color: accuracy >= 85 ? tokens.colors.success[500] : tokens.colors.warning[500] }}>
             {accuracy}%
           </Text>
-        ),
+        );
+      },
     },
     {
       title: 'Status',
-      dataIndex: 'status',
       key: 'status',
-      render: (status: keyof typeof statusConfig) => {
-        const config = statusConfig[status];
+      render: () => {
+        // Backend doesn't return status yet in PredictorResponse (it's sync for now or async job separate)
+        // Assuming 'ready' if it exists in list
+        const config = statusConfig['ready'];
         return (
           <Tag icon={config.icon} color={config.color}>
             {config.text}
@@ -209,21 +174,14 @@ export function PredictionsPage() {
       },
     },
     {
-      title: 'Predictions',
-      dataIndex: 'predictions',
-      key: 'predictions',
-      render: (count: number) => count.toLocaleString(),
-    },
-    {
       title: 'Actions',
       key: 'actions',
-      render: (_: unknown, record: typeof mockPredictors[0]) => (
+      render: (_: unknown, record: any) => (
         <Space>
           <Button
             type="text"
             icon={<EyeOutlined />}
             onClick={() => handleView(record.id)}
-            disabled={record.status !== 'ready'}
           >
             View
           </Button>
@@ -238,19 +196,40 @@ export function PredictionsPage() {
     },
   ];
 
-  if (mockLogs.length === 0) {
+  if (processes.length === 0 && !processesData) {
+    // Loading processes
+    return <Skeleton active />;
+  }
+
+  // Build breadcrumbs based on context
+  const getBreadcrumbs = () => {
+    if (projectId) {
+      return [
+        { label: 'Workspace', href: '/workspace' },
+        { label: 'Project', href: `/workspace/${projectId}` },
+        { label: 'AI Predictions' },
+      ];
+    }
+    return [
+      { label: 'AI', href: '/ai' },
+      { label: 'Predictions' },
+    ];
+  };
+
+  if (processes.length === 0) {
     return (
       <div>
         <PageHeader
           title="Predictions"
           description="Train ML models to predict process outcomes"
+          breadcrumb={getBreadcrumbs()}
         />
         <EmptyState
           icon={<ExperimentOutlined />}
           title="No event logs available"
           description="Upload an event log to train prediction models"
           actionLabel="Upload Event Log"
-          onAction={() => navigate('/workspace')}
+          onAction={() => navigate(projectId ? `/workspace/${projectId}` : '/workspace')}
         />
       </div>
     );
@@ -261,22 +240,32 @@ export function PredictionsPage() {
       <PageHeader
         title="Predictions"
         description="Train ML models to predict next activities, remaining time, and process outcomes"
+        breadcrumb={getBreadcrumbs()}
         actions={
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleTrainNew}>
-            Train New Predictor
-          </Button>
+          <Space>
+            <Select
+              style={{ width: 250 }}
+              placeholder="Select Event Log"
+              value={selectedLogId}
+              onChange={setSelectedLogId}
+              options={processes.map(p => ({ label: p.name, value: p.id }))}
+            />
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleTrainNew}>
+              Train New Predictor
+            </Button>
+          </Space>
         }
       />
 
-      {isLoading ? (
+      {isPredictorsLoading ? (
         <Card>
           <Skeleton active paragraph={{ rows: 6 }} />
         </Card>
       ) : predictors.length === 0 ? (
         <EmptyState
           icon={<ExperimentOutlined />}
-          title="No predictors trained"
-          description="Train your first prediction model to start making predictions"
+          title="No predictors found"
+          description={`No prediction models trained for this log.`}
           actionLabel="Train New Predictor"
           onAction={handleTrainNew}
         />
@@ -299,54 +288,40 @@ export function PredictionsPage() {
         footer={null}
         width={480}
       >
-        {isTraining ? (
-          <div style={{ textAlign: 'center', padding: tokens.spacing[6] }}>
-            <ExperimentOutlined style={{ fontSize: 48, color: tokens.colors.primary[500], marginBottom: tokens.spacing[4] }} />
-            <Text style={{ display: 'block', marginBottom: tokens.spacing[4] }}>Training predictor...</Text>
-            <Progress percent={trainingProgress} status="active" />
-            <Text type="secondary" style={{ display: 'block', marginTop: tokens.spacing[2] }}>
-              This may take a few moments
-            </Text>
-          </div>
-        ) : (
-          <Form form={form} layout="vertical" onFinish={handleTrain}>
-            <Form.Item
-              name="name"
-              label="Predictor Name"
-              rules={[{ required: true, message: 'Please enter a name' }]}
-            >
-              <Input placeholder="e.g., Order Next Step Predictor" />
-            </Form.Item>
+        <Form form={form} layout="vertical" onFinish={handleTrain}>
+          <Form.Item
+            name="logId"
+            label="Event Log"
+            rules={[{ required: true, message: 'Please select an event log' }]}
+          >
+            <Select
+              placeholder="Select event log"
+              options={processes.map((p) => ({ value: p.id, label: p.name }))}
+            />
+          </Form.Item>
 
-            <Form.Item
-              name="logId"
-              label="Event Log"
-              rules={[{ required: true, message: 'Please select an event log' }]}
-            >
-              <Select
-                placeholder="Select event log"
-                options={mockLogs.map((log) => ({ value: log.id, label: log.name }))}
-              />
-            </Form.Item>
+          <Form.Item
+            name="type"
+            label="Prediction Type"
+            rules={[{ required: true, message: 'Please select a type' }]}
+          >
+            <Select placeholder="Select prediction type" options={predictorTypes} />
+          </Form.Item>
 
-            <Form.Item
-              name="type"
-              label="Prediction Type"
-              rules={[{ required: true, message: 'Please select a type' }]}
-            >
-              <Select placeholder="Select prediction type" options={predictorTypes} />
-            </Form.Item>
-
-            <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-              <Space>
-                <Button onClick={handleModalCancel}>Cancel</Button>
-                <Button type="primary" htmlType="submit" icon={<PlayCircleOutlined />}>
-                  Start Training
-                </Button>
-              </Space>
-            </Form.Item>
-          </Form>
-        )}
+          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+            <Space>
+              <Button onClick={handleModalCancel}>Cancel</Button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                icon={<PlayCircleOutlined />}
+                loading={false /*trainPredictor.isPending*/}
+              >
+                Start Training
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );
