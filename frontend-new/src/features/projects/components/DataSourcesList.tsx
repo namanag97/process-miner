@@ -1,31 +1,73 @@
 /**
  * DataSourcesList - Display and manage data sources for a project
+ * 
+ * Shows dataset status and provides Analyze action for UNSTRUCTURED datasets.
  */
 
 import React from 'react';
-import { List } from 'antd';
+import { List, Card, Space, Tag, Button, Typography, Tooltip } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
-import { DataSourceCard, EmptyState, tokens } from '@lumina/design-system';
-import { FolderOpenOutlined } from '@ant-design/icons';
+import { EmptyState, tokens } from '@lumina/design-system';
+import {
+  FolderOpenOutlined,
+  FileTextOutlined,
+  PlayCircleOutlined,
+  LoadingOutlined,
+  CheckCircleOutlined,
+  ExclamationCircleOutlined,
+  SettingOutlined,
+  DeleteOutlined,
+} from '@ant-design/icons';
 import { useRemoveFileFromProject } from '../hooks';
-import type { DataSourceInfo } from '../types';
+import type { DataSourceInfo, DatasetStatus } from '../types';
+
+const { Text } = Typography;
 
 interface DataSourcesListProps {
   sources: DataSourceInfo[];
   loading?: boolean;
   onUploadClick?: () => void;
+  onAnalyzeClick?: (source: DataSourceInfo) => void;
 }
+
+const STATUS_CONFIG: Record<DatasetStatus, { color: string; icon: React.ReactNode; label: string }> = {
+  unstructured: {
+    color: 'orange',
+    icon: <SettingOutlined />,
+    label: 'Needs Configuration'
+  },
+  analyzing: {
+    color: 'processing',
+    icon: <LoadingOutlined spin />,
+    label: 'Analyzing...'
+  },
+  ready: {
+    color: 'success',
+    icon: <CheckCircleOutlined />,
+    label: 'Ready'
+  },
+  error: {
+    color: 'error',
+    icon: <ExclamationCircleOutlined />,
+    label: 'Error'
+  },
+};
 
 export function DataSourcesList({
   sources,
   loading,
   onUploadClick,
+  onAnalyzeClick,
 }: DataSourcesListProps) {
   const navigate = useNavigate();
   const { projectId } = useParams<{ projectId: string }>();
   const removeFile = useRemoveFileFromProject();
 
   const handleExplore = (source: DataSourceInfo) => {
+    // Only allow exploration of READY datasets
+    if (source.status !== 'ready') {
+      return;
+    }
     navigate(`/workspace/${projectId}/data/${source.id}/questions`);
   };
 
@@ -50,18 +92,107 @@ export function DataSourcesList({
     <List
       loading={loading}
       dataSource={sources}
-      grid={{ gutter: 16, xs: 1, sm: 1, md: 1, lg: 1, xl: 1, xxl: 1 }}
-      renderItem={(source) => (
-        <List.Item style={{ marginBottom: tokens.spacing[3] }}>
-          <DataSourceCard
-            source={source}
-            onExplore={() => handleExplore(source)}
-            onDelete={() => handleDelete(source.id)}
-          />
-        </List.Item>
-      )}
+      grid={{ gutter: 16, xs: 1, sm: 1, md: 2, lg: 2, xl: 2, xxl: 3 }}
+      renderItem={(source) => {
+        const status = source.status || 'ready';
+        const statusConfig = STATUS_CONFIG[status];
+        const isReady = status === 'ready';
+        const needsAnalysis = status === 'unstructured';
+        const isAnalyzing = status === 'analyzing';
+
+        return (
+          <List.Item>
+            <Card
+              size="small"
+              hoverable={isReady}
+              onClick={() => isReady && handleExplore(source)}
+              style={{
+                cursor: isReady ? 'pointer' : 'default',
+                opacity: isAnalyzing ? 0.8 : 1,
+              }}
+              actions={[
+                needsAnalysis && onAnalyzeClick && (
+                  <Button
+                    key="analyze"
+                    type="primary"
+                    size="small"
+                    icon={<PlayCircleOutlined />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAnalyzeClick(source);
+                    }}
+                  >
+                    Analyze
+                  </Button>
+                ),
+                isReady && (
+                  <Button
+                    key="explore"
+                    type="link"
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleExplore(source);
+                    }}
+                  >
+                    Explore
+                  </Button>
+                ),
+                <Tooltip title="Delete dataset" key="delete">
+                  <Button
+                    type="text"
+                    size="small"
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(source.id);
+                    }}
+                  />
+                </Tooltip>,
+              ].filter(Boolean)}
+            >
+              <Card.Meta
+                avatar={
+                  <FileTextOutlined
+                    style={{
+                      fontSize: 24,
+                      color: isReady ? tokens.colors.primary[500] : tokens.colors.neutral[400]
+                    }}
+                  />
+                }
+                title={
+                  <Space>
+                    <Text strong ellipsis style={{ maxWidth: 180 }}>{source.name}</Text>
+                    <Tag
+                      color={statusConfig.color}
+                      icon={statusConfig.icon}
+                      style={{ marginLeft: 'auto' }}
+                    >
+                      {statusConfig.label}
+                    </Tag>
+                  </Space>
+                }
+                description={
+                  <Space direction="vertical" size={0}>
+                    <Text type="secondary" style={{ fontSize: tokens.fontSize.sm }}>
+                      {source.caseCount.toLocaleString()} cases · {source.eventCount.toLocaleString()} events
+                    </Text>
+                    {source.errorMessage && (
+                      <Text type="danger" style={{ fontSize: tokens.fontSize.sm }}>
+                        {source.errorMessage}
+                      </Text>
+                    )}
+                  </Space>
+                }
+              />
+            </Card>
+          </List.Item>
+        );
+      }}
     />
   );
 }
 
 export default DataSourcesList;
+

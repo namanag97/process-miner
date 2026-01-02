@@ -305,7 +305,11 @@ export function ProjectDetailPage() {
                 Upload More Data
               </Button>
             </div>
-            <DataSourcesList sources={dataSources} onUploadClick={handleUpload} />
+            <DataSourcesList
+              sources={dataSources}
+              onUploadClick={handleUpload}
+              onAnalyzeClick={handleAnalyze}
+            />
           </>
         )}
       </Card>
@@ -345,6 +349,26 @@ export function ProjectDetailPage() {
             ))}
           </Row>
         </Card>
+      )}
+
+      {/* Upload Modal */}
+      <SimpleUploadModal
+        open={uploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
+        projectId={projectId || ''}
+        onSuccess={refetch}
+      />
+
+      {/* Analyze Modal */}
+      {analyzeDataset && (
+        <AnalyzeModal
+          open={!!analyzeDataset}
+          onClose={() => setAnalyzeDataset(null)}
+          datasetId={analyzeDataset.id}
+          datasetName={analyzeDataset.name}
+          projectId={projectId || ''}
+          onSuccess={refetch}
+        />
       )}
     </FeaturePage>
   );

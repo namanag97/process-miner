@@ -7,6 +7,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
 import { queryKeys } from '@lumina/design-system';
+import { env } from '../../../config/env';
 
 interface UploadDatasetParams {
     projectId: string;
@@ -48,17 +49,24 @@ async function uploadDataset({
         formData.append('name', name);
     }
 
-    const response = await fetch('/api/v1/datasets/upload', {
+    // Use API base URL from environment config
+    const apiUrl = `${env.API_BASE_URL}/api/v1/datasets/upload`;
+    console.log('[Upload] Uploading to:', apiUrl, 'projectId:', projectId);
+
+    const response = await fetch(apiUrl, {
         method: 'POST',
         body: formData,
     });
 
     if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
+        console.error('[Upload] Error:', error);
         throw new Error(error.detail || 'Failed to upload file');
     }
 
-    return response.json();
+    const result = await response.json();
+    console.log('[Upload] Success:', result);
+    return result;
 }
 
 export function useUploadDataset() {

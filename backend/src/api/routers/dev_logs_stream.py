@@ -153,15 +153,19 @@ def _create_log_entry(
         timing=timing,
     )
 
-    # Publish to Redis (broadcast to all workers)
-    # Note: This is a sync function, so we need to handle async carefully
-    # We'll use asyncio.create_task to publish without blocking
+    # Add to local buffer (synchronous, always works)
+    from src.infrastructure.log_broker import log_broker
+    log_broker._local_buffer.append(entry.model_dump())
+
+    # Publish to Redis (broadcast to all workers) if event loop is available
+    # This enables cross-worker visibility in multi-worker deployments
     try:
-        from src.infrastructure.log_broker import log_broker
+        loop = asyncio.get_running_loop()
         # Schedule publish as background task (don't await)
-        asyncio.create_task(log_broker.publish_log(entry.model_dump()))
+        loop.create_task(log_broker.publish_log(entry.model_dump()))
     except RuntimeError:
-        # No event loop (shouldn't happen in FastAPI, but handle gracefully)
+        # No event loop - this is fine, logs are in local buffer
+        # They'll be visible to clients connected to THIS worker
         pass
     except Exception:
         # Don't let logging errors break the application

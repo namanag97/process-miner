@@ -119,8 +119,22 @@ def setup_tracing(
     # Get tracer
     _tracer = trace.get_tracer(service_name, service_version)
 
-    # Instrument FastAPI
-    FastAPIInstrumentor.instrument_app(app)
+    # Instrument FastAPI with excludelist for noisy endpoints
+    # Exclude health checks, metrics, and other high-frequency endpoints
+    # that don't provide value in traces
+    excluded_urls = [
+        "/health",
+        "/metrics",
+        "/api/v1/health",
+        "/api/v1/metrics",
+        "/api/v1/dev/logs/stream",  # SSE stream creates many spans
+        "/api/v1/dev/logs/metrics",
+    ]
+
+    FastAPIInstrumentor.instrument_app(
+        app,
+        excluded_urls=",".join(excluded_urls),
+    )
 
     logger.info(
         "tracing_initialized",
@@ -128,6 +142,7 @@ def setup_tracing(
         otlp_endpoint=otlp_endpoint,
         console_export=console_export,
         devconsole_export=devconsole_export,
+        excluded_endpoints=len(excluded_urls),
     )
 
 

@@ -10,6 +10,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
 import { queryKeys } from '@lumina/design-system';
+import { env } from '../../../config/env';
 
 // ============================================
 // Types
@@ -52,7 +53,10 @@ export interface JobStatus {
 // ============================================
 
 async function detectColumns(datasetId: string): Promise<ColumnDetectionResponse> {
-    const response = await fetch(`/api/v1/datasets/${datasetId}/detect-columns`);
+    const apiUrl = `${env.API_BASE_URL}/api/v1/datasets/${datasetId}/detect-columns`;
+    console.log('[AnalyzeDataset] Detecting columns:', apiUrl);
+
+    const response = await fetch(apiUrl);
 
     if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'Failed to detect columns' }));
@@ -84,7 +88,10 @@ async function startAnalysis({
     datasetId,
     mapping,
 }: StartAnalysisParams): Promise<AnalyzeResponse> {
-    const response = await fetch(`/api/v1/datasets/${datasetId}/ingest`, {
+    const apiUrl = `${env.API_BASE_URL}/api/v1/datasets/${datasetId}/ingest`;
+    console.log('[AnalyzeDataset] Starting analysis:', apiUrl);
+
+    const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(mapping),
@@ -92,6 +99,7 @@ async function startAnalysis({
 
     if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'Failed to start analysis' }));
+        console.error('[AnalyzeDataset] Error:', error);
         throw new Error(error.detail || 'Failed to start analysis');
     }
 
@@ -119,7 +127,8 @@ export function useStartAnalysis() {
 // ============================================
 
 async function getJobStatus(jobId: string): Promise<JobStatus> {
-    const response = await fetch(`/api/v1/jobs/${jobId}`);
+    const apiUrl = `${env.API_BASE_URL}/api/v1/jobs/${jobId}`;
+    const response = await fetch(apiUrl);
 
     if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'Failed to get job status' }));

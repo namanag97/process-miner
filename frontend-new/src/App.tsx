@@ -27,6 +27,7 @@ const ProjectDetailPage = lazy(() => import('./features/projects/pages/ProjectDe
 // Explorer feature
 const ExplorerIndexPage = lazy(() => import('./features/explorer/pages/ExplorerIndexPage'));
 const ExplorerDetailPage = lazy(() => import('./features/explorer/pages/ExplorerDetailPage'));
+const ExploreProcessesPage = lazy(() => import('./features/explorer/pages/ExploreProcessesPage'));
 
 // KPI feature
 const KPIPage = lazy(() => import('./features/kpi/pages/KPIPage'));
@@ -51,7 +52,8 @@ const ActivityLogPage = lazy(() => import('./pages/ActivityLogPage'));
 const AuditLogsPage = lazy(() => import('./pages/AuditLogsPage'));
 const HelpCenterPage = lazy(() => import('./pages/HelpCenterPage'));
 const EventLogsPage = lazy(() => import('./pages/logs/EventLogsPage'));
-const UploadWizardPage = lazy(() => import('./pages/logs/UploadWizardPage'));
+// DEPRECATED: Upload wizard replaced by SimpleUploadModal in ProjectDetailPage
+// const UploadWizardPage = lazy(() => import('./pages/logs/UploadWizardPage'));
 const LogDetailPage = lazy(() => import('./pages/logs/LogDetailPage'));
 const ProcessQuestionsPage = lazy(() => import('./pages/questions/ProcessQuestionsPage'));
 
@@ -185,7 +187,8 @@ function AppLayout() {
           {/* ============================================ */}
           <Route path="/workspace" element={<ProjectsListPage />} />
           <Route path="/workspace/:projectId" element={<ProjectDetailPage />} />
-          <Route path="/workspace/:projectId/upload" element={<UploadWizardPage />} />
+          {/* DEPRECATED: Upload wizard replaced by modal in ProjectDetailPage */}
+          <Route path="/workspace/:projectId/upload" element={<Navigate to="/workspace/:projectId" replace />} />
           <Route path="/workspace/:projectId/data/:logId/questions" element={<ProcessQuestionsPage />} />
           <Route path="/workspace/:projectId/data/:logId/explorer" element={<ExplorerDetailPage />} />
           <Route path="/workspace/:projectId/data/:logId/kpi" element={<KPIPage />} />
@@ -202,10 +205,15 @@ function AppLayout() {
           <Route path="/workspace/:projectId/ai/predictions/:id" element={<PredictorDetailPage />} />
 
           {/* ============================================ */}
-          {/* Explorer Feature (DEPRECATED - redirects to workspace) */}
+          {/* Explore Processes - View analyzed datasets */}
           {/* ============================================ */}
-          <Route path="/explorer" element={<ExplorerRedirect />} />
-          <Route path="/explorer/:logId/*" element={<ExplorerRedirect />} />
+          <Route path="/explore" element={<ExploreProcessesPage />} />
+
+          {/* ============================================ */}
+          {/* Explorer Feature (DEPRECATED - redirects to explore) */}
+          {/* ============================================ */}
+          <Route path="/explorer" element={<Navigate to="/explore" replace />} />
+          <Route path="/explorer/:logId/*" element={<ExplorerDetailPage />} />
 
           {/* ============================================ */}
           {/* Analytics Feature */}

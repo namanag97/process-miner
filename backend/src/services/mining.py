@@ -26,7 +26,7 @@ from pm4py.visualization.dfg import visualizer as dfg_visualizer
 from pm4py.visualization.petri_net import visualizer as pn_visualizer
 
 from src.core.enums import MinerType, ModelFormat
-from src.core.logging_config import get_logger
+from src.core.logging_config import get_logger, log_business_metric
 from src.models.orm import Dataset
 from src.infrastructure.circuit_breaker import pm4py_circuit
 from src.infrastructure.metrics import instrument_pm4py, record_pm4py_operation
@@ -134,6 +134,25 @@ class MiningService:
             mining_duration_ms=round(mining_ms, 2),
             total_duration_ms=round(total_ms, 2),
         )
+
+        # Log business metrics for DevConsole real-time visibility
+        log_business_metric(
+            "discovery_time",
+            round(mining_ms, 2),
+            "ms",
+            tags={
+                "miner": miner_type.value,
+                "events": event_log.total_events,
+                "cases": event_log.total_cases,
+            }
+        )
+        log_business_metric(
+            "discovery_throughput",
+            round(event_log.total_events / (mining_ms / 1000), 2) if mining_ms > 0 else 0,
+            "events/sec",
+            tags={"miner": miner_type.value}
+        )
+
         return result
 
     def _discover_alpha(self, log: PM4PyLog) -> tuple[PetriNet, Marking, Marking]:
