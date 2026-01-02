@@ -26,7 +26,10 @@ import { tokens, logAction } from '@lumina/design-system';
 import { FeaturePage, PageSection } from '../../../core/components/FeaturePage';
 import { useProjectDetail, useDeleteProject } from '../hooks';
 import { DataSourcesList } from '../components/DataSourcesList';
+import { SimpleUploadModal } from '../components/SimpleUploadModal';
+import { AnalyzeModal } from '../components/AnalyzeModal';
 import { toDataSources } from '../types';
+import type { DataSourceInfo } from '../types';
 
 const { Text, Title } = Typography;
 
@@ -63,12 +66,23 @@ export function ProjectDetailPage() {
   const navigate = useNavigate();
   const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
 
+  // Modal state
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [analyzeDataset, setAnalyzeDataset] = useState<DataSourceInfo | null>(null);
+
   const { data: project, isLoading, error, refetch } = useProjectDetail(projectId || '');
   const deleteProject = useDeleteProject();
 
+  // Simple upload - opens modal instead of navigating to wizard
   const handleUpload = () => {
     logAction('ProjectDetailPage', 'upload_clicked', { projectId });
-    navigate(`/workspace/${projectId}/upload`);
+    setUploadModalOpen(true);
+  };
+
+  // Analyze a dataset - opens column mapping modal
+  const handleAnalyze = (dataset: DataSourceInfo) => {
+    logAction('ProjectDetailPage', 'analyze_clicked', { projectId, datasetId: dataset.id });
+    setAnalyzeDataset(dataset);
   };
 
   const handleConnectDatabase = () => {
@@ -165,8 +179,8 @@ export function ProjectDetailPage() {
           </Button>
           {hasData && (
             <Dropdown menu={{ items: analysisMenuItems }} placement="bottomRight">
-              <Button 
-                type="primary" 
+              <Button
+                type="primary"
                 icon={<PlayCircleOutlined />}
                 style={{
                   background: `linear-gradient(135deg, ${tokens.colors.primary[500]}, ${tokens.colors.primary[600]})`,
@@ -320,8 +334,8 @@ export function ProjectDetailPage() {
                     {analysis.icon}
                   </div>
                   <Text strong style={{ display: 'block' }}>{analysis.label}</Text>
-                  <Text 
-                    type="secondary" 
+                  <Text
+                    type="secondary"
                     style={{ fontSize: tokens.fontSize.sm, display: 'block', marginTop: 4 }}
                   >
                     {analysis.description}

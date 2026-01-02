@@ -47,7 +47,7 @@ export interface DatasetSummary {
   activities: string[];
   createdAt: string;
   sourceFile: string | null;
-  status: DatasetStatus;
+  status?: DatasetStatus;
   errorMessage?: string;
 }
 
