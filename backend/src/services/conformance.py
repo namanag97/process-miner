@@ -616,6 +616,8 @@ class ConformanceService:
             "fitness": fitness,
             "precision": precision,
             "method": "token_replay",
+            "algorithm_used": "token_replay",  # Explicit tracking (same as method when no fallback)
+            "fallback_reason": None,
             "fitting_traces": fitting_traces,
             "total_traces": len(log),
             "is_conformant": fitness >= 0.8,
@@ -628,7 +630,14 @@ class ConformanceService:
         im: Marking,
         fm: Marking,
     ) -> dict[str, Any]:
-        """Perform alignment-based conformance checking."""
+        """Perform alignment-based conformance checking.
+        
+        Now includes explicit algorithm tracking to address silent fallback anti-pattern.
+        Returns algorithm_used and fallback_reason fields.
+        """
+        from src.core.logging_config import get_logger
+        logger = get_logger(__name__)
+        
         try:
             fitness_result = pm4py.fitness_alignments(log, net, im, fm)
             precision = pm4py.precision_alignments(log, net, im, fm)
@@ -639,13 +648,28 @@ class ConformanceService:
                 "fitness": fitness,
                 "precision": precision,
                 "method": "alignment",
+                "algorithm_used": "alignment",  # Explicit tracking
+                "fallback_reason": None,
                 "fitting_traces": int(len(log) * fitness),
                 "total_traces": len(log),
                 "is_conformant": fitness >= 0.8,
             }
-        except Exception:
-            # Fall back to token replay if alignment fails
-            return self._token_replay(log, net, im, fm)
+        except Exception as e:
+            # Log the fallback with reason - no longer silent!
+            fallback_reason = f"Alignment failed: {str(e)[:200]}"
+            logger.warning(
+                "conformance_algorithm_fallback",
+                requested_method="alignment",
+                fallback_to="token_replay",
+                reason=fallback_reason,
+            )
+            
+            # Fall back to token replay, but explicitly track it
+            result = self._token_replay(log, net, im, fm)
+            result["method"] = "alignment"  # What was requested
+            result["algorithm_used"] = "token_replay"  # What actually ran
+            result["fallback_reason"] = fallback_reason
+            return result
 
     def _get_petri_net(
         self,

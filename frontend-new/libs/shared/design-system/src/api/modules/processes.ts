@@ -21,10 +21,12 @@ export interface ListProcessesOptions {
   page?: number;
   pageSize?: number;
   sourceFormat?: string;
+  projectId?: string;
 }
 
 export interface ProcessMetadata {
   name?: string;
+  projectId?: string;
   caseIdColumn?: string;
   activityColumn?: string;
   timestampColumn?: string;
@@ -52,6 +54,7 @@ export function createProcessesModule(client: ApiClient): ProcessesModule {
         page: options?.page ?? 1,
         page_size: options?.pageSize ?? 20,
         source_format: options?.sourceFormat,
+        project_id: options?.projectId,
       });
 
       return {
@@ -74,6 +77,9 @@ export function createProcessesModule(client: ApiClient): ProcessesModule {
       
       if (metadata?.name) {
         formData.append('name', metadata.name);
+      }
+      if (metadata?.projectId) {
+        formData.append('project_id', metadata.projectId);
       }
       if (metadata?.caseIdColumn) {
         formData.append('case_id_column', metadata.caseIdColumn);
@@ -102,6 +108,9 @@ export function createProcessesModule(client: ApiClient): ProcessesModule {
       
       if (metadata?.name) {
         formData.append('name', metadata.name);
+      }
+      if (metadata?.projectId) {
+        formData.append('project_id', metadata.projectId);
       }
       if (metadata?.caseIdColumn) {
         formData.append('case_id_column', metadata.caseIdColumn);

@@ -465,7 +465,9 @@ class ConformanceResponse(BaseModel):
     precision: Optional[float]
     generalization: Optional[float] = None  # FE expects this metric
     simplicity: Optional[float] = None  # FE expects this metric
-    method: str
+    method: str  # What method was requested
+    algorithm_used: str  # What algorithm actually ran (may differ if fallback)
+    fallback_reason: Optional[str] = None  # Reason for fallback if different from method
     is_conformant: bool  # fitness >= 0.8
     fitting_traces: int
     total_traces: int

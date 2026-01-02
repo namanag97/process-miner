@@ -127,6 +127,8 @@ async def check_conformance(
             fitness=conformance_record.fitness,
             precision=conformance_record.precision,
             method=conformance_record.method,
+            algorithm_used=result.get("algorithm_used", result["method"]),
+            fallback_reason=result.get("fallback_reason"),
             is_conformant=result["is_conformant"],
             fitting_traces=result["fitting_traces"],
             total_traces=result["total_traces"],

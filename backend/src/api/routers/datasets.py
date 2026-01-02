@@ -21,7 +21,7 @@ from src.core.exceptions import (
     ValidationError,
 )
 from src.core.logging_config import get_logger
-from src.models.orm import Dataset, ProcessCase
+from src.models.orm import Dataset, ProcessCase, Project
 from src.models.schemas import (
     ActivityDetailResponse,
     CaseListResponse,
@@ -167,6 +167,7 @@ async def upload_dataset(
     db: DBSession,
     file: UploadFile = File(...),
     name: Optional[str] = Form(None),
+    project_id: Optional[str] = Form(None, description="Project ID to assign dataset to"),
     case_id_column: Optional[str] = Form(None),
     activity_column: Optional[str] = Form(None),
     timestamp_column: Optional[str] = Form(None),
@@ -186,8 +187,15 @@ async def upload_dataset(
     if not filename:
         raise InvalidFileError("Filename is required")
 
-    logger.info("upload_started", filename=filename, name=name)
+    logger.info("upload_started", filename=filename, name=name, project_id=project_id)
     start_time = time.perf_counter()
+
+    # Validate project exists if project_id is provided
+    if project_id:
+        project_query = select(Project).where(Project.id == project_id)
+        project_result = await db.execute(project_query)
+        if not project_result.scalar_one_or_none():
+            raise ProcessNotFoundError(project_id, resource_name="Project")
 
     content = await file.read()
     file_size_mb = len(content) / (1024 * 1024)
@@ -240,6 +248,12 @@ async def upload_dataset(
 
         activities = json.loads(dataset.activities_json) if dataset.activities_json else []
         duration_ms = (time.perf_counter() - start_time) * 1000
+
+        # Assign to project if project_id provided
+        if project_id:
+            dataset.project_id = project_id
+            await db.flush()
+            logger.info("dataset_assigned_to_project", dataset_id=dataset.id, project_id=project_id)
 
         logger.info(
             "upload_completed",
@@ -341,24 +355,30 @@ async def list_datasets(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     source_format: Optional[str] = Query(None),
+    project_id: Optional[str] = Query(None, description="Filter by project ID"),
 ):
     """
     List all uploaded datasets.
 
     Supports pagination and filtering by source format.
     """
-    logger.debug("list_datasets", page=page, page_size=page_size, source_format=source_format)
+    logger.debug("list_datasets", page=page, page_size=page_size, source_format=source_format, project_id=project_id)
 
     # Build query
     query = select(Dataset).order_by(Dataset.created_at.desc())
 
     if source_format:
         query = query.where(Dataset.source_format == source_format)
+    
+    if project_id:
+        query = query.where(Dataset.project_id == project_id)
 
     # Count total
     count_query = select(func.count()).select_from(Dataset)
     if source_format:
         count_query = count_query.where(Dataset.source_format == source_format)
+    if project_id:
+        count_query = count_query.where(Dataset.project_id == project_id)
 
     total = await db.scalar(count_query) or 0
 
@@ -467,16 +487,15 @@ async def get_statistics(
     Get comprehensive statistics for an event log.
 
     Includes activities, variants, case durations, and more.
+    
+    PERFORMANCE: Uses SQL aggregations instead of ORM eager loading
+    to prevent OOM on large datasets (1M+ events).
     """
     logger.info("get_statistics_started", dataset_id=dataset_id)
     start_time = time.perf_counter()
 
-    # Load with cases and events
-    query = (
-        select(Dataset)
-        .options(selectinload(Dataset.cases).selectinload(ProcessCase.events))
-        .where(Dataset.id == dataset_id)
-    )
+    # Load ONLY the dataset metadata (no eager loading of cases/events!)
+    query = select(Dataset).where(Dataset.id == dataset_id)
     result = await db.execute(query)
     dataset = result.scalar_one_or_none()
 
@@ -486,30 +505,49 @@ async def get_statistics(
 
     activities = json.loads(dataset.activities_json) if dataset.activities_json else []
 
-    # Get start/end activities from mining service
+    # Get start/end activities from mining service (uses fast DuckDB path)
     start_activities = mining_service.get_start_activities(dataset)
     end_activities = mining_service.get_end_activities(dataset)
 
-    # Get variants
+    # Get variants using mining service (uses fast DuckDB path)
     variants_data = mining_service.get_variants(dataset)
 
-    # Get case statistics
-    case_stats = mining_service.get_case_statistics(dataset)
-
-    # Calculate date range
+    # Get case duration stats via SQL aggregation (NO ORM object instantiation!)
+    from sqlalchemy import func as sql_func
+    duration_stats = await db.execute(
+        select(
+            sql_func.avg(
+                sql_func.extract('epoch', ProcessCase.end_time) - 
+                sql_func.extract('epoch', ProcessCase.start_time)
+            ).label("avg_duration"),
+            sql_func.min(
+                sql_func.extract('epoch', ProcessCase.end_time) - 
+                sql_func.extract('epoch', ProcessCase.start_time)
+            ).label("min_duration"),
+            sql_func.max(
+                sql_func.extract('epoch', ProcessCase.end_time) - 
+                sql_func.extract('epoch', ProcessCase.start_time)
+            ).label("max_duration"),
+            sql_func.min(ProcessCase.start_time).label("date_start"),
+            sql_func.max(ProcessCase.end_time).label("date_end"),
+        )
+        .where(ProcessCase.dataset_id == dataset_id)
+        .where(ProcessCase.start_time.isnot(None))
+        .where(ProcessCase.end_time.isnot(None))
+    )
+    stats_row = duration_stats.one_or_none()
+    
+    # Extract values from SQL result (handles None cases)
+    avg_duration = float(stats_row.avg_duration) if stats_row and stats_row.avg_duration else None
+    min_duration = float(stats_row.min_duration) if stats_row and stats_row.min_duration else None
+    max_duration = float(stats_row.max_duration) if stats_row and stats_row.max_duration else None
+    
     date_range = None
-    if dataset.cases:
-        all_times = []
-        for case in dataset.cases:
-            if case.start_time:
-                all_times.append(case.start_time)
-            if case.end_time:
-                all_times.append(case.end_time)
-        if all_times:
-            date_range = {
-                "start": min(all_times),
-                "end": max(all_times),
-            }
+    if stats_row and stats_row.date_start and stats_row.date_end:
+        date_range = {
+            "start": stats_row.date_start,
+            "end": stats_row.date_end,
+        }
 
     duration_ms = (time.perf_counter() - start_time) * 1000
     logger.info(
@@ -527,9 +565,9 @@ async def get_statistics(
         activities=activities,
         start_activities=start_activities,
         end_activities=end_activities,
-        avg_case_duration_seconds=case_stats.get("avg_duration_seconds"),
-        min_case_duration_seconds=case_stats.get("min_duration_seconds"),
-        max_case_duration_seconds=case_stats.get("max_duration_seconds"),
+        avg_case_duration_seconds=avg_duration,
+        min_case_duration_seconds=min_duration,
+        max_case_duration_seconds=max_duration,
         date_range=date_range,
     )
 
