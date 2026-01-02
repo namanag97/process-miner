@@ -1,0 +1,136 @@
+graph TB
+    subgraph "API Layer"
+        A[main.py<br/>FastAPI App]
+        A --> R1[projects_router]
+        A --> R2[processes_router]
+        A --> R3[analyses_router]
+        A --> R4[discovery_router]
+        A --> R5[visualization_router]
+        A --> R6[conformance_router]
+        A --> R7[ocpm_router]
+        A --> R8[workflows_router]
+        A --> R9[filtering_router]
+        A --> R10[analytics_router]
+        A --> R11[organizational_router]
+        A --> R12[predictions_router]
+        A --> R13[simulation_router]
+        A --> R14[dev_log_router]
+        A --> R15[dev_logs_stream_router]
+        A --> R16[health_router]
+    end
+
+    subgraph "Service Layer"
+        S1[mining.py<br/>48 functions]
+        S2[conformance.py]
+        S3[filtering.py]
+        S4[analytics.py]
+        S5[ocpm.py]
+        S6[organizational.py]
+        S7[prediction.py]
+        S8[simulation.py]
+        S9[workflow.py]
+        S10[ingestion.py]
+        S11[event_log_loader.py]
+        S12[storage.py]
+        S13[llm.py]
+        S14[privacy.py]
+        S15[recommendation.py]
+        S16[duckdb_ingestion.py]
+    end
+
+    subgraph "Domain Layer"
+        D1[entities.py<br/>EventLogAggregate<br/>ProcessCase<br/>ProcessEvent]
+        D2[value_objects.py<br/>CaseId<br/>ActivitySequence<br/>TimeRange<br/>ProcessStatistics]
+        D3[repositories.py]
+    end
+
+    subgraph "Core Layer"
+        C1[config.py]
+        C2[exceptions.py<br/>AppException]
+        C3[middleware.py<br/>RequestLogging<br/>PerformanceLogging]
+        C4[logging_config.py]
+        C5[domain_events.py]
+        C6[error_codes.py]
+        C7[result.py]
+        C8[etag.py]
+        C9[idempotency.py]
+        C10[enums.py]
+        C11[value_objects.py]
+    end
+
+    subgraph "Infrastructure Layer"
+        I1[cache.py<br/>Redis Cache]
+        I2[metrics.py<br/>Prometheus]
+        I3[tracing.py<br/>OpenTelemetry]
+        I4[circuit_breaker.py]
+        I5[rate_limiter.py]
+        I6[retry.py]
+        I7[tasks.py<br/>Celery Tasks]
+    end
+
+    subgraph "Models Layer"
+        M1[database.py<br/>SQLAlchemy Async]
+        M2[orm.py<br/>EventLog<br/>Project<br/>Analysis<br/>PredictionModel<br/>AsyncJob]
+        M3[schemas.py<br/>Pydantic Schemas]
+        M4[repositories.py]
+        M5[ocel2.py<br/>OCEL2 Models]
+    end
+
+    subgraph "Engine Layer"
+        E1[miners.py<br/>PM4Py Interface]
+        E2[loader.py<br/>File Parsing]
+    end
+
+    %% Dependencies
+    R1 --> S1
+    R2 --> S1
+    R3 --> S1
+    R4 --> S1
+    R5 --> S1
+    R6 --> S2
+    R7 --> S5
+    R8 --> S9
+    R9 --> S3
+    R10 --> S4
+    R11 --> S6
+    R12 --> S7
+    R13 --> S8
+    R14 --> M2
+    R15 --> M2
+
+    S1 --> D1
+    S2 --> D1
+    S3 --> D1
+    S10 --> D1
+    S11 --> D1
+
+    S1 --> E1
+    S10 --> E2
+
+    S1 --> M1
+    S2 --> M1
+    S3 --> M1
+    S4 --> M1
+    S10 --> M1
+
+    D1 --> D2
+    D3 --> M2
+
+    S1 --> I1
+    S1 --> I4
+    S1 --> I2
+
+    A --> C3
+    A --> C2
+    S1 --> C4
+
+    I7 --> S1
+    I7 --> S7
+    I7 --> M1
+
+    style A fill:#e1f5ff
+    style D1 fill:#fff4e6
+    style S1 fill:#f3e5f5
+    style M1 fill:#e8f5e9
+    style I1 fill:#fce4ec
+    style C1 fill:#fff9c4

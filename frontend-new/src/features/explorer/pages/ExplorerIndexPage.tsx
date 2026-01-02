@@ -8,7 +8,7 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Input, Typography, Row, Col, Tag, Space, Button, Alert } from 'antd';
 import { SearchOutlined, FolderOpenOutlined, PlayCircleOutlined, ReloadOutlined } from '@ant-design/icons';
-import { PageHeader, EmptyState, tokens } from '@lumina/design-system';
+import { PageHeader, EmptyState, tokens, logAction } from '@lumina/design-system';
 import { FeaturePage } from '../../../core/components/FeaturePage';
 import { useEventLogsList } from '../hooks';
 import { createLogger } from '../../../utils/logger';
@@ -34,6 +34,7 @@ export function ExplorerIndexPage() {
   }, [logs, searchText]);
 
   const handleExplore = (logItem: { id: string; name: string }) => {
+    logAction('ExplorerIndexPage', 'explore_clicked', { logId: logItem.id, name: logItem.name });
     log.info('Exploring log', { logId: logItem.id, name: logItem.name });
     navigate(`/explorer/${logItem.id}`);
   };

@@ -10,7 +10,7 @@ import pm4py
 from pm4py.objects.petri_net.obj import Marking, PetriNet
 
 from src.core.enums import ConformanceMethod, ModelFormat
-from src.models.orm import EventLog, ProcessModel
+from src.models.orm import Dataset, ProcessModel
 from src.services.mining import mining_service
 
 
@@ -22,7 +22,7 @@ class ConformanceService:
 
     def check_conformance(
         self,
-        event_log: EventLog,
+        event_log: Dataset,
         model: ProcessModel,
         method: ConformanceMethod = ConformanceMethod.TOKEN_REPLAY,
     ) -> dict[str, Any]:
@@ -44,7 +44,7 @@ class ConformanceService:
 
     def calculate_fitness(
         self,
-        event_log: EventLog,
+        event_log: Dataset,
         model: ProcessModel,
     ) -> float:
         """Calculate fitness score for log-model pair."""
@@ -56,7 +56,7 @@ class ConformanceService:
 
     def calculate_precision(
         self,
-        event_log: EventLog,
+        event_log: Dataset,
         model: ProcessModel,
     ) -> float:
         """Calculate precision score for log-model pair."""
@@ -68,7 +68,7 @@ class ConformanceService:
 
     def calculate_generalization(
         self,
-        event_log: EventLog,
+        event_log: Dataset,
         model: ProcessModel,
     ) -> float:
         """Calculate generalization score for log-model pair.
@@ -121,7 +121,7 @@ class ConformanceService:
 
     def get_full_quality_metrics(
         self,
-        event_log: EventLog,
+        event_log: Dataset,
         model: ProcessModel,
     ) -> dict[str, Any]:
         """Get all 4 quality dimensions: fitness, precision, generalization, simplicity.
@@ -144,7 +144,7 @@ class ConformanceService:
 
     def get_diagnostics(
         self,
-        event_log: EventLog,
+        event_log: Dataset,
         model: ProcessModel,
     ) -> dict[str, Any]:
         """Get detailed conformance diagnostics."""
@@ -192,7 +192,7 @@ class ConformanceService:
 
     def detect_deviations(
         self,
-        event_log: EventLog,
+        event_log: Dataset,
         model: ProcessModel,
         threshold: float = 0.8,
     ) -> list[dict[str, Any]]:
@@ -231,7 +231,7 @@ class ConformanceService:
 
     def get_alignment_diagnostics(
         self,
-        event_log: EventLog,
+        event_log: Dataset,
         model: ProcessModel,
         max_cases: int = 100,
     ) -> dict[str, Any]:
@@ -333,7 +333,7 @@ class ConformanceService:
 
     def check_declare_conformance(
         self,
-        event_log: EventLog,
+        event_log: Dataset,
         declare_model: dict | None = None,
     ) -> dict[str, Any]:
         """
@@ -381,7 +381,7 @@ class ConformanceService:
 
     def check_log_skeleton_conformance(
         self,
-        event_log: EventLog,
+        event_log: Dataset,
         log_skeleton: dict | None = None,
         noise_threshold: float = 0.0,
     ) -> dict[str, Any]:
@@ -432,7 +432,7 @@ class ConformanceService:
 
     def check_temporal_profile_conformance(
         self,
-        event_log: EventLog,
+        event_log: Dataset,
         temporal_profile: dict | None = None,
         zeta: float = 2.0,
     ) -> dict[str, Any]:
@@ -525,7 +525,7 @@ class ConformanceService:
 
     def calculate_earth_movers_distance(
         self,
-        event_log: EventLog,
+        event_log: Dataset,
         model: ProcessModel,
     ) -> dict[str, float]:
         """

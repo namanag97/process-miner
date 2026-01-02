@@ -32,6 +32,102 @@ class PaginatedResponse(BaseModel):
 
 
 # =============================================================================
+# Enterprise Hierarchy: Organization → Workspace → User
+# =============================================================================
+
+
+class OrganizationResponse(BaseModel):
+    """Organization response."""
+
+    id: str
+    name: str
+    slug: str
+    plan: str
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class WorkspaceCreateRequest(BaseModel):
+    """Request to create a workspace."""
+
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = Field(None, max_length=2000)
+
+
+class WorkspaceUpdateRequest(BaseModel):
+    """Request to update a workspace."""
+
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+
+
+class WorkspaceResponse(BaseModel):
+    """Workspace response."""
+
+    id: str
+    org_id: str
+    name: str
+    description: Optional[str]
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class WorkspaceListResponse(PaginatedResponse):
+    """Paginated workspace list."""
+
+    items: list[WorkspaceResponse]
+
+
+class WorkspaceDetailResponse(WorkspaceResponse):
+    """Workspace detail with projects."""
+
+    projects: list["ProjectResponse"] = []
+
+
+class UserResponse(BaseModel):
+    """User response."""
+
+    id: str
+    email: str
+    name: Optional[str]
+    role: str
+    created_at: datetime
+    last_login_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class WorkspaceMemberResponse(BaseModel):
+    """Workspace member response."""
+
+    id: str
+    workspace_id: str
+    user_id: str
+    role: str
+    joined_at: datetime
+    user: Optional[UserResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+class CurrentUserResponse(BaseModel):
+    """Current user context response (for auth/me endpoint)."""
+
+    user: UserResponse
+    organization: Optional[OrganizationResponse] = None
+    workspaces: list[WorkspaceResponse] = []
+    current_workspace_id: Optional[str] = None
+
+
+# =============================================================================
 # Projects
 # =============================================================================
 
@@ -75,13 +171,13 @@ class ProjectListResponse(PaginatedResponse):
 
 
 class ProjectDetailResponse(ProjectResponse):
-    """Detailed project response with event logs."""
+    """Detailed project response with datasets."""
 
-    event_logs: list["ProcessResponse"]
+    datasets: list["DatasetResponse"]
 
 
 # =============================================================================
-# Processes (Event Logs)
+# Datasets (formerly Processes/Event Logs)
 # =============================================================================
 
 
@@ -94,7 +190,7 @@ class ColumnMapping(BaseModel):
     resource: Optional[str] = Field(None, description="Column name for resource")
 
 
-class ProcessUploadRequest(BaseModel):
+class DatasetUploadRequest(BaseModel):
     """Request for file upload with column mapping."""
 
     name: Optional[str] = None
@@ -104,8 +200,8 @@ class ProcessUploadRequest(BaseModel):
     resource_column: Optional[str] = None
 
 
-class ProcessResponse(BaseModel):
-    """Process (event log) response."""
+class DatasetResponse(BaseModel):
+    """Dataset response."""
 
     id: str
     name: str
@@ -121,14 +217,14 @@ class ProcessResponse(BaseModel):
         from_attributes = True
 
 
-class ProcessListResponse(PaginatedResponse):
-    """Paginated process list."""
+class DatasetListResponse(PaginatedResponse):
+    """Paginated dataset list."""
 
-    items: list[ProcessResponse]
+    items: list[DatasetResponse]
 
 
-class ProcessDetailResponse(ProcessResponse):
-    """Detailed process response with statistics."""
+class DatasetDetailResponse(DatasetResponse):
+    """Detailed dataset response with statistics."""
 
     source_file: Optional[str]
     statistics: Optional[dict[str, Any]]
@@ -1177,4 +1273,4 @@ class UploadedFileResponse(BaseModel):
 
 # Rebuild models with forward references
 ProcessExplorerDataResponse.model_rebuild()
-
+WorkspaceDetailResponse.model_rebuild()

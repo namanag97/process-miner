@@ -1,5 +1,5 @@
 /**
- * Processes Module - SDK methods for event log operations
+ * Processes Module - SDK methods for dataset operations
  */
 
 import type { ApiClient } from '../client';
@@ -48,7 +48,7 @@ export interface ProcessesModule {
 export function createProcessesModule(client: ApiClient): ProcessesModule {
   return {
     async list(options?: ListProcessesOptions) {
-      const response = await client.get<PaginatedResponse<ProcessResponse>>('/processes', {
+      const response = await client.get<PaginatedResponse<ProcessResponse>>('/datasets', {
         page: options?.page ?? 1,
         page_size: options?.pageSize ?? 20,
         source_format: options?.sourceFormat,
@@ -64,7 +64,7 @@ export function createProcessesModule(client: ApiClient): ProcessesModule {
     },
 
     async get(id: string) {
-      const response = await client.get<ProcessDetailResponse>(`/processes/${id}`);
+      const response = await client.get<ProcessDetailResponse>(`/datasets/${id}`);
       return transformProcessDetail(response);
     },
 
@@ -88,7 +88,7 @@ export function createProcessesModule(client: ApiClient): ProcessesModule {
         formData.append('resource_column', metadata.resourceColumn);
       }
 
-      const response = await client.postForm<ProcessResponse>('/processes/upload', formData);
+      const response = await client.postForm<ProcessResponse>('/datasets/upload', formData);
       return { id: response.id };
     },
 
@@ -117,7 +117,7 @@ export function createProcessesModule(client: ApiClient): ProcessesModule {
       }
 
       const { promise } = client.postFormWithProgress<ProcessResponse>(
-        '/processes/upload',
+        '/datasets/upload',
         formData,
         onProgress
       );
@@ -126,20 +126,20 @@ export function createProcessesModule(client: ApiClient): ProcessesModule {
     },
 
     async delete(id: string) {
-      await client.delete(`/processes/${id}`);
+      await client.delete(`/datasets/${id}`);
     },
 
     async detectColumns(file: File) {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await client.postForm<ColumnDetectionResponse>('/processes/detect-columns', formData);
+      const response = await client.postForm<ColumnDetectionResponse>('/datasets/detect-columns', formData);
       return transformColumnDetection(response);
     },
 
     async analyze(logId: string) {
       // Get statistics for a log
-      return client.get<Record<string, unknown>>(`/processes/${logId}/statistics`);
+      return client.get<Record<string, unknown>>(`/datasets/${logId}/statistics`);
     },
   };
 }

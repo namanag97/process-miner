@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_db
 from src.core.logging_config import get_logger
-from src.models.orm import EventLog, ProcessCase, ProcessEvent, ProcessModel
+from src.models.orm import Dataset, ProcessCase, ProcessEvent, ProcessModel
 from src.models.schemas import (
     PlayOutRequest,
     PlayOutResponse,
@@ -55,7 +55,7 @@ async def play_out_model(
         for event in trace:
             activities.add(event.get("concept:name", ""))
 
-    new_log = EventLog(
+    new_log = Dataset(
         name=f"Simulated from {model.name}",
         source_format="simulated",
         total_cases=len(pm4py_log),
@@ -99,7 +99,7 @@ async def simulate_scenario(
     """Run what-if simulation on an event log."""
     logger.info("simulating_scenario", log_id=log_id, modifications=len(request.modifications))
 
-    query = select(EventLog).where(EventLog.id == log_id)
+    query = select(Dataset).where(Dataset.id == log_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
 
@@ -127,7 +127,7 @@ async def estimate_capacity(
     """Estimate resource requirements for target throughput."""
     logger.info("estimating_capacity", log_id=log_id, target_throughput=target_throughput)
 
-    query = select(EventLog).where(EventLog.id == log_id)
+    query = select(Dataset).where(Dataset.id == log_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
 

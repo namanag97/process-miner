@@ -39,7 +39,7 @@ function formatLogData(data: unknown): string {
 // Types
 // ============================================
 
-type LogLevel = 'info' | 'api-req' | 'api-res' | 'error' | 'action' | 'state';
+type LogLevel = 'info' | 'api-req' | 'api-res' | 'error' | 'action' | 'state' | 'query' | 'mutation';
 
 interface LogEntry {
   id: string;
@@ -94,6 +94,8 @@ export function devConsoleLog(
       'error': 'color: #ff4d4f',
       'action': 'color: #52c41a',
       'state': 'color: #fa8c16',
+      'query': 'color: #2f54eb',
+      'mutation': 'color: #eb2f96',
     }[level];
     console.log(`%c[${level.toUpperCase()}] ${source}`, style, message, data || '');
   }
@@ -139,6 +141,8 @@ const levelConfig: Record<LogLevel, { color: string; icon: React.ReactNode; labe
   'error': { color: 'red', icon: <WarningOutlined />, label: 'ERROR' },
   'action': { color: 'green', icon: <BugOutlined />, label: 'ACTION' },
   'state': { color: 'orange', icon: <InfoCircleOutlined />, label: 'STATE' },
+  'query': { color: 'geekblue', icon: <ApiOutlined />, label: 'QUERY' },
+  'mutation': { color: 'magenta', icon: <ApiOutlined />, label: 'MUTATE' },
 };
 
 function LogEntryRow({ entry }: { entry: LogEntry }) {
@@ -238,8 +242,8 @@ export function DevConsole() {
     };
   }, []);
 
-  // Connect to backend SSE stream for observability logs
-  const backendObservability = useBackendLogs();
+  // Connect to backend SSE stream ONLY when DevConsole is open
+  const backendObservability = useBackendLogs(open);
 
   // Keyboard shortcut: Ctrl+Shift+D
   useEffect(() => {
@@ -361,6 +365,8 @@ export function DevConsole() {
               { key: 'all', label: `All (${logs.length})` },
               { key: 'api-req', label: `API Req (${logs.filter(l => l.level === 'api-req').length})` },
               { key: 'api-res', label: `API Res (${logs.filter(l => l.level === 'api-res').length})` },
+              { key: 'query', label: `Queries (${logs.filter(l => l.level === 'query').length})` },
+              { key: 'mutation', label: `Mutations (${logs.filter(l => l.level === 'mutation').length})` },
               { key: 'error', label: <span style={{ color: errorCount > 0 ? '#ff4d4f' : undefined }}>Errors ({errorCount})</span> },
               { key: 'action', label: `Actions (${logs.filter(l => l.level === 'action').length})` },
               { key: 'state', label: `State (${logs.filter(l => l.level === 'state').length})` },

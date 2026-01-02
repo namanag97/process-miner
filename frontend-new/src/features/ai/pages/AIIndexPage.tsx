@@ -9,7 +9,7 @@ import {
   RobotOutlined,
   LineChartOutlined,
 } from '@ant-design/icons';
-import { PageHeader, tokens } from '@lumina/design-system';
+import { PageHeader, tokens, logAction } from '@lumina/design-system';
 import { createLogger } from '../../../utils/logger';
 
 const { Text, Title } = Typography;
@@ -64,11 +64,13 @@ export function AIIndexPage() {
   const navigate = useNavigate();
 
   const handleFeatureClick = (route: string) => {
+    logAction('AIIndexPage', 'feature_clicked', { route });
     log.debug('Feature card clicked', { route });
     navigate(route);
   };
 
   const handleQuickAction = (action: string) => {
+    logAction('AIIndexPage', 'quick_action_clicked', { action });
     log.debug('Quick action clicked', { action });
     navigate(action);
   };

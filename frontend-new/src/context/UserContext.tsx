@@ -1,17 +1,32 @@
-import React, { createContext, useContext, useMemo, useState, useCallback } from 'react';
+import React, { createContext, useContext, useMemo, useState, useCallback, useEffect } from 'react';
 
 /**
- * UserContext - MVP user context stub (no authentication required)
+ * UserContext - MVP user context with workspace support
  *
  * Provides a default user context without authentication gates.
- * When auth is needed in the future, swap this for a full AuthContext implementation.
+ * Includes workspace context for enterprise multi-tenancy.
  *
- * Key differences from AuthContext:
+ * Key features:
  * - Always authenticated (isAuthenticated: true)
- * - No login/logout flows
- * - No loading state
+ * - Workspace selection and context
  * - User preferences stored locally
  */
+
+export interface Workspace {
+  id: string;
+  orgId: string;
+  name: string;
+  description?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+}
 
 export interface User {
   id: string;
@@ -34,6 +49,11 @@ interface UserContextType {
   isLoading: false; // Never loading for MVP
   updateUser: (updates: Partial<Pick<User, 'name' | 'avatar'>>) => void;
   updatePreferences: (prefs: Partial<UserPreferences>) => void;
+  // Workspace context
+  organization: Organization | null;
+  workspaces: Workspace[];
+  currentWorkspace: Workspace | null;
+  setCurrentWorkspace: (workspace: Workspace | null) => void;
   // Compatibility with old AuthContext (no-ops or stubs)
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -41,6 +61,7 @@ interface UserContextType {
 }
 
 const STORAGE_KEY = 'lumina_user_prefs';
+const WORKSPACE_KEY = 'lumina_current_workspace';
 const DEFAULT_TOKEN = 'mvp_development_token';
 
 const DEFAULT_USER: User = {
@@ -52,6 +73,21 @@ const DEFAULT_USER: User = {
     theme: 'light',
     notifications: true,
   },
+};
+
+const DEFAULT_ORG: Organization = {
+  id: 'mvp-org-001',
+  name: 'Demo Organization',
+  slug: 'demo-org',
+  plan: 'free',
+};
+
+const DEFAULT_WORKSPACE: Workspace = {
+  id: 'mvp-ws-001',
+  orgId: 'mvp-org-001',
+  name: 'Default Workspace',
+  description: 'Your default process mining workspace',
+  createdAt: new Date().toISOString(),
 };
 
 const UserContext = createContext<UserContextType | null>(null);
@@ -67,10 +103,37 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Load saved workspace
+  const loadCurrentWorkspace = (): Workspace | null => {
+    try {
+      const stored = localStorage.getItem(WORKSPACE_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  };
+
   const [user, setUser] = useState<User>(() => ({
     ...DEFAULT_USER,
     preferences: { ...DEFAULT_USER.preferences, ...loadPreferences() },
   }));
+
+  const [organization] = useState<Organization | null>(DEFAULT_ORG);
+  const [workspaces] = useState<Workspace[]>([DEFAULT_WORKSPACE]);
+  const [currentWorkspace, setCurrentWorkspaceState] = useState<Workspace | null>(() => {
+    const saved = loadCurrentWorkspace();
+    return saved || DEFAULT_WORKSPACE;
+  });
+
+  // Persist workspace selection
+  const setCurrentWorkspace = useCallback((workspace: Workspace | null) => {
+    setCurrentWorkspaceState(workspace);
+    if (workspace) {
+      localStorage.setItem(WORKSPACE_KEY, JSON.stringify(workspace));
+    } else {
+      localStorage.removeItem(WORKSPACE_KEY);
+    }
+  }, []);
 
   const updateUser = useCallback((updates: Partial<Pick<User, 'name' | 'avatar'>>) => {
     setUser(prev => ({ ...prev, ...updates }));
@@ -103,10 +166,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     isLoading: false,
     updateUser,
     updatePreferences,
+    organization,
+    workspaces,
+    currentWorkspace,
+    setCurrentWorkspace,
     login,
     logout,
     getToken,
-  }), [user, updateUser, updatePreferences, login, logout, getToken]);
+  }), [user, updateUser, updatePreferences, organization, workspaces, currentWorkspace, setCurrentWorkspace, login, logout, getToken]);
 
   return (
     <UserContext.Provider value={value}>
@@ -125,6 +192,22 @@ export function useUser(): UserContextType {
     throw new Error('useUser must be used within UserProvider');
   }
   return context;
+}
+
+/**
+ * Hook to access current workspace (convenience wrapper)
+ */
+export function useWorkspace(): {
+  workspace: Workspace | null;
+  workspaces: Workspace[];
+  setWorkspace: (ws: Workspace | null) => void;
+} {
+  const { currentWorkspace, workspaces, setCurrentWorkspace } = useUser();
+  return {
+    workspace: currentWorkspace,
+    workspaces,
+    setWorkspace: setCurrentWorkspace,
+  };
 }
 
 /**

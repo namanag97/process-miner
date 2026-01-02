@@ -20,7 +20,7 @@ import {
   InfoCircleOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
-import { PageHeader, MetricCard, EmptyState, tokens, formatCompactNumber, useSDK, formatDurationFromSeconds, type EventLog } from '@lumina/design-system';
+import { PageHeader, MetricCard, EmptyState, tokens, formatCompactNumber, useSDK, formatDurationFromSeconds, type EventLog, logAction } from '@lumina/design-system';
 import { createLogger } from '../../../utils/logger';
 import { PerformanceTab, ConformanceTab, ReworkTab, ResourcesTab } from '../components';
 
@@ -79,6 +79,7 @@ export function AnalyticsPage() {
   };
 
   const handleTabChange = (key: string) => {
+    logAction('AnalyticsPage', 'tab_changed', { from: getActiveTab(), to: key });
     log.debug('Tab changed', { tab: key });
     if (key === 'performance') {
       navigate('/analytics');
@@ -88,6 +89,7 @@ export function AnalyticsPage() {
   };
 
   const handleLogChange = (logId: string) => {
+    logAction('AnalyticsPage', 'log_selected', { logId });
     log.info('Log selection changed', { logId });
     setSelectedLogId(logId);
     navigate(`${location.pathname}?logId=${logId}`, { replace: true });

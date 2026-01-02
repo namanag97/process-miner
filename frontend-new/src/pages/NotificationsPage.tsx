@@ -6,7 +6,7 @@ import {
   WarningOutlined,
   CloseCircleOutlined,
 } from '@ant-design/icons';
-import { PageHeader, EmptyState, tokens } from '@lumina/design-system';
+import { PageHeader, EmptyState, tokens, logAction } from '@lumina/design-system';
 import { useNotifications, Notification } from '../context/NotificationContext';
 import { createLogger } from '../utils/logger';
 
@@ -51,12 +51,14 @@ export function NotificationsPage() {
 
   const handleNotificationClick = (notification: Notification) => {
     if (!notification.isRead) {
+      logAction('NotificationsPage', 'notification_clicked', { id: notification.id, type: notification.type });
       markAsRead(notification.id);
       log.info('Notification marked as read', { id: notification.id });
     }
   };
 
   const handleMarkAllAsRead = () => {
+    logAction('NotificationsPage', 'mark_all_read_clicked', { count: unreadCount });
     markAllAsRead();
     log.info('All notifications marked as read');
   };

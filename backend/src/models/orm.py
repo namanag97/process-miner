@@ -23,8 +23,8 @@ class Base(DeclarativeBase):
 # =============================================================================
 
 
-class LogStatus(str, Enum):
-    """EventLog lifecycle states."""
+class DatasetStatus(str, Enum):
+    """Dataset lifecycle states."""
 
     UPLOADING = "uploading"
     VALIDATING = "validating"
@@ -44,7 +44,113 @@ class JobStatus(str, Enum):
 
 
 # =============================================================================
-# Projects (Organization Layer)
+# Enterprise Hierarchy: Organization → Workspace → Project
+# =============================================================================
+
+
+class Organization(Base):
+    """Organization - root of multi-tenancy hierarchy."""
+
+    __tablename__ = "organizations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    plan: Mapped[str] = mapped_column(String(50), default="free", nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Relationships
+    workspaces: Mapped[list["Workspace"]] = relationship(
+        back_populates="organization",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    users: Mapped[list["User"]] = relationship(
+        back_populates="organization",
+        lazy="selectin",
+    )
+
+
+class Workspace(Base):
+    """Workspace - work context within an organization containing projects."""
+
+    __tablename__ = "workspaces"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    org_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Relationships
+    organization: Mapped["Organization"] = relationship(back_populates="workspaces")
+    projects: Mapped[list["Project"]] = relationship(
+        back_populates="workspace",
+        lazy="selectin",
+    )
+    members: Mapped[list["WorkspaceMember"]] = relationship(
+        back_populates="workspace",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+
+class User(Base):
+    """User entity with organization and workspace associations."""
+
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    org_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True
+    )
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    auth_provider: Mapped[str] = mapped_column(String(50), default="local", nullable=False)
+    auth_provider_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    role: Mapped[str] = mapped_column(String(50), default="member", nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Relationships
+    organization: Mapped[Optional["Organization"]] = relationship(back_populates="users")
+    workspace_memberships: Mapped[list["WorkspaceMember"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+
+class WorkspaceMember(Base):
+    """User membership in a workspace with role."""
+
+    __tablename__ = "workspace_members"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    workspace_id: Mapped[str] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    role: Mapped[str] = mapped_column(String(20), default="member", nullable=False)  # owner, admin, member, viewer
+
+    joined_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    workspace: Mapped["Workspace"] = relationship(back_populates="members")
+    user: Mapped["User"] = relationship(back_populates="workspace_memberships")
+
+
+# =============================================================================
+# Projects (within Workspace)
 # =============================================================================
 
 
@@ -54,6 +160,9 @@ class Project(Base):
     __tablename__ = "projects"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    workspace_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="SET NULL"), nullable=True
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     tags_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array of tags
@@ -66,21 +175,22 @@ class Project(Base):
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     # Relationships
-    event_logs: Mapped[list["EventLog"]] = relationship(
+    workspace: Mapped[Optional["Workspace"]] = relationship(back_populates="projects")
+    datasets: Mapped[list["Dataset"]] = relationship(
         back_populates="project",
         lazy="selectin",
     )
 
 
 # =============================================================================
-# Event Logs
+# Datasets (formerly Event Logs)
 # =============================================================================
 
 
-class EventLog(Base):
-    """Uploaded event log metadata."""
+class Dataset(Base):
+    """Uploaded dataset metadata."""
 
-    __tablename__ = "event_logs"
+    __tablename__ = "datasets"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -102,12 +212,12 @@ class EventLog(Base):
     statistics_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Lifecycle state machine
-    status: Mapped[str] = mapped_column(String(20), default=LogStatus.READY.value)
+    status: Mapped[str] = mapped_column(String(20), default=DatasetStatus.READY.value)
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Filtering support
-    source_log_id: Mapped[Optional[str]] = mapped_column(
-        ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=True
+    source_dataset_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"), nullable=True
     )
     filter_config_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     is_filtered: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -118,34 +228,34 @@ class EventLog(Base):
 
     # Relationships
     cases: Mapped[list["ProcessCase"]] = relationship(
-        back_populates="event_log",
+        back_populates="dataset",
         cascade="all, delete-orphan",
         lazy="selectin",
     )
     models: Mapped[list["ProcessModel"]] = relationship(
-        back_populates="source_log",
+        back_populates="source_dataset",
         lazy="selectin",
     )
-    source_log: Mapped[Optional["EventLog"]] = relationship(
-        "EventLog",
-        remote_side="EventLog.id",
-        foreign_keys=[source_log_id],
+    source_dataset: Mapped[Optional["Dataset"]] = relationship(
+        "Dataset",
+        remote_side="Dataset.id",
+        foreign_keys=[source_dataset_id],
         lazy="selectin",
     )
-    filtered_logs: Mapped[list["EventLog"]] = relationship(
-        "EventLog",
-        back_populates="source_log",
-        foreign_keys=[source_log_id],
+    filtered_datasets: Mapped[list["Dataset"]] = relationship(
+        "Dataset",
+        back_populates="source_dataset",
+        foreign_keys=[source_dataset_id],
         lazy="selectin",
     )
-    project: Mapped[Optional["Project"]] = relationship(back_populates="event_logs")
+    project: Mapped[Optional["Project"]] = relationship(back_populates="datasets")
     uploaded_file: Mapped[Optional["UploadedFile"]] = relationship(
-        back_populates="event_log",
+        back_populates="dataset",
         uselist=False,
         lazy="selectin",
     )
     analyses: Mapped[list["Analysis"]] = relationship(
-        back_populates="event_log",
+        back_populates="dataset",
         cascade="all, delete-orphan",
         lazy="selectin",
     )
@@ -157,8 +267,8 @@ class UploadedFile(Base):
     __tablename__ = "uploaded_files"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    log_id: Mapped[str] = mapped_column(
-        ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=False, unique=True
+    dataset_id: Mapped[str] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False, unique=True
     )
 
     # File info
@@ -171,7 +281,7 @@ class UploadedFile(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships
-    event_log: Mapped["EventLog"] = relationship(back_populates="uploaded_file")
+    dataset: Mapped["Dataset"] = relationship(back_populates="uploaded_file")
 
 
 class AnalysisType(str, Enum):
@@ -199,8 +309,8 @@ class Analysis(Base):
     __tablename__ = "analyses"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    log_id: Mapped[str] = mapped_column(
-        ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=False
+    dataset_id: Mapped[str] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     analysis_type: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -224,19 +334,19 @@ class Analysis(Base):
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     # Relationships
-    event_log: Mapped["EventLog"] = relationship(back_populates="analyses")
+    dataset: Mapped["Dataset"] = relationship(back_populates="analyses")
     process_model: Mapped[Optional["ProcessModel"]] = relationship(lazy="selectin")
 
 
 class ProcessCase(Base):
-    """Individual case/trace in an event log."""
+    """Individual case/trace in a dataset."""
 
     __tablename__ = "process_cases"
 
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    log_id: Mapped[str] = mapped_column(
-        ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=False
+    dataset_id: Mapped[str] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False
     )
     case_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
 
@@ -248,7 +358,7 @@ class ProcessCase(Base):
     end_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     # Relationships
-    event_log: Mapped["EventLog"] = relationship(back_populates="cases")
+    dataset: Mapped["Dataset"] = relationship(back_populates="cases")
     events: Mapped[list["ProcessEvent"]] = relationship(
         back_populates="case",
         cascade="all, delete-orphan",
@@ -284,8 +394,8 @@ class ProcessModel(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    log_id: Mapped[Optional[str]] = mapped_column(
-        ForeignKey("event_logs.id", ondelete="SET NULL"), nullable=True
+    dataset_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("datasets.id", ondelete="SET NULL"), nullable=True
     )
 
     # Mining info
@@ -302,7 +412,7 @@ class ProcessModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships
-    source_log: Mapped[Optional["EventLog"]] = relationship(back_populates="models")
+    source_dataset: Mapped[Optional["Dataset"]] = relationship(back_populates="models")
 
 
 class ConformanceResult(Base):
@@ -311,8 +421,8 @@ class ConformanceResult(Base):
     __tablename__ = "conformance_results"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    log_id: Mapped[str] = mapped_column(
-        ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=False
+    dataset_id: Mapped[str] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False
     )
     model_id: Mapped[str] = mapped_column(
         ForeignKey("process_models.id", ondelete="CASCADE"), nullable=False
@@ -373,8 +483,8 @@ class WorkflowRun(Base):
     workflow_id: Mapped[str] = mapped_column(
         ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False
     )
-    log_id: Mapped[Optional[str]] = mapped_column(
-        ForeignKey("event_logs.id", ondelete="SET NULL"), nullable=True
+    dataset_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("datasets.id", ondelete="SET NULL"), nullable=True
     )
 
     # Execution state
@@ -479,13 +589,13 @@ class OCPetriNet(Base):
 
 
 class AnalyticsCache(Base):
-    """Cached analytics results for event logs."""
+    """Cached analytics results for datasets."""
 
     __tablename__ = "analytics_cache"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    log_id: Mapped[str] = mapped_column(
-        ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=False
+    dataset_id: Mapped[str] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False
     )
     metric_type: Mapped[str] = mapped_column(String(50), nullable=False)
     result_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -499,13 +609,13 @@ class AnalyticsCache(Base):
 
 
 class SocialNetwork(Base):
-    """Social network discovered from event log."""
+    """Social network discovered from dataset."""
 
     __tablename__ = "social_networks"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    log_id: Mapped[str] = mapped_column(
-        ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=False
+    dataset_id: Mapped[str] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False
     )
     network_type: Mapped[str] = mapped_column(String(50), nullable=False)
     graph_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -524,8 +634,8 @@ class PredictionModel(Base):
     __tablename__ = "prediction_models"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    log_id: Mapped[str] = mapped_column(
-        ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=False
+    dataset_id: Mapped[str] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False
     )
     target_type: Mapped[str] = mapped_column(String(50), nullable=False)
     algorithm: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -555,8 +665,8 @@ class Recommendation(Base):
     __tablename__ = "recommendations"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    log_id: Mapped[str] = mapped_column(
-        ForeignKey("event_logs.id", ondelete="CASCADE"), nullable=False
+    dataset_id: Mapped[str] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False
     )
     case_id: Mapped[str] = mapped_column(String(255), nullable=False)  # Logical ID, not FK to avoid tight coupling
 

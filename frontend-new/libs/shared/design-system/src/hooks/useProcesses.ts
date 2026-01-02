@@ -38,7 +38,7 @@ export function useProcess(id: string) {
 
 /**
  * Get processes for a specific project
- * Uses the project detail endpoint which includes event logs
+ * Uses the project detail endpoint which includes datasets
  */
 export function useProjectProcesses(projectId: string) {
   const sdk = useSDK();
@@ -47,7 +47,7 @@ export function useProjectProcesses(projectId: string) {
     queryKey: queryKeys.projects.processes(projectId),
     queryFn: async () => {
       const project = await sdk.projects.get(projectId);
-      return project.eventLogs;
+      return project.datasets;
     },
     enabled: !!projectId,
     staleTime: 2 * 60 * 1000,

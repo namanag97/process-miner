@@ -13,7 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from src.api.dependencies import DBSession
 from src.core.logging_config import get_logger
-from src.models.orm import Analysis, AnalysisStatus, AnalysisType, EventLog, ProcessModel
+from src.models.orm import Analysis, AnalysisStatus, AnalysisType, Dataset, ProcessModel
 from src.models.schemas import (
     AnalysisCreateRequest,
     AnalysisDetailResponse,
@@ -90,7 +90,7 @@ async def create_analysis(
     )
 
     # Verify log exists
-    log_result = await db.execute(select(EventLog).where(EventLog.id == log_id))
+    log_result = await db.execute(select(Dataset).where(Dataset.id == log_id))
     event_log = log_result.scalar_one_or_none()
     if not event_log:
         raise HTTPException(status_code=404, detail=f"Event log not found: {log_id}")
@@ -298,7 +298,7 @@ async def list_analyses_for_log(
     Get all analyses for a specific event log.
     """
     # Verify log exists
-    log_result = await db.execute(select(EventLog).where(EventLog.id == log_id))
+    log_result = await db.execute(select(Dataset).where(Dataset.id == log_id))
     if not log_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail=f"Event log not found: {log_id}")
 

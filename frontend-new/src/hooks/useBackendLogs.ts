@@ -97,20 +97,22 @@ export function subscribeToMetrics(listener: () => void): () => void {
  * // Show circuit breaker status
  * {circuitBreakers.pm4py === 'open' && <Alert type="warning" />}
  */
-export function useBackendLogs(): BackendObservability {
+export function useBackendLogs(enabled: boolean = true): BackendObservability {
   const eventSourceRef = useRef<EventSource | null>(null);
   const seenIdsRef = useRef<Set<string>>(new Set());
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttempts = useRef(0);
 
-  const [state, setState] = useState<BackendObservability>({
+  const defaultState: BackendObservability = {
     connected: false,
     metrics: null,
     lastHeartbeat: null,
     circuitBreakers: {},
     errorCount: 0,
     slowRequests: 0,
-  });
+  };
+
+  const [state, setState] = useState<BackendObservability>(defaultState);
 
   const connect = useCallback(() => {
     // Only in development
@@ -268,6 +270,21 @@ export function useBackendLogs(): BackendObservability {
   }, []);
 
   useEffect(() => {
+    // Only connect when enabled (DevConsole is open)
+    if (!enabled) {
+      // Clean up any existing connection when disabled
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      setState(defaultState);
+      return;
+    }
+
     connect();
 
     return () => {
@@ -278,7 +295,7 @@ export function useBackendLogs(): BackendObservability {
         clearTimeout(reconnectTimeoutRef.current);
       }
     };
-  }, [connect]);
+  }, [connect, enabled]);
 
   return state;
 }

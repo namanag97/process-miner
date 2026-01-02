@@ -18,7 +18,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.entities import (
-    EventLogAggregate,
+    DatasetAggregate,
     ProcessCase,
     ProcessEvent,
 )
@@ -26,7 +26,7 @@ from src.domain.value_objects import CaseId
 from src.core.logging_config import get_logger
 
 if TYPE_CHECKING:
-    from src.models.orm import EventLog as ORMEventLog
+    from src.models.orm import Dataset as ORMDataset
 
 logger = get_logger(__name__)
 
@@ -39,7 +39,7 @@ class EventLogRepository(ABC):
     """Abstract repository for EventLog aggregates."""
     
     @abstractmethod
-    async def get(self, log_id: str) -> Optional[EventLogAggregate]:
+    async def get(self, log_id: str) -> Optional[DatasetAggregate]:
         """Load an aggregate by ID.
         
         Returns None if not found.
@@ -47,12 +47,12 @@ class EventLogRepository(ABC):
         pass
     
     @abstractmethod
-    async def get_many(self, log_ids: List[str]) -> List[EventLogAggregate]:
+    async def get_many(self, log_ids: List[str]) -> List[DatasetAggregate]:
         """Load multiple aggregates by ID."""
         pass
     
     @abstractmethod
-    async def save(self, aggregate: EventLogAggregate) -> None:
+    async def save(self, aggregate: DatasetAggregate) -> None:
         """Persist an aggregate and its cases/events."""
         pass
     
@@ -95,7 +95,7 @@ class ProcessModelRepository(ABC):
 # SQLAlchemy Implementations
 # =============================================================================
 
-class SQLAlchemyEventLogRepository(EventLogRepository):
+class SQLAlchemyDatasetRepository(EventLogRepository):
     """SQLAlchemy implementation of EventLogRepository.
     
     Optimized for:
@@ -107,16 +107,16 @@ class SQLAlchemyEventLogRepository(EventLogRepository):
     def __init__(self, session: AsyncSession):
         self._session = session
     
-    async def get(self, log_id: str) -> Optional[EventLogAggregate]:
+    async def get(self, log_id: str) -> Optional[DatasetAggregate]:
         """Load aggregate with eager loading of cases and events."""
-        from src.models.orm import EventLog as ORMEventLog, ProcessCase as ORMCase
+        from src.models.orm import Dataset as ORMDataset, ProcessCase as ORMCase
         
         stmt = (
-            select(ORMEventLog)
+            select(ORMDataset)
             .options(
-                selectinload(ORMEventLog.cases).selectinload(ORMCase.events)
+                selectinload(ORMDataset.cases).selectinload(ORMCase.events)
             )
-            .where(ORMEventLog.id == log_id)
+            .where(ORMDataset.id == log_id)
         )
         
         result = await self._session.execute(stmt)
@@ -127,19 +127,19 @@ class SQLAlchemyEventLogRepository(EventLogRepository):
         
         return self._to_domain(orm_log)
     
-    async def get_many(self, log_ids: List[str]) -> List[EventLogAggregate]:
+    async def get_many(self, log_ids: List[str]) -> List[DatasetAggregate]:
         """Load multiple aggregates efficiently."""
-        from src.models.orm import EventLog as ORMEventLog, ProcessCase as ORMCase
+        from src.models.orm import Dataset as ORMDataset, ProcessCase as ORMCase
         
         if not log_ids:
             return []
         
         stmt = (
-            select(ORMEventLog)
+            select(ORMDataset)
             .options(
-                selectinload(ORMEventLog.cases).selectinload(ORMCase.events)
+                selectinload(ORMDataset.cases).selectinload(ORMCase.events)
             )
-            .where(ORMEventLog.id.in_(log_ids))
+            .where(ORMDataset.id.in_(log_ids))
         )
         
         result = await self._session.execute(stmt)
@@ -147,7 +147,7 @@ class SQLAlchemyEventLogRepository(EventLogRepository):
         
         return [self._to_domain(orm_log) for orm_log in orm_logs]
     
-    async def save(self, aggregate: EventLogAggregate) -> None:
+    async def save(self, aggregate: DatasetAggregate) -> None:
         """Persist aggregate - UPDATE not implemented yet (MVP)."""
         # For MVP, we don't update existing logs through this path
         # The existing upload flow handles creation
@@ -155,9 +155,9 @@ class SQLAlchemyEventLogRepository(EventLogRepository):
     
     async def delete(self, log_id: str) -> bool:
         """Delete aggregate and all related entities."""
-        from src.models.orm import EventLog as ORMEventLog
+        from src.models.orm import Dataset as ORMDataset
         
-        stmt = select(ORMEventLog).where(ORMEventLog.id == log_id)
+        stmt = select(ORMDataset).where(ORMDataset.id == log_id)
         result = await self._session.execute(stmt)
         orm_log = result.scalar_one_or_none()
         
@@ -169,13 +169,13 @@ class SQLAlchemyEventLogRepository(EventLogRepository):
     
     async def exists(self, log_id: str) -> bool:
         """Check if log exists."""
-        from src.models.orm import EventLog as ORMEventLog
+        from src.models.orm import Dataset as ORMDataset
         
-        stmt = select(ORMEventLog.id).where(ORMEventLog.id == log_id)
+        stmt = select(ORMDataset.id).where(ORMDataset.id == log_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none() is not None
     
-    def _to_domain(self, orm_log: "ORMEventLog") -> EventLogAggregate:
+    def _to_domain(self, orm_log: "ORMDataset") -> DatasetAggregate:
         """Convert ORM model to domain aggregate."""
         cases = []
         
@@ -203,7 +203,7 @@ class SQLAlchemyEventLogRepository(EventLogRepository):
                 events=events,
             ))
         
-        return EventLogAggregate(
+        return DatasetAggregate(
             id=orm_log.id,
             name=orm_log.name or "Untitled",
             cases=cases,

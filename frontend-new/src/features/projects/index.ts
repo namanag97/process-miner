@@ -75,7 +75,7 @@ export type {
   CreateProjectInput,
   UpdateProjectInput,
   DataSourceInfo,
-  EventLogSummary,
+  DatasetSummary,
 } from './types';
 
 export { toDataSources } from './types';

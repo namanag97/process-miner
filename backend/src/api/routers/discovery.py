@@ -12,8 +12,14 @@ from sqlalchemy.orm import selectinload
 
 from src.api.dependencies import DBSession
 from src.core.enums import MinerType
+from src.core.exceptions import (
+    DiscoveryError,
+    InvalidInputError,
+    ModelNotFoundError,
+    ProcessNotFoundError,
+)
 from src.core.logging_config import get_logger
-from src.models.orm import EventLog, ProcessCase, ProcessModel
+from src.models.orm import Dataset, ProcessCase, ProcessModel
 from src.models.schemas import (
     DiscoverRequest,
     MinerInfo,
@@ -68,34 +74,32 @@ async def discover_model(
 
     # Load event log with cases and events
     query = (
-        select(EventLog)
-        .options(selectinload(EventLog.cases).selectinload(ProcessCase.events))
-        .where(EventLog.id == request.log_id)
+        select(Dataset)
+        .options(selectinload(Dataset.cases).selectinload(ProcessCase.events))
+        .where(Dataset.id == request.log_id)
     )
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
 
     if not event_log:
         logger.warning("log_not_found", log_id=request.log_id)
-        raise HTTPException(status_code=404, detail=f"Event log not found: {request.log_id}")
+        raise ProcessNotFoundError(request.log_id)
 
-    # Validate miner type
     try:
         miner_type = MinerType(request.miner_type)
     except ValueError:
         valid_types = [m.value for m in MinerType]
         logger.warning("invalid_miner_type", miner_type=str(request.miner_type))
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid miner type: {request.miner_type}. Valid types: {valid_types}",
+        raise InvalidInputError(
+            f"Invalid miner type: {request.miner_type}. Valid types: {valid_types}",
+            field="miner_type",
         )
 
-    # Run discovery
     try:
         model_data, model_format = mining_service.discover(event_log, miner_type)
     except Exception as e:
         logger.error("discovery_failed", log_id=request.log_id, error=str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Discovery failed: {str(e)}")
+        raise DiscoveryError(f"Discovery failed: {str(e)}", miner_type=miner_type.value)
 
     # Create model name
     model_name = request.model_name or f"{event_log.name}_{miner_type.value}"
@@ -230,7 +234,7 @@ async def get_model(
     model = result.scalar_one_or_none()
 
     if not model:
-        raise HTTPException(status_code=404, detail=f"Model not found: {model_id}")
+        raise ModelNotFoundError(model_id)
 
     return ModelResponse(
         id=model.id,
@@ -259,7 +263,7 @@ async def delete_model(
 
     if not model:
         logger.warning("model_not_found", model_id=model_id)
-        raise HTTPException(status_code=404, detail=f"Model not found: {model_id}")
+        raise ModelNotFoundError(model_id)
 
     await db.delete(model)
     await db.flush()

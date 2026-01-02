@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse
 from src.api.routers import (
     analyses_router,
     analytics_router,
+    auth_router,
     conformance_router,
     dev_log_router,
     discovery_router,
@@ -26,11 +27,12 @@ from src.api.routers import (
     ocpm_router,
     organizational_router,
     predictions_router,
-    processes_router,
+    datasets_router,
     projects_router,
     simulation_router,
     visualization_router,
     workflows_router,
+    workspaces_router,
 )
 from src.api.routers.health import router as health_router, mark_startup_complete
 from src.api.routers.dev_logs_stream import router as dev_logs_stream_router
@@ -116,13 +118,107 @@ def _setup_observability(app: FastAPI) -> None:
 def create_app() -> FastAPI:
     """Create and configure FastAPI application."""
 
+    # OpenAPI tags for documentation organization
+    openapi_tags = [
+        {
+            "name": "Health",
+            "description": "Application health and readiness endpoints",
+        },
+        {
+            "name": "Auth",
+            "description": "Authentication and authorization (JWT-based)",
+        },
+        {
+            "name": "Workspaces",
+            "description": "Multi-tenant workspace management",
+        },
+        {
+            "name": "Projects",
+            "description": "Project organization for event logs and analyses",
+        },
+        {
+            "name": "Datasets",
+            "description": "Dataset upload, management, and statistics",
+        },
+        {
+            "name": "Analyses",
+            "description": "Stored analyses and results",
+        },
+        {
+            "name": "Discovery",
+            "description": "Process model discovery (Alpha, Inductive, Heuristics miners)",
+        },
+        {
+            "name": "Visualization",
+            "description": "DFG, Petri net, and BPMN visualization",
+        },
+        {
+            "name": "Conformance",
+            "description": "Conformance checking, fitness, precision, and deviation analysis",
+        },
+        {
+            "name": "Analytics",
+            "description": "Performance analytics, bottleneck detection, and KPIs",
+        },
+        {
+            "name": "Filtering",
+            "description": "Event log filtering and subsetting",
+        },
+        {
+            "name": "Organizational",
+            "description": "Organizational mining, social networks, and resource analysis",
+        },
+        {
+            "name": "Predictions",
+            "description": "ML-based predictions (next activity, remaining time)",
+        },
+        {
+            "name": "Simulation",
+            "description": "Process simulation and what-if analysis",
+        },
+        {
+            "name": "OCPM",
+            "description": "Object-Centric Process Mining (OCEL 2.0)",
+        },
+        {
+            "name": "Workflows",
+            "description": "Automation workflows and pipelines",
+        },
+        {
+            "name": "Observability",
+            "description": "Metrics, tracing, and logging",
+        },
+    ]
+
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
-        description="Process Mining API - Enterprise Grade Architecture",
+        description="""
+# Process Mining SaaS API
+
+Enterprise-grade process mining platform powered by PM4Py.
+
+## Features
+
+- **Event Log Management**: Upload CSV, XES, OCEL files with column auto-detection
+- **Process Discovery**: Alpha, Inductive, Heuristics miners with quality metrics
+- **Conformance Checking**: Token replay, alignments with deviation analysis
+- **Performance Analytics**: Bottleneck detection, cycle time, throughput
+- **Predictions**: ML-based next activity and remaining time predictions
+- **OCEL Support**: Object-Centric Process Mining with OCEL 2.0
+
+## Error Handling
+
+All errors follow RFC 7807 Problem Details format with typed error codes.
+
+## Authentication
+
+JWT-based authentication with optional workspace context.
+        """,
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
+        openapi_tags=openapi_tags,
         lifespan=lifespan,
     )
 
@@ -252,8 +348,10 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
 
     # Include API routers with prefix
+    app.include_router(auth_router, prefix=settings.api_prefix)
+    app.include_router(workspaces_router, prefix=settings.api_prefix)
     app.include_router(projects_router, prefix=settings.api_prefix)
-    app.include_router(processes_router, prefix=settings.api_prefix)
+    app.include_router(datasets_router, prefix=settings.api_prefix)
     app.include_router(analyses_router, prefix=settings.api_prefix)
     app.include_router(discovery_router, prefix=settings.api_prefix)
     app.include_router(visualization_router, prefix=settings.api_prefix)

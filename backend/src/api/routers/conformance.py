@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.dependencies import get_session
 from src.core.enums import ConformanceMethod
 from src.core.logging_config import get_logger
-from src.models.orm import ConformanceResult, EventLog, ProcessModel
+from src.models.orm import ConformanceResult, Dataset, ProcessModel
 from src.models.schemas import (
     AlignmentDiagnosticsResponse,
     ConformanceCheckRequest,
@@ -59,7 +59,7 @@ async def check_conformance(
     start_time = time.perf_counter()
 
     # Get the event log with cases and events
-    log_result = await session.execute(select(EventLog).where(EventLog.id == request.log_id))
+    log_result = await session.execute(select(Dataset).where(Dataset.id == request.log_id))
     event_log = log_result.scalar_one_or_none()
 
     if not event_log:
@@ -272,7 +272,7 @@ async def get_conformance_diagnostics(
     Returns trace-level analysis including deviations.
     """
     # Get the event log
-    log_result = await session.execute(select(EventLog).where(EventLog.id == log_id))
+    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
     event_log = log_result.scalar_one_or_none()
 
     if not event_log:
@@ -328,7 +328,7 @@ async def get_deviations(
     Returns case-level deviation information.
     """
     # Get the event log
-    log_result = await session.execute(select(EventLog).where(EventLog.id == log_id))
+    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
     event_log = log_result.scalar_one_or_none()
 
     if not event_log:
@@ -394,7 +394,7 @@ async def get_alignment_diagnostics(
     start_time = time.perf_counter()
 
     # Get the event log
-    log_result = await session.execute(select(EventLog).where(EventLog.id == log_id))
+    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
     event_log = log_result.scalar_one_or_none()
 
     if not event_log:
@@ -498,7 +498,7 @@ async def get_quality_metrics(
     start_time = time.perf_counter()
 
     # Get the event log
-    log_result = await session.execute(select(EventLog).where(EventLog.id == log_id))
+    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
     event_log = log_result.scalar_one_or_none()
 
     if not event_log:

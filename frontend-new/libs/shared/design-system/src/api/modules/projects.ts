@@ -16,7 +16,7 @@ export interface Project {
 }
 
 export interface ProjectDetail extends Project {
-  eventLogs: Array<{
+  datasets: Array<{
     id: string;
     name: string;
     sourceFormat: string;
@@ -53,7 +53,7 @@ interface ProjectApiResponse {
 }
 
 interface ProjectDetailApiResponse extends ProjectApiResponse {
-  event_logs: Array<{
+  datasets: Array<{
     id: string;
     name: string;
     source_format: string;
@@ -90,16 +90,16 @@ function transformProject(response: ProjectApiResponse): Project {
 function transformProjectDetail(response: ProjectDetailApiResponse): ProjectDetail {
   return {
     ...transformProject(response),
-    eventLogs: response.event_logs.map((log) => ({
-      id: log.id,
-      name: log.name,
-      sourceFormat: log.source_format,
-      totalEvents: log.total_events,
-      totalCases: log.total_cases,
-      totalActivities: log.total_activities,
-      activities: log.activities,
-      createdAt: log.created_at,
-      sourceFile: log.source_file,
+    datasets: response.datasets.map((ds) => ({
+      id: ds.id,
+      name: ds.name,
+      sourceFormat: ds.source_format,
+      totalEvents: ds.total_events,
+      totalCases: ds.total_cases,
+      totalActivities: ds.total_activities,
+      activities: ds.activities,
+      createdAt: ds.created_at,
+      sourceFile: ds.source_file,
     })),
   };
 }
@@ -116,8 +116,8 @@ export interface ProjectsModule {
   create: (data: CreateProjectData) => Promise<Project>;
   update: (id: string, data: UpdateProjectData) => Promise<Project>;
   delete: (id: string) => Promise<void>;
-  addFile: (projectId: string, logId: string) => Promise<ProjectDetail>;
-  removeFile: (projectId: string, logId: string) => Promise<void>;
+  addFile: (projectId: string, datasetId: string) => Promise<ProjectDetail>;
+  removeFile: (projectId: string, datasetId: string) => Promise<void>;
 }
 
 export function createProjectsModule(client: ApiClient): ProjectsModule {
@@ -157,15 +157,15 @@ export function createProjectsModule(client: ApiClient): ProjectsModule {
       await client.delete(`/projects/${id}`);
     },
 
-    async addFile(projectId: string, logId: string) {
+    async addFile(projectId: string, datasetId: string) {
       const response = await client.post<ProjectDetailApiResponse>(
-        `/projects/${projectId}/files/${logId}`
+        `/projects/${projectId}/files/${datasetId}`
       );
       return transformProjectDetail(response);
     },
 
-    async removeFile(projectId: string, logId: string) {
-      await client.delete(`/projects/${projectId}/files/${logId}`);
+    async removeFile(projectId: string, datasetId: string) {
+      await client.delete(`/projects/${projectId}/files/${datasetId}`);
     },
   };
 }

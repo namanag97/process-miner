@@ -13,7 +13,7 @@ from sqlalchemy.orm import selectinload
 from src.api.dependencies import DBSession
 from src.core.enums import ModelFormat
 from src.core.logging_config import get_logger
-from src.models.orm import EventLog, ProcessCase, ProcessModel
+from src.models.orm import Dataset, ProcessCase, ProcessModel
 from src.models.schemas import (
     ActivityDetailResponse,
     DFGEdge,
@@ -63,9 +63,9 @@ async def get_dfg(
 
     # Load event log
     query = (
-        select(EventLog)
-        .options(selectinload(EventLog.cases).selectinload(ProcessCase.events))
-        .where(EventLog.id == log_id)
+        select(Dataset)
+        .options(selectinload(Dataset.cases).selectinload(ProcessCase.events))
+        .where(Dataset.id == log_id)
     )
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
@@ -235,9 +235,9 @@ async def get_dfg_svg(
     """
     # Load event log
     query = (
-        select(EventLog)
-        .options(selectinload(EventLog.cases).selectinload(ProcessCase.events))
-        .where(EventLog.id == log_id)
+        select(Dataset)
+        .options(selectinload(Dataset.cases).selectinload(ProcessCase.events))
+        .where(Dataset.id == log_id)
     )
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
@@ -276,9 +276,9 @@ async def get_footprints(
     Shows sequence and parallel relations between activities.
     """
     query = (
-        select(EventLog)
-        .options(selectinload(EventLog.cases).selectinload(ProcessCase.events))
-        .where(EventLog.id == log_id)
+        select(Dataset)
+        .options(selectinload(Dataset.cases).selectinload(ProcessCase.events))
+        .where(Dataset.id == log_id)
     )
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
@@ -331,9 +331,9 @@ async def get_explorer_data(
 
     # Load event log with all related data
     query = (
-        select(EventLog)
-        .options(selectinload(EventLog.cases).selectinload(ProcessCase.events))
-        .where(EventLog.id == log_id)
+        select(Dataset)
+        .options(selectinload(Dataset.cases).selectinload(ProcessCase.events))
+        .where(Dataset.id == log_id)
     )
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()

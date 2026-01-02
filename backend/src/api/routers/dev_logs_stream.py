@@ -418,14 +418,14 @@ async def _stream_logs(request: Request, include_recent: bool = True) -> AsyncGe
                 break
             
             try:
-                # Wait for message or timeout
-                msg_type, data = await asyncio.wait_for(queue.get(), timeout=5.0)
+                # Wait for message or timeout (15s for reduced CPU usage)
+                msg_type, data = await asyncio.wait_for(queue.get(), timeout=15.0)
                 yield f"data: {data}\n\n"
                 
             except asyncio.TimeoutError:
-                # Send heartbeat every 5 seconds
+                # Send heartbeat every 15 seconds (reduced from 5s for lower CPU)
                 now = time.time()
-                if now - last_heartbeat >= 5:
+                if now - last_heartbeat >= 15:
                     metrics = _get_system_metrics()
                     heartbeat = HeartbeatMessage(
                         timestamp=datetime.utcnow().isoformat() + "Z",

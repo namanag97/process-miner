@@ -27,12 +27,12 @@ from pm4py.visualization.petri_net import visualizer as pn_visualizer
 
 from src.core.enums import MinerType, ModelFormat
 from src.core.logging_config import get_logger
-from src.models.orm import EventLog
+from src.models.orm import Dataset
 from src.infrastructure.circuit_breaker import pm4py_circuit
 from src.infrastructure.metrics import instrument_pm4py, record_pm4py_operation
 
 if TYPE_CHECKING:
-    from src.domain.entities import EventLogAggregate
+    from src.domain.entities import DatasetAggregate
 
 warnings.filterwarnings("ignore")
 
@@ -61,7 +61,7 @@ class MiningService:
 
     def discover(
         self,
-        event_log: EventLog,
+        event_log: Dataset,
         miner_type: MinerType = MinerType.INDUCTIVE,
     ) -> tuple[Any, ModelFormat]:
         """
@@ -79,9 +79,12 @@ class MiningService:
         )
         start_time = time.perf_counter()
 
-        pm4py_log = self._to_pm4py_log(event_log)
+        # Use fast DuckDB/Arrow path instead of slow ORM iteration
+        # This reduces data copies from 4 to 1-2 and is ~10x faster
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         conversion_ms = (time.perf_counter() - start_time) * 1000
-        logger.debug("pm4py_log_conversion", duration_ms=round(conversion_ms, 2))
+        logger.debug("pm4py_log_conversion_fast", duration_ms=round(conversion_ms, 2))
 
         mining_start = time.perf_counter()
         if miner_type == MinerType.ALPHA:
@@ -165,7 +168,7 @@ class MiningService:
     # Advanced Discovery Algorithms (Phase 1 PM4py Integration)
     # =========================================================================
 
-    def discover_ilp(self, event_log: EventLog, alpha: float = 1.0) -> tuple[Any, ModelFormat]:
+    def discover_ilp(self, event_log: Dataset, alpha: float = 1.0) -> tuple[Any, ModelFormat]:
         """
         ILP Miner - Integer Linear Programming based discovery.
         
@@ -188,7 +191,7 @@ class MiningService:
         logger.info("discover_ilp_completed", duration_ms=round(duration_ms, 2))
         return (net, im, fm), ModelFormat.PETRI_NET
 
-    def discover_powl(self, event_log: EventLog) -> tuple[Any, ModelFormat]:
+    def discover_powl(self, event_log: Dataset) -> tuple[Any, ModelFormat]:
         """
         POWL - Partially Ordered Workflow Language discovery.
         
@@ -211,7 +214,7 @@ class MiningService:
         logger.info("discover_powl_completed", duration_ms=round(duration_ms, 2))
         return powl_model, ModelFormat.POWL
 
-    def discover_bpmn(self, event_log: EventLog) -> tuple[Any, ModelFormat]:
+    def discover_bpmn(self, event_log: Dataset) -> tuple[Any, ModelFormat]:
         """
         Direct BPMN discovery using Inductive Miner.
         
@@ -233,7 +236,7 @@ class MiningService:
         logger.info("discover_bpmn_completed", duration_ms=round(duration_ms, 2))
         return bpmn_model, ModelFormat.BPMN
 
-    def discover_declare(self, event_log: EventLog) -> tuple[Any, ModelFormat]:
+    def discover_declare(self, event_log: Dataset) -> tuple[Any, ModelFormat]:
         """
         DECLARE model discovery.
         
@@ -258,7 +261,7 @@ class MiningService:
 
     def discover_log_skeleton(
         self, 
-        event_log: EventLog, 
+        event_log: Dataset, 
         noise_threshold: float = 0.0
     ) -> tuple[Any, ModelFormat]:
         """
@@ -284,7 +287,7 @@ class MiningService:
         logger.info("discover_log_skeleton_completed", duration_ms=round(duration_ms, 2))
         return log_skeleton, ModelFormat.LOG_SKELETON
 
-    def discover_temporal_profile(self, event_log: EventLog) -> tuple[Any, ModelFormat]:
+    def discover_temporal_profile(self, event_log: Dataset) -> tuple[Any, ModelFormat]:
         """
         Temporal Profile discovery.
         
@@ -307,7 +310,7 @@ class MiningService:
         logger.info("discover_temporal_profile_completed", duration_ms=round(duration_ms, 2))
         return temporal_profile, ModelFormat.TEMPORAL_PROFILE
 
-    def discover_prefix_tree(self, event_log: EventLog) -> tuple[Any, ModelFormat]:
+    def discover_prefix_tree(self, event_log: Dataset) -> tuple[Any, ModelFormat]:
         """
         Prefix Tree (Trie) discovery.
         
@@ -332,7 +335,7 @@ class MiningService:
 
     def discover_transition_system(
         self, 
-        event_log: EventLog,
+        event_log: Dataset,
         direction: str = "forward",
         window: int = 2
     ) -> tuple[Any, ModelFormat]:
@@ -364,7 +367,7 @@ class MiningService:
         logger.info("discover_transition_system_completed", duration_ms=round(duration_ms, 2))
         return ts, ModelFormat.TRANSITION_SYSTEM
 
-    def discover_batches(self, event_log: EventLog) -> tuple[Any, ModelFormat]:
+    def discover_batches(self, event_log: Dataset) -> tuple[Any, ModelFormat]:
         """
         Batch activity detection.
         
@@ -389,7 +392,7 @@ class MiningService:
 
     def discover_correlation(
         self, 
-        event_log: EventLog,
+        event_log: Dataset,
         activity_key: str = "concept:name",
         timestamp_key: str = "time:timestamp",
         start_timestamp_key: str | None = None
@@ -431,11 +434,13 @@ class MiningService:
 
     def get_petri_net(
         self,
-        event_log: EventLog,
+        event_log: Dataset,
         miner_type: MinerType = MinerType.INDUCTIVE,
     ) -> tuple[PetriNet, Marking, Marking]:
         """Get Petri net from discovery (converts process tree if needed)."""
-        pm4py_log = self._to_pm4py_log(event_log)
+        # Use fast DuckDB/Arrow path
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
 
         if miner_type in [MinerType.ALPHA, MinerType.ALPHA_PLUS, MinerType.HEURISTICS]:
             model_data, _ = self.discover(event_log, miner_type)
@@ -495,19 +500,25 @@ class MiningService:
     # Analysis Functions
     # =========================================================================
 
-    def get_start_activities(self, event_log: EventLog) -> dict[str, int]:
+    def get_start_activities(self, event_log: Dataset) -> dict[str, int]:
         """Get start activities with frequencies."""
-        pm4py_log = self._to_pm4py_log(event_log)
+        # Use fast DuckDB/Arrow path
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         return dict(pm4py.get_start_activities(pm4py_log))
 
-    def get_end_activities(self, event_log: EventLog) -> dict[str, int]:
+    def get_end_activities(self, event_log: Dataset) -> dict[str, int]:
         """Get end activities with frequencies."""
-        pm4py_log = self._to_pm4py_log(event_log)
+        # Use fast DuckDB/Arrow path
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         return dict(pm4py.get_end_activities(pm4py_log))
 
-    def get_variants(self, event_log: EventLog, top_n: int = 20) -> dict[str, Any]:
+    def get_variants(self, event_log: Dataset, top_n: int = 20) -> dict[str, Any]:
         """Get process variants with counts."""
-        pm4py_log = self._to_pm4py_log(event_log)
+        # Use fast DuckDB/Arrow path
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         variants = pm4py.get_variants(pm4py_log)
 
         def get_count(v):
@@ -526,9 +537,11 @@ class MiningService:
             "total_variants": len(variants),
         }
 
-    def get_dfg_data(self, event_log: EventLog) -> dict[str, Any]:
+    def get_dfg_data(self, event_log: Dataset) -> dict[str, Any]:
         """Get DFG as structured data for visualization."""
-        pm4py_log = self._to_pm4py_log(event_log)
+        # Use fast DuckDB/Arrow path
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         dfg, start_activities, end_activities = pm4py.discover_dfg(pm4py_log)
 
         # Build nodes (unique activities)
@@ -574,9 +587,11 @@ class MiningService:
             "total_frequency": total_freq,
         }
 
-    def get_dfg_data_with_performance(self, event_log: EventLog) -> dict[str, Any]:
+    def get_dfg_data_with_performance(self, event_log: Dataset) -> dict[str, Any]:
         """Get DFG with performance metrics (avg/min/max duration per edge)."""
-        pm4py_log = self._to_pm4py_log(event_log)
+        # Use fast DuckDB/Arrow path
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
 
         # Get frequency-based DFG for base data
         dfg, start_activities, end_activities = pm4py.discover_dfg(pm4py_log)
@@ -639,9 +654,11 @@ class MiningService:
             "total_frequency": total_freq,
         }
 
-    def get_footprints(self, event_log: EventLog) -> dict[str, Any]:
+    def get_footprints(self, event_log: Dataset) -> dict[str, Any]:
         """Compute behavioral footprints (sequence/parallel relations)."""
-        pm4py_log = self._to_pm4py_log(event_log)
+        # Use fast DuckDB/Arrow path
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
 
         try:
             from pm4py.algo.discovery.footprints import algorithm as footprints_discovery
@@ -685,13 +702,15 @@ class MiningService:
         except Exception as e:
             return {"error": str(e)}
 
-    def get_activity_statistics(self, event_log: EventLog) -> list[dict[str, Any]]:
+    def get_activity_statistics(self, event_log: Dataset) -> list[dict[str, Any]]:
         """
         Get detailed statistics for each activity in the event log.
 
         Returns list of activity details with frequency, timing, and position info.
         """
-        pm4py_log = self._to_pm4py_log(event_log)
+        # Use fast DuckDB/Arrow path
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
 
         # Get basic statistics
         start_activities = dict(pm4py.get_start_activities(pm4py_log))
@@ -797,7 +816,7 @@ class MiningService:
             "unique_activity_count": unique_count,
         }
 
-    def get_case_statistics(self, event_log: EventLog) -> dict[str, Any]:
+    def get_case_statistics(self, event_log: Dataset) -> dict[str, Any]:
         """Get case duration statistics."""
         pm4py_log = self._to_pm4py_log(event_log)
 
@@ -824,7 +843,7 @@ class MiningService:
 
     def evaluate_fitness(
         self,
-        event_log: EventLog,
+        event_log: Dataset,
         net: PetriNet,
         im: Marking,
         fm: Marking,
@@ -839,7 +858,7 @@ class MiningService:
 
     def evaluate_precision(
         self,
-        event_log: EventLog,
+        event_log: Dataset,
         net: PetriNet,
         im: Marking,
         fm: Marking,
@@ -990,7 +1009,7 @@ class MiningService:
             },
         ]
 
-    def _to_pm4py_log(self, event_log: EventLog) -> PM4PyLog:
+    def _to_pm4py_log(self, event_log: Dataset) -> PM4PyLog:
         """Convert ORM EventLog to PM4Py EventLog.
         
         Note: This is the original ORM-based conversion. For better performance

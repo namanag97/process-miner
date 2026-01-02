@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useMemo, useCallback } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query';
 import { ApiClient } from '../api/client';
+import { logQuery, logMutation } from '../utils/devLogger';
 import {
   createProcessesModule,
   createProjectsModule,
@@ -51,8 +52,61 @@ interface ProcessMiningSdk {
 // Create SDK context
 const SDKContext = createContext<ProcessMiningSdk | null>(null);
 
-// Query client configuration
+// Query cache with logging for all query events
+const queryCache = new QueryCache({
+  onSuccess: (data, query) => {
+    const key = Array.isArray(query.queryKey) ? query.queryKey.join('/') : String(query.queryKey);
+    logQuery(key, 'success', { 
+      dataPreview: typeof data === 'object' ? Object.keys(data as object).slice(0, 5) : typeof data,
+      fetchStatus: query.state.fetchStatus,
+    });
+  },
+  onError: (error, query) => {
+    const key = Array.isArray(query.queryKey) ? query.queryKey.join('/') : String(query.queryKey);
+    logQuery(key, 'error', { error: error instanceof Error ? error.message : String(error) });
+  },
+});
+
+// Mutation cache with logging for all mutation events
+const mutationCache = new MutationCache({
+  onSuccess: (data, variables, _context, mutation) => {
+    const key = mutation.options.mutationKey 
+      ? Array.isArray(mutation.options.mutationKey) 
+        ? mutation.options.mutationKey.join('/') 
+        : String(mutation.options.mutationKey)
+      : 'anonymous';
+    logMutation(key, 'success', { 
+      dataPreview: typeof data === 'object' ? Object.keys(data as object).slice(0, 5) : typeof data,
+      variables: typeof variables === 'object' ? Object.keys(variables as object) : typeof variables,
+    });
+  },
+  onError: (error, variables, _context, mutation) => {
+    const key = mutation.options.mutationKey 
+      ? Array.isArray(mutation.options.mutationKey) 
+        ? mutation.options.mutationKey.join('/') 
+        : String(mutation.options.mutationKey)
+      : 'anonymous';
+    logMutation(key, 'error', { 
+      error: error instanceof Error ? error.message : String(error),
+      variables: typeof variables === 'object' ? Object.keys(variables as object) : typeof variables,
+    });
+  },
+  onMutate: (variables, mutation) => {
+    const key = mutation.options.mutationKey 
+      ? Array.isArray(mutation.options.mutationKey) 
+        ? mutation.options.mutationKey.join('/') 
+        : String(mutation.options.mutationKey)
+      : 'anonymous';
+    logMutation(key, 'start', { 
+      variables: typeof variables === 'object' ? Object.keys(variables as object) : typeof variables,
+    });
+  },
+});
+
+// Query client configuration with logging caches
 export const queryClient = new QueryClient({
+  queryCache,
+  mutationCache,
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000, // 5 minutes

@@ -23,16 +23,16 @@ export interface Project {
 }
 
 /**
- * Project entity with event logs (detail view)
+ * Project entity with datasets (detail view)
  */
 export interface ProjectDetail extends Project {
-  eventLogs: EventLogSummary[];
+  datasets: DatasetSummary[];
 }
 
 /**
- * Event log summary within a project
+ * Dataset summary within a project
  */
-export interface EventLogSummary {
+export interface DatasetSummary {
   id: string;
   name: string;
   sourceFormat: string;
@@ -108,16 +108,16 @@ export interface ProjectListResponse {
 // ============================================
 
 /**
- * Transform event logs to data source info format
+ * Transform datasets to data source info format
  */
-export function toDataSources(logs: EventLogSummary[]): DataSourceInfo[] {
-  return logs.map((log) => ({
-    id: log.id,
-    name: log.name,
-    type: log.name.endsWith('.xes') ? 'xes' as const : 'csv' as const,
-    caseCount: log.totalCases,
-    eventCount: log.totalEvents,
-    uploadedAt: log.createdAt,
+export function toDataSources(datasets: DatasetSummary[]): DataSourceInfo[] {
+  return datasets.map((dataset) => ({
+    id: dataset.id,
+    name: dataset.name,
+    type: dataset.name.endsWith('.xes') ? 'xes' as const : 'csv' as const,
+    caseCount: dataset.totalCases,
+    eventCount: dataset.totalEvents,
+    uploadedAt: dataset.createdAt,
     status: 'ready' as const,
   }));
 }

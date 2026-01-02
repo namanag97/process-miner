@@ -3,23 +3,29 @@
  *
  * Shows a searchable, sortable table of projects with create functionality.
  * Uses FeaturePage wrapper for consistent loading/error/empty states.
+ * Filters projects by current workspace context.
  */
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Form } from 'antd';
 import { PlusOutlined, FolderOutlined } from '@ant-design/icons';
-import { DataTable, tokens, type DataTableColumn } from '@lumina/design-system';
+import { DataTable, tokens, type DataTableColumn, logAction } from '@lumina/design-system';
 import { FeaturePage, PageSection } from '../../../core/components/FeaturePage';
 import { useProjectList, useCreateProject } from '../hooks';
 import { CreateProjectModal } from '../components/CreateProjectModal';
+import { useWorkspace } from '../../../context/UserContext';
 import type { Project, CreateProjectInput } from '../types';
 
 export function ProjectsListPage() {
   const navigate = useNavigate();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [form] = Form.useForm<CreateProjectInput>();
+  
+  // Get current workspace context
+  const { workspace } = useWorkspace();
 
+  // Pass workspace_id to filter projects (MVP: pass undefined for now to show all)
   const { data, isLoading, error, refetch } = useProjectList(undefined);
   const createProject = useCreateProject();
 
@@ -69,26 +75,34 @@ export function ProjectsListPage() {
   ];
 
   const handleCreateProject = async (values: CreateProjectInput) => {
+    logAction('ProjectsListPage', 'create_project_clicked', { name: values.name });
     try {
       const newProject = await createProject.mutateAsync(values);
+      logAction('ProjectsListPage', 'project_created', { projectId: newProject.id, name: newProject.name });
       setIsCreateModalOpen(false);
       form.resetFields();
       navigate(`/workspace/${newProject.id}`);
     } catch (error) {
-      // Error toast is already handled by mutation hook
+      logAction('ProjectsListPage', 'create_project_failed', { error: String(error) });
       console.error('Failed to create project:', error);
     }
   };
 
   const handleRowClick = (project: Project) => {
+    logAction('ProjectsListPage', 'project_row_clicked', { projectId: project.id, projectName: project.name });
     navigate(`/workspace/${project.id}`);
   };
+
+  // Description with workspace context
+  const description = workspace 
+    ? `Manage your process mining projects in ${workspace.name}`
+    : 'Manage your process mining projects';
 
   return (
     <>
       <FeaturePage
         title="Projects"
-        description="Manage your process mining projects"
+        description={description}
         breadcrumb={[{ label: 'Projects' }]}
         isLoading={isLoading}
         error={error}
@@ -97,7 +111,9 @@ export function ProjectsListPage() {
         emptyState={{
           icon: <FolderOutlined style={{ fontSize: 48, color: tokens.colors.neutral[400] }} />,
           title: 'No projects yet',
-          description: 'Create your first project to start analyzing your processes',
+          description: workspace 
+            ? `Create your first project in ${workspace.name} to start analyzing your processes`
+            : 'Create your first project to start analyzing your processes',
           actionLabel: 'Create Project',
           onAction: () => setIsCreateModalOpen(true),
         }}

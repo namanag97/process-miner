@@ -21,7 +21,7 @@ import {
   ExpandOutlined,
   CompressOutlined,
 } from '@ant-design/icons';
-import { tokens, toast } from '@lumina/design-system';
+import { tokens, toast, logAction } from '@lumina/design-system';
 import { createLogger } from '../../../utils/logger';
 
 // Import components
@@ -61,6 +61,11 @@ export function ExplorerDetailPage() {
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [rightPanelTab, setRightPanelTab] = useState('variants');
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+
+  // Log page mount
+  React.useEffect(() => {
+    logAction('ExplorerDetailPage', 'page_mounted', { logId, projectId });
+  }, [logId, projectId]);
 
   // Selection State
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -353,6 +358,7 @@ export function ExplorerDetailPage() {
   );
 
   const handleApplyFilter = useCallback((filter: AppliedFilter) => {
+    logAction('ExplorerDetailPage', 'filter_applied', { filterType: filter.type, filterLabel: filter.label });
     setAppliedFilters((prev) => [...prev, filter]);
     toast.success('Filter applied');
   }, []);
@@ -363,9 +369,10 @@ export function ExplorerDetailPage() {
   }, []);
 
   const handleClearAllFilters = useCallback(() => {
+    logAction('ExplorerDetailPage', 'filters_cleared', { count: appliedFilters.length });
     setAppliedFilters([]);
     toast.info('All filters cleared');
-  }, []);
+  }, [appliedFilters.length]);
 
   const handleExportPNG = useCallback(() => {
     log.info('Exporting PNG');
