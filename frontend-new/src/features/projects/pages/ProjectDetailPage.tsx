@@ -1,49 +1,140 @@
 /**
  * ProjectDetailPage - Detail view for a single project
  *
- * Shows project info, data sources, and upload options.
+ * Shows project info, data sources, analysis options, and upload options.
  * Uses FeaturePage wrapper for consistent loading/error/empty states.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Button, Space, Typography, Popconfirm, Row, Col, message } from 'antd';
+import { Card, Button, Space, Typography, Popconfirm, Row, Col, message, Dropdown, Divider, Tag, List } from 'antd';
+import type { MenuProps } from 'antd';
 import {
   UploadOutlined,
   DatabaseOutlined,
   DeleteOutlined,
   ArrowLeftOutlined,
+  PlayCircleOutlined,
+  BranchesOutlined,
+  LineChartOutlined,
+  SettingOutlined,
+  ExperimentOutlined,
+  ClockCircleOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
-import { tokens } from '@lumina/design-system';
+import { tokens, logAction } from '@lumina/design-system';
 import { FeaturePage, PageSection } from '../../../core/components/FeaturePage';
 import { useProjectDetail, useDeleteProject } from '../hooks';
 import { DataSourcesList } from '../components/DataSourcesList';
 import { toDataSources } from '../types';
 
-const { Text } = Typography;
+const { Text, Title } = Typography;
+
+// Analysis type definitions
+const ANALYSIS_TYPES = [
+  {
+    key: 'discovery',
+    label: 'Process Discovery',
+    description: 'Discover process model from event logs',
+    icon: <BranchesOutlined />,
+  },
+  {
+    key: 'conformance',
+    label: 'Conformance Check',
+    description: 'Check conformance against a reference model',
+    icon: <CheckCircleOutlined />,
+  },
+  {
+    key: 'variants',
+    label: 'Variant Analysis',
+    description: 'Analyze process variants and deviations',
+    icon: <ExperimentOutlined />,
+  },
+  {
+    key: 'performance',
+    label: 'Performance Analysis',
+    description: 'Identify bottlenecks and delays',
+    icon: <LineChartOutlined />,
+  },
+];
 
 export function ProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
 
   const { data: project, isLoading, error, refetch } = useProjectDetail(projectId || '');
   const deleteProject = useDeleteProject();
 
   const handleUpload = () => {
+    logAction('ProjectDetailPage', 'upload_clicked', { projectId });
     navigate(`/workspace/${projectId}/upload`);
   };
 
   const handleConnectDepot = () => {
+    logAction('ProjectDetailPage', 'connect_depot_clicked', { projectId });
     message.info('Data depot connection coming soon');
   };
 
   const handleDeleteProject = async () => {
     if (!projectId) return;
+    logAction('ProjectDetailPage', 'delete_project_clicked', { projectId });
     await deleteProject.mutateAsync(projectId);
+    logAction('ProjectDetailPage', 'project_deleted', { projectId });
     navigate('/workspace');
   };
 
-  const dataSources = project?.eventLogs ? toDataSources(project.eventLogs) : [];
+  const handleRunAnalysis = (analysisType: string) => {
+    const dataSources = project?.datasets ? toDataSources(project.datasets) : [];
+    
+    if (dataSources.length === 0) {
+      logAction('ProjectDetailPage', 'analysis_blocked_no_data', { projectId, analysisType });
+      message.warning('Please upload data before running analysis');
+      return;
+    }
+    
+    // Navigate to appropriate analysis page
+    const logId = dataSources[0].id;  // Use first data source
+    logAction('ProjectDetailPage', 'run_analysis_clicked', { projectId, analysisType, logId });
+    
+    switch (analysisType) {
+      case 'discovery':
+        navigate(`/explorer/${logId}`);
+        break;
+      case 'conformance':
+        navigate(`/analytics/conformance?logId=${logId}`);
+        break;
+      case 'variants':
+        navigate(`/explorer/${logId}?tab=variants`);
+        break;
+      case 'performance':
+        navigate(`/analytics/performance?logId=${logId}`);
+        break;
+      default:
+        navigate(`/explorer/${logId}`);
+    }
+  };
+
+  const analysisMenuItems: MenuProps['items'] = ANALYSIS_TYPES.map((analysis) => ({
+    key: analysis.key,
+    label: (
+      <div style={{ padding: '4px 0' }}>
+        <Space>
+          {analysis.icon}
+          <div>
+            <div style={{ fontWeight: 500 }}>{analysis.label}</div>
+            <div style={{ fontSize: 12, color: tokens.colors.neutral[500] }}>
+              {analysis.description}
+            </div>
+          </div>
+        </Space>
+      </div>
+    ),
+    onClick: () => handleRunAnalysis(analysis.key),
+  }));
+
+  const dataSources = project?.datasets ? toDataSources(project.datasets) : [];
+  const hasData = dataSources.length > 0;
 
   return (
     <FeaturePage
@@ -72,6 +163,19 @@ export function ProjectDetailPage() {
           >
             Back
           </Button>
+          {hasData && (
+            <Dropdown menu={{ items: analysisMenuItems }} placement="bottomRight">
+              <Button 
+                type="primary" 
+                icon={<PlayCircleOutlined />}
+                style={{
+                  background: `linear-gradient(135deg, ${tokens.colors.primary[500]}, ${tokens.colors.primary[600]})`,
+                }}
+              >
+                Run Analysis
+              </Button>
+            </Dropdown>
+          )}
           <Popconfirm
             title="Delete Project"
             description="Are you sure? This action cannot be undone."
@@ -86,6 +190,33 @@ export function ProjectDetailPage() {
         </Space>
       }
     >
+      {/* Quick Stats */}
+      {hasData && (
+        <Row gutter={16} style={{ marginTop: tokens.spacing[4] }}>
+          <Col xs={24} sm={8}>
+            <Card size="small" style={{ textAlign: 'center' }}>
+              <Text type="secondary">Data Sources</Text>
+              <Title level={3} style={{ margin: '8px 0 0' }}>{dataSources.length}</Title>
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card size="small" style={{ textAlign: 'center' }}>
+              <Text type="secondary">Total Analyses</Text>
+              <Title level={3} style={{ margin: '8px 0 0' }}>{project?.totalAnalyses || 0}</Title>
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card size="small" style={{ textAlign: 'center' }}>
+              <Text type="secondary">Created</Text>
+              <Title level={5} style={{ margin: '8px 0 0' }}>
+                {project?.createdAt ? new Date(project.createdAt).toLocaleDateString() : '-'}
+              </Title>
+            </Card>
+          </Col>
+        </Row>
+      )}
+
+      {/* Data Sources */}
       <Card
         title="Data Sources"
         style={{ marginTop: tokens.spacing[6] }}
@@ -164,6 +295,43 @@ export function ProjectDetailPage() {
           </>
         )}
       </Card>
+
+      {/* Analysis Quick Actions - only show when data exists */}
+      {hasData && (
+        <Card
+          title="Quick Analysis"
+          style={{ marginTop: tokens.spacing[6] }}
+          extra={<Text type="secondary">Choose an analysis type</Text>}
+        >
+          <Row gutter={[16, 16]}>
+            {ANALYSIS_TYPES.map((analysis) => (
+              <Col xs={24} sm={12} md={6} key={analysis.key}>
+                <Card
+                  hoverable
+                  onClick={() => handleRunAnalysis(analysis.key)}
+                  style={{
+                    textAlign: 'center',
+                    height: '100%',
+                    transition: 'all 0.3s ease',
+                  }}
+                  styles={{ body: { padding: tokens.spacing[4] } }}
+                >
+                  <div style={{ fontSize: 28, color: tokens.colors.primary[500], marginBottom: 8 }}>
+                    {analysis.icon}
+                  </div>
+                  <Text strong style={{ display: 'block' }}>{analysis.label}</Text>
+                  <Text 
+                    type="secondary" 
+                    style={{ fontSize: tokens.fontSize.sm, display: 'block', marginTop: 4 }}
+                  >
+                    {analysis.description}
+                  </Text>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        </Card>
+      )}
     </FeaturePage>
   );
 }

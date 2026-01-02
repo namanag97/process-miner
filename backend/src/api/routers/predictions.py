@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.dependencies import get_db
 from src.core.logging_config import get_logger
 from src.infrastructure.tasks import get_task_status, train_prediction_model_task
-from src.models.orm import AsyncJob, EventLog, PredictionModel
+from src.models.orm import AsyncJob, Dataset, PredictionModel
 from src.models.schemas import (
     BatchPredictionRequest,
     BatchPredictionResponse,
@@ -34,7 +34,7 @@ router = APIRouter(prefix="/predictions", tags=["Predictions"])
 
 async def _get_pm4py_log(log_id: str, db: AsyncSession):
     """Helper to get PM4Py log from log_id."""
-    query = select(EventLog).where(EventLog.id == log_id)
+    query = select(Dataset).where(Dataset.id == log_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
     if not event_log:
@@ -69,7 +69,7 @@ async def train_predictor(
     )
 
     # Verify log exists
-    query = select(EventLog).where(EventLog.id == log_id)
+    query = select(Dataset).where(Dataset.id == log_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
     if not event_log:

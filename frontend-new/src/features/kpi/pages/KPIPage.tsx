@@ -25,6 +25,7 @@ import {
   EmptyState,
   tokens,
   useProcess,
+  logAction,
 } from '@lumina/design-system';
 import { PerformanceTab, DeadlinesTab, UnwantedActivitiesTab, AutomationTab } from '../components';
 import { useKPIAuditLogger } from '../../../hooks';
@@ -51,6 +52,7 @@ export function KPIPage() {
   }, [process, logId, activeTab, projectId, kpiAudit]);
 
   const handleTabChange = (key: string) => {
+    logAction('KPIPage', 'tab_changed', { from: activeTab, to: key, logId });
     setSearchParams({ tab: key });
   };
 

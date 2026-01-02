@@ -121,13 +121,13 @@ class SQLAlchemyEventLogRepository(EventLogRepository):
         self._session = session
     
     async def get_by_id(self, log_id: str) -> Optional["EventLog"]:
-        from src.models.orm import EventLog
+        from src.models.orm import Dataset
         
         result = await self._session.get(EventLog, log_id)
         return result
     
     async def get_by_id_lightweight(self, log_id: str) -> Optional["EventLog"]:
-        from src.models.orm import EventLog
+        from src.models.orm import Dataset
         
         # Use a query that doesn't eager load relationships
         stmt = select(EventLog).where(EventLog.id == log_id)
@@ -141,7 +141,7 @@ class SQLAlchemyEventLogRepository(EventLogRepository):
         return log
     
     async def delete(self, log_id: str) -> bool:
-        from src.models.orm import EventLog
+        from src.models.orm import Dataset
         
         log = await self.get_by_id(log_id)
         if log:
@@ -151,7 +151,7 @@ class SQLAlchemyEventLogRepository(EventLogRepository):
         return False
     
     async def exists(self, log_id: str) -> bool:
-        from src.models.orm import EventLog
+        from src.models.orm import Dataset
         
         stmt = select(func.count()).where(EventLog.id == log_id)
         result = await self._session.execute(stmt)
@@ -163,7 +163,7 @@ class SQLAlchemyEventLogRepository(EventLogRepository):
         page_size: int = 20,
         source_format: Optional[str] = None,
     ) -> tuple[List["EventLog"], int]:
-        from src.models.orm import EventLog
+        from src.models.orm import Dataset
         
         # Count query
         count_stmt = select(func.count()).select_from(EventLog)
@@ -185,7 +185,7 @@ class SQLAlchemyEventLogRepository(EventLogRepository):
         return logs, total
     
     async def count(self) -> int:
-        from src.models.orm import EventLog
+        from src.models.orm import Dataset
         
         stmt = select(func.count()).select_from(EventLog)
         result = await self._session.execute(stmt)

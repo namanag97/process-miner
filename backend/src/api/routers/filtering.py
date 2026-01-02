@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_db
 from src.core.logging_config import get_logger
-from src.models.orm import EventLog, ProcessCase, ProcessEvent
+from src.models.orm import Dataset, ProcessCase, ProcessEvent
 from src.models.schemas import (
     FilterConfig,
     FilteredLogListResponse,
@@ -57,7 +57,7 @@ async def apply_filters(
     logger.info("applying_filters", log_id=log_id, filter_count=len(request.filters))
 
     # Get source log with cases and events
-    query = select(EventLog).where(EventLog.id == log_id)
+    query = select(Dataset).where(Dataset.id == log_id)
     result = await db.execute(query)
     source_log = result.scalar_one_or_none()
 
@@ -90,7 +90,7 @@ async def apply_filters(
             created_at=datetime.utcnow(),
         )
 
-    # Create new filtered EventLog
+    # Create new filtered Dataset
     filtered_name = request.name or f"Filtered {source_log.name}"
 
     # Get unique activities from filtered log
@@ -99,7 +99,7 @@ async def apply_filters(
         for event in trace:
             activities.add(event.get("concept:name", ""))
 
-    new_log = EventLog(
+    new_log = Dataset(
         name=filtered_name,
         source_file=source_log.source_file,
         source_format=source_log.source_format,
@@ -198,7 +198,7 @@ async def preview_filters(
     logger.info("previewing_filters", log_id=log_id, filter_count=len(request.filters))
 
     # Get source log
-    query = select(EventLog).where(EventLog.id == log_id)
+    query = select(Dataset).where(Dataset.id == log_id)
     result = await db.execute(query)
     source_log = result.scalar_one_or_none()
 
@@ -249,7 +249,7 @@ async def get_filter_options(
     logger.info("getting_filter_options", log_id=log_id)
 
     # Get source log
-    query = select(EventLog).where(EventLog.id == log_id)
+    query = select(Dataset).where(Dataset.id == log_id)
     result = await db.execute(query)
     source_log = result.scalar_one_or_none()
 
@@ -281,7 +281,7 @@ async def list_filtered_logs(
     logger.info("listing_filtered_logs", source_log_id=log_id)
 
     # Get source log
-    query = select(EventLog).where(EventLog.id == log_id)
+    query = select(Dataset).where(Dataset.id == log_id)
     result = await db.execute(query)
     source_log = result.scalar_one_or_none()
 
@@ -290,10 +290,10 @@ async def list_filtered_logs(
 
     # Get filtered logs
     query = (
-        select(EventLog)
-        .where(EventLog.source_log_id == log_id)
-        .where(EventLog.is_filtered.is_(True))
-        .order_by(EventLog.created_at.desc())
+        select(Dataset)
+        .where(Dataset.source_dataset_id == log_id)
+        .where(Dataset.is_filtered.is_(True))
+        .order_by(Dataset.created_at.desc())
     )
     result = await db.execute(query)
     filtered_logs = result.scalars().all()
@@ -357,10 +357,10 @@ async def delete_filtered_log(
 
     # Verify the filtered log exists and belongs to the source log
     query = (
-        select(EventLog)
-        .where(EventLog.id == filtered_id)
-        .where(EventLog.source_log_id == log_id)
-        .where(EventLog.is_filtered.is_(True))
+        select(Dataset)
+        .where(Dataset.id == filtered_id)
+        .where(Dataset.source_dataset_id == log_id)
+        .where(Dataset.is_filtered.is_(True))
     )
     result = await db.execute(query)
     filtered_log = result.scalar_one_or_none()

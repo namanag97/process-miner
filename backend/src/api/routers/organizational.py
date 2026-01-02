@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_db
 from src.core.logging_config import get_logger
-from src.models.orm import EventLog
+from src.models.orm import Dataset
 from src.models.schemas import (
     NetworkEdge,
     NetworkNode,
@@ -29,7 +29,7 @@ router = APIRouter(prefix="/organizational", tags=["Organizational Mining"])
 
 async def _get_pm4py_log(log_id: str, db: AsyncSession):
     """Helper to get PM4Py log from log_id."""
-    query = select(EventLog).where(EventLog.id == log_id)
+    query = select(Dataset).where(Dataset.id == log_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
     if not event_log:

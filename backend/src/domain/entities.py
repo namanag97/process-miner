@@ -6,7 +6,7 @@ Entities have:
 - Domain behavior (methods that encapsulate business logic)
 - Invariant enforcement
 
-The main aggregate root is EventLogAggregate, which owns ProcessCases and
+The main aggregate root is DatasetAggregate, which owns ProcessCases and
 provides PM4Py log caching for performance optimization.
 """
 
@@ -164,7 +164,7 @@ class ProcessCase:
 # Event Log Aggregate Root
 # =============================================================================
 
-class EventLogAggregate:
+class DatasetAggregate:
     """Aggregate root for event logs.
     
     This is the primary aggregate in the process mining domain. It owns:
@@ -181,7 +181,7 @@ class EventLogAggregate:
     - Filtering operations that return new aggregates
     
     Usage:
-        log = EventLogAggregate(id="log-1", name="Order Process", cases=cases)
+        log = DatasetAggregate(id="log-1", name="Order Process", cases=cases)
         
         # PM4Py operations use cached log
         pm4py_log = log.to_pm4py_log()  # First call: converts
@@ -420,21 +420,21 @@ class EventLogAggregate:
     
     # --- Filtering (Returns New Aggregates) ---
     
-    def filter(self, predicate: Callable[[ProcessCase], bool], suffix: str = "filtered") -> "EventLogAggregate":
+    def filter(self, predicate: Callable[[ProcessCase], bool], suffix: str = "filtered") -> "DatasetAggregate":
         """Filter cases using a predicate function.
         
         Returns a NEW aggregate with only matching cases.
         The original aggregate is unchanged.
         """
         filtered_cases = [c for c in self._cases if predicate(c)]
-        return EventLogAggregate(
+        return DatasetAggregate(
             id=f"{self._id}_{suffix}",
             name=f"{self._name} ({suffix})",
             cases=filtered_cases,
             source_format=self._source_format,
         )
     
-    def filter_by_time(self, time_range: TimeRange) -> "EventLogAggregate":
+    def filter_by_time(self, time_range: TimeRange) -> "DatasetAggregate":
         """Filter to cases within a time range."""
         def in_range(case: ProcessCase) -> bool:
             if not case.events:
@@ -444,7 +444,7 @@ class EventLogAggregate:
         
         return self.filter(in_range, suffix="time_filtered")
     
-    def filter_by_variant(self, variant: ActivitySequence) -> "EventLogAggregate":
+    def filter_by_variant(self, variant: ActivitySequence) -> "DatasetAggregate":
         """Filter to cases with a specific variant."""
         return self.filter(
             lambda c: c.events and c.variant == variant,
@@ -455,7 +455,7 @@ class EventLogAggregate:
         self,
         include: Optional[List[str]] = None,
         exclude: Optional[List[str]] = None,
-    ) -> "EventLogAggregate":
+    ) -> "DatasetAggregate":
         """Filter cases containing/excluding specific activities."""
         def matches(case: ProcessCase) -> bool:
             case_activities = {e.activity for e in case.events}
@@ -468,14 +468,14 @@ class EventLogAggregate:
         
         return self.filter(matches, suffix="activity_filtered")
     
-    def filter_by_start_activity(self, activities: List[str]) -> "EventLogAggregate":
+    def filter_by_start_activity(self, activities: List[str]) -> "DatasetAggregate":
         """Filter to cases starting with specific activities."""
         return self.filter(
             lambda c: c.start_activity in activities,
             suffix="start_filtered"
         )
     
-    def filter_by_end_activity(self, activities: List[str]) -> "EventLogAggregate":
+    def filter_by_end_activity(self, activities: List[str]) -> "DatasetAggregate":
         """Filter to cases ending with specific activities."""
         return self.filter(
             lambda c: c.end_activity in activities,
@@ -486,7 +486,7 @@ class EventLogAggregate:
         self,
         min_seconds: Optional[float] = None,
         max_seconds: Optional[float] = None,
-    ) -> "EventLogAggregate":
+    ) -> "DatasetAggregate":
         """Filter cases by duration."""
         def in_range(case: ProcessCase) -> bool:
             duration = case.duration_seconds
@@ -500,7 +500,7 @@ class EventLogAggregate:
         
         return self.filter(in_range, suffix="duration_filtered")
     
-    def filter_top_variants(self, k: int) -> "EventLogAggregate":
+    def filter_top_variants(self, k: int) -> "DatasetAggregate":
         """Filter to cases belonging to top K variants by frequency."""
         top_variants = {v.sequence for v in self.get_variant_stats(top_n=k)}
         return self.filter(
@@ -511,7 +511,7 @@ class EventLogAggregate:
     # --- Equality & Hashing ---
     
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, EventLogAggregate):
+        if not isinstance(other, DatasetAggregate):
             return False
         return self._id == other._id
     
@@ -519,4 +519,4 @@ class EventLogAggregate:
         return hash(self._id)
     
     def __repr__(self) -> str:
-        return f"EventLogAggregate(id={self._id}, name={self._name}, cases={self.total_cases})"
+        return f"DatasetAggregate(id={self._id}, name={self._name}, cases={self.total_cases})"

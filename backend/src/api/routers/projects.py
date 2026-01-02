@@ -1,6 +1,6 @@
 """Projects Router.
 
-Endpoints for managing projects (folders for organizing event logs).
+Endpoints for managing projects (folders for organizing datasets).
 """
 
 import json
@@ -11,14 +11,14 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, select
 
 from src.api.dependencies import DBSession
-from src.models.orm import EventLog, Project
+from src.models.orm import Dataset, Project
 from src.models.schemas import (
     ProjectCreateRequest,
     ProjectDetailResponse,
     ProjectListResponse,
     ProjectResponse,
     ProjectUpdateRequest,
-    ProcessResponse,
+    DatasetResponse,
 )
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
@@ -50,25 +50,25 @@ def _project_to_response(project: Project) -> ProjectResponse:
     )
 
 
-def _event_log_to_response(log: EventLog) -> ProcessResponse:
-    """Convert EventLog ORM to ProcessResponse."""
+def _dataset_to_response(dataset: Dataset) -> DatasetResponse:
+    """Convert Dataset ORM to DatasetResponse."""
     activities = []
-    if log.activities_json:
+    if dataset.activities_json:
         try:
-            activities = json.loads(log.activities_json)
+            activities = json.loads(dataset.activities_json)
         except json.JSONDecodeError:
             activities = []
 
-    return ProcessResponse(
-        id=log.id,
-        name=log.name,
-        source_format=log.source_format,
-        total_events=log.total_events,
-        total_cases=log.total_cases,
-        total_activities=log.total_activities,
+    return DatasetResponse(
+        id=dataset.id,
+        name=dataset.name,
+        source_format=dataset.source_format,
+        total_events=dataset.total_events,
+        total_cases=dataset.total_cases,
+        total_activities=dataset.total_activities,
         activities=activities,
-        created_at=log.created_at,
-        source_file=log.source_file,
+        created_at=dataset.created_at,
+        source_file=dataset.source_file,
     )
 
 
@@ -81,11 +81,13 @@ def _event_log_to_response(log: EventLog) -> ProcessResponse:
 async def create_project(
     db: DBSession,
     request: ProjectCreateRequest,
+    workspace_id: Optional[str] = Query(None, description="Workspace ID to associate project with"),
 ) -> ProjectResponse:
     """
-    Create a new project.
+    Create a new project, optionally within a workspace.
     """
     project = Project(
+        workspace_id=workspace_id,
         name=request.name,
         description=request.description,
         tags_json=json.dumps(request.tags) if request.tags else None,
@@ -106,12 +108,17 @@ async def list_projects(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     search: Optional[str] = Query(None, description="Search by project name"),
+    workspace_id: Optional[str] = Query(None, description="Filter by workspace ID"),
 ) -> ProjectListResponse:
     """
-    List all projects with pagination.
+    List all projects with pagination, optionally filtered by workspace.
     """
     # Build base query
     query = select(Project)
+
+    # Apply workspace filter
+    if workspace_id:
+        query = query.filter(Project.workspace_id == workspace_id)
 
     # Apply search filter
     if search:
@@ -119,6 +126,8 @@ async def list_projects(
 
     # Get total count
     count_query = select(func.count()).select_from(Project)
+    if workspace_id:
+        count_query = count_query.filter(Project.workspace_id == workspace_id)
     if search:
         count_query = count_query.filter(Project.name.ilike(f"%{search}%"))
     total_result = await db.execute(count_query)
@@ -148,7 +157,7 @@ async def get_project(
     project_id: str,
 ) -> ProjectDetailResponse:
     """
-    Get a project by ID with its event logs.
+    Get a project by ID with its datasets.
     """
     result = await db.execute(select(Project).filter(Project.id == project_id))
     project = result.scalar_one_or_none()
@@ -156,11 +165,11 @@ async def get_project(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Get event logs for this project
-    logs_result = await db.execute(
-        select(EventLog).filter(EventLog.project_id == project_id)
+    # Get datasets for this project
+    datasets_result = await db.execute(
+        select(Dataset).filter(Dataset.project_id == project_id)
     )
-    event_logs = logs_result.scalars().all()
+    datasets = datasets_result.scalars().all()
 
     tags = []
     if project.tags_json:
@@ -174,11 +183,11 @@ async def get_project(
         name=project.name,
         description=project.description,
         tags=tags,
-        total_files=len(event_logs),
+        total_files=len(datasets),
         total_analyses=project.total_analyses,
         created_at=project.created_at,
         updated_at=project.updated_at,
-        event_logs=[_event_log_to_response(log) for log in event_logs],
+        datasets=[_dataset_to_response(ds) for ds in datasets],
     )
 
 
@@ -229,11 +238,11 @@ async def delete_project(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Unlink event logs (they remain, just not in a project)
+    # Unlink datasets (they remain, just not in a project)
     from sqlalchemy import update
     await db.execute(
-        update(EventLog)
-        .where(EventLog.project_id == project_id)
+        update(Dataset)
+        .where(Dataset.project_id == project_id)
         .values(project_id=None)
     )
 
@@ -246,30 +255,30 @@ async def delete_project(
 # =============================================================================
 
 
-@router.post("/{project_id}/files/{log_id}", response_model=ProjectDetailResponse)
+@router.post("/{project_id}/files/{dataset_id}", response_model=ProjectDetailResponse)
 async def add_file_to_project(
     db: DBSession,
     project_id: str,
-    log_id: str,
+    dataset_id: str,
 ) -> ProjectDetailResponse:
     """
-    Add an existing event log to a project.
+    Add an existing dataset to a project.
     """
     result = await db.execute(select(Project).filter(Project.id == project_id))
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    log_result = await db.execute(select(EventLog).filter(EventLog.id == log_id))
-    event_log = log_result.scalar_one_or_none()
-    if not event_log:
-        raise HTTPException(status_code=404, detail="Event log not found")
+    dataset_result = await db.execute(select(Dataset).filter(Dataset.id == dataset_id))
+    dataset = dataset_result.scalar_one_or_none()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
 
-    event_log.project_id = project_id
+    dataset.project_id = project_id
 
     # Update total_files count
     count_result = await db.execute(
-        select(func.count(EventLog.id)).filter(EventLog.project_id == project_id)
+        select(func.count(Dataset.id)).filter(Dataset.project_id == project_id)
     )
     project.total_files = count_result.scalar() or 0
     project.updated_at = datetime.utcnow()
@@ -279,33 +288,33 @@ async def add_file_to_project(
     return await get_project(db, project_id)
 
 
-@router.delete("/{project_id}/files/{log_id}", status_code=204)
+@router.delete("/{project_id}/files/{dataset_id}", status_code=204)
 async def remove_file_from_project(
     db: DBSession,
     project_id: str,
-    log_id: str,
+    dataset_id: str,
 ) -> None:
     """
-    Remove an event log from a project (doesn't delete the log).
+    Remove a dataset from a project (doesn't delete the dataset).
     """
     result = await db.execute(select(Project).filter(Project.id == project_id))
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    log_result = await db.execute(select(EventLog).filter(EventLog.id == log_id))
-    event_log = log_result.scalar_one_or_none()
-    if not event_log:
-        raise HTTPException(status_code=404, detail="Event log not found")
+    dataset_result = await db.execute(select(Dataset).filter(Dataset.id == dataset_id))
+    dataset = dataset_result.scalar_one_or_none()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
 
-    if event_log.project_id != project_id:
-        raise HTTPException(status_code=400, detail="Event log is not in this project")
+    if dataset.project_id != project_id:
+        raise HTTPException(status_code=400, detail="Dataset is not in this project")
 
-    event_log.project_id = None
+    dataset.project_id = None
 
     # Update total_files count
     count_result = await db.execute(
-        select(func.count(EventLog.id)).filter(EventLog.project_id == project_id)
+        select(func.count(Dataset.id)).filter(Dataset.project_id == project_id)
     )
     project.total_files = count_result.scalar() or 0
     project.updated_at = datetime.utcnow()

@@ -6,7 +6,7 @@
  * Format: [TIMESTAMP] [TYPE] [SOURCE] → MESSAGE
  */
 
-type LogType = 'FE-ACTION' | 'API-REQ' | 'API-RES' | 'ERROR';
+type LogType = 'FE-ACTION' | 'API-REQ' | 'API-RES' | 'ERROR' | 'HOOK' | 'STATE' | 'QUERY' | 'MUTATION';
 
 interface LogEntry {
   type: LogType;
@@ -94,8 +94,12 @@ export function devLog(type: LogType, source: string, message: unknown): void {
 /**
  * Log a frontend action (click, submit, navigation, state change)
  */
-export function logAction(source: string, message: unknown = 'triggered'): void {
-  devLog('FE-ACTION', source, message);
+export function logAction(source: string, message: unknown = 'triggered', data?: Record<string, unknown>): void {
+  devLog('FE-ACTION', source, data ? { message, ...data } : message);
+  
+  // Emit to DevConsole
+  const messageStr = typeof message === 'string' ? message : JSON.stringify(message).slice(0, 100);
+  devConsoleCallback?.('action', source, messageStr, data);
 }
 
 /**
@@ -132,6 +136,48 @@ export function logError(source: string, error: unknown, context?: Record<string
   // Emit to DevConsole
   const errorMessage = error instanceof Error ? error.message : String(error);
   devConsoleCallback?.('error', source, errorMessage, { ...errObj, ...context });
+}
+
+/**
+ * Log a hook lifecycle event (React Query, custom hooks, etc.)
+ */
+export function logHook(hookName: string, event: string, data?: Record<string, unknown>): void {
+  devLog('HOOK', hookName, { event, ...data });
+  
+  // Emit to DevConsole
+  devConsoleCallback?.('action', `Hook:${hookName}`, event, data);
+}
+
+/**
+ * Log a state change (context updates, store changes)
+ */
+export function logState(source: string, message: string, data?: Record<string, unknown>): void {
+  devLog('STATE', source, { message, ...data });
+  
+  // Emit to DevConsole
+  devConsoleCallback?.('state', source, message, data);
+}
+
+/**
+ * Log a React Query query lifecycle event
+ */
+export function logQuery(queryKey: string, event: 'success' | 'error' | 'fetching', data?: Record<string, unknown>): void {
+  devLog('QUERY', queryKey, { event, ...data });
+  
+  // Emit to DevConsole with 'query' level for distinct display
+  const emoji = event === 'success' ? '✓' : event === 'error' ? '✗' : '→';
+  devConsoleCallback?.('query', queryKey, `${emoji} ${event}`, data);
+}
+
+/**
+ * Log a React Query mutation lifecycle event
+ */
+export function logMutation(mutationKey: string, event: 'start' | 'success' | 'error', data?: Record<string, unknown>): void {
+  devLog('MUTATION', mutationKey, { event, ...data });
+  
+  // Emit to DevConsole with 'mutation' level for distinct display
+  const emoji = event === 'success' ? '✓' : event === 'error' ? '✗' : '→';
+  devConsoleCallback?.('mutation', mutationKey, `${emoji} ${event}`, data);
 }
 
 /**

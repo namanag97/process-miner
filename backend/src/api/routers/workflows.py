@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.dependencies import get_session
 from src.core.enums import WorkflowStatus
 from src.core.logging_config import get_logger
-from src.models.orm import EventLog, Workflow, WorkflowRun
+from src.models.orm import Dataset, Workflow, WorkflowRun
 from src.models.schemas import (
     WorkflowCreateRequest,
     WorkflowResponse,
@@ -155,7 +155,7 @@ async def run_workflow(
 
     # Validate log exists if provided
     if request.log_id:
-        log_result = await session.execute(select(EventLog).where(EventLog.id == request.log_id))
+        log_result = await session.execute(select(Dataset).where(Dataset.id == request.log_id))
         if not log_result.scalar_one_or_none():
             logger.warning("log_not_found", log_id=request.log_id)
             raise HTTPException(status_code=404, detail="Event log not found")

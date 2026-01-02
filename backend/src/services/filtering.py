@@ -15,7 +15,7 @@ from pm4py.objects.log.obj import EventLog as PM4PyLog
 from pm4py.objects.log.obj import Trace
 
 from src.core.logging_config import get_logger
-from src.models.orm import EventLog
+from src.models.orm import Dataset
 
 logger = get_logger(__name__)
 
@@ -1008,7 +1008,7 @@ class FilteringService:
     # Helpers
     # =========================================================================
 
-    def to_pm4py_log(self, event_log: EventLog) -> PM4PyLog:
+    def to_pm4py_log(self, event_log: Dataset) -> PM4PyLog:
         """Convert ORM EventLog to PM4Py EventLog."""
         pm4py_log = PM4PyLog()
 

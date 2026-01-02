@@ -2,6 +2,17 @@
  * Design System Hooks - Re-exports all query and utility hooks
  */
 
+// Hook Factory Utilities
+export {
+  createQueryHook,
+  createConditionalQueryHook,
+  createMutationHook,
+  createPrefetchFn,
+  createSuspenseQueryHook,
+  type CreateQueryHookConfig,
+  type CreateMutationHookConfig,
+} from './createHookFactory';
+
 // Query Hooks - Projects
 export {
   useProjects,
@@ -55,4 +66,3 @@ export {
   type AuditLogEntry,
   type AuditEventType,
 } from './useAudit';
-

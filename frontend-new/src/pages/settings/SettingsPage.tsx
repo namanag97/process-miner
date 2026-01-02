@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Tabs } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { PageHeader, tokens } from '@lumina/design-system';
+import { PageHeader, tokens, logAction } from '@lumina/design-system';
 import { ProfileTab } from './ProfileTab';
 import { PreferencesTab } from './PreferencesTab';
 import { NotificationsTab } from './NotificationsTab';
@@ -29,6 +29,7 @@ export function SettingsPage() {
   }, [activeTab]);
 
   const handleTabChange = (key: string) => {
+    logAction('SettingsPage', 'tab_changed', { from: activeTab, to: key });
     log.debug('Tab changed', { from: activeTab, to: key });
     navigate(`/settings/${key}`);
   };

@@ -76,6 +76,10 @@ export {
   logRequest,
   logResponse,
   logError,
+  logHook,
+  logState,
+  logQuery,
+  logMutation,
   flushDevLogs,
   registerDevConsoleCallback,
 } from './utils/devLogger';

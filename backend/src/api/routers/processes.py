@@ -15,7 +15,7 @@ from sqlalchemy.orm import selectinload
 from src.api.dependencies import DBSession
 from src.core.exceptions import ValidationError
 from src.core.logging_config import get_logger
-from src.models.orm import EventLog, ProcessCase
+from src.models.orm import Dataset, ProcessCase
 from src.models.schemas import (
     ActivityDetailResponse,
     CaseListResponse,
@@ -31,7 +31,7 @@ from src.services.ingestion import ingestion_service
 from src.services.mining import mining_service
 from src.services.duckdb_ingestion import duckdb_ingestion_service
 # Domain model imports for new architecture
-from src.domain.repositories import SQLAlchemyEventLogRepository
+from src.domain.repositories import SQLAlchemyDatasetRepository
 
 logger = get_logger(__name__)
 
@@ -306,15 +306,15 @@ async def list_processes(
     logger.debug("list_processes", page=page, page_size=page_size, source_format=source_format)
 
     # Build query
-    query = select(EventLog).order_by(EventLog.created_at.desc())
+    query = select(Dataset).order_by(Dataset.created_at.desc())
 
     if source_format:
-        query = query.where(EventLog.source_format == source_format)
+        query = query.where(Dataset.source_format == source_format)
 
     # Count total
-    count_query = select(func.count()).select_from(EventLog)
+    count_query = select(func.count()).select_from(Dataset)
     if source_format:
-        count_query = count_query.where(EventLog.source_format == source_format)
+        count_query = count_query.where(Dataset.source_format == source_format)
 
     total = await db.scalar(count_query) or 0
 
@@ -359,7 +359,7 @@ async def get_process(
     Get detailed information about an event log.
     """
     logger.debug("get_process", process_id=process_id)
-    query = select(EventLog).where(EventLog.id == process_id)
+    query = select(Dataset).where(Dataset.id == process_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
 
@@ -394,7 +394,7 @@ async def delete_process(
     Delete an event log and all associated data.
     """
     logger.info("delete_process_started", process_id=process_id)
-    query = select(EventLog).where(EventLog.id == process_id)
+    query = select(Dataset).where(Dataset.id == process_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
 
@@ -429,9 +429,9 @@ async def get_statistics(
 
     # Load with cases and events
     query = (
-        select(EventLog)
-        .options(selectinload(EventLog.cases).selectinload(ProcessCase.events))
-        .where(EventLog.id == process_id)
+        select(Dataset)
+        .options(selectinload(Dataset.cases).selectinload(ProcessCase.events))
+        .where(Dataset.id == process_id)
     )
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
@@ -503,7 +503,7 @@ async def list_cases(
     logger.debug("list_cases", process_id=process_id, page=page, page_size=page_size)
 
     # Verify log exists
-    log_query = select(EventLog).where(EventLog.id == process_id)
+    log_query = select(Dataset).where(Dataset.id == process_id)
     log_result = await db.execute(log_query)
     if not log_result.scalar_one_or_none():
         logger.warning("process_not_found", process_id=process_id)
@@ -592,9 +592,9 @@ async def get_variants(
 
     # Load with cases
     query = (
-        select(EventLog)
-        .options(selectinload(EventLog.cases).selectinload(ProcessCase.events))
-        .where(EventLog.id == process_id)
+        select(Dataset)
+        .options(selectinload(Dataset.cases).selectinload(ProcessCase.events))
+        .where(Dataset.id == process_id)
     )
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
@@ -708,9 +708,9 @@ async def get_activities(
 
     # Load with cases and events
     query = (
-        select(EventLog)
-        .options(selectinload(EventLog.cases).selectinload(ProcessCase.events))
-        .where(EventLog.id == process_id)
+        select(Dataset)
+        .options(selectinload(Dataset.cases).selectinload(ProcessCase.events))
+        .where(Dataset.id == process_id)
     )
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
@@ -757,7 +757,7 @@ async def get_domain_analysis(
     
     This endpoint demonstrates the improved architecture:
     1. Repository pattern for data access
-    2. EventLogAggregate for domain logic
+    2. DatasetAggregate for domain logic
     3. PM4Py log caching (single conversion)
     4. Computed properties on domain entities
     
@@ -769,7 +769,7 @@ async def get_domain_analysis(
     start_time = time.perf_counter()
     
     # 1. Load via repository (eager loading)
-    repo = SQLAlchemyEventLogRepository(db)
+    repo = SQLAlchemyDatasetRepository(db)
     aggregate = await repo.get(process_id)
     
     if not aggregate:

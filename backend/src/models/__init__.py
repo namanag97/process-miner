@@ -3,13 +3,17 @@
 from src.models.orm import (
     Base,
     ConformanceResult,
-    EventLog,
+    Dataset,
+    Organization,
     ProcessCase,
     ProcessEvent,
     ProcessModel,
     Project,
+    User,
     Workflow,
     WorkflowRun,
+    Workspace,
+    WorkspaceMember,
 )
 
 # OCEL 2.0 Models
@@ -24,10 +28,15 @@ from src.models.ocel2 import (
 )
 
 __all__ = [
+    # Enterprise hierarchy models
+    "Organization",
+    "Workspace",
+    "User",
+    "WorkspaceMember",
     # Core models
     "Base",
     "Project",
-    "EventLog",
+    "Dataset",
     "ProcessCase",
     "ProcessEvent",
     "ProcessModel",

@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import get_settings
 from src.core.exceptions import ValidationError
 from src.core.logging_config import get_logger
-from src.models.orm import EventLog, ProcessCase, ProcessEvent
+from src.models.orm import Dataset, ProcessCase, ProcessEvent
 
 logger = get_logger(__name__)
 
@@ -43,7 +43,7 @@ class IngestionService:
         resource_col: Optional[str] = None,
         delimiter: str = ",",
         precomputed_stats: Optional[dict[str, Any]] = None,
-    ) -> EventLog:
+    ) -> Dataset:
         """
         Ingest a CSV file as an event log.
 
@@ -82,7 +82,7 @@ class IngestionService:
         file_content: bytes,
         filename: str,
         name: Optional[str] = None,
-    ) -> EventLog:
+    ) -> Dataset:
         """
         Ingest an XES file as an event log.
         """
@@ -115,7 +115,7 @@ class IngestionService:
         timestamp_col: Optional[str] = None,
         resource_col: Optional[str] = None,
         precomputed_stats: Optional[dict[str, Any]] = None,
-    ) -> EventLog:
+    ) -> Dataset:
         """
         Ingest a file, auto-detecting format.
         """
@@ -297,7 +297,7 @@ class IngestionService:
         source_format: str,
         events_data: list[dict[str, Any]],
         precomputed_stats: Optional[dict[str, Any]] = None,
-    ) -> EventLog:
+    ) -> Dataset:
         """Create EventLog with cases and events from parsed data."""
 
         # Group events by case
@@ -312,7 +312,7 @@ class IngestionService:
         activities = sorted(set(e["activity"] for e in events_data))
 
         # Create event log
-        event_log = EventLog(
+        event_log = Dataset(
             name=name,
             source_file=source_file,
             source_format=source_format,
