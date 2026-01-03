@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from src.api.dependencies import DBSession
 from src.models.orm import Organization, User, Workspace, WorkspaceMember
@@ -97,20 +98,13 @@ async def get_current_user(
             org_result = await db.execute(select(Organization).filter(Organization.id == user.org_id))
             org = org_result.scalar_one_or_none()
     
-    # Get user's workspaces via memberships
-    workspaces: list[Workspace] = []
-    memberships_result = await db.execute(
-        select(WorkspaceMember).filter(WorkspaceMember.user_id == user.id)
+    # Get user's workspaces via memberships (single query with join)
+    workspaces_result = await db.execute(
+        select(Workspace)
+        .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)
+        .filter(WorkspaceMember.user_id == user.id)
     )
-    memberships = memberships_result.scalars().all()
-    
-    for membership in memberships:
-        ws_result = await db.execute(
-            select(Workspace).filter(Workspace.id == membership.workspace_id)
-        )
-        ws = ws_result.scalar_one_or_none()
-        if ws:
-            workspaces.append(ws)
+    workspaces: list[Workspace] = list(workspaces_result.scalars().all())
     
     # If no memberships but org has workspaces, use those
     if not workspaces and org:
@@ -133,25 +127,44 @@ async def _create_default_setup(
 ) -> tuple[User, Organization, Workspace]:
     """Create default org, workspace, and user for MVP."""
     
-    # Create organization
-    org = Organization(
-        id=str(uuid4()),
-        name="Demo Organization",
-        slug="demo-org",
-        plan="free",
-        created_at=datetime.utcnow(),
-    )
-    db.add(org)
+    # Check if demo org already exists
+    org_result = await db.execute(select(Organization).filter(Organization.slug == "demo-org"))
+    org = org_result.scalar_one_or_none()
+    
+    if not org:
+        # Create organization
+        org = Organization(
+            id=str(uuid4()),
+            name="Demo Organization",
+            slug="demo-org",
+            plan="free",
+            created_at=datetime.utcnow(),
+        )
+        db.add(org)
+    
+    # Check if default workspace already exists for this org
+    # (Assuming we want to reuse it too, or create new one? 
+    #  For MVP simpler to reuse if we are reusing Org)
+    # But for now, let's just make sure we don't crash on Org unique slug.
+    # Workspace names are not unique usually, but let's see model.
     
     # Create workspace
-    workspace = Workspace(
-        id=str(uuid4()),
-        org_id=org.id,
-        name="Default Workspace",
-        description="Your default process mining workspace",
-        created_at=datetime.utcnow(),
+    workspace_result = await db.execute(
+        select(Workspace)
+        .filter(Workspace.org_id == org.id)
+        .filter(Workspace.name == "Default Workspace")
     )
-    db.add(workspace)
+    workspace = workspace_result.scalar_one_or_none()
+    
+    if not workspace:
+        workspace = Workspace(
+            id=str(uuid4()),
+            org_id=org.id,
+            name="Default Workspace",
+            description="Your default process mining workspace",
+            created_at=datetime.utcnow(),
+        )
+        db.add(workspace)
     
     # Create user
     user = User(
@@ -178,8 +191,17 @@ async def _create_default_setup(
     
     await db.commit()
     await db.refresh(user)
-    await db.refresh(org)
-    await db.refresh(workspace)
+    if org not in db.dirty and org not in db.new:
+         # Refresh might fail if not attached? 
+         # Just proceed, we have the object.
+         pass
+    else:
+        await db.refresh(org)
+        
+    if workspace not in db.dirty and workspace not in db.new:
+        pass
+    else:
+        await db.refresh(workspace)
     
     return user, org, workspace
 

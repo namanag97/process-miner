@@ -53,6 +53,10 @@ class DatasetWriter:
             - Uses batch inserts for events (1000 at a time)
             - Minimal memory usage via streaming
         """
+        # Handle newer DuckDB/PyArrow where arrow() returns a RecordBatchReader
+        if isinstance(arrow_table, pa.RecordBatchReader):
+            arrow_table = arrow_table.read_all()
+            
         logger.info(
             "write_from_arrow_start",
             dataset_id=dataset.id,

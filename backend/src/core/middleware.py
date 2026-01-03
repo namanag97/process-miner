@@ -42,12 +42,20 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             query_string=str(request.query_params) if request.query_params else None,
         )
 
+        # Filter: Don't log observability endpoints to avoid feedback loop
+        should_log_to_devconsole = not request.url.path.startswith((
+            "/api/v1/dev/log",        # DevConsole log ingestion
+            "/metrics",                # Prometheus metrics
+            "/health",                 # Health checks
+        ))
+
         # Stream to frontend DevConsole (dev mode only)
-        try:
-            from src.api.routers.dev_logs_stream import log_api_request
-            log_api_request(request.method, request.url.path, request_id)
-        except ImportError:
-            pass
+        if should_log_to_devconsole:
+            try:
+                from src.api.routers.dev_logs_stream import log_api_request
+                log_api_request(request.method, request.url.path, request_id)
+            except ImportError:
+                pass
 
         # Process request with timing
         start_time = time.perf_counter()
@@ -62,18 +70,19 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 duration_ms=round(duration_ms, 2),
             )
 
-            # Stream to frontend DevConsole (dev mode only)
-            try:
-                from src.api.routers.dev_logs_stream import log_api_response
-                log_api_response(
-                    request.method, 
-                    request.url.path, 
-                    response.status_code, 
-                    int(duration_ms),
-                    request_id,
-                )
-            except ImportError:
-                pass
+            # Stream to frontend DevConsole (dev mode only, filtered)
+            if should_log_to_devconsole:
+                try:
+                    from src.api.routers.dev_logs_stream import log_api_response
+                    log_api_response(
+                        request.method,
+                        request.url.path,
+                        response.status_code,
+                        int(duration_ms),
+                        request_id,
+                    )
+                except ImportError:
+                    pass
 
             # Add request ID to response headers
             response.headers["X-Request-ID"] = request_id

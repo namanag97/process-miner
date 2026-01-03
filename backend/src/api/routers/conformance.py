@@ -93,7 +93,7 @@ async def check_conformance(
 
         # Store result in database
         conformance_record = ConformanceResult(
-            log_id=request.log_id,
+            dataset_id=request.log_id,  # BUG-001 FIX: ORM uses dataset_id
             model_id=request.model_id,
             fitness=result["fitness"],
             precision=result.get("precision"),
@@ -122,7 +122,7 @@ async def check_conformance(
 
         return ConformanceResponse(
             id=conformance_record.id,
-            log_id=conformance_record.log_id,
+            dataset_id=conformance_record.dataset_id,  # BUG-001 FIX
             model_id=conformance_record.model_id,
             fitness=conformance_record.fitness,
             precision=conformance_record.precision,
@@ -165,7 +165,7 @@ async def list_conformance_results(
     query = select(ConformanceResult)
 
     if log_id:
-        query = query.where(ConformanceResult.log_id == log_id)
+        query = query.where(ConformanceResult.dataset_id == log_id)  # BUG-001 FIX
     if model_id:
         query = query.where(ConformanceResult.model_id == model_id)
 
@@ -187,7 +187,7 @@ async def list_conformance_results(
         items.append(
             ConformanceResponse(
                 id=r.id,
-                log_id=r.log_id,
+                dataset_id=r.dataset_id,  # BUG-001 FIX
                 model_id=r.model_id,
                 fitness=r.fitness,
                 precision=r.precision,
@@ -228,7 +228,7 @@ async def get_conformance_result(
 
     return ConformanceResponse(
         id=record.id,
-        log_id=record.log_id,
+        dataset_id=record.dataset_id,  # BUG-001 FIX
         model_id=record.model_id,
         fitness=record.fitness,
         precision=record.precision,

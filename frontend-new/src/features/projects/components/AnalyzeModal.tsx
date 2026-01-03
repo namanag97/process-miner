@@ -1,13 +1,20 @@
 /**
- * AnalyzeModal - Column mapping modal for CSV analysis
+ * AnalyzeModal - Column mapping modal for CSV/XES analysis
  *
- * Shows detected columns and lets user map them to required fields.
- * Starts background analysis job on submit.
+ * Flow: Load Data → Map Columns → Queue Analysis → Process Map
  */
 
 import React, { useState, useEffect } from 'react';
-import { Modal, Select, Button, Alert, Spin, Space, Typography, Form, Divider, Tag } from 'antd';
-import { LoadingOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { Modal, Select, Button, Alert, Spin, Space, Typography, Form, Divider, Tag, Steps, Card } from 'antd';
+import {
+    LoadingOutlined,
+    CheckCircleOutlined,
+    ExclamationCircleOutlined,
+    TableOutlined,
+    SettingOutlined,
+    RocketOutlined,
+    EyeOutlined,
+} from '@ant-design/icons';
 import { tokens } from '@lumina/design-system';
 import { useDetectColumns, useStartAnalysis, useJobStatus, type ColumnMapping } from '../hooks';
 import { useNavigate } from 'react-router-dom';
@@ -24,6 +31,15 @@ interface AnalyzeModalProps {
     onSuccess?: () => void;
 }
 
+type StepKey = 'loading' | 'mapping' | 'processing' | 'complete' | 'error';
+
+const STEP_ITEMS = [
+    { key: 'loading', title: 'Load Data', icon: <TableOutlined /> },
+    { key: 'mapping', title: 'Map Columns', icon: <SettingOutlined /> },
+    { key: 'processing', title: 'Processing', icon: <RocketOutlined /> },
+    { key: 'complete', title: 'View Map', icon: <EyeOutlined /> },
+];
+
 export function AnalyzeModal({
     open,
     onClose,
@@ -34,18 +50,35 @@ export function AnalyzeModal({
 }: AnalyzeModalProps) {
     const navigate = useNavigate();
     const [form] = Form.useForm();
+    const [currentStep, setCurrentStep] = useState<StepKey>('loading');
     const [jobId, setJobId] = useState<string | null>(null);
 
-    // Fetch columns
-    const { data: columnData, isLoading: isLoadingColumns, error: columnsError } = useDetectColumns(
-        open ? datasetId : null
-    );
+    // Fetch columns from stored file
+    const {
+        data: columnData,
+        isLoading: isLoadingColumns,
+        error: columnsError,
+        refetch: refetchColumns,
+    } = useDetectColumns(open ? datasetId : null);
 
     // Start analysis mutation
     const startAnalysis = useStartAnalysis();
 
     // Poll job status
     const { data: jobStatus } = useJobStatus(jobId);
+
+    // Update step based on loading state
+    useEffect(() => {
+        if (open) {
+            if (isLoadingColumns) {
+                setCurrentStep('loading');
+            } else if (columnsError) {
+                setCurrentStep('error');
+            } else if (columnData) {
+                setCurrentStep('mapping');
+            }
+        }
+    }, [open, isLoadingColumns, columnsError, columnData]);
 
     // Pre-fill form with suggestions
     useEffect(() => {
@@ -62,12 +95,16 @@ export function AnalyzeModal({
     // Handle job completion
     useEffect(() => {
         if (jobStatus?.status === 'completed') {
-            onSuccess?.();
-            onClose();
+            setCurrentStep('complete');
+        } else if (jobStatus?.status === 'failed') {
+            setCurrentStep('error');
         }
-    }, [jobStatus, onSuccess, onClose]);
+    }, [jobStatus]);
 
     const handleSubmit = async () => {
+        // Prevent double-click race condition (BUG-012)
+        if (startAnalysis.isPending) return;
+
         try {
             const values = await form.validateFields();
             const mapping: ColumnMapping = {
@@ -77,203 +114,217 @@ export function AnalyzeModal({
                 resource_column: values.resource_column,
             };
 
+            console.log('[AnalyzeModal] Starting analysis with mapping:', mapping);
+            setCurrentStep('processing');
+
             const result = await startAnalysis.mutateAsync({ datasetId, mapping });
-            setJobId(result.job_id);
+            console.log('[AnalyzeModal] Analysis queued:', result);
+            setJobId(result.id);
         } catch (err) {
-            // Validation or API error - handled by mutation
+            console.error('[AnalyzeModal] Error:', err);
+            setCurrentStep('error');
         }
     };
 
     const handleClose = () => {
         setJobId(null);
+        setCurrentStep('loading');
         form.resetFields();
         onClose();
     };
 
-    const handleViewInExplore = () => {
+    const handleViewProcessMap = () => {
+        onSuccess?.();
         navigate(`/workspace/${projectId}/data/${datasetId}/explorer`);
         handleClose();
     };
 
-    const isAnalyzing = !!jobId && jobStatus?.status !== 'completed' && jobStatus?.status !== 'failed';
-    const isComplete = jobStatus?.status === 'completed';
-    const isFailed = jobStatus?.status === 'failed';
+    const handleRetry = () => {
+        setCurrentStep('loading');
+        refetchColumns();
+    };
+
+    const getCurrentStepIndex = () => {
+        return STEP_ITEMS.findIndex(s => s.key === currentStep);
+    };
 
     return (
         <Modal
-            title={`Analyze: ${datasetName}`}
+            title={
+                <Space>
+                    <SettingOutlined />
+                    <span>Analyze: {datasetName}</span>
+                </Space>
+            }
             open={open}
             onCancel={handleClose}
-            footer={
-                isComplete ? (
-                    <Space>
-                        <Button onClick={handleClose}>Close</Button>
-                        <Button type="primary" onClick={handleViewInExplore}>
-                            View in Explorer
-                        </Button>
-                    </Space>
-                ) : (
-                    <Space>
-                        <Button onClick={handleClose} disabled={isAnalyzing}>
-                            Cancel
-                        </Button>
-                        <Button
-                            type="primary"
-                            onClick={handleSubmit}
-                            loading={startAnalysis.isPending || isAnalyzing}
-                            disabled={isLoadingColumns || !!columnsError}
-                        >
-                            {isAnalyzing ? 'Analyzing...' : 'Start Analysis'}
-                        </Button>
-                    </Space>
-                )
-            }
-            width={560}
-            maskClosable={!isAnalyzing}
-            closable={!isAnalyzing}
+            footer={null}
+            width={640}
+            maskClosable={currentStep !== 'processing'}
+            closable={currentStep !== 'processing'}
         >
-            {isLoadingColumns && (
-                <div style={{ textAlign: 'center', padding: tokens.spacing[8] }}>
-                    <Spin size="large" />
-                    <div style={{ marginTop: tokens.spacing[4] }}>
-                        <Text type="secondary">Detecting columns...</Text>
-                    </div>
-                </div>
-            )}
-
-            {columnsError && (
-                <Alert
-                    message="Failed to detect columns"
-                    description="Unable to read the CSV file. Please check the file format."
-                    type="error"
-                    showIcon
+            <div style={{ padding: `${tokens.spacing[4]} 0` }}>
+                {/* Progress Steps */}
+                <Steps
+                    current={getCurrentStepIndex()}
+                    size="small"
+                    style={{ marginBottom: tokens.spacing[6] }}
+                    items={STEP_ITEMS.map(item => ({
+                        title: item.title,
+                        icon: item.icon,
+                    }))}
                 />
-            )}
 
-            {isComplete && (
-                <div style={{ textAlign: 'center', padding: tokens.spacing[6] }}>
-                    <CheckCircleOutlined
-                        style={{ fontSize: 64, color: tokens.colors.success[500], marginBottom: 16 }}
-                    />
-                    <Title level={4}>Analysis Complete!</Title>
-                    <Text type="secondary">
-                        Your dataset has been processed and is ready to explore.
-                    </Text>
-                </div>
-            )}
-
-            {isFailed && (
-                <Alert
-                    message="Analysis Failed"
-                    description={jobStatus?.error || 'An error occurred during analysis.'}
-                    type="error"
-                    showIcon
-                    style={{ marginBottom: tokens.spacing[4] }}
-                />
-            )}
-
-            {isAnalyzing && (
-                <div style={{ textAlign: 'center', padding: tokens.spacing[8] }}>
-                    <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
-                    <div style={{ marginTop: tokens.spacing[4] }}>
-                        <Title level={5}>Analyzing your data...</Title>
-                        <Text type="secondary">This may take a moment for large files.</Text>
+                {/* Step: Loading */}
+                {currentStep === 'loading' && (
+                    <div style={{ textAlign: 'center', padding: tokens.spacing[8] }}>
+                        <Spin size="large" tip="Reading file and detecting columns..." />
+                        <div style={{ marginTop: tokens.spacing[4] }}>
+                            <Text type="secondary">Parsing {datasetName}...</Text>
+                        </div>
                     </div>
-                    {jobStatus?.progress && (
-                        <Tag color="blue" style={{ marginTop: tokens.spacing[3] }}>
-                            {Math.round(jobStatus.progress * 100)}% complete
-                        </Tag>
-                    )}
-                </div>
-            )}
+                )}
 
-            {columnData && !isAnalyzing && !isComplete && (
-                <>
-                    <Text type="secondary">
-                        Map your CSV columns to the required process mining fields.
-                    </Text>
+                {/* Step: Error */}
+                {currentStep === 'error' && (
+                    <div style={{ textAlign: 'center', padding: tokens.spacing[6] }}>
+                        <Alert
+                            message="Failed to analyze file"
+                            description={columnsError?.message || jobStatus?.error || 'An error occurred'}
+                            type="error"
+                            showIcon
+                            style={{ marginBottom: tokens.spacing[4] }}
+                        />
+                        <Space>
+                            <Button onClick={handleClose}>Close</Button>
+                            <Button type="primary" onClick={handleRetry}>Retry</Button>
+                        </Space>
+                    </div>
+                )}
 
-                    <Divider style={{ margin: `${tokens.spacing[4]} 0` }} />
+                {/* Step: Mapping */}
+                {currentStep === 'mapping' && columnData && (
+                    <>
+                        <Card size="small" style={{ marginBottom: tokens.spacing[4], background: tokens.colors.neutral[50] }}>
+                            <Space>
+                                <CheckCircleOutlined style={{ color: tokens.colors.success[500] }} />
+                                <Text>
+                                    Found <strong>{columnData.columns.length}</strong> columns and <strong>{columnData.row_count?.toLocaleString() || 'N/A'}</strong> rows
+                                </Text>
+                            </Space>
+                        </Card>
 
-                    <Form form={form} layout="vertical">
-                        <Form.Item
-                            name="case_id_column"
-                            label="Case ID Column"
-                            rules={[{ required: true, message: 'Case ID is required' }]}
-                            extra="Unique identifier for each process instance"
-                        >
-                            <Select placeholder="Select column" showSearch>
-                                {columnData.columns.map((col) => (
-                                    <Option key={col} value={col}>
-                                        {col}
-                                    </Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
+                        <Text type="secondary" style={{ display: 'block', marginBottom: tokens.spacing[4] }}>
+                            Map your columns to process mining fields. We've pre-selected the most likely matches.
+                        </Text>
 
-                        <Form.Item
-                            name="activity_column"
-                            label="Activity Column"
-                            rules={[{ required: true, message: 'Activity is required' }]}
-                            extra="The name of each step in the process"
-                        >
-                            <Select placeholder="Select column" showSearch>
-                                {columnData.columns.map((col) => (
-                                    <Option key={col} value={col}>
-                                        {col}
-                                    </Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
+                        <Form form={form} layout="vertical">
+                            <Form.Item
+                                name="case_id_column"
+                                label={<Text strong>Case ID Column</Text>}
+                                rules={[{ required: true, message: 'Case ID is required' }]}
+                                extra="Unique identifier for each process instance (e.g., OrderID, TicketNumber)"
+                            >
+                                <Select placeholder="Select column" showSearch size="large">
+                                    {columnData.columns.map((col) => (
+                                        <Option key={col} value={col}>{col}</Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
 
-                        <Form.Item
-                            name="timestamp_column"
-                            label="Timestamp Column"
-                            rules={[{ required: true, message: 'Timestamp is required' }]}
-                            extra="When each activity occurred"
-                        >
-                            <Select placeholder="Select column" showSearch>
-                                {columnData.columns.map((col) => (
-                                    <Option key={col} value={col}>
-                                        {col}
-                                    </Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
+                            <Form.Item
+                                name="activity_column"
+                                label={<Text strong>Activity Column</Text>}
+                                rules={[{ required: true, message: 'Activity is required' }]}
+                                extra="The name of each step in the process (e.g., Status, Action)"
+                            >
+                                <Select placeholder="Select column" showSearch size="large">
+                                    {columnData.columns.map((col) => (
+                                        <Option key={col} value={col}>{col}</Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
 
-                        <Form.Item
-                            name="resource_column"
-                            label="Resource Column (Optional)"
-                            extra="Who performed each activity"
-                        >
-                            <Select placeholder="Select column (optional)" showSearch allowClear>
-                                {columnData.columns.map((col) => (
-                                    <Option key={col} value={col}>
-                                        {col}
-                                    </Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
-                    </Form>
+                            <Form.Item
+                                name="timestamp_column"
+                                label={<Text strong>Timestamp Column</Text>}
+                                rules={[{ required: true, message: 'Timestamp is required' }]}
+                                extra="When each activity occurred (e.g., CreatedAt, EventTime)"
+                            >
+                                <Select placeholder="Select column" showSearch size="large">
+                                    {columnData.columns.map((col) => (
+                                        <Option key={col} value={col}>{col}</Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
 
-                    {columnData.sample_rows && columnData.sample_rows.length > 0 && (
-                        <div
-                            style={{
-                                marginTop: tokens.spacing[4],
-                                padding: tokens.spacing[3],
-                                background: tokens.colors.neutral[50],
-                                borderRadius: tokens.radius.md,
-                                fontSize: tokens.fontSize.sm,
-                            }}
-                        >
+                            <Form.Item
+                                name="resource_column"
+                                label={<Text strong>Resource Column (Optional)</Text>}
+                                extra="Who performed each activity (e.g., AssignedTo, User)"
+                            >
+                                <Select placeholder="Select column (optional)" showSearch allowClear size="large">
+                                    {columnData.columns.map((col) => (
+                                        <Option key={col} value={col}>{col}</Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
+                        </Form>
+
+                        <div style={{ marginTop: tokens.spacing[4], textAlign: 'right' }}>
+                            <Space>
+                                <Button onClick={handleClose}>Cancel</Button>
+                                <Button
+                                    type="primary"
+                                    size="large"
+                                    icon={<RocketOutlined />}
+                                    onClick={handleSubmit}
+                                    loading={startAnalysis.isPending}
+                                >
+                                    Start Analysis
+                                </Button>
+                            </Space>
+                        </div>
+                    </>
+                )}
+
+                {/* Step: Processing */}
+                {currentStep === 'processing' && (
+                    <div style={{ textAlign: 'center', padding: tokens.spacing[8] }}>
+                        <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
+                        <div style={{ marginTop: tokens.spacing[4] }}>
+                            <Title level={5}>Generating Process Map...</Title>
                             <Text type="secondary">
-                                <strong>Detected {columnData.columns.length} columns:</strong>{' '}
-                                {columnData.columns.join(', ')}
+                                Analyzing events and discovering process patterns. This may take a moment.
                             </Text>
                         </div>
-                    )}
-                </>
-            )}
+                        {jobStatus?.progress && (
+                            <Tag color="blue" style={{ marginTop: tokens.spacing[3] }}>
+                                {Math.round(jobStatus.progress * 100)}% complete
+                            </Tag>
+                        )}
+                    </div>
+                )}
+
+                {/* Step: Complete */}
+                {currentStep === 'complete' && (
+                    <div style={{ textAlign: 'center', padding: tokens.spacing[6] }}>
+                        <CheckCircleOutlined
+                            style={{ fontSize: 64, color: tokens.colors.success[500], marginBottom: 16 }}
+                        />
+                        <Title level={4}>Analysis Complete!</Title>
+                        <Text type="secondary" style={{ display: 'block', marginBottom: tokens.spacing[4] }}>
+                            Your process map is ready to explore.
+                        </Text>
+                        <Space>
+                            <Button onClick={handleClose}>Close</Button>
+                            <Button type="primary" size="large" icon={<EyeOutlined />} onClick={handleViewProcessMap}>
+                                View Process Map
+                            </Button>
+                        </Space>
+                    </div>
+                )}
+            </div>
         </Modal>
     );
 }

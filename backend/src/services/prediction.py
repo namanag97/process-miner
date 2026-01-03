@@ -11,6 +11,7 @@ import numpy as np
 from pm4py.objects.log.obj import EventLog as PM4PyLog
 
 from src.core.logging_config import get_logger
+from src.core.safe_unpickler import safe_loads
 
 logger = get_logger(__name__)
 
@@ -161,7 +162,8 @@ class PredictionService:
         if not model_bytes:
             return {"prediction": None, "confidence": 0}
 
-        model = pickle.loads(model_bytes)
+        # BUG-028 FIX: Use safe_loads instead of pickle.loads to prevent RCE
+        model = safe_loads(model_bytes)
         activity_to_idx = {a: i for i, a in enumerate(activities)}
 
         prefix_encoded = [0] * len(activities)
@@ -203,7 +205,8 @@ class PredictionService:
         if not model_bytes:
             return {"prediction_seconds": 0, "confidence": 0}
 
-        model = pickle.loads(model_bytes)
+        # BUG-028 FIX: Use safe_loads instead of pickle.loads to prevent RCE
+        model = safe_loads(model_bytes)
         activity_to_idx = {a: i for i, a in enumerate(activities)}
 
         prefix_encoded = [0] * len(activities)

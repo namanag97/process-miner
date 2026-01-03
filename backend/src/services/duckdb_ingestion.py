@@ -11,6 +11,8 @@ Key features:
 """
 
 import io
+import os
+import re
 import tempfile
 from datetime import datetime
 from typing import Any, Optional
@@ -21,6 +23,60 @@ logger = get_logger(__name__)
 
 # Lazy import to avoid requiring DuckDB if not used
 _duckdb = None
+
+# BUG-056 FIX: Strict column name validation pattern
+# Only allow alphanumeric, underscores, colons (for PM4Py standard names like "case:concept:name")
+VALID_COLUMN_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_:.\-\s]*$')
+MAX_COLUMN_LENGTH = 128
+
+
+def _sanitize_column_name(col: str, param_name: str = "column") -> str:
+    """Validate and sanitize column name to prevent SQL injection.
+    
+    BUG-056 FIX: Prevents SQL injection via malicious column names.
+    
+    Args:
+        col: Column name to validate
+        param_name: Parameter name for error message
+        
+    Returns:
+        The validated column name
+        
+    Raises:
+        ValueError: If column name is invalid
+    """
+    if not col:
+        raise ValueError(f"Empty {param_name} name")
+    
+    if len(col) > MAX_COLUMN_LENGTH:
+        raise ValueError(f"{param_name} name too long: {len(col)} > {MAX_COLUMN_LENGTH}")
+    
+    if not VALID_COLUMN_PATTERN.match(col):
+        raise ValueError(
+            f"Invalid {param_name} name '{col}'. "
+            f"Only alphanumeric characters, underscores, colons, dots, and hyphens are allowed."
+        )
+    
+    return col
+
+
+def _sanitize_delimiter(delim: str) -> str:
+    """Validate delimiter to prevent SQL injection.
+    
+    Args:
+        delim: Delimiter character
+        
+    Returns:
+        Validated delimiter
+        
+    Raises:
+        ValueError: If delimiter is invalid
+    """
+    # Only allow single common delimiters
+    allowed = {",", ";", "\t", "|", " "}
+    if delim not in allowed:
+        raise ValueError(f"Invalid delimiter '{delim}'. Allowed: {allowed}")
+    return delim
 
 
 def _get_duckdb():
@@ -61,25 +117,27 @@ class DuckDBIngestionService:
         Returns:
             Dictionary with parsed data and statistics.
         """
+        # BUG-056 FIX: Sanitize ALL user-controlled inputs before SQL construction
+        case_id_col = _sanitize_column_name(case_id_col, "case_id_column")
+        activity_col = _sanitize_column_name(activity_col, "activity_column")
+        timestamp_col = _sanitize_column_name(timestamp_col, "timestamp_column")
+        if resource_col:
+            resource_col = _sanitize_column_name(resource_col, "resource_column")
+        delimiter = _sanitize_delimiter(delimiter)
+        
         duckdb_manager = self._get_manager()
         
         logger.info("duckdb_parse_started", size_bytes=len(file_content))
         
-        # Write content to temp file (DuckDB reads from file path)
-        with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as f:
-            f.write(file_content)
-            temp_path = f.name
-        
+        temp_path = None
+        conn = None
         try:
-            # Build column selection
+            with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as f:
+                f.write(file_content)
+                temp_path = f.name
+
+            # Build column selection (now safe after sanitization)
             resource_select = f'"{resource_col}"' if resource_col else "NULL"
-            
-            # Use shared connection but isolate with a unique table or subquery if possible
-            # For data loading, we might want to just read directly. 
-            # Since we are using read_csv_auto, we can just query the file.
-            
-            # NOTE: For MVP phase 1, we still return Arrow/Dicts to memory.
-            # We are just using the manager to get the connection.
 
             conn = duckdb_manager.get_connection()
             conn.execute(f"""
@@ -95,10 +153,10 @@ class DuckDBIngestionService:
                   AND "{activity_col}" IS NOT NULL
                   AND "{timestamp_col}" IS NOT NULL
             """)
-            
+
             # Get aggregate statistics in SQL (not Python!)
             stats = conn.execute("""
-                SELECT 
+                SELECT
                     COUNT(DISTINCT case_id) as total_cases,
                     COUNT(*) as total_events,
                     COUNT(DISTINCT activity) as total_activities,
@@ -108,17 +166,21 @@ class DuckDBIngestionService:
                     COUNT(DISTINCT resource) FILTER (WHERE resource IS NOT NULL) as total_resources
                 FROM events
             """).fetchone()
-            
+
             # Get events as Arrow table for zero-copy conversion
             arrow_table = conn.execute("""
                 SELECT case_id, activity, timestamp, resource
                 FROM events
                 ORDER BY case_id, timestamp
             """).arrow()
-            
+
+            import pyarrow as pa
+            if isinstance(arrow_table, pa.RecordBatchReader):
+                arrow_table = arrow_table.read_all()
+
             # Get case-level aggregates
             case_stats = conn.execute("""
-                SELECT 
+                SELECT
                     case_id,
                     MIN(timestamp) as start_time,
                     MAX(timestamp) as end_time,
@@ -127,14 +189,17 @@ class DuckDBIngestionService:
                 FROM events
                 GROUP BY case_id
             """).arrow()
-            
+
+            if isinstance(case_stats, pa.RecordBatchReader):
+                case_stats = case_stats.read_all()
+
             logger.info(
                 "duckdb_parse_completed",
                 total_cases=stats[0],
                 total_events=stats[1],
                 total_activities=stats[2],
             )
-            
+
             return {
                 "statistics": {
                     "total_cases": stats[0],
@@ -148,12 +213,13 @@ class DuckDBIngestionService:
                 "events_arrow": arrow_table,
                 "cases_arrow": case_stats,
             }
-            
         finally:
-            conn.close()
+            # Clean up resources
+            if conn:
+                conn.close()
             # Clean up temp file
-            import os
-            os.unlink(temp_path)
+            if temp_path and os.path.exists(temp_path):
+                os.unlink(temp_path)
     
     def arrow_to_pm4py(self, arrow_table) -> Any:
         """
@@ -188,23 +254,29 @@ class DuckDBIngestionService:
     ) -> dict[str, Any]:
         """
         Detect column types using DuckDB's inference.
-        
+
         Much faster than Python-based detection for large files.
         """
         duckdb = _get_duckdb()
-        
-        conn = duckdb.connect(":memory:")
-        
-        with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as f:
-            f.write(file_content)
-            temp_path = f.name
-        
+
+        conn = None
+        temp_path = None
         try:
-            # Get schema from DuckDB's auto-detection
-            schema_info = conn.execute(f"""
-                DESCRIBE SELECT * FROM read_csv_auto('{temp_path}', delim='{delimiter}', header=true, sample_size={sample_rows})
-            """).fetchall()
+            conn = duckdb.connect(":memory:")
+
+            with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as f:
+                f.write(file_content)
+                temp_path = f.name
+
+            # BUG-056b FIX: Sanitize delimiter to prevent injection
+            safe_delimiter = _sanitize_delimiter(delimiter)
             
+            # Get schema from DuckDB's auto-detection using safe file path and delimiter
+            # Note: temp_path is controlled, not user input
+            schema_info = conn.execute(f"""
+                DESCRIBE SELECT * FROM read_csv_auto('{temp_path}', delim='{safe_delimiter}', header=true, sample_size={int(sample_rows)})
+            """).fetchall()
+
             # Analyze each column
             columns = []
             suggestions = {
@@ -213,17 +285,17 @@ class DuckDBIngestionService:
                 "timestamp_column": None,
                 "resource_column": None,
             }
-            
+
             for col_name, col_type, *_ in schema_info:
                 col_info = {
                     "name": col_name,
                     "detected_type": col_type,
                     "suggested_role": None,
                 }
-                
+
                 # Heuristic detection based on column name and type
                 name_lower = col_name.lower()
-                
+
                 if any(x in name_lower for x in ["case", "trace"]) or (name_lower == "id" and ("BIGINT" in col_type or "VARCHAR" in col_type)):
                     col_info["suggested_role"] = "case_id"
                     if not suggestions["case_id_column"]:
@@ -243,51 +315,59 @@ class DuckDBIngestionService:
                     col_info["suggested_role"] = "resource"
                     if not suggestions["resource_column"]:
                         suggestions["resource_column"] = col_name
-                
+
                 columns.append(col_info)
-            
+
             # Get row count
             row_count = conn.execute(f"""
                 SELECT COUNT(*) FROM read_csv_auto('{temp_path}', delim='{delimiter}', header=true)
             """).fetchone()[0]
-            
+
             return {
                 "columns": columns,
                 "suggestions": suggestions,
                 "row_count": row_count,
                 "delimiter": delimiter,
             }
-            
         finally:
-            conn.close()
-            import os
-            os.unlink(temp_path)
+            # Clean up resources
+            if conn:
+                conn.close()
+            if temp_path and os.path.exists(temp_path):
+                os.unlink(temp_path)
     
     def get_variants_fast(self, file_content: bytes, mapping: dict) -> list[dict]:
         """
         Extract process variants using DuckDB aggregation.
-        
+
         Computes variants in SQL instead of Python loops.
         """
         duckdb = _get_duckdb()
-        
-        conn = duckdb.connect(":memory:")
-        
-        with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as f:
-            f.write(file_content)
-            temp_path = f.name
-        
+
+        conn = None
+        temp_path = None
         try:
-            # Compute variants with case counts
+            conn = duckdb.connect(":memory:")
+
+            with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as f:
+                f.write(file_content)
+                temp_path = f.name
+
+            # BUG-056b FIX: Sanitize column names from mapping
+            case_col = _sanitize_column_name(mapping['case_id'], 'case_id')
+            activity_col = _sanitize_column_name(mapping['activity'], 'activity')
+            timestamp_col = _sanitize_column_name(mapping['timestamp'], 'timestamp')
+            
+            # Compute variants with case counts using sanitized column names
             variants = conn.execute(f"""
                 WITH case_variants AS (
-                    SELECT 
-                        "{mapping['case_id']}" as case_id,
-                        STRING_AGG("{mapping['activity']}", ' -> ' ORDER BY "{mapping['timestamp']}") as variant
+                    SELECT
+                        "{case_col}" as case_id,
+                        STRING_AGG("{activity_col}", ' -> ' ORDER BY "{timestamp_col}") as variant
                     FROM read_csv_auto('{temp_path}', header=true)
-                    GROUP BY "{mapping['case_id']}"
+                    GROUP BY "{case_col}"
                 )
-                SELECT 
+                SELECT
                     variant,
                     COUNT(*) as case_count,
                     ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) as frequency_percent
@@ -296,7 +376,7 @@ class DuckDBIngestionService:
                 ORDER BY case_count DESC
                 LIMIT 100
             """).fetchall()
-            
+
             return [
                 {
                     "variant": v[0],
@@ -305,11 +385,12 @@ class DuckDBIngestionService:
                 }
                 for v in variants
             ]
-            
         finally:
-            conn.close()
-            import os
-            os.unlink(temp_path)
+            # Clean up resources
+            if conn:
+                conn.close()
+            if temp_path and os.path.exists(temp_path):
+                os.unlink(temp_path)
 
 
 # Singleton instance

@@ -7,11 +7,11 @@ Provides clean separation between domain logic and data access with:
 
 Usage:
     # Get repository from dependency injection
-    repo = SQLAlchemyEventLogRepository(session)
+    repo = SQLAlchemyDatasetRepository(session)
     
     # Use repository methods
-    log = await repo.get_by_id(ProcessId("..."))
-    await repo.save(log)
+    dataset = await repo.get_by_id("...")
+    await repo.save(dataset)
 """
 
 from abc import ABC, abstractmethod
@@ -70,32 +70,32 @@ class ReadOnlyRepository(Protocol[T, ID]):
 # Event Log Repository
 # =============================================================================
 
-class EventLogRepository(ABC):
-    """Repository interface for EventLog aggregate root."""
+class DatasetRepository(ABC):
+    """Repository interface for Dataset aggregate root."""
     
     @abstractmethod
-    async def get_by_id(self, log_id: str) -> Optional["EventLog"]:
-        """Get event log by ID with all cases loaded."""
+    async def get_by_id(self, dataset_id: str) -> Optional["Dataset"]:
+        """Get dataset by ID with all cases loaded."""
         pass
     
     @abstractmethod
-    async def get_by_id_lightweight(self, log_id: str) -> Optional["EventLog"]:
-        """Get event log by ID without loading cases (for metadata only)."""
+    async def get_by_id_lightweight(self, dataset_id: str) -> Optional["Dataset"]:
+        """Get dataset by ID without loading cases (for metadata only)."""
         pass
     
     @abstractmethod
-    async def save(self, log: "EventLog") -> "EventLog":
-        """Save event log (create or update)."""
+    async def save(self, dataset: "Dataset") -> "Dataset":
+        """Save dataset (create or update)."""
         pass
     
     @abstractmethod
-    async def delete(self, log_id: str) -> bool:
-        """Delete event log and all associated data."""
+    async def delete(self, dataset_id: str) -> bool:
+        """Delete dataset and all associated data."""
         pass
     
     @abstractmethod
-    async def exists(self, log_id: str) -> bool:
-        """Check if event log exists."""
+    async def exists(self, dataset_id: str) -> bool:
+        """Check if dataset exists."""
         pass
     
     @abstractmethod
@@ -104,56 +104,54 @@ class EventLogRepository(ABC):
         page: int = 1, 
         page_size: int = 20,
         source_format: Optional[str] = None,
-    ) -> tuple[List["EventLog"], int]:
-        """List event logs with pagination. Returns (logs, total_count)."""
+    ) -> tuple[List["Dataset"], int]:
+        """List datasets with pagination. Returns (datasets, total_count)."""
         pass
     
     @abstractmethod
     async def count(self) -> int:
-        """Count total event logs."""
+        """Count total datasets."""
         pass
 
 
-class SQLAlchemyEventLogRepository(EventLogRepository):
-    """SQLAlchemy implementation of EventLogRepository."""
+class SQLAlchemyDatasetRepository(DatasetRepository):
+    """SQLAlchemy implementation of DatasetRepository."""
     
     def __init__(self, session: AsyncSession):
         self._session = session
     
-    async def get_by_id(self, log_id: str) -> Optional["EventLog"]:
+    async def get_by_id(self, dataset_id: str) -> Optional["Dataset"]:
         from src.models.orm import Dataset
-        
-        result = await self._session.get(EventLog, log_id)
-        return result
+        return await self._session.get(Dataset, dataset_id)
     
-    async def get_by_id_lightweight(self, log_id: str) -> Optional["EventLog"]:
+    async def get_by_id_lightweight(self, dataset_id: str) -> Optional["Dataset"]:
         from src.models.orm import Dataset
         
         # Use a query that doesn't eager load relationships
-        stmt = select(EventLog).where(EventLog.id == log_id)
+        stmt = select(Dataset).where(Dataset.id == dataset_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
     
-    async def save(self, log: "EventLog") -> "EventLog":
-        self._session.add(log)
+    async def save(self, dataset: "Dataset") -> "Dataset":
+        self._session.add(dataset)
         await self._session.flush()
-        await self._session.refresh(log)
-        return log
+        await self._session.refresh(dataset)
+        return dataset
     
-    async def delete(self, log_id: str) -> bool:
+    async def delete(self, dataset_id: str) -> bool:
         from src.models.orm import Dataset
         
-        log = await self.get_by_id(log_id)
-        if log:
-            await self._session.delete(log)
+        dataset = await self.get_by_id(dataset_id)
+        if dataset:
+            await self._session.delete(dataset)
             await self._session.flush()
             return True
         return False
     
-    async def exists(self, log_id: str) -> bool:
+    async def exists(self, dataset_id: str) -> bool:
         from src.models.orm import Dataset
         
-        stmt = select(func.count()).where(EventLog.id == log_id)
+        stmt = select(func.count()).where(Dataset.id == dataset_id)
         result = await self._session.execute(stmt)
         return result.scalar() > 0
     
@@ -162,32 +160,32 @@ class SQLAlchemyEventLogRepository(EventLogRepository):
         page: int = 1, 
         page_size: int = 20,
         source_format: Optional[str] = None,
-    ) -> tuple[List["EventLog"], int]:
+    ) -> tuple[List["Dataset"], int]:
         from src.models.orm import Dataset
         
         # Count query
-        count_stmt = select(func.count()).select_from(EventLog)
+        count_stmt = select(func.count()).select_from(Dataset)
         if source_format:
-            count_stmt = count_stmt.where(EventLog.source_format == source_format)
+            count_stmt = count_stmt.where(Dataset.source_format == source_format)
         
         count_result = await self._session.execute(count_stmt)
         total = count_result.scalar() or 0
         
         # Data query
-        stmt = select(EventLog).order_by(EventLog.created_at.desc())
+        stmt = select(Dataset).order_by(Dataset.created_at.desc())
         if source_format:
-            stmt = stmt.where(EventLog.source_format == source_format)
+            stmt = stmt.where(Dataset.source_format == source_format)
         
         stmt = stmt.offset((page - 1) * page_size).limit(page_size)
         result = await self._session.execute(stmt)
-        logs = list(result.scalars().all())
+        datasets = list(result.scalars().all())
         
-        return logs, total
+        return datasets, total
     
     async def count(self) -> int:
         from src.models.orm import Dataset
         
-        stmt = select(func.count()).select_from(EventLog)
+        stmt = select(func.count()).select_from(Dataset)
         result = await self._session.execute(stmt)
         return result.scalar() or 0
 
@@ -279,8 +277,8 @@ class ProcessModelRepository(ABC):
         pass
     
     @abstractmethod
-    async def get_by_log_id(self, log_id: str) -> List["ProcessModel"]:
-        """Get all models for a given event log."""
+    async def get_by_dataset_id(self, dataset_id: str) -> List["ProcessModel"]:
+        """Get all models for a given dataset."""
         pass
 
 
@@ -300,12 +298,12 @@ class SQLAlchemyProcessModelRepository(ProcessModelRepository):
         await self._session.refresh(model)
         return model
     
-    async def get_by_log_id(self, log_id: str) -> List["ProcessModel"]:
+    async def get_by_dataset_id(self, dataset_id: str) -> List["ProcessModel"]:
         from src.models.orm import ProcessModel
         
         stmt = (
             select(ProcessModel)
-            .where(ProcessModel.log_id == log_id)
+            .where(ProcessModel.dataset_id == dataset_id)
             .order_by(ProcessModel.created_at.desc())
         )
         result = await self._session.execute(stmt)
@@ -321,15 +319,15 @@ class UnitOfWork:
     
     Usage:
         async with UnitOfWork(session) as uow:
-            log = await uow.event_logs.get_by_id(log_id)
-            log.name = "Updated"
-            await uow.event_logs.save(log)
+            dataset = await uow.datasets.get_by_id(dataset_id)
+            dataset.name = "Updated"
+            await uow.datasets.save(dataset)
             await uow.commit()
     """
     
     def __init__(self, session: AsyncSession):
         self._session = session
-        self.event_logs = SQLAlchemyEventLogRepository(session)
+        self.datasets = SQLAlchemyDatasetRepository(session)
         self.projects = SQLAlchemyProjectRepository(session)
         self.models = SQLAlchemyProcessModelRepository(session)
     

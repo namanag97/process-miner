@@ -9,7 +9,7 @@ from typing import Optional
 from uuid import uuid4
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, LargeBinary, String, Text
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, deferred, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
@@ -207,7 +207,7 @@ class Dataset(Base):
 
     # Project association (optional for backward compatibility)
     project_id: Mapped[Optional[str]] = mapped_column(
-        ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=True
     )
 
     # Computed statistics (stored for quick access)
@@ -337,6 +337,7 @@ class Analysis(Base):
 
     # Cached results
     result_summary_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    result_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Full DFG/variants/statistics
 
     # Link to ProcessModel for discovery analyses
     model_id: Mapped[Optional[str]] = mapped_column(
@@ -538,8 +539,11 @@ class OCELLog(Base):
     # JSON metadata (activities, objects_per_type)
     metadata_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # BUG-051 FIX: Use deferred() to prevent loading blob on SELECT *
     # Raw OCEL data for re-parsing (enables OC-DFG and other analyses)
-    ocel_data: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    ocel_data: Mapped[Optional[bytes]] = deferred(
+        mapped_column(LargeBinary, nullable=True)
+    )
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

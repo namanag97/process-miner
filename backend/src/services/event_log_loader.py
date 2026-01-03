@@ -81,57 +81,53 @@ class EventLogLoader:
 
     def load_as_dataframe(
         self,
-        log_id: str,
+        dataset_id: str,
         include_attributes: bool = False,
     ) -> pd.DataFrame:
         """
-        Load event log directly as pandas DataFrame via DuckDB.
-        
-        This is 10x faster than ORM iteration for large logs because:
-        1. DuckDB queries SQLite directly (no Python ORM overhead)
-        2. Arrow columnar format enables zero-copy to pandas
-        3. No per-row Python object creation
-        
+        Load dataset directly as pandas DataFrame via DuckDB.
+
+        Note: This is synchronous because DuckDB operations are sync.
+
         Args:
-            log_id: UUID of the event log
+            dataset_id: UUID of the dataset
             include_attributes: Whether to parse JSON attributes
-            
-        Returns:
-            pandas DataFrame formatted for PM4py with columns:
-            - case:concept:name
-            - concept:name
-            - time:timestamp
-            - org:resource (optional)
         """
-        logger.info("event_log_loader_started", log_id=log_id)
-        
+        logger.info("dataset_loader_started", dataset_id=dataset_id)
+
         conn = self._get_connection()
         
         try:
             # Query SQLite through DuckDB
-            query = f"""
+            # BUG-032 FIX: Use parameterized query to prevent SQL injection
+            query = """
                 SELECT 
                     pc.case_id AS "case:concept:name",
                     pe.activity AS "concept:name",
                     pe.timestamp AS "time:timestamp",
                     pe.resource AS "org:resource"
-                    {"," if include_attributes else ""}
-                    {'"pe.attributes_json"' if include_attributes else ""}
                 FROM db.process_events pe
                 INNER JOIN db.process_cases pc 
                     ON pe.case_ref_id = pc.id
-                WHERE pc.log_id = '{log_id}'
+                WHERE pc.dataset_id = ?
                 ORDER BY pc.case_id, pe.timestamp
             """
             
             # Execute and get Arrow table (zero-copy)
-            arrow_table = conn.execute(query).arrow()
+            arrow_result = conn.execute(query, [dataset_id]).arrow()
+            
+            # Handle newer DuckDB/PyArrow where arrow() returns a RecordBatchReader
+            import pyarrow as pa
+            if isinstance(arrow_result, pa.RecordBatchReader):
+                arrow_table = arrow_result.read_all()
+            else:
+                arrow_table = arrow_result
             
             # Convert to pandas DataFrame
             df = arrow_table.to_pandas()
             
             if df.empty:
-                logger.warning("event_log_loader_empty", log_id=log_id)
+                logger.warning("dataset_loader_empty", dataset_id=dataset_id)
                 return self._empty_dataframe()
             
             # Ensure timestamp is datetime
@@ -147,8 +143,8 @@ class EventLogLoader:
             )
             
             logger.info(
-                "event_log_loader_completed",
-                log_id=log_id,
+                "dataset_loader_completed",
+                dataset_id=dataset_id,
                 total_events=len(df),
                 total_cases=df["case:concept:name"].nunique(),
             )
@@ -158,43 +154,43 @@ class EventLogLoader:
         finally:
             conn.close()
 
-    def load_as_pm4py_log(self, log_id: str) -> PM4PyLog:
+    def load_as_pm4py_log(self, dataset_id: str) -> PM4PyLog:
         """
-        Load event log and convert to PM4Py EventLog object.
-        
-        For algorithms that require the traditional EventLog format.
-        Still faster than ORM iteration because DataFrame loading is fast.
-        
+        Load dataset and convert to PM4Py EventLog object.
+
+        Note: This is synchronous because DuckDB operations are sync.
+
         Args:
-            log_id: UUID of the event log
-            
+            dataset_id: UUID of the dataset
+
         Returns:
             PM4Py EventLog object
         """
-        df = self.load_as_dataframe(log_id)
-        
+        df = self.load_as_dataframe(dataset_id)
+
         if df.empty:
             return PM4PyLog()
-        
+
         # Convert DataFrame to EventLog
         return pm4py.convert_to_event_log(df)
 
-    def load_statistics(self, log_id: str) -> dict[str, Any]:
+    def load_statistics(self, dataset_id: str) -> dict[str, Any]:
         """
-        Load event log statistics using SQL aggregation.
-        
-        Much faster than computing in Python for large logs.
-        
+        Load dataset statistics using SQL aggregation.
+
+        Note: This is synchronous because DuckDB operations are sync.
+
         Args:
-            log_id: UUID of the event log
-            
+            dataset_id: UUID of the dataset
+
         Returns:
             Dictionary with statistics
         """
         conn = self._get_connection()
         
         try:
-            stats = conn.execute(f"""
+            # BUG-032 FIX: Use parameterized query
+            stats = conn.execute("""
                 WITH events AS (
                     SELECT 
                         pc.case_id,
@@ -204,7 +200,7 @@ class EventLogLoader:
                     FROM db.process_events pe
                     INNER JOIN db.process_cases pc 
                         ON pe.case_ref_id = pc.id
-                    WHERE pc.log_id = '{log_id}'
+                    WHERE pc.dataset_id = ?
                 )
                 SELECT
                     COUNT(*) as total_events,
@@ -215,7 +211,7 @@ class EventLogLoader:
                     MAX(timestamp) as end_time,
                     LIST(DISTINCT activity ORDER BY activity) as activities
                 FROM events
-            """).fetchone()
+            """, [dataset_id]).fetchone()
             
             return {
                 "total_events": stats[0],
@@ -230,21 +226,23 @@ class EventLogLoader:
         finally:
             conn.close()
 
-    def load_start_end_activities(self, log_id: str) -> tuple[dict[str, int], dict[str, int]]:
+    def load_start_end_activities(self, dataset_id: str) -> tuple[dict[str, int], dict[str, int]]:
         """
         Get start and end activities with frequencies using SQL.
-        
+
+        Note: This is synchronous because DuckDB operations are sync.
+
         Args:
-            log_id: UUID of the event log
-            
+            dataset_id: UUID of the dataset
+
         Returns:
             Tuple of (start_activities, end_activities) dictionaries
         """
         conn = self._get_connection()
         
         try:
-            # Start activities
-            start_result = conn.execute(f"""
+            # Start activities - BUG-032 FIX: parameterized query
+            start_result = conn.execute("""
                 WITH first_events AS (
                     SELECT 
                         pc.case_id,
@@ -253,17 +251,17 @@ class EventLogLoader:
                     FROM db.process_events pe
                     INNER JOIN db.process_cases pc 
                         ON pe.case_ref_id = pc.id
-                    WHERE pc.log_id = '{log_id}'
+                    WHERE pc.dataset_id = ?
                 )
                 SELECT activity, COUNT(*) as freq
                 FROM first_events
                 WHERE rn = 1
                 GROUP BY activity
                 ORDER BY freq DESC
-            """).fetchall()
+            """, [dataset_id]).fetchall()
             
-            # End activities
-            end_result = conn.execute(f"""
+            # End activities - BUG-032 FIX: parameterized query
+            end_result = conn.execute("""
                 WITH last_events AS (
                     SELECT 
                         pc.case_id,
@@ -272,14 +270,14 @@ class EventLogLoader:
                     FROM db.process_events pe
                     INNER JOIN db.process_cases pc 
                         ON pe.case_ref_id = pc.id
-                    WHERE pc.log_id = '{log_id}'
+                    WHERE pc.dataset_id = ?
                 )
                 SELECT activity, COUNT(*) as freq
                 FROM last_events
                 WHERE rn = 1
                 GROUP BY activity
                 ORDER BY freq DESC
-            """).fetchall()
+            """, [dataset_id]).fetchall()
             
             start_activities = {row[0]: row[1] for row in start_result}
             end_activities = {row[0]: row[1] for row in end_result}
@@ -289,76 +287,80 @@ class EventLogLoader:
         finally:
             conn.close()
 
-    def load_dfg(self, log_id: str) -> tuple[dict, dict[str, int], dict[str, int]]:
+    def load_dfg(self, dataset_id: str) -> tuple[dict, dict[str, int], dict[str, int]]:
         """
         Compute Directly-Follows Graph using SQL.
-        
-        Much faster than PM4py's discover_dfg for large logs.
-        
+
+        Note: This is synchronous because DuckDB operations are sync.
+
         Args:
-            log_id: UUID of the event log
-            
+            dataset_id: UUID of the dataset
+
         Returns:
             Tuple of (dfg, start_activities, end_activities)
             where dfg is {(source, target): frequency}
         """
         conn = self._get_connection()
-        
+
         try:
-            # DFG edges
-            dfg_result = conn.execute(f"""
+            # DFG edges - BUG-032 FIX: parameterized query
+            dfg_result = conn.execute("""
                 WITH ordered_events AS (
-                    SELECT 
+                    SELECT
                         pc.case_id,
                         pe.activity,
                         pe.timestamp,
                         LEAD(pe.activity) OVER (
-                            PARTITION BY pc.case_id 
+                            PARTITION BY pc.case_id
                             ORDER BY pe.timestamp
                         ) as next_activity
                     FROM db.process_events pe
-                    INNER JOIN db.process_cases pc 
+                    INNER JOIN db.process_cases pc
                         ON pe.case_ref_id = pc.id
-                    WHERE pc.log_id = '{log_id}'
+                    WHERE pc.dataset_id = ?
                 )
                 SELECT activity, next_activity, COUNT(*) as freq
                 FROM ordered_events
                 WHERE next_activity IS NOT NULL
                 GROUP BY activity, next_activity
                 ORDER BY freq DESC
-            """).fetchall()
-            
+            """, [dataset_id]).fetchall()
+
             dfg = {(row[0], row[1]): row[2] for row in dfg_result}
-            
+
             # Get start/end activities
-            start_activities, end_activities = self.load_start_end_activities(log_id)
-            
+            start_activities, end_activities = self.load_start_end_activities(dataset_id)
+
             return dfg, start_activities, end_activities
-            
+
         finally:
             conn.close()
 
     def load_variants(
-        self, 
-        log_id: str, 
+        self,
+        dataset_id: str,
         top_k: Optional[int] = None,
     ) -> list[dict[str, Any]]:
         """
         Get process variants using SQL aggregation.
-        
+
+        Note: This is synchronous because DuckDB operations are sync.
+
         Args:
-            log_id: UUID of the event log
+            dataset_id: UUID of the dataset
             top_k: Limit to top K variants (optional)
-            
+
         Returns:
             List of variant dictionaries with trace, count, and percentage
         """
         conn = self._get_connection()
         
         try:
-            limit_clause = f"LIMIT {top_k}" if top_k else ""
+            # BUG-032 FIX: parameterized query (limit_clause handled separately as it's an int)
+            limit_clause = f"LIMIT {int(top_k)}" if top_k else ""
             
-            variants = conn.execute(f"""
+            # Note: limit_clause is safe as we cast top_k to int above
+            query = f"""
                 WITH case_variants AS (
                     SELECT 
                         pc.case_id,
@@ -366,7 +368,7 @@ class EventLogLoader:
                     FROM db.process_events pe
                     INNER JOIN db.process_cases pc 
                         ON pe.case_ref_id = pc.id
-                    WHERE pc.log_id = '{log_id}'
+                    WHERE pc.dataset_id = ?
                     GROUP BY pc.case_id
                 )
                 SELECT 
@@ -377,7 +379,8 @@ class EventLogLoader:
                 GROUP BY variant
                 ORDER BY case_count DESC
                 {limit_clause}
-            """).fetchall()
+            """
+            variants = conn.execute(query, [dataset_id]).fetchall()
             
             return [
                 {

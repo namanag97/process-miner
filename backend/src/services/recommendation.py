@@ -98,7 +98,7 @@ class RecommendationService:
     async def generate_recommendations(
         self,
         session: AsyncSession,
-        log_id: str,
+        dataset_id: str,
         case_id: str,
         signal_type: SignalType,
         signal_data: dict[str, Any],
@@ -109,7 +109,7 @@ class RecommendationService:
         
         Args:
             session: DB session
-            log_id: Event Log ID
+            dataset_id: Dataset ID
             case_id: Case ID
             signal_type: The type of signal (e.g. PREDICTED_DELAY)
             signal_data: Context data for the signal (e.g. prediction result)
@@ -136,7 +136,7 @@ class RecommendationService:
         recommendations = []
         for match in matches:
             rec = Recommendation(
-                log_id=log_id,
+                dataset_id=dataset_id,
                 case_id=case_id,
                 signal_type=signal_type.value,
                 signal_data_json=json.dumps(signal_data),

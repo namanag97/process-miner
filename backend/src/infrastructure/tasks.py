@@ -64,10 +64,11 @@ class AsyncTask(Task):
 
     def __call__(self, *args, **kwargs):
         """Run async function in event loop."""
-        return asyncio.run(self.run_async(*args, **kwargs))
+        # Celery binds the decorated async function to self.run
+        return asyncio.run(self.run(*args, **kwargs))
 
-    async def run_async(self, *args, **kwargs):
-        """Override this in subclasses."""
+    async def run(self, *args, **kwargs):
+        """Standard Celery method, implementing classes should override."""
         raise NotImplementedError
 
 
@@ -112,16 +113,16 @@ async def train_prediction_model_task(
 
         async with AsyncSessionLocal() as db:
             # Import here to avoid circular dependencies
-            from src.models.orm import AsyncJob, EventLog, PredictionModel
-            from src.services.ingestion import ingestion_service
+            from src.models.orm import AsyncJob, Dataset, PredictionModel
+            from src.services.event_log_loader import event_log_loader
             from src.services.prediction import prediction_service
 
-            # Load event log
-            result = await db.execute(select(EventLog).where(EventLog.id == log_id))
-            event_log = result.scalar_one_or_none()
+            # Verify dataset exists
+            result = await db.execute(select(Dataset).where(Dataset.id == log_id))
+            dataset = result.scalar_one_or_none()
 
-            if not event_log:
-                raise ValueError(f"Event log not found: {log_id}")
+            if not dataset:
+                raise ValueError(f"Dataset not found: {log_id}")
 
             # Update progress
             self.update_state(
@@ -132,8 +133,9 @@ async def train_prediction_model_task(
                 },
             )
 
-            # Convert to PM4Py log
-            pm4py_log = await ingestion_service.get_pm4py_log(db, log_id)
+            # Convert to PM4Py log (Synchronous DuckDB load)
+            # Note: We call sync function directly since we are in a task runner
+            pm4py_log = event_log_loader.load_as_pm4py_log(log_id)
 
             # Update progress
             self.update_state(
@@ -170,14 +172,13 @@ async def train_prediction_model_task(
             )
 
             # Save model to database
+            # BUG-047 FIX: Use correct field names (dataset_id, target_type not log_id, model_type)
             db_model = PredictionModel(
-                log_id=log_id,
-                model_type=target_type,
+                dataset_id=log_id,  # ORM field is dataset_id
+                target_type=target_type,  # ORM field is target_type, not model_type
                 algorithm=algorithm,
                 model_binary=model_info["model_binary"],
-                feature_columns_json=model_info.get("feature_columns_json"),
                 metrics_json=model_info.get("metrics_json"),
-                config_json=model_info.get("config_json"),
                 trained_at=datetime.utcnow(),
             )
             db.add(db_model)
@@ -339,11 +340,20 @@ async def ingest_dataset_task(
             )
 
             # Convert Arrow to pandas for iteration
+            # Handle newer DuckDB/PyArrow that may return RecordBatchReader
+            import pyarrow as pa
+            cases_arrow = duck_result["cases_arrow"]
+            if isinstance(cases_arrow, pa.RecordBatchReader):
+                cases_arrow = cases_arrow.read_all()
             cases_df = cases_arrow.to_pandas()
-            events_df = duck_result["events_arrow"].to_pandas()
+            
+            events_arrow = duck_result["events_arrow"]
+            if isinstance(events_arrow, pa.RecordBatchReader):
+                events_arrow = events_arrow.read_all()
+            events_df = events_arrow.to_pandas()
 
-            # Bulk create cases
-            case_id_map = {}  # original case_id -> ProcessCase.id
+            # BUG-048 FIX: Batch create cases first, then flush once
+            cases = []
             for _, row in cases_df.iterrows():
                 case = ProcessCase(
                     dataset_id=dataset_id,
@@ -352,9 +362,13 @@ async def ingest_dataset_task(
                     start_time=row["start_time"],
                     end_time=row["end_time"],
                 )
-                db.add(case)
-                await db.flush()
-                case_id_map[str(row["case_id"])] = case.id
+                cases.append(case)
+            
+            db.add_all(cases)
+            await db.flush()  # Single flush for all cases
+            
+            # Build case_id map after flush when IDs are assigned
+            case_id_map = {case.case_id: case.id for case in cases}
 
             # Update progress
             self.update_state(
@@ -362,7 +376,8 @@ async def ingest_dataset_task(
                 meta={"status": "Creating events", "progress": 70},
             )
 
-            # Bulk create events
+            # BUG-048 FIX: Batch create events then add_all (no flush in loop)
+            events = []
             for _, row in events_df.iterrows():
                 case_ref_id = case_id_map.get(str(row["case_id"]))
                 if case_ref_id:
@@ -372,7 +387,9 @@ async def ingest_dataset_task(
                         timestamp=row["timestamp"],
                         resource=str(row["resource"]) if row["resource"] else None,
                     )
-                    db.add(event)
+                    events.append(event)
+            
+            db.add_all(events)  # Single add_all for all events
 
             # Update progress
             self.update_state(
@@ -458,6 +475,438 @@ async def ingest_dataset_task(
         raise
 
 
+@celery_app.task(bind=True, base=AsyncTask, name="perform_analysis", time_limit=600, soft_time_limit=540)
+async def perform_analysis_task(
+    self,
+    analysis_id: str,
+    log_id: str,
+    analysis_type: str,
+    config: dict[str, Any] = None,
+) -> dict[str, Any]:
+    """Async task for performing process analysis.
+
+    Executes CPU-intensive process mining algorithms in background to prevent
+    blocking the API server. Updates the Analysis record with results when complete.
+
+    Args:
+        analysis_id: Analysis record ID
+        log_id: Dataset ID to analyze
+        analysis_type: Type of analysis (discovery, variants, statistics)
+        config: Optional configuration dict
+
+    Returns:
+        dict with analysis results and duration info
+    """
+    logger.info(
+        "perform_analysis_task_started",
+        analysis_id=analysis_id,
+        log_id=log_id,
+        analysis_type=analysis_type,
+        task_id=self.request.id,
+    )
+    start = time.perf_counter()
+
+    if config is None:
+        config = {}
+
+    try:
+        self.update_state(
+            state="PROGRESS",
+            meta={"status": "Starting analysis", "progress": 5},
+        )
+
+        async with AsyncSessionLocal() as db:
+            from src.models.orm import Analysis, AnalysisStatus, AnalysisType
+            from src.services.mining import mining_service
+            import json
+
+            # Load analysis record
+            result = await db.execute(
+                select(Analysis).where(Analysis.id == analysis_id)
+            )
+            analysis = result.scalar_one_or_none()
+            if not analysis:
+                raise ValueError(f"Analysis not found: {analysis_id}")
+
+            # Update status to RUNNING
+            analysis.status = AnalysisStatus.RUNNING.value
+            await db.flush()
+
+            # Progress updates
+            self.update_state(
+                state="PROGRESS",
+                meta={"status": f"Running {analysis_type} analysis", "progress": 20},
+            )
+
+            # Perform the analysis based on type
+            result_data = {}
+
+            if analysis_type == AnalysisType.DISCOVERY.value:
+                # Get DFG for discovery
+                dfg_data = mining_service.get_dfg_fast(log_id)
+                result_data["dfg"] = dfg_data
+
+                analysis.result_summary_json = json.dumps({
+                    "nodes_count": len(dfg_data.get("nodes", [])),
+                    "edges_count": len(dfg_data.get("edges", [])),
+                    "start_activities": list(dfg_data.get("start_activities", {}).keys()),
+                    "end_activities": list(dfg_data.get("end_activities", {}).keys()),
+                })
+
+            elif analysis_type == AnalysisType.VARIANTS.value:
+                # Get variants
+                self.update_state(
+                    state="PROGRESS",
+                    meta={"status": "Computing variants", "progress": 50},
+                )
+                variants_data = mining_service.get_variants_fast(log_id, top_n=50)
+                result_data["variants"] = variants_data
+
+                analysis.result_summary_json = json.dumps({
+                    "total_variants": variants_data.get("total_variants", 0),
+                    "top_variant": variants_data.get("top_variants", [{}])[0] if variants_data.get("top_variants") else None,
+                })
+
+            else:
+                # Generic: get statistics
+                self.update_state(
+                    state="PROGRESS",
+                    meta={"status": "Computing statistics", "progress": 50},
+                )
+                stats = mining_service.get_statistics_fast(log_id)
+                result_data["statistics"] = stats
+                analysis.result_summary_json = json.dumps(stats)
+
+            # Store full results in result_json for future retrieval
+            analysis.result_json = json.dumps(result_data)
+            analysis.status = AnalysisStatus.COMPLETED.value
+            analysis.completed_at = datetime.utcnow()
+
+            await db.commit()
+
+            duration = (time.perf_counter() - start) * 1000
+            logger.info(
+                "perform_analysis_task_completed",
+                analysis_id=analysis_id,
+                analysis_type=analysis_type,
+                duration_ms=round(duration, 2),
+                task_id=self.request.id,
+            )
+
+            return {
+                "analysis_id": analysis_id,
+                "log_id": log_id,
+                "analysis_type": analysis_type,
+                "status": "completed",
+                "duration_ms": round(duration, 2),
+            }
+
+    except Exception as e:
+        logger.error(
+            "perform_analysis_task_failed",
+            error=str(e),
+            analysis_id=analysis_id,
+            task_id=self.request.id,
+        )
+
+        # Update analysis status to FAILED
+        async with AsyncSessionLocal() as db:
+            from src.models.orm import Analysis, AnalysisStatus
+
+            result = await db.execute(
+                select(Analysis).where(Analysis.id == analysis_id)
+            )
+            analysis = result.scalar_one_or_none()
+            if analysis:
+                analysis.status = AnalysisStatus.FAILED.value
+                analysis.error_message = str(e)
+                analysis.completed_at = datetime.utcnow()
+                await db.commit()
+
+        raise
+
+
+@celery_app.task(bind=True, base=AsyncTask, name="perform_discovery", time_limit=900, soft_time_limit=840)
+async def perform_discovery_task(
+    self,
+    log_id: str,
+    miner_type: str,
+    model_name: str = None,
+) -> dict[str, Any]:
+    """BUG-054 FIX: Async task for process discovery to prevent API thread blocking.
+
+    Runs heavy PM4Py miners (Alpha, Inductive, ILP) in background.
+
+    Args:
+        log_id: Dataset ID to mine
+        miner_type: Mining algorithm type (alpha, inductive, heuristic, ilp)
+        model_name: Optional name for the discovered model
+
+    Returns:
+        dict with model_id and quality metrics
+    """
+    logger.info(
+        "discovery_task_started",
+        log_id=log_id,
+        miner_type=miner_type,
+        task_id=self.request.id,
+    )
+    start = time.perf_counter()
+
+    try:
+        self.update_state(
+            state="PROGRESS",
+            meta={"status": "Loading dataset", "progress": 10},
+        )
+
+        async with AsyncSessionLocal() as db:
+            from src.models.orm import AsyncJob, Dataset, ProcessModel
+            from src.services.mining import mining_service
+            from src.core.enums import MinerType
+
+            # Load dataset
+            result = await db.execute(select(Dataset).where(Dataset.id == log_id))
+            dataset = result.scalar_one_or_none()
+
+            if not dataset:
+                raise ValueError(f"Dataset not found: {log_id}")
+
+            self.update_state(
+                state="PROGRESS",
+                meta={"status": f"Running {miner_type} miner", "progress": 30},
+            )
+
+            # Run discovery (synchronous PM4Py call)
+            try:
+                miner_enum = MinerType(miner_type)
+            except ValueError:
+                raise ValueError(f"Invalid miner type: {miner_type}")
+
+            model_data, model_format = mining_service.discover(dataset, miner_enum)
+
+            self.update_state(
+                state="PROGRESS",
+                meta={"status": "Serializing model", "progress": 70},
+            )
+
+            # Serialize model
+            serialized = mining_service.serialize_model(model_data)
+            final_name = model_name or f"{dataset.name}_{miner_type}"
+
+            # Calculate quality metrics if possible
+            fitness = None
+            precision = None
+            if model_format.value in ["petri_net", "process_tree"]:
+                try:
+                    if model_format.value == "petri_net":
+                        net, im, fm = model_data
+                    else:
+                        net, im, fm = mining_service.tree_to_petri_net(model_data)
+                    fitness_result = mining_service.evaluate_fitness(dataset, net, im, fm)
+                    fitness = fitness_result.get("fitness")
+                    precision = mining_service.evaluate_precision(dataset, net, im, fm)
+                except Exception as e:
+                    logger.warning("quality_metrics_failed", error=str(e))
+
+            self.update_state(
+                state="PROGRESS",
+                meta={"status": "Saving model", "progress": 90},
+            )
+
+            # Save model
+            process_model = ProcessModel(
+                name=final_name,
+                dataset_id=log_id,
+                miner_type=miner_type,
+                model_format=model_format.value,
+                serialized_model=serialized,
+                fitness=fitness,
+                precision=precision,
+            )
+            db.add(process_model)
+
+            # Update AsyncJob
+            job_result = await db.execute(
+                select(AsyncJob).where(AsyncJob.task_id == self.request.id)
+            )
+            job = job_result.scalar_one_or_none()
+            if job:
+                import json
+                job.status = "completed"
+                job.result_json = json.dumps({"model_id": process_model.id})
+                job.completed_at = datetime.utcnow()
+
+            await db.commit()
+            await db.refresh(process_model)
+
+            duration = (time.perf_counter() - start) * 1000
+            logger.info(
+                "discovery_task_completed",
+                model_id=process_model.id,
+                miner_type=miner_type,
+                fitness=fitness,
+                precision=precision,
+                duration_ms=round(duration, 2),
+            )
+
+            return {
+                "model_id": process_model.id,
+                "log_id": log_id,
+                "miner_type": miner_type,
+                "fitness": fitness,
+                "precision": precision,
+                "duration_ms": round(duration, 2),
+            }
+
+    except Exception as e:
+        logger.error("discovery_task_failed", error=str(e), log_id=log_id, exc_info=True)
+
+        async with AsyncSessionLocal() as db:
+            from src.models.orm import AsyncJob
+            job_result = await db.execute(
+                select(AsyncJob).where(AsyncJob.task_id == self.request.id)
+            )
+            job = job_result.scalar_one_or_none()
+            if job:
+                job.status = "failed"
+                job.error = str(e)
+                job.completed_at = datetime.utcnow()
+                await db.commit()
+
+        raise
+
+
+@celery_app.task(bind=True, base=AsyncTask, name="perform_conformance", time_limit=600, soft_time_limit=540)
+async def perform_conformance_task(
+    self,
+    log_id: str,
+    model_id: str,
+    method: str = "token_replay",
+) -> dict[str, Any]:
+    """BUG-039 FIX: Async task for conformance checking to prevent API freeze.
+
+    Args:
+        log_id: Dataset ID
+        model_id: ProcessModel ID
+        method: Conformance method (token_replay or alignment)
+
+    Returns:
+        dict with conformance results
+    """
+    logger.info(
+        "conformance_task_started",
+        log_id=log_id,
+        model_id=model_id,
+        method=method,
+        task_id=self.request.id,
+    )
+    start = time.perf_counter()
+
+    try:
+        self.update_state(
+            state="PROGRESS",
+            meta={"status": "Loading data", "progress": 10},
+        )
+
+        async with AsyncSessionLocal() as db:
+            from src.models.orm import AsyncJob, Dataset, ProcessModel, ConformanceResult
+            from src.services.conformance import conformance_service
+            import json
+
+            # Load dataset and model
+            result = await db.execute(select(Dataset).where(Dataset.id == log_id))
+            dataset = result.scalar_one_or_none()
+            if not dataset:
+                raise ValueError(f"Dataset not found: {log_id}")
+
+            result = await db.execute(select(ProcessModel).where(ProcessModel.id == model_id))
+            model = result.scalar_one_or_none()
+            if not model:
+                raise ValueError(f"Model not found: {model_id}")
+
+            self.update_state(
+                state="PROGRESS",
+                meta={"status": f"Running {method} conformance", "progress": 40},
+            )
+
+            # Run conformance check (synchronous PM4Py call)
+            conf_result = conformance_service.check_conformance(
+                event_log=dataset,
+                model=model,
+                method=method,
+            )
+
+            self.update_state(
+                state="PROGRESS",
+                meta={"status": "Saving results", "progress": 80},
+            )
+
+            # Save result
+            conformance_record = ConformanceResult(
+                dataset_id=log_id,
+                model_id=model_id,
+                fitness=conf_result["fitness"],
+                precision=conf_result.get("precision"),
+                method=conf_result["method"],
+                diagnostics_json=json.dumps({
+                    "fitting_traces": conf_result["fitting_traces"],
+                    "total_traces": conf_result["total_traces"],
+                }),
+            )
+            db.add(conformance_record)
+
+            # Update AsyncJob
+            job_result = await db.execute(
+                select(AsyncJob).where(AsyncJob.task_id == self.request.id)
+            )
+            job = job_result.scalar_one_or_none()
+            if job:
+                job.status = "completed"
+                job.result_json = json.dumps({
+                    "conformance_id": conformance_record.id,
+                    "fitness": conf_result["fitness"],
+                })
+                job.completed_at = datetime.utcnow()
+
+            await db.commit()
+            await db.refresh(conformance_record)
+
+            duration = (time.perf_counter() - start) * 1000
+            logger.info(
+                "conformance_task_completed",
+                conformance_id=conformance_record.id,
+                fitness=conf_result["fitness"],
+                duration_ms=round(duration, 2),
+            )
+
+            return {
+                "conformance_id": conformance_record.id,
+                "log_id": log_id,
+                "model_id": model_id,
+                "fitness": conf_result["fitness"],
+                "precision": conf_result.get("precision"),
+                "is_conformant": conf_result["is_conformant"],
+                "duration_ms": round(duration, 2),
+            }
+
+    except Exception as e:
+        logger.error("conformance_task_failed", error=str(e), exc_info=True)
+
+        async with AsyncSessionLocal() as db:
+            from src.models.orm import AsyncJob
+            job_result = await db.execute(
+                select(AsyncJob).where(AsyncJob.task_id == self.request.id)
+            )
+            job = job_result.scalar_one_or_none()
+            if job:
+                job.status = "failed"
+                job.error = str(e)
+                job.completed_at = datetime.utcnow()
+                await db.commit()
+
+        raise
+
+
 def get_task_status(task_id: str) -> dict[str, Any]:
     """Get status of a Celery task.
 
@@ -485,3 +934,92 @@ def get_task_status(task_id: str) -> dict[str, Any]:
             result["error"] = str(task_result.info)
 
     return result
+
+
+# =============================================================================
+# BUG-057 FIX: Zombie Job Reaper
+# =============================================================================
+
+@celery_app.task(bind=True, name="reap_zombie_jobs")
+def reap_zombie_jobs(self, timeout_minutes: int = 10) -> dict[str, Any]:
+    """Reap zombie jobs that are stuck in RUNNING state.
+    
+    BUG-057 FIX: Cross-references AsyncJob DB records with Celery's actual task status.
+    Should be scheduled via Celery Beat every 5 minutes.
+    
+    Args:
+        timeout_minutes: Consider jobs zombie if RUNNING for longer than this
+        
+    Returns:
+        Summary of reaped jobs
+    """
+    from datetime import timedelta
+    from src.models.orm import AsyncJob, JobStatus
+    
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    async def _reap():
+        async with AsyncSessionLocal() as db:
+            try:
+                cutoff_time = datetime.utcnow() - timedelta(minutes=timeout_minutes)
+                
+                # Find potentially zombie jobs
+                result = await db.execute(
+                    select(AsyncJob).where(
+                        AsyncJob.status == JobStatus.RUNNING.value,
+                        AsyncJob.updated_at < cutoff_time
+                    )
+                )
+                stuck_jobs = result.scalars().all()
+                
+                reaped = []
+                for job in stuck_jobs:
+                    if not job.task_id:
+                        # No task ID, mark as failed
+                        job.status = JobStatus.FAILED.value
+                        job.error = "No task ID - orphaned job"
+                        job.completed_at = datetime.utcnow()
+                        reaped.append(job.id)
+                        continue
+                    
+                    # Check actual Celery status
+                    celery_result = AsyncResult(job.task_id, app=celery_app)
+                    celery_state = celery_result.state
+                    
+                    if celery_state in ("FAILURE", "REVOKED"):
+                        job.status = JobStatus.FAILED.value
+                        job.error = f"Celery state: {celery_state}"
+                        job.completed_at = datetime.utcnow()
+                        reaped.append(job.id)
+                    elif celery_state == "SUCCESS":
+                        job.status = JobStatus.COMPLETED.value
+                        job.completed_at = datetime.utcnow()
+                        reaped.append(job.id)
+                    elif celery_state == "PENDING" and job.started_at:
+                        # Task was never picked up but we thought it started
+                        job.status = JobStatus.FAILED.value
+                        job.error = "Task lost - worker likely crashed"
+                        job.completed_at = datetime.utcnow()
+                        reaped.append(job.id)
+                
+                await db.commit()
+                
+                logger.info(
+                    "zombie_jobs_reaped",
+                    total_checked=len(stuck_jobs),
+                    total_reaped=len(reaped),
+                    job_ids=reaped,
+                )
+                
+                return {
+                    "checked": len(stuck_jobs),
+                    "reaped": len(reaped),
+                    "job_ids": reaped,
+                }
+                
+            except Exception as e:
+                logger.error("zombie_reaper_error", error=str(e), exc_info=True)
+                raise
+    
+    return loop.run_until_complete(_reap())

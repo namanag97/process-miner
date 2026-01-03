@@ -4,7 +4,6 @@ Provides endpoints for model play-out, what-if simulation, and capacity planning
 """
 
 import json
-import pickle
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_db
 from src.core.logging_config import get_logger
+from src.core.safe_unpickler import safe_loads
 from src.models.orm import Dataset, ProcessCase, ProcessEvent, ProcessModel
 from src.models.schemas import (
     PlayOutRequest,
@@ -47,7 +47,8 @@ async def play_out_model(
     if not model.serialized_model:
         raise HTTPException(status_code=400, detail="Model has no serialized data")
 
-    model_data = pickle.loads(model.serialized_model)
+    # BUG-028 FIX: Use safe_loads instead of pickle.loads to prevent RCE
+    model_data = safe_loads(model.serialized_model)
     pm4py_log = simulation_service.play_out(model_data, model.model_format, request.num_traces)
 
     activities = set()
@@ -66,20 +67,28 @@ async def play_out_model(
     db.add(new_log)
     await db.flush()
 
+    # BUG-029 FIX: Batch all cases and events, then flush once (not per-loop)
+    cases = []
     for trace in pm4py_log:
         case_id = trace.attributes.get("concept:name", f"case_{hash(str(trace))}")
         case = ProcessCase(log_id=new_log.id, case_id=case_id)
-        db.add(case)
-        await db.flush()
+        cases.append(case)
+    
+    db.add_all(cases)
+    await db.flush()  # Single flush for all cases
 
+    # Now create events with the flushed case IDs
+    events = []
+    for case, trace in zip(cases, pm4py_log):
         for event in trace:
             process_event = ProcessEvent(
                 case_ref_id=case.id,
                 activity=event.get("concept:name", ""),
                 timestamp=event.get("time:timestamp"),
             )
-            db.add(process_event)
-
+            events.append(process_event)
+    
+    db.add_all(events)  # Single add_all for all events
     await db.commit()
 
     return PlayOutResponse(

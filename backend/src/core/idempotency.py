@@ -18,6 +18,7 @@ Usage:
 
 import hashlib
 import json
+from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import wraps
@@ -26,6 +27,7 @@ from typing import Any, Callable, Dict, Optional
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import StreamingResponse
 
 from src.core.logging_config import get_logger
 
@@ -47,18 +49,26 @@ class IdempotencyRecord:
 
 
 class IdempotencyStore:
-    """In-memory storage for idempotency records.
+    """In-memory storage for idempotency records with LRU eviction.
     
+    BUG-033 FIX: Added size limits to prevent OOM.
     In production, use Redis for distributed caching.
     """
     
+    # BUG-033 FIX: Add limits to prevent memory exhaustion
+    MAX_ENTRIES = 10000  # Maximum number of cached entries
+    MAX_BODY_SIZE = 10 * 1024 * 1024  # 10MB max per response body
+    
     def __init__(self):
-        self._records: Dict[str, IdempotencyRecord] = {}
+        # Use OrderedDict for LRU eviction support
+        self._records: OrderedDict[str, IdempotencyRecord] = OrderedDict()
     
     async def get(self, key: str) -> Optional[IdempotencyRecord]:
         """Get a stored response by idempotency key."""
         record = self._records.get(key)
         if record and record.expires_at > datetime.utcnow():
+            # Move to end for LRU tracking
+            self._records.move_to_end(key)
             return record
         elif record:
             # Expired, clean up
@@ -74,6 +84,22 @@ class IdempotencyStore:
         ttl: int = 86400,
     ) -> None:
         """Store a response for an idempotency key."""
+        # BUG-033 FIX: Skip caching oversized responses
+        if len(body) > self.MAX_BODY_SIZE:
+            logger.warning(
+                "idempotency_body_too_large",
+                key=key,
+                size=len(body),
+                max_size=self.MAX_BODY_SIZE,
+            )
+            return
+        
+        # BUG-033 FIX: LRU eviction when at capacity
+        while len(self._records) >= self.MAX_ENTRIES:
+            oldest_key = next(iter(self._records))
+            del self._records[oldest_key]
+            logger.debug("idempotency_lru_evicted", key=oldest_key)
+        
         now = datetime.utcnow()
         self._records[key] = IdempotencyRecord(
             status_code=status_code,
@@ -155,6 +181,15 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         
         # Execute request
         response = await call_next(request)
+        
+        # BUG-035 FIX: Skip caching for streaming responses
+        # Streaming responses cannot be buffered without sinking the stream
+        if isinstance(response, StreamingResponse):
+            logger.debug(
+                "idempotency_skipped_streaming",
+                path=str(request.url.path),
+            )
+            return response
         
         # Only cache successful responses
         if 200 <= response.status_code < 300:

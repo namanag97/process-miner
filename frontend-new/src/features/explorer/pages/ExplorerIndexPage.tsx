@@ -48,7 +48,7 @@ export function ExplorerIndexPage() {
       ]}
       isLoading={isLoading}
       error={error}
-      onRetry={refetch}
+      onRetry={() => { refetch(); }}
       isEmpty={!isLoading && logs.length === 0}
       emptyState={{
         icon: <FolderOpenOutlined />,

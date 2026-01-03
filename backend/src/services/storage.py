@@ -155,54 +155,54 @@ class StorageService:
     def __init__(self, backend: StorageBackend):
         self.backend = backend
 
-    async def store_event_log_file(
+    async def store_dataset_file(
         self,
         content: bytes,
-        log_id: str,
+        dataset_id: str,
         filename: str,
     ) -> str:
-        """Store an uploaded event log file.
+        """Store an uploaded dataset file.
         
         Args:
             content: File content
-            log_id: Event log ID (used as directory)
+            dataset_id: Dataset ID (used as directory)
             filename: Original filename
             
         Returns:
             Storage path
         """
-        path = f"{log_id}/{filename}"
+        path = f"{dataset_id}/{filename}"
         return await self.backend.store(content, path)
 
-    async def retrieve_event_log_file(
+    async def retrieve_dataset_file(
         self,
-        log_id: str,
+        dataset_id: str,
         filename: str,
     ) -> bytes:
-        """Retrieve an event log file."""
-        path = f"{log_id}/{filename}"
+        """Retrieve a dataset file."""
+        path = f"{dataset_id}/{filename}"
         return await self.backend.retrieve(path)
 
-    async def delete_event_log_files(self, log_id: str) -> None:
-        """Delete all files for an event log.
+    async def delete_dataset_files(self, dataset_id: str) -> None:
+        """Delete all files for a dataset.
         
-        Note: For local backend, deletes the log directory.
+        Note: For local backend, deletes the dataset directory.
         """
         # For local storage, we can walk the directory
         if isinstance(self.backend, LocalStorageBackend):
-            log_dir = self.backend._resolve_path(log_id)
-            if log_dir.exists() and log_dir.is_dir():
+            dataset_dir = self.backend._resolve_path(dataset_id)
+            if dataset_dir.exists() and dataset_dir.is_dir():
                 import shutil
-                shutil.rmtree(log_dir)
-                logger.info("event_log_files_deleted", log_id=log_id)
+                shutil.rmtree(dataset_dir)
+                logger.info("dataset_files_deleted", dataset_id=dataset_id)
 
-    async def event_log_file_exists(
+    async def dataset_file_exists(
         self,
-        log_id: str,
+        dataset_id: str,
         filename: str,
     ) -> bool:
-        """Check if an event log file exists."""
-        path = f"{log_id}/{filename}"
+        """Check if a dataset file exists."""
+        path = f"{dataset_id}/{filename}"
         return await self.backend.exists(path)
 
 

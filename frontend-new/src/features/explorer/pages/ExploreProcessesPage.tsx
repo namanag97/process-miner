@@ -48,6 +48,7 @@ export function ExploreProcessesPage() {
         if (!data?.items) return [];
         return data.items
             .filter((item: any) => !item.status || item.status === 'ready')
+            .filter((item: any) => item.totalCases > 0) // Filter out zombie datasets
             .filter((item: any) =>
                 !searchText ||
                 item.name.toLowerCase().includes(searchText.toLowerCase())
@@ -145,7 +146,7 @@ export function ExploreProcessesPage() {
             ]}
             isLoading={isLoading}
             error={error}
-            onRetry={refetch}
+            onRetry={() => { refetch(); }}
             isEmpty={!isLoading && datasets.length === 0}
             emptyState={{
                 icon: <FolderOpenOutlined />,

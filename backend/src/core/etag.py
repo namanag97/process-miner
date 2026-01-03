@@ -74,6 +74,11 @@ class ETagMiddleware(BaseHTTPMiddleware):
         """Handle GET request with ETag generation and If-None-Match validation."""
         response = await call_next(request)
         
+        # BUG-035 FIX: Skip ETag for streaming responses to prevent sinking
+        from starlette.responses import StreamingResponse
+        if isinstance(response, StreamingResponse):
+            return response
+        
         # Only process successful JSON responses
         if response.status_code != 200:
             return response

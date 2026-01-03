@@ -127,7 +127,7 @@ async def train_predictor(
         metrics["activities"] = activities
 
         prediction_model = PredictionModel(
-            log_id=log_id,
+            dataset_id=log_id,  # BUG-001 FIX
             target_type=request.target_type,
             algorithm=request.algorithm,
             model_binary=model_bytes,
@@ -184,7 +184,7 @@ async def list_predictors(log_id: str, db: AsyncSession = Depends(get_db)) -> Pr
     """List all predictors for an event log."""
     logger.info("listing_predictors", log_id=log_id)
 
-    query = select(PredictionModel).where(PredictionModel.log_id == log_id)
+    query = select(PredictionModel).where(PredictionModel.dataset_id == log_id)  # BUG-001 FIX
     result = await db.execute(query)
     predictors = result.scalars().all()
 

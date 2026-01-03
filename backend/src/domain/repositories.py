@@ -35,11 +35,11 @@ logger = get_logger(__name__)
 # Repository Interfaces
 # =============================================================================
 
-class EventLogRepository(ABC):
-    """Abstract repository for EventLog aggregates."""
+class DatasetRepository(ABC):
+    """Abstract repository for Dataset aggregates."""
     
     @abstractmethod
-    async def get(self, log_id: str) -> Optional[DatasetAggregate]:
+    async def get(self, dataset_id: str) -> Optional[DatasetAggregate]:
         """Load an aggregate by ID.
         
         Returns None if not found.
@@ -47,7 +47,7 @@ class EventLogRepository(ABC):
         pass
     
     @abstractmethod
-    async def get_many(self, log_ids: List[str]) -> List[DatasetAggregate]:
+    async def get_many(self, dataset_ids: List[str]) -> List[DatasetAggregate]:
         """Load multiple aggregates by ID."""
         pass
     
@@ -57,12 +57,12 @@ class EventLogRepository(ABC):
         pass
     
     @abstractmethod
-    async def delete(self, log_id: str) -> bool:
+    async def delete(self, dataset_id: str) -> bool:
         """Delete an aggregate. Returns True if deleted."""
         pass
     
     @abstractmethod
-    async def exists(self, log_id: str) -> bool:
+    async def exists(self, dataset_id: str) -> bool:
         """Check if an aggregate exists."""
         pass
 
@@ -76,8 +76,8 @@ class ProcessModelRepository(ABC):
         pass
     
     @abstractmethod
-    async def get_by_log(self, log_id: str) -> List[dict]:
-        """Get all models for a log."""
+    async def get_by_dataset(self, dataset_id: str) -> List[dict]:
+        """Get all models for a dataset."""
         pass
     
     @abstractmethod
@@ -95,8 +95,8 @@ class ProcessModelRepository(ABC):
 # SQLAlchemy Implementations
 # =============================================================================
 
-class SQLAlchemyDatasetRepository(EventLogRepository):
-    """SQLAlchemy implementation of EventLogRepository.
+class SQLAlchemyDatasetRepository(DatasetRepository):
+    """SQLAlchemy implementation of DatasetRepository.
     
     Optimized for:
     - Eager loading of cases and events
@@ -107,7 +107,7 @@ class SQLAlchemyDatasetRepository(EventLogRepository):
     def __init__(self, session: AsyncSession):
         self._session = session
     
-    async def get(self, log_id: str) -> Optional[DatasetAggregate]:
+    async def get(self, dataset_id: str) -> Optional[DatasetAggregate]:
         """Load aggregate with eager loading of cases and events."""
         from src.models.orm import Dataset as ORMDataset, ProcessCase as ORMCase
         
@@ -116,7 +116,7 @@ class SQLAlchemyDatasetRepository(EventLogRepository):
             .options(
                 selectinload(ORMDataset.cases).selectinload(ORMCase.events)
             )
-            .where(ORMDataset.id == log_id)
+            .where(ORMDataset.id == dataset_id)
         )
         
         result = await self._session.execute(stmt)
@@ -127,11 +127,11 @@ class SQLAlchemyDatasetRepository(EventLogRepository):
         
         return self._to_domain(orm_log)
     
-    async def get_many(self, log_ids: List[str]) -> List[DatasetAggregate]:
+    async def get_many(self, dataset_ids: List[str]) -> List[DatasetAggregate]:
         """Load multiple aggregates efficiently."""
         from src.models.orm import Dataset as ORMDataset, ProcessCase as ORMCase
         
-        if not log_ids:
+        if not dataset_ids:
             return []
         
         stmt = (
@@ -139,7 +139,7 @@ class SQLAlchemyDatasetRepository(EventLogRepository):
             .options(
                 selectinload(ORMDataset.cases).selectinload(ORMCase.events)
             )
-            .where(ORMDataset.id.in_(log_ids))
+            .where(ORMDataset.id.in_(dataset_ids))
         )
         
         result = await self._session.execute(stmt)
@@ -151,13 +151,13 @@ class SQLAlchemyDatasetRepository(EventLogRepository):
         """Persist aggregate - UPDATE not implemented yet (MVP)."""
         # For MVP, we don't update existing logs through this path
         # The existing upload flow handles creation
-        logger.warning("repository_save_not_implemented", log_id=aggregate.id)
+        logger.warning("repository_save_not_implemented", dataset_id=aggregate.id)
     
-    async def delete(self, log_id: str) -> bool:
+    async def delete(self, dataset_id: str) -> bool:
         """Delete aggregate and all related entities."""
         from src.models.orm import Dataset as ORMDataset
         
-        stmt = select(ORMDataset).where(ORMDataset.id == log_id)
+        stmt = select(ORMDataset).where(ORMDataset.id == dataset_id)
         result = await self._session.execute(stmt)
         orm_log = result.scalar_one_or_none()
         
@@ -167,11 +167,11 @@ class SQLAlchemyDatasetRepository(EventLogRepository):
         await self._session.delete(orm_log)
         return True
     
-    async def exists(self, log_id: str) -> bool:
-        """Check if log exists."""
+    async def exists(self, dataset_id: str) -> bool:
+        """Check if dataset exists."""
         from src.models.orm import Dataset as ORMDataset
         
-        stmt = select(ORMDataset.id).where(ORMDataset.id == log_id)
+        stmt = select(ORMDataset.id).where(ORMDataset.id == dataset_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none() is not None
     
@@ -217,6 +217,6 @@ class SQLAlchemyDatasetRepository(EventLogRepository):
 # Factory Function
 # =============================================================================
 
-def create_event_log_repository(session: AsyncSession) -> EventLogRepository:
+def create_dataset_repository(session: AsyncSession) -> DatasetRepository:
     """Factory function to create the appropriate repository."""
-    return SQLAlchemyEventLogRepository(session)
+    return SQLAlchemyDatasetRepository(session)

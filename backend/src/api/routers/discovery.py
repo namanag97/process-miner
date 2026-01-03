@@ -118,13 +118,19 @@ async def discover_model(
             fitness_result = mining_service.evaluate_fitness(event_log, net, im, fm)
             fitness = fitness_result.get("fitness")
             precision = mining_service.evaluate_precision(event_log, net, im, fm)
-        except Exception:
-            pass  # Quality metrics are optional
+        except Exception as e:
+            logger.warning(
+                "quality_metrics_failed",
+                log_id=event_log.id,
+                error=str(e),
+                exc_info=True,
+            )
+            # Quality metrics are optional - continue without them
 
     # Save model
     process_model = ProcessModel(
         name=model_name,
-        log_id=event_log.id,
+        dataset_id=event_log.id,  # BUG-001 FIX: Use dataset_id (ORM field name)
         miner_type=miner_type.value,
         model_format=model_format.value,
         serialized_model=serialized,
@@ -150,7 +156,7 @@ async def discover_model(
         name=process_model.name,
         miner_type=process_model.miner_type,
         model_format=process_model.model_format,
-        log_id=process_model.log_id,
+        dataset_id=process_model.dataset_id,  # BUG-001 FIX
         fitness=process_model.fitness,
         precision=process_model.precision,
         created_at=process_model.created_at,

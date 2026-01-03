@@ -226,13 +226,17 @@ class OCPMService:
     def deserialize_oc_petri_net(self, data: bytes):
         """Deserialize an Object-Centric Petri Net from storage.
 
+        Uses restricted unpickler to prevent RCE attacks.
+
         Args:
             data: Pickled bytes
 
         Returns:
             Object-Centric Petri Net
         """
-        return pickle.loads(data)
+        from src.core.safe_unpickler import safe_loads
+        # BUG-028 FIX: Use safe_loads instead of pickle.loads
+        return safe_loads(data)
 
     def get_ocdfg_graph_data(self, ocel) -> dict[str, Any]:
         """Get OC-DFG as structured data for visualization.

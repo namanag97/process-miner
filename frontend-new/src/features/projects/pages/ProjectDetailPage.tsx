@@ -73,6 +73,13 @@ export function ProjectDetailPage() {
   const { data: project, isLoading, error, refetch } = useProjectDetail(projectId || '');
   const deleteProject = useDeleteProject();
 
+  // Reset modal state when navigating between projects (BUG-010)
+  React.useEffect(() => {
+    setUploadModalOpen(false);
+    setAnalyzeDataset(null);
+    setSelectedAnalysis(null);
+  }, [projectId]);
+
   // Simple upload - opens modal instead of navigating to wizard
   const handleUpload = () => {
     logAction('ProjectDetailPage', 'upload_clicked', { projectId });
@@ -160,7 +167,7 @@ export function ProjectDetailPage() {
       ]}
       isLoading={isLoading}
       error={error}
-      onRetry={refetch}
+      onRetry={() => { refetch(); }}
       isEmpty={!project}
       emptyState={{
         title: 'Project not found',

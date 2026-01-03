@@ -61,12 +61,8 @@ async def get_dfg(
     logger.info("get_dfg_started", log_id=log_id, include_performance=include_performance)
     start_time = time.perf_counter()
 
-    # Load event log
-    query = (
-        select(Dataset)
-        .options(selectinload(Dataset.cases).selectinload(ProcessCase.events))
-        .where(Dataset.id == log_id)
-    )
+    # BUG-038 FIX: Load only Dataset metadata, not cases (mining_service uses DuckDB path)
+    query = select(Dataset).where(Dataset.id == log_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
 
@@ -74,7 +70,7 @@ async def get_dfg(
         logger.warning("log_not_found", log_id=log_id)
         raise HTTPException(status_code=404, detail=f"Event log not found: {log_id}")
 
-    # Get DFG data (with or without performance metrics)
+    # Get DFG data (mining_service uses efficient DuckDB path internally)
     if include_performance:
         dfg_data = mining_service.get_dfg_data_with_performance(event_log)
     else:

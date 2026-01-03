@@ -6,14 +6,14 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { Modal, Upload, Button, Alert, Progress, Typography, Space } from 'antd';
+import { Modal, Upload, Button, Alert, Progress, Typography, Space, Tag } from 'antd';
 import type { UploadFile, UploadProps } from 'antd';
-import { InboxOutlined, FileTextOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { InboxOutlined, FileTextOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { tokens } from '@lumina/design-system';
 import { useUploadDataset } from '../hooks';
 
 const { Dragger } = Upload;
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 interface SimpleUploadModalProps {
     open: boolean;
@@ -23,6 +23,14 @@ interface SimpleUploadModalProps {
 }
 
 const MAX_FILE_SIZE_MB = 100;
+const SUPPORTED_FORMATS = ['csv', 'xes'];
+
+// Format file size for display
+function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
 
 export function SimpleUploadModal({
     open,
@@ -30,6 +38,8 @@ export function SimpleUploadModal({
     projectId,
     onSuccess,
 }: SimpleUploadModalProps) {
+    // Store the actual File object separately for reliable access to name/size
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [fileList, setFileList] = useState<UploadFile[]>([]);
     const [error, setError] = useState<string | null>(null);
     const uploadMutation = useUploadDataset();
@@ -40,61 +50,87 @@ export function SimpleUploadModal({
             return `File size exceeds ${MAX_FILE_SIZE_MB}MB limit`;
         }
 
-        // Check file extension
+        // Check file extension - support CSV and XES
         const ext = file.name.split('.').pop()?.toLowerCase();
-        if (ext !== 'csv') {
-            return 'Only CSV files are supported';
+        if (!ext || !SUPPORTED_FORMATS.includes(ext)) {
+            return `Unsupported format. Accepted: ${SUPPORTED_FORMATS.join(', ').toUpperCase()}`;
         }
 
         return null;
     }, []);
 
     const handleUpload = useCallback(async () => {
-        if (fileList.length === 0) return;
-
-        const file = fileList[0].originFileObj;
-        if (!file) return;
+        if (!selectedFile) return;
 
         setError(null);
+        console.log('[Upload] Starting upload:', selectedFile.name, selectedFile.size);
 
         try {
             await uploadMutation.mutateAsync({
                 projectId,
-                file,
+                file: selectedFile,
+                name: selectedFile.name,
             });
             setFileList([]);
+            setSelectedFile(null);
             onSuccess?.();
             onClose();
         } catch (err) {
             // Error is already handled by the mutation
+            console.error('[Upload] Failed:', err);
         }
-    }, [fileList, projectId, uploadMutation, onSuccess, onClose]);
+    }, [selectedFile, projectId, uploadMutation, onSuccess, onClose]);
 
     const uploadProps: UploadProps = {
-        accept: '.csv',
+        accept: SUPPORTED_FORMATS.map(f => `.${f}`).join(','),
         maxCount: 1,
         fileList,
+        showUploadList: false, // We'll show our own file display
         beforeUpload: (file) => {
+            console.log('[Upload] File selected:', file.name, file.size, file.type);
+
             const validationError = validateFile(file);
             if (validationError) {
                 setError(validationError);
+                setSelectedFile(null);
+                setFileList([]);
                 return Upload.LIST_IGNORE;
             }
+
             setError(null);
-            setFileList([{ ...file, uid: file.name, originFileObj: file } as UploadFile]);
+            setSelectedFile(file);
+            setFileList([{
+                uid: file.name,
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                status: 'done',
+                originFileObj: file,
+            } as UploadFile]);
+
             return false; // Prevent auto upload
         },
         onRemove: () => {
             setFileList([]);
+            setSelectedFile(null);
             setError(null);
         },
     };
 
     const handleClose = () => {
         setFileList([]);
+        setSelectedFile(null);
         setError(null);
         onClose();
     };
+
+    const handleRemoveFile = () => {
+        setFileList([]);
+        setSelectedFile(null);
+        setError(null);
+    };
+
+    const fileExtension = selectedFile?.name.split('.').pop()?.toUpperCase();
 
     return (
         <Modal
@@ -110,7 +146,7 @@ export function SimpleUploadModal({
                     type="primary"
                     onClick={handleUpload}
                     loading={uploadMutation.isPending}
-                    disabled={fileList.length === 0 || !!error}
+                    disabled={!selectedFile || !!error}
                 >
                     Upload
                 </Button>,
@@ -127,52 +163,82 @@ export function SimpleUploadModal({
                     />
                 )}
 
-                <Dragger {...uploadProps}>
-                    <p className="ant-upload-drag-icon">
-                        <InboxOutlined style={{ fontSize: 48, color: tokens.colors.primary[500] }} />
-                    </p>
-                    <p className="ant-upload-text">
-                        Click or drag CSV file to this area
-                    </p>
-                    <p className="ant-upload-hint" style={{ color: tokens.colors.neutral[500] }}>
-                        Maximum file size: {MAX_FILE_SIZE_MB}MB
-                    </p>
-                </Dragger>
+                {!selectedFile && (
+                    <Dragger {...uploadProps}>
+                        <p className="ant-upload-drag-icon">
+                            <InboxOutlined style={{ fontSize: 48, color: tokens.colors.primary[500] }} />
+                        </p>
+                        <p className="ant-upload-text">
+                            Click or drag file to this area
+                        </p>
+                        <p className="ant-upload-hint" style={{ color: tokens.colors.neutral[500] }}>
+                            Supports: CSV, XES • Max size: {MAX_FILE_SIZE_MB}MB
+                        </p>
+                    </Dragger>
+                )}
 
                 {uploadMutation.isPending && (
                     <div style={{ marginTop: tokens.spacing[4] }}>
                         <Progress percent={99} status="active" showInfo={false} />
-                        <Text type="secondary">Uploading...</Text>
+                        <Text type="secondary">Uploading {selectedFile?.name}...</Text>
                     </div>
                 )}
 
-                {fileList.length > 0 && !uploadMutation.isPending && (
+                {selectedFile && !uploadMutation.isPending && (
                     <div
                         style={{
-                            marginTop: tokens.spacing[4],
-                            padding: tokens.spacing[3],
+                            marginTop: tokens.spacing[2],
+                            padding: tokens.spacing[4],
                             background: tokens.colors.primary[50],
                             borderRadius: tokens.radius.md,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: tokens.spacing[3],
+                            border: `1px solid ${tokens.colors.primary[200]}`,
                         }}
                     >
-                        <FileTextOutlined style={{ fontSize: 24, color: tokens.colors.primary[500] }} />
-                        <div style={{ flex: 1 }}>
-                            <Text strong>{fileList[0].name}</Text>
-                            <br />
-                            <Text type="secondary" style={{ fontSize: tokens.fontSize.sm }}>
-                                {(fileList[0].size! / 1024 / 1024).toFixed(2)} MB
-                            </Text>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: tokens.spacing[3] }}>
+                            <FileTextOutlined
+                                style={{
+                                    fontSize: 32,
+                                    color: tokens.colors.primary[500],
+                                    marginTop: 4,
+                                }}
+                            />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: tokens.spacing[2] }}>
+                                    <Text strong style={{
+                                        fontSize: tokens.fontSize.md,
+                                        wordBreak: 'break-all',
+                                    }}>
+                                        {selectedFile.name}
+                                    </Text>
+                                    <Tag color={fileExtension === 'CSV' ? 'blue' : 'purple'}>
+                                        {fileExtension}
+                                    </Tag>
+                                </div>
+                                <div style={{ marginTop: tokens.spacing[1] }}>
+                                    <Text type="secondary" style={{ fontSize: tokens.fontSize.sm }}>
+                                        Size: {formatFileSize(selectedFile.size)}
+                                    </Text>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: tokens.spacing[2] }}>
+                                <CheckCircleOutlined
+                                    style={{ fontSize: 20, color: tokens.colors.success[500] }}
+                                />
+                                <Button
+                                    type="text"
+                                    size="small"
+                                    icon={<CloseCircleOutlined />}
+                                    onClick={handleRemoveFile}
+                                    style={{ color: tokens.colors.neutral[400] }}
+                                />
+                            </div>
                         </div>
-                        <CheckCircleOutlined style={{ fontSize: 20, color: tokens.colors.success[500] }} />
                     </div>
                 )}
 
                 <div style={{ marginTop: tokens.spacing[4] }}>
                     <Text type="secondary" style={{ fontSize: tokens.fontSize.sm }}>
-                        After upload, you'll need to configure column mapping before analysis.
+                        After upload, click "Analyze" to configure column mapping and generate process map.
                     </Text>
                 </div>
             </div>

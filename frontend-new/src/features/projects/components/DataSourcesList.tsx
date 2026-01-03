@@ -96,8 +96,10 @@ export function DataSourcesList({
       renderItem={(source) => {
         const status = source.status || 'ready';
         const statusConfig = STATUS_CONFIG[status];
-        const isReady = status === 'ready';
-        const needsAnalysis = status === 'unstructured';
+
+        const isZombie = status === 'ready' && source.caseCount === 0;
+        const isReady = status === 'ready' && !isZombie;
+        const needsAnalysis = status === 'unstructured' || isZombie;
         const isAnalyzing = status === 'analyzing';
 
         return (

@@ -162,7 +162,7 @@ def sample_csv_with_bottleneck() -> bytes:
 async def uploaded_log_id(client: AsyncClient, sample_csv_with_multiple_variants: bytes) -> str:
     """Pre-upload a log and return its ID for dependent tests."""
     response = await client.post(
-        "/api/v1/logs/upload",
+        "/api/v1/datasets/upload",
         files={"file": ("test_variants.csv", sample_csv_with_multiple_variants, "text/csv")},
     )
     assert response.status_code == 200
@@ -177,7 +177,7 @@ async def discovered_model_id(client: AsyncClient, uploaded_log_id: str) -> str:
         json={"log_id": uploaded_log_id, "miner_type": "inductive", "model_name": "Test Model"},
     )
     assert response.status_code == 200
-    return response.json()["model_id"]
+    return response.json()["id"]
 
 
 # ============================================================================
@@ -231,7 +231,7 @@ def complex_ocel_jsonocel() -> bytes:
 async def uploaded_insurance_log_id(client: AsyncClient, insurance_small_csv: bytes) -> str:
     """Pre-upload insurance log and return ID."""
     response = await client.post(
-        "/api/processes/upload",
+        "/api/v1/datasets/upload",
         files={"file": ("test.csv", insurance_small_csv, "text/csv")},
     )
     assert response.status_code == 200
@@ -242,7 +242,7 @@ async def uploaded_insurance_log_id(client: AsyncClient, insurance_small_csv: by
 async def uploaded_ocel_log_id(client: AsyncClient, simple_ocel_jsonocel: bytes) -> str:
     """Pre-upload OCEL log and return ID."""
     response = await client.post(
-        "/api/ocpm/upload",
+        "/api/v1/ocpm/upload",
         files={"file": ("test.jsonocel", simple_ocel_jsonocel, "application/json")},
     )
     assert response.status_code == 200
@@ -253,7 +253,7 @@ async def uploaded_ocel_log_id(client: AsyncClient, simple_ocel_jsonocel: bytes)
 async def discovered_petri_net_id(client: AsyncClient, uploaded_insurance_log_id: str) -> str:
     """Pre-discover Petri net model and return ID."""
     response = await client.post(
-        "/api/discovery/discover",
+        "/api/v1/discovery/discover",
         json={
             "log_id": uploaded_insurance_log_id,
             "miner_type": "inductive",

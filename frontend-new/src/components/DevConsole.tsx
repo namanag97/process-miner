@@ -1,11 +1,32 @@
 /**
  * DevConsole - In-app developer console for debugging
  *
- * Shows API calls, errors, state changes in real-time.
- * Toggle with Ctrl+Shift+D or click the floating button.
+ * Enhanced with:
+ * - Importance scoring (1-5) for each log
+ * - Focus Mode to hide noise
+ * - Request flow correlation
+ * - Smart export with filtering and compression
+ * - Stuck request detection
  */
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Drawer, Badge, Button, Tabs, Tag, Typography, Space, Input, Switch, Tooltip } from 'antd';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import {
+  Drawer,
+  Badge,
+  Button,
+  Tabs,
+  Tag,
+  Typography,
+  Space,
+  Input,
+  Switch,
+  Tooltip,
+  Modal,
+  Checkbox,
+  Select,
+  Collapse,
+  Spin,
+  Divider,
+} from 'antd';
 import {
   BugOutlined,
   ApiOutlined,
@@ -15,12 +36,22 @@ import {
   DownloadOutlined,
   SearchOutlined,
   CloseOutlined,
+  FilterOutlined,
+  AimOutlined,
+  BranchesOutlined,
+  ClockCircleOutlined,
+  ExclamationCircleOutlined,
+  ThunderboltOutlined,
+  EyeInvisibleOutlined,
+  CopyOutlined,
+  CheckOutlined,
 } from '@ant-design/icons';
 import { registerDevConsoleCallback } from '@lumina/design-system';
 import { useBackendLogs } from '../hooks/useBackendLogs';
 import { BackendMetricsPanel } from './BackendMetricsPanel';
 
 const { Text } = Typography;
+const { Panel } = Collapse;
 
 // ============================================
 // Helpers
@@ -40,6 +71,7 @@ function formatLogData(data: unknown): string {
 // ============================================
 
 type LogLevel = 'info' | 'api-req' | 'api-res' | 'error' | 'action' | 'state' | 'query' | 'mutation';
+type Importance = 1 | 2 | 3 | 4 | 5; // 1=noise, 5=critical
 
 interface LogEntry {
   id: string;
@@ -50,6 +82,82 @@ interface LogEntry {
   data?: unknown;
   duration?: number;
   status?: number;
+  // Enhanced fields
+  importance: Importance;
+  correlationId?: string;
+  requestId?: string;
+  isPending?: boolean;
+  pendingSince?: Date;
+}
+
+interface ExportOptions {
+  timeRange: 'all' | '5min' | '10min' | '30min';
+  minImportance: Importance;
+  includeLevels: LogLevel[];
+  compressRepetitive: boolean;
+  includeFlowTimeline: boolean;
+}
+
+// ============================================
+// Importance Scoring
+// ============================================
+
+function calculateImportance(
+  level: LogLevel,
+  source: string,
+  message: string,
+  data?: unknown,
+  extra?: { duration?: number; status?: number }
+): Importance {
+  // Critical: Errors and failed requests
+  if (level === 'error') return 5;
+  if (extra?.status && extra.status >= 400) return 5;
+
+  // High: User actions, mutations, slow requests
+  if (level === 'mutation') return 4;
+  if (level === 'action') return 4;
+  if (extra?.duration && extra.duration > 1000) return 4;
+
+  // Medium: Successful API responses, state changes
+  if (level === 'api-res' && extra?.status && extra.status < 400) return 3;
+  if (level === 'state') return 3;
+  if (level === 'query') return 3;
+
+  // Low: API requests (waiting for response)
+  if (level === 'api-req') return 2;
+
+  // Noise: Heartbeats, connection logs, background polling
+  const noisePatterns = [
+    'heartbeat', 'connection', 'stream', 'poll', 'BE Connection',
+    'Backend Observability', 'metrics'
+  ];
+  const sourceAndMessage = `${source} ${message}`.toLowerCase();
+  if (noisePatterns.some(p => sourceAndMessage.includes(p.toLowerCase()))) {
+    return 1;
+  }
+
+  return 2; // Default: Low importance
+}
+
+// ============================================
+// Correlation ID Management
+// ============================================
+
+let correlationCounter = 0;
+let activeCorrelation: string | null = null;
+
+export function startCorrelation(action: string): string {
+  const id = `flow-${++correlationCounter}-${Date.now()}`;
+  activeCorrelation = id;
+  // Auto-expire after 30 seconds
+  setTimeout(() => {
+    if (activeCorrelation === id) activeCorrelation = null;
+  }, 30000);
+  return id;
+}
+
+export function getCurrentCorrelation(): string | null {
+  return activeCorrelation;
 }
 
 // ============================================
@@ -58,6 +166,7 @@ interface LogEntry {
 
 const MAX_LOGS = 500;
 let logs: LogEntry[] = [];
+const pendingRequests: Map<string, LogEntry> = new Map();
 const listeners: Set<() => void> = new Set();
 let idCounter = 0;
 
@@ -72,6 +181,15 @@ export function devConsoleLog(
   data?: unknown,
   extra?: { duration?: number; status?: number }
 ) {
+  const importance = calculateImportance(level, source, message, data, extra);
+  const correlationId = getCurrentCorrelation() || undefined;
+
+  // Extract request ID from source or data for correlation
+  let requestId: string | undefined;
+  if (typeof data === 'object' && data !== null && 'request_id' in data) {
+    requestId = (data as { request_id?: string }).request_id;
+  }
+
   const entry: LogEntry = {
     id: `log-${++idCounter}`,
     timestamp: new Date(),
@@ -79,8 +197,29 @@ export function devConsoleLog(
     source,
     message,
     data,
+    importance,
+    correlationId,
+    requestId,
     ...extra,
   };
+
+  // Track pending requests
+  if (level === 'api-req') {
+    const key = source; // e.g., "GET /api/v1/workspaces"
+    entry.isPending = true;
+    entry.pendingSince = new Date();
+    pendingRequests.set(key, entry);
+  }
+
+  // Match response to request
+  if (level === 'api-res') {
+    const key = source;
+    const pendingReq = pendingRequests.get(key);
+    if (pendingReq) {
+      pendingReq.isPending = false;
+      pendingRequests.delete(key);
+    }
+  }
 
   logs = [entry, ...logs].slice(0, MAX_LOGS);
   notifyListeners();
@@ -103,6 +242,7 @@ export function devConsoleLog(
 
 export function clearDevConsoleLogs() {
   logs = [];
+  pendingRequests.clear();
   notifyListeners();
 }
 
@@ -114,8 +254,10 @@ export const devLog = {
   info: (source: string, message: string, data?: unknown) =>
     devConsoleLog('info', source, message, data),
 
-  action: (source: string, message: string, data?: unknown) =>
-    devConsoleLog('action', source, message, data),
+  action: (source: string, message: string, data?: unknown) => {
+    startCorrelation(source); // Start correlation for user actions
+    devConsoleLog('action', source, message, data);
+  },
 
   state: (source: string, message: string, data?: unknown) =>
     devConsoleLog('state', source, message, data),
@@ -131,7 +273,40 @@ export const devLog = {
 };
 
 // ============================================
-// Log Entry Component
+// Importance Badge Component
+// ============================================
+
+function ImportanceBadge({ importance }: { importance: Importance }) {
+  const config = {
+    5: { color: '#ff4d4f', label: '!!', title: 'Critical' },
+    4: { color: '#fa8c16', label: '!', title: 'High' },
+    3: { color: '#1890ff', label: '•', title: 'Medium' },
+    2: { color: '#8c8c8c', label: '○', title: 'Low' },
+    1: { color: '#d9d9d9', label: '·', title: 'Noise' },
+  }[importance];
+
+  return (
+    <Tooltip title={`Importance: ${config.title}`}>
+      <span style={{
+        width: 16,
+        height: 16,
+        borderRadius: '50%',
+        background: config.color,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 10,
+        color: importance >= 4 ? 'white' : '#666',
+        fontWeight: 'bold',
+      }}>
+        {config.label}
+      </span>
+    </Tooltip>
+  );
+}
+
+// ============================================
+// Level Configuration
 // ============================================
 
 const levelConfig: Record<LogLevel, { color: string; icon: React.ReactNode; label: string }> = {
@@ -139,16 +314,39 @@ const levelConfig: Record<LogLevel, { color: string; icon: React.ReactNode; labe
   'api-req': { color: 'purple', icon: <ApiOutlined />, label: 'REQ' },
   'api-res': { color: 'cyan', icon: <ApiOutlined />, label: 'RES' },
   'error': { color: 'red', icon: <WarningOutlined />, label: 'ERROR' },
-  'action': { color: 'green', icon: <BugOutlined />, label: 'ACTION' },
+  'action': { color: 'green', icon: <ThunderboltOutlined />, label: 'ACTION' },
   'state': { color: 'orange', icon: <InfoCircleOutlined />, label: 'STATE' },
   'query': { color: 'geekblue', icon: <ApiOutlined />, label: 'QUERY' },
   'mutation': { color: 'magenta', icon: <ApiOutlined />, label: 'MUTATE' },
 };
 
-function LogEntryRow({ entry }: { entry: LogEntry }) {
+// ============================================
+// Log Entry Row Component
+// ============================================
+
+function LogEntryRow({ entry, showImportance }: { entry: LogEntry; showImportance: boolean }) {
   const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
   const config = levelConfig[entry.level];
   const time = entry.timestamp.toLocaleTimeString('en-US', { hour12: false });
+
+  // Check if pending for too long (>5s = stuck)
+  const isStuck = entry.isPending && entry.pendingSince &&
+    (new Date().getTime() - entry.pendingSince.getTime()) > 5000;
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const logText = JSON.stringify({
+      time: entry.timestamp.toISOString(),
+      level: entry.level,
+      source: entry.source,
+      message: entry.message,
+      data: entry.data,
+    }, null, 2);
+    navigator.clipboard.writeText(logText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div
@@ -156,17 +354,27 @@ function LogEntryRow({ entry }: { entry: LogEntry }) {
         padding: '8px 12px',
         borderBottom: '1px solid #f0f0f0',
         cursor: entry.data ? 'pointer' : 'default',
-        background: expanded ? '#fafafa' : 'white',
+        background: expanded ? '#fafafa' : entry.importance >= 4 ? '#fff7e6' : 'white',
+        borderLeft: entry.importance === 5 ? '3px solid #ff4d4f' :
+          entry.importance === 4 ? '3px solid #fa8c16' : 'none',
       }}
       onClick={() => entry.data && setExpanded(!expanded)}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {showImportance && <ImportanceBadge importance={entry.importance} />}
         <Text type="secondary" style={{ fontSize: 11, fontFamily: 'monospace', width: 70 }}>
           {time}
         </Text>
         <Tag color={config.color} style={{ margin: 0, fontSize: 10 }}>
           {config.label}
         </Tag>
+        {entry.isPending && (
+          <Tooltip title={isStuck ? 'Request stuck!' : 'Pending...'}>
+            <Tag color={isStuck ? 'red' : 'processing'} icon={isStuck ? <ExclamationCircleOutlined /> : <Spin size="small" />}>
+              {isStuck ? 'STUCK' : 'PENDING'}
+            </Tag>
+          </Tooltip>
+        )}
         <Text strong style={{ fontSize: 12, minWidth: 120 }}>
           {entry.source}
         </Text>
@@ -187,6 +395,14 @@ function LogEntryRow({ entry }: { entry: LogEntry }) {
             {entry.status}
           </Tag>
         )}
+        <Tooltip title={copied ? 'Copied!' : 'Copy log'}>
+          <Button
+            type="text"
+            size="small"
+            icon={copied ? <CheckOutlined style={{ color: '#52c41a' }} /> : <CopyOutlined />}
+            onClick={handleCopy}
+          />
+        </Tooltip>
       </div>
       {expanded && entry.data !== undefined && (
         <pre
@@ -212,6 +428,200 @@ function LogEntryRow({ entry }: { entry: LogEntry }) {
 }
 
 // ============================================
+// Flow Timeline View Component
+// ============================================
+
+function FlowTimelineView({ logs }: { logs: LogEntry[] }) {
+  // Group logs by correlation ID or by time proximity
+  const flows = useMemo(() => {
+    const flowMap = new Map<string, LogEntry[]>();
+
+    logs.forEach(log => {
+      if (log.correlationId) {
+        const existing = flowMap.get(log.correlationId) || [];
+        flowMap.set(log.correlationId, [...existing, log]);
+      }
+    });
+
+    // Also group action -> api-req -> api-res by time proximity
+    const ungrouped = logs.filter(l => !l.correlationId && l.importance >= 3);
+
+    return {
+      correlated: Array.from(flowMap.entries()).map(([id, items]) => ({
+        id,
+        action: items.find(i => i.level === 'action')?.source || 'Unknown Action',
+        logs: items.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()),
+        hasError: items.some(i => i.level === 'error' || (i.status && i.status >= 400)),
+        hasPending: items.some(i => i.isPending),
+      })),
+      ungrouped,
+    };
+  }, [logs]);
+
+  if (flows.correlated.length === 0) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center' }}>
+        <BranchesOutlined style={{ fontSize: 32, color: '#d9d9d9' }} />
+        <div style={{ marginTop: 8, color: '#888' }}>
+          No correlated flows yet. User actions will appear here with their API calls.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Collapse accordion>
+      {flows.correlated.map(flow => (
+        <Panel
+          key={flow.id}
+          header={
+            <Space>
+              <ThunderboltOutlined style={{ color: '#52c41a' }} />
+              <Text strong>{flow.action}</Text>
+              <Tag color={flow.hasError ? 'red' : flow.hasPending ? 'orange' : 'green'}>
+                {flow.hasError ? 'Error' : flow.hasPending ? 'Pending' : 'Complete'}
+              </Tag>
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                ({flow.logs.length} events)
+              </Text>
+            </Space>
+          }
+        >
+          <div style={{ paddingLeft: 16, borderLeft: '2px solid #d9d9d9' }}>
+            {flow.logs.map(log => (
+              <div key={log.id} style={{ padding: '4px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Text type="secondary" style={{ fontSize: 10, fontFamily: 'monospace' }}>
+                  {log.timestamp.toLocaleTimeString('en-US', { hour12: false })}
+                </Text>
+                <Tag color={levelConfig[log.level].color} style={{ margin: 0 }}>
+                  {levelConfig[log.level].label}
+                </Tag>
+                <Text style={{ fontSize: 12 }}>{log.message}</Text>
+                {log.duration && <Tag>{log.duration}ms</Tag>}
+                {log.status && <Tag color={log.status >= 400 ? 'red' : 'green'}>{log.status}</Tag>}
+              </div>
+            ))}
+          </div>
+        </Panel>
+      ))}
+    </Collapse>
+  );
+}
+
+// ============================================
+// Export Options Modal
+// ============================================
+
+function ExportModal({
+  open,
+  onClose,
+  onExport,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onExport: (options: ExportOptions) => void;
+}) {
+  const [options, setOptions] = useState<ExportOptions>({
+    timeRange: 'all',
+    minImportance: 1,
+    includeLevels: ['info', 'api-req', 'api-res', 'error', 'action', 'state', 'query', 'mutation'],
+    compressRepetitive: true,
+    includeFlowTimeline: true,
+  });
+
+  const quickPresets = [
+    { label: 'Errors Only', options: { minImportance: 5 as Importance, includeLevels: ['error'] as LogLevel[] } },
+    { label: 'Important (≥3)', options: { minImportance: 3 as Importance } },
+    { label: 'API Calls', options: { includeLevels: ['api-req', 'api-res'] as LogLevel[] } },
+    { label: 'User Actions', options: { includeLevels: ['action', 'mutation'] as LogLevel[] } },
+  ];
+
+  return (
+    <Modal
+      title={
+        <Space>
+          <DownloadOutlined />
+          <span>Export Logs</span>
+        </Space>
+      }
+      open={open}
+      onCancel={onClose}
+      onOk={() => onExport(options)}
+      okText="Export"
+      width={480}
+    >
+      <div style={{ marginBottom: 16 }}>
+        <Text strong>Quick Presets:</Text>
+        <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {quickPresets.map(preset => (
+            <Button
+              key={preset.label}
+              size="small"
+              onClick={() => setOptions(prev => ({ ...prev, ...preset.options }))}
+            >
+              {preset.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <Divider />
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div>
+          <Text strong>Time Range:</Text>
+          <Select
+            value={options.timeRange}
+            onChange={v => setOptions(prev => ({ ...prev, timeRange: v }))}
+            style={{ width: '100%', marginTop: 4 }}
+            options={[
+              { value: 'all', label: 'All logs' },
+              { value: '5min', label: 'Last 5 minutes' },
+              { value: '10min', label: 'Last 10 minutes' },
+              { value: '30min', label: 'Last 30 minutes' },
+            ]}
+          />
+        </div>
+
+        <div>
+          <Text strong>Minimum Importance:</Text>
+          <Select
+            value={options.minImportance}
+            onChange={v => setOptions(prev => ({ ...prev, minImportance: v }))}
+            style={{ width: '100%', marginTop: 4 }}
+            options={[
+              { value: 1, label: '1 - All (including noise)' },
+              { value: 2, label: '2 - Low and above' },
+              { value: 3, label: '3 - Medium and above' },
+              { value: 4, label: '4 - High and above' },
+              { value: 5, label: '5 - Critical only' },
+            ]}
+          />
+        </div>
+
+        <div>
+          <Checkbox
+            checked={options.compressRepetitive}
+            onChange={e => setOptions(prev => ({ ...prev, compressRepetitive: e.target.checked }))}
+          >
+            Compress repetitive logs (heartbeats, polling, etc.)
+          </Checkbox>
+        </div>
+
+        <div>
+          <Checkbox
+            checked={options.includeFlowTimeline}
+            onChange={e => setOptions(prev => ({ ...prev, includeFlowTimeline: e.target.checked }))}
+          >
+            Include user flow timeline summary
+          </Checkbox>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ============================================
 // DevConsole Component
 // ============================================
 
@@ -221,6 +631,8 @@ export function DevConsole() {
   const [filter, setFilter] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [autoScroll, setAutoScroll] = useState(true);
+  const [focusMode, setFocusMode] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Subscribe to log updates
@@ -265,28 +677,176 @@ export function DevConsole() {
   }, [logs.length, autoScroll]);
 
   // Filter logs
-  const filteredLogs = logs.filter((log) => {
-    if (activeTab !== 'all' && log.level !== activeTab) return false;
-    if (filter && !log.source.toLowerCase().includes(filter.toLowerCase()) &&
+  const filteredLogs = useMemo(() => {
+    return logs.filter((log) => {
+      // Focus mode: hide low importance
+      if (focusMode && log.importance < 3) return false;
+
+      // Tab filter
+      if (activeTab !== 'all' && activeTab !== 'flow' && activeTab !== 'pending') {
+        if (log.level !== activeTab) return false;
+      }
+
+      // Pending tab
+      if (activeTab === 'pending' && !log.isPending) return false;
+
+      // Text filter
+      if (filter && !log.source.toLowerCase().includes(filter.toLowerCase()) &&
         !log.message.toLowerCase().includes(filter.toLowerCase())) {
-      return false;
-    }
-    return true;
-  });
+        return false;
+      }
+      return true;
+    });
+  }, [logs, focusMode, activeTab, filter]);
 
   const errorCount = logs.filter((l) => l.level === 'error').length;
-  const apiCount = logs.filter((l) => l.level === 'api-req' || l.level === 'api-res').length;
+  const pendingCount = Array.from(pendingRequests.values()).length;
+  const stuckCount = Array.from(pendingRequests.values()).filter(
+    r => r.pendingSince && (new Date().getTime() - r.pendingSince.getTime()) > 5000
+  ).length;
 
-  const handleExport = useCallback(() => {
-    const data = JSON.stringify(logs, null, 2);
+  const handleExport = useCallback((options: ExportOptions) => {
+    const now = new Date();
+
+    // Filter by time range
+    let exportLogs = [...logs];
+    if (options.timeRange !== 'all') {
+      const minutes = { '5min': 5, '10min': 10, '30min': 30 }[options.timeRange] || 0;
+      const cutoff = new Date(now.getTime() - minutes * 60 * 1000);
+      exportLogs = exportLogs.filter(l => l.timestamp >= cutoff);
+    }
+
+    // Filter by importance
+    exportLogs = exportLogs.filter(l => l.importance >= options.minImportance);
+
+    // Filter by levels
+    if (options.includeLevels.length < 8) {
+      exportLogs = exportLogs.filter(l => options.includeLevels.includes(l.level));
+    }
+
+    // Compress repetitive logs
+    let compressedLogs: unknown[] = [];
+    if (options.compressRepetitive) {
+      const grouped = new Map<string, LogEntry[]>();
+      const singles: LogEntry[] = [];
+
+      exportLogs.forEach(log => {
+        // Group noise logs
+        if (log.importance === 1) {
+          const key = `${log.level}:${log.source}`;
+          grouped.set(key, [...(grouped.get(key) || []), log]);
+        } else {
+          singles.push(log);
+        }
+      });
+
+      // Add collapsed noise logs
+      grouped.forEach((items, key) => {
+        if (items.length > 3) {
+          compressedLogs.push({
+            _collapsed: true,
+            count: items.length,
+            pattern: key,
+            timeRange: {
+              start: items[items.length - 1].timestamp.toISOString(),
+              end: items[0].timestamp.toISOString(),
+            },
+            sample: {
+              level: items[0].level,
+              source: items[0].source,
+              message: items[0].message,
+            },
+          });
+        } else {
+          singles.push(...items);
+        }
+      });
+
+      // Add individual logs
+      compressedLogs.push(...singles.map(log => ({
+        timestamp: log.timestamp.toISOString(),
+        level: log.level,
+        source: log.source,
+        message: log.message,
+        data: log.data,
+        duration: log.duration,
+        status: log.status,
+        importance: log.importance,
+      })));
+    } else {
+      compressedLogs = exportLogs.map(log => ({
+        timestamp: log.timestamp.toISOString(),
+        level: log.level,
+        source: log.source,
+        message: log.message,
+        data: log.data,
+        duration: log.duration,
+        status: log.status,
+        importance: log.importance,
+      }));
+    }
+
+    // Build flow timeline
+    const flowTimeline: unknown[] = [];
+    if (options.includeFlowTimeline) {
+      const actions = exportLogs.filter(l => l.level === 'action' || l.level === 'mutation');
+      actions.forEach(action => {
+        const relatedLogs = exportLogs.filter(
+          l => l.correlationId === action.correlationId && l.id !== action.id
+        );
+        flowTimeline.push({
+          time: action.timestamp.toISOString(),
+          action: action.source,
+          message: action.message,
+          result: relatedLogs.some(l => l.level === 'error') ? 'error' :
+            relatedLogs.some(l => l.isPending) ? 'pending' : 'success',
+          apiCalls: relatedLogs.filter(l => l.level === 'api-req' || l.level === 'api-res').length,
+        });
+      });
+    }
+
+    // Build session summary
+    const sessionSummary = {
+      export_time: now.toISOString(),
+      time_range: options.timeRange,
+      duration_minutes: options.timeRange === 'all' ? null :
+        parseInt(options.timeRange.replace('min', '')),
+      total_logs: logs.length,
+      exported_logs: compressedLogs.length,
+      compression_ratio: logs.length > 0 ?
+        Math.round((1 - compressedLogs.length / logs.length) * 100) + '%' : '0%',
+      stats: {
+        errors: exportLogs.filter(l => l.level === 'error').length,
+        slow_requests: exportLogs.filter(l => l.duration && l.duration > 1000).length,
+        pending_requests: exportLogs.filter(l => l.isPending).length,
+        user_actions: exportLogs.filter(l => l.level === 'action').length,
+      },
+      critical_issues: [
+        ...exportLogs.filter(l => l.importance === 5).map(l => ({
+          type: l.level,
+          time: l.timestamp.toISOString(),
+          source: l.source,
+          message: l.message,
+        })),
+      ].slice(0, 10),
+    };
+
+    const exportData = {
+      session_summary: sessionSummary,
+      ...(options.includeFlowTimeline && flowTimeline.length > 0 && { user_flow_timeline: flowTimeline }),
+      logs: compressedLogs,
+    };
+
+    const data = JSON.stringify(exportData, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `dev-console-${new Date().toISOString()}.json`;
+    a.download = `dev-console-${now.toISOString().replace(/[:.]/g, '-')}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  }, []);
+    setShowExportModal(false);
+  }, [logs]);
 
   // Don't render in production
   if (process.env.NODE_ENV !== 'development') {
@@ -302,7 +862,7 @@ export function DevConsole() {
           shape="circle"
           size="large"
           icon={
-            <Badge count={errorCount} size="small" offset={[-5, 5]}>
+            <Badge count={errorCount + stuckCount} size="small" offset={[-5, 5]}>
               <BugOutlined />
             </Badge>
           }
@@ -313,7 +873,7 @@ export function DevConsole() {
             right: 24,
             zIndex: 999,
             boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-            background: errorCount > 0 ? '#ff4d4f' : '#1890ff',
+            background: stuckCount > 0 ? '#fa8c16' : errorCount > 0 ? '#ff4d4f' : '#1890ff',
           }}
         />
       </Tooltip>
@@ -326,6 +886,11 @@ export function DevConsole() {
             <span>Dev Console</span>
             <Tag color="blue">{logs.length} entries</Tag>
             {errorCount > 0 && <Tag color="red">{errorCount} errors</Tag>}
+            {pendingCount > 0 && (
+              <Tag color={stuckCount > 0 ? 'red' : 'orange'}>
+                {pendingCount} pending {stuckCount > 0 && `(${stuckCount} stuck)`}
+              </Tag>
+            )}
           </Space>
         }
         placement="bottom"
@@ -334,6 +899,16 @@ export function DevConsole() {
         onClose={() => setOpen(false)}
         extra={
           <Space>
+            <Tooltip title={focusMode ? 'Show all logs' : 'Hide noise (importance < 3)'}>
+              <Button
+                icon={focusMode ? <EyeInvisibleOutlined /> : <AimOutlined />}
+                size="small"
+                type={focusMode ? 'primary' : 'default'}
+                onClick={() => setFocusMode(!focusMode)}
+              >
+                {focusMode ? 'Focus ON' : 'Focus'}
+              </Button>
+            </Tooltip>
             <Switch
               checkedChildren="Auto-scroll"
               unCheckedChildren="Manual"
@@ -341,7 +916,7 @@ export function DevConsole() {
               onChange={setAutoScroll}
               size="small"
             />
-            <Button icon={<DownloadOutlined />} size="small" onClick={handleExport}>
+            <Button icon={<DownloadOutlined />} size="small" onClick={() => setShowExportModal(true)}>
               Export
             </Button>
             <Button icon={<ClearOutlined />} size="small" danger onClick={clearDevConsoleLogs}>
@@ -362,14 +937,12 @@ export function DevConsole() {
             size="small"
             style={{ flex: 1 }}
             items={[
-              { key: 'all', label: `All (${logs.length})` },
-              { key: 'api-req', label: `API Req (${logs.filter(l => l.level === 'api-req').length})` },
-              { key: 'api-res', label: `API Res (${logs.filter(l => l.level === 'api-res').length})` },
-              { key: 'query', label: `Queries (${logs.filter(l => l.level === 'query').length})` },
-              { key: 'mutation', label: `Mutations (${logs.filter(l => l.level === 'mutation').length})` },
+              { key: 'all', label: `All (${logs.filter(l => !focusMode || l.importance >= 3).length})` },
+              { key: 'flow', label: <span><BranchesOutlined /> Flows</span> },
               { key: 'error', label: <span style={{ color: errorCount > 0 ? '#ff4d4f' : undefined }}>Errors ({errorCount})</span> },
+              { key: 'pending', label: <span style={{ color: pendingCount > 0 ? '#fa8c16' : undefined }}>Pending ({pendingCount})</span> },
               { key: 'action', label: `Actions (${logs.filter(l => l.level === 'action').length})` },
-              { key: 'state', label: `State (${logs.filter(l => l.level === 'state').length})` },
+              { key: 'api-res', label: `API (${logs.filter(l => l.level === 'api-res').length})` },
             ]}
           />
           <Input
@@ -383,25 +956,42 @@ export function DevConsole() {
           />
         </div>
 
-        {/* Log List */}
-        <div
-          ref={listRef}
-          style={{
-            height: 'calc(50vh - 140px)',
-            overflow: 'auto',
-            border: '1px solid #f0f0f0',
-            borderRadius: 4,
-          }}
-        >
-          {filteredLogs.length === 0 ? (
-            <div style={{ padding: 40, textAlign: 'center' }}>
-              <Text type="secondary">No logs yet. Actions, API calls, and errors will appear here.</Text>
-            </div>
-          ) : (
-            filteredLogs.map((entry) => <LogEntryRow key={entry.id} entry={entry} />)
-          )}
-        </div>
+        {/* Log List or Flow View */}
+        {activeTab === 'flow' ? (
+          <FlowTimelineView logs={logs} />
+        ) : (
+          <div
+            ref={listRef}
+            style={{
+              height: 'calc(50vh - 200px)',
+              overflow: 'auto',
+              border: '1px solid #f0f0f0',
+              borderRadius: 4,
+            }}
+          >
+            {filteredLogs.length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center' }}>
+                <Text type="secondary">
+                  {focusMode
+                    ? 'No important logs yet. Disable Focus mode to see all logs.'
+                    : 'No logs yet. Actions, API calls, and errors will appear here.'}
+                </Text>
+              </div>
+            ) : (
+              filteredLogs.map((entry) => (
+                <LogEntryRow key={entry.id} entry={entry} showImportance={!focusMode} />
+              ))
+            )}
+          </div>
+        )}
       </Drawer>
+
+      {/* Export Modal */}
+      <ExportModal
+        open={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExport}
+      />
     </>
   );
 }

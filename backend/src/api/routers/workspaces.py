@@ -198,9 +198,9 @@ async def delete_workspace(
     workspace_id: str,
 ) -> None:
     """
-    Delete a workspace.
+    Delete a workspace and all its projects.
 
-    Note: Projects in this workspace will have their workspace_id set to NULL.
+    BUG-036 FIX: Now deletes projects instead of orphaning them.
     """
     result = await db.execute(select(Workspace).filter(Workspace.id == workspace_id))
     workspace = result.scalar_one_or_none()
@@ -208,12 +208,10 @@ async def delete_workspace(
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
 
-    # Unlink projects (they remain, just not in a workspace)
-    from sqlalchemy import update
+    # BUG-036 FIX: Delete projects instead of orphaning
+    from sqlalchemy import delete
     await db.execute(
-        update(Project)
-        .where(Project.workspace_id == workspace_id)
-        .values(workspace_id=None)
+        delete(Project).where(Project.workspace_id == workspace_id)
     )
 
     await db.delete(workspace)

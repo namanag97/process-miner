@@ -5,6 +5,9 @@
  * - Detecting columns from uploaded CSV file
  * - Starting analysis (triggering /ingest endpoint)
  * - Polling job status
+ * 
+ * BUG-043 FIX: Added auth header injection
+ * BUG-045 FIX: Added AbortController support for cancellation
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -32,12 +35,14 @@ export interface ColumnDetectionResponse {
         resource?: string;
     };
     sample_rows: Record<string, unknown>[];
+    row_count?: number;
 }
 
 export interface AnalyzeResponse {
-    job_id: string;
+    id: string;
+    job_type: string;
     status: string;
-    dataset_id: string;
+    progress?: number;
 }
 
 export interface JobStatus {
@@ -49,14 +54,37 @@ export interface JobStatus {
 }
 
 // ============================================
+// BUG-043 FIX: Auth Header Helper
+// ============================================
+
+function getAuthHeaders(): Record<string, string> {
+    // Get token from localStorage (set by auth context)
+    const token = localStorage.getItem('auth_token');
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+    };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+}
+
+// ============================================
 // Column Detection
 // ============================================
 
-async function detectColumns(datasetId: string): Promise<ColumnDetectionResponse> {
+async function detectColumns(
+    datasetId: string,
+    signal?: AbortSignal
+): Promise<ColumnDetectionResponse> {
     const apiUrl = `${env.API_BASE_URL}/api/v1/datasets/${datasetId}/detect-columns`;
     console.log('[AnalyzeDataset] Detecting columns:', apiUrl);
 
-    const response = await fetch(apiUrl);
+    // BUG-043 & BUG-045 FIX: Add auth headers and abort signal
+    const response = await fetch(apiUrl, {
+        headers: getAuthHeaders(),
+        signal,
+    });
 
     if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'Failed to detect columns' }));
@@ -69,7 +97,7 @@ async function detectColumns(datasetId: string): Promise<ColumnDetectionResponse
 export function useDetectColumns(datasetId: string | null) {
     return useQuery({
         queryKey: ['datasets', datasetId, 'columns'],
-        queryFn: () => detectColumns(datasetId!),
+        queryFn: ({ signal }) => detectColumns(datasetId!, signal),
         enabled: !!datasetId,
         staleTime: 5 * 60 * 1000, // Columns don't change
     });
@@ -82,19 +110,23 @@ export function useDetectColumns(datasetId: string | null) {
 interface StartAnalysisParams {
     datasetId: string;
     mapping: ColumnMapping;
+    signal?: AbortSignal;
 }
 
 async function startAnalysis({
     datasetId,
     mapping,
+    signal,
 }: StartAnalysisParams): Promise<AnalyzeResponse> {
     const apiUrl = `${env.API_BASE_URL}/api/v1/datasets/${datasetId}/ingest`;
     console.log('[AnalyzeDataset] Starting analysis:', apiUrl);
 
+    // BUG-043 & BUG-045 FIX: Add auth headers and abort signal
     const response = await fetch(apiUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(mapping),
+        signal,
     });
 
     if (!response.ok) {
@@ -117,6 +149,11 @@ export function useStartAnalysis() {
             queryClient.invalidateQueries({ queryKey: queryKeys.projects.all() });
         },
         onError: (error: Error) => {
+            // BUG-045 FIX: Don't show error for aborted requests
+            if (error.name === 'AbortError') {
+                console.log('[AnalyzeDataset] Request was cancelled');
+                return;
+            }
             message.error(error.message || 'Failed to start analysis');
         },
     });
@@ -126,9 +163,14 @@ export function useStartAnalysis() {
 // Job Status Polling
 // ============================================
 
-async function getJobStatus(jobId: string): Promise<JobStatus> {
+async function getJobStatus(jobId: string, signal?: AbortSignal): Promise<JobStatus> {
     const apiUrl = `${env.API_BASE_URL}/api/v1/jobs/${jobId}`;
-    const response = await fetch(apiUrl);
+
+    // BUG-043 & BUG-045 FIX: Add auth headers and abort signal
+    const response = await fetch(apiUrl, {
+        headers: getAuthHeaders(),
+        signal,
+    });
 
     if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'Failed to get job status' }));
@@ -141,7 +183,7 @@ async function getJobStatus(jobId: string): Promise<JobStatus> {
 export function useJobStatus(jobId: string | null, options?: { refetchInterval?: number }) {
     return useQuery({
         queryKey: ['jobs', jobId],
-        queryFn: () => getJobStatus(jobId!),
+        queryFn: ({ signal }) => getJobStatus(jobId!, signal),
         enabled: !!jobId,
         refetchInterval: (query) => {
             // Stop polling when job is complete
@@ -153,3 +195,4 @@ export function useJobStatus(jobId: string | null, options?: { refetchInterval?:
         },
     });
 }
+

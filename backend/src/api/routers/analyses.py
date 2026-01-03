@@ -24,10 +24,30 @@ from src.models.schemas import (
     VariantResponse,
 )
 from src.services.mining import mining_service
+from src.services.analysis_registry import analysis_registry
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/analyses", tags=["Analyses"])
+
+
+# =============================================================================
+# Metadata Endpoint (BUG-007: Dynamic Analysis Discovery)
+# =============================================================================
+
+
+@router.get("/metadata")
+async def get_analysis_metadata() -> dict:
+    """
+    Get metadata for all available analysis types.
+
+    This endpoint enables dynamic UI generation - the frontend can discover
+    all available analysis types, their configuration schemas, and result types
+    without hardcoding them.
+
+    Returns a registry of 70+ analysis types with their schemas.
+    """
+    return analysis_registry.get_metadata()
 
 
 # =============================================================================
@@ -53,7 +73,7 @@ def _analysis_to_response(analysis: Analysis) -> AnalysisResponse:
 
     return AnalysisResponse(
         id=analysis.id,
-        log_id=analysis.log_id,
+        dataset_id=analysis.dataset_id,  # BUG-001 FIX
         name=analysis.name,
         analysis_type=analysis.analysis_type,
         status=analysis.status,
@@ -71,7 +91,7 @@ def _analysis_to_response(analysis: Analysis) -> AnalysisResponse:
 # =============================================================================
 
 
-@router.post("", response_model=AnalysisResponse, status_code=201)
+@router.post("", response_model=AnalysisResponse, status_code=202)
 async def create_analysis(
     db: DBSession,
     log_id: str,
@@ -95,9 +115,8 @@ async def create_analysis(
     if not event_log:
         raise HTTPException(status_code=404, detail=f"Event log not found: {log_id}")
 
-    # Create analysis record
     analysis = Analysis(
-        log_id=log_id,
+        dataset_id=log_id,  # BUG-001 FIX: ORM uses dataset_id
         name=request.name,
         analysis_type=request.analysis_type,
         config_json=json.dumps(request.config) if request.config else None,
@@ -106,47 +125,22 @@ async def create_analysis(
     db.add(analysis)
     await db.flush()
 
-    # For now, run inline (future: queue async job)
-    try:
-        analysis.status = AnalysisStatus.RUNNING.value
-        await db.flush()
+    # Queue async background task
+    from src.infrastructure.tasks import perform_analysis_task
 
-        if request.analysis_type == AnalysisType.DISCOVERY.value:
-            # Run discovery and save model
-            miner_type = request.config.get("miner_type", "inductive")
-            from src.core.enums import MinerType
-            miner = MinerType(miner_type) if miner_type else MinerType.INDUCTIVE
-            
-            # Get DFG for summary
-            dfg_data = mining_service.get_dfg_fast(log_id)
-            
-            analysis.result_summary_json = json.dumps({
-                "nodes_count": len(dfg_data.get("nodes", [])),
-                "edges_count": len(dfg_data.get("edges", [])),
-                "start_activities": list(dfg_data.get("start_activities", {}).keys()),
-                "end_activities": list(dfg_data.get("end_activities", {}).keys()),
-            })
+    task = perform_analysis_task.delay(
+        analysis_id=analysis.id,
+        log_id=log_id,
+        analysis_type=request.analysis_type,
+        config=request.config or {},
+    )
 
-        elif request.analysis_type == AnalysisType.VARIANTS.value:
-            # Get variants
-            variants_data = mining_service.get_variants_fast(log_id, top_n=50)
-            analysis.result_summary_json = json.dumps({
-                "total_variants": variants_data.get("total_variants", 0),
-                "top_variant": variants_data.get("top_variants", [{}])[0] if variants_data.get("top_variants") else None,
-            })
-
-        else:
-            # Generic: just get statistics
-            stats = mining_service.get_statistics_fast(log_id)
-            analysis.result_summary_json = json.dumps(stats)
-
-        analysis.status = AnalysisStatus.COMPLETED.value
-        analysis.completed_at = datetime.utcnow()
-
-    except Exception as e:
-        logger.error("create_analysis_failed", error=str(e), log_id=log_id)
-        analysis.status = AnalysisStatus.FAILED.value
-        analysis.error_message = str(e)
+    logger.info(
+        "analysis_task_queued",
+        analysis_id=analysis.id,
+        task_id=task.id,
+        log_id=log_id,
+    )
 
     await db.commit()
     await db.refresh(analysis)
@@ -173,12 +167,12 @@ async def list_analyses(
     query = select(Analysis).order_by(Analysis.created_at.desc())
 
     if log_id:
-        query = query.where(Analysis.log_id == log_id)
+        query = query.where(Analysis.dataset_id == log_id)  # BUG-001 FIX
 
     # Count total
     count_query = select(func.count()).select_from(Analysis)
     if log_id:
-        count_query = count_query.where(Analysis.log_id == log_id)
+        count_query = count_query.where(Analysis.dataset_id == log_id)  # BUG-001 FIX
     total = await db.scalar(count_query) or 0
 
     # Paginate
@@ -228,36 +222,44 @@ async def get_analysis(
 
     if include_results and analysis.status == AnalysisStatus.COMPLETED.value:
         try:
-            # Load live data for the analysis
-            dfg_data = mining_service.get_dfg_fast(analysis.log_id)
-            detail.dfg = DFGResponse(**dfg_data)
+            # Use cached results from result_json (BUG-003 fix)
+            if analysis.result_json:
+                result_data = json.loads(analysis.result_json)
 
-            variants_data = mining_service.get_variants_fast(analysis.log_id, top_n=20)
-            detail.variants = [
-                VariantResponse(
-                    variant_key=v["variant"],
-                    activity_trace=v["variant"],
-                    activities=v["variant"].split(" -> "),
-                    case_count=v["count"],
-                    frequency_percent=0,  # Would need total cases to calculate
-                )
-                for v in variants_data.get("top_variants", [])
-            ]
+                # Extract DFG if present
+                if "dfg" in result_data:
+                    detail.dfg = DFGResponse(**result_data["dfg"])
 
-            stats_data = mining_service.get_statistics_fast(analysis.log_id)
-            detail.statistics = StatisticsResponse(
-                total_events=stats_data.get("total_events", 0),
-                total_cases=stats_data.get("total_cases", 0),
-                total_activities=stats_data.get("total_activities", 0),
-                total_variants=stats_data.get("total_variants", 0),
-                activities=stats_data.get("activities", []),
-                start_activities=stats_data.get("start_activities", {}),
-                end_activities=stats_data.get("end_activities", {}),
-                avg_case_duration_seconds=stats_data.get("avg_case_duration_seconds"),
-                min_case_duration_seconds=stats_data.get("min_case_duration_seconds"),
-                max_case_duration_seconds=stats_data.get("max_case_duration_seconds"),
-                date_range=stats_data.get("date_range"),
-            )
+                # Extract variants if present
+                if "variants" in result_data:
+                    variants_data = result_data["variants"]
+                    detail.variants = [
+                        VariantResponse(
+                            variant_key=v["variant"],
+                            activity_trace=v["variant"],
+                            activities=v["variant"].split(" -> "),
+                            case_count=v["count"],
+                            frequency_percent=0,  # Would need total cases to calculate
+                        )
+                        for v in variants_data.get("top_variants", [])
+                    ]
+
+                # Extract statistics if present
+                if "statistics" in result_data:
+                    stats_data = result_data["statistics"]
+                    detail.statistics = StatisticsResponse(
+                        total_events=stats_data.get("total_events", 0),
+                        total_cases=stats_data.get("total_cases", 0),
+                        total_activities=stats_data.get("total_activities", 0),
+                        total_variants=stats_data.get("total_variants", 0),
+                        activities=stats_data.get("activities", []),
+                        start_activities=stats_data.get("start_activities", {}),
+                        end_activities=stats_data.get("end_activities", {}),
+                        avg_case_duration_seconds=stats_data.get("avg_case_duration_seconds"),
+                        min_case_duration_seconds=stats_data.get("min_case_duration_seconds"),
+                        max_case_duration_seconds=stats_data.get("max_case_duration_seconds"),
+                        date_range=stats_data.get("date_range"),
+                    )
         except Exception as e:
             logger.warning("get_analysis_results_failed", error=str(e), analysis_id=analysis_id)
 
@@ -304,7 +306,7 @@ async def list_analyses_for_log(
 
     result = await db.execute(
         select(Analysis)
-        .where(Analysis.log_id == log_id)
+        .where(Analysis.dataset_id == log_id)  # BUG-001 FIX
         .order_by(Analysis.created_at.desc())
     )
     analyses = result.scalars().all()

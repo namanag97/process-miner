@@ -185,7 +185,7 @@ export function ExplorerDetailPage() {
     const avgThroughputTime =
       variantsWithDuration.length > 0
         ? variantsWithDuration.reduce((sum, v) => sum + v.avgDurationSeconds * v.caseCount, 0) /
-          variantsWithDuration.reduce((sum, v) => sum + v.caseCount, 0)
+        variantsWithDuration.reduce((sum, v) => sum + v.caseCount, 0)
         : undefined;
 
     const happyPathPercent = processedVariants[0]?.frequencyPercent;
@@ -516,7 +516,105 @@ export function ExplorerDetailPage() {
   // RENDER
   // =============================================================================
 
-  // Error state
+  // Check logInfo loading FIRST - we need to know the status before proceeding
+  if (logLoading) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          margin: -24,
+        }}
+      >
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  // Dataset status validation - check if ready for analysis BEFORE checking DFG errors
+  // This prevents showing DFG errors for datasets that haven't been analyzed yet
+  const datasetStatus = (logInfo as any)?.status;
+
+  // If we have no logInfo or status, something is wrong
+  if (!logInfo) {
+    return (
+      <div style={{ padding: 24 }}>
+        <Alert
+          message="Dataset Not Found"
+          description="This dataset may have been deleted or does not exist."
+          type="warning"
+          showIcon
+          action={
+            <Button type="primary" onClick={() => navigate(getBackPath())}>
+              Go Back
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  // UNSTRUCTURED: Dataset needs column mapping
+  if (datasetStatus === 'unstructured') {
+    return (
+      <div style={{ padding: tokens.spacing[8], maxWidth: 640, margin: '0 auto' }}>
+        <Alert
+          message="Column Mapping Required"
+          description="Before exploring your process, you need to map the columns in your dataset. This tells us which columns contain the Case ID, Activity, and Timestamp."
+          type="info"
+          showIcon
+          action={
+            <Button type="primary" onClick={() => navigate(getBackPath())}>
+              Go to Project to Analyze
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  // ANALYZING: Dataset is being processed
+  if (datasetStatus === 'analyzing') {
+    return (
+      <div style={{ padding: tokens.spacing[8], maxWidth: 640, margin: '0 auto' }}>
+        <Alert
+          message="Processing Your Data..."
+          description="Your dataset is being analyzed. This may take a few moments depending on the file size."
+          type="info"
+          showIcon
+          icon={<Spin />}
+          action={
+            <Button onClick={() => window.location.reload()}>
+              Check Status
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  // ERROR: Analysis failed
+  if (datasetStatus === 'error') {
+    return (
+      <div style={{ padding: tokens.spacing[8], maxWidth: 640, margin: '0 auto' }}>
+        <Alert
+          message="Analysis Failed"
+          description="There was an error processing your dataset. Please go back and try again."
+          type="error"
+          showIcon
+          action={
+            <Button type="primary" onClick={() => navigate(getBackPath())}>
+              Go to Project to Retry
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  // Now check for DFG/variants/activities errors (only for READY datasets)
   if (error) {
     const errorMessages = [
       dfgError && `DFG: ${(dfgError as Error).message}`,
@@ -525,10 +623,10 @@ export function ExplorerDetailPage() {
     ].filter(Boolean).join(' | ');
 
     const is404 = errorMessages.toLowerCase().includes('not found') ||
-                  errorMessages.includes('404');
+      errorMessages.includes('404');
     const isNetworkError = errorMessages.toLowerCase().includes('network') ||
-                           errorMessages.toLowerCase().includes('unable to reach') ||
-                           errorMessages.toLowerCase().includes('failed to fetch');
+      errorMessages.toLowerCase().includes('unable to reach') ||
+      errorMessages.toLowerCase().includes('failed to fetch');
 
     if (is404) {
       return (

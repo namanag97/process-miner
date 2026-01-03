@@ -72,7 +72,7 @@ class MiningService:
         """
         logger.info(
             "discovery_algorithm_started",
-            log_id=event_log.id,
+            dataset_id=event_log.id,
             miner_type=miner_type.value,
             total_cases=event_log.total_cases,
             total_events=event_log.total_events,
@@ -200,7 +200,7 @@ class MiningService:
         Returns:
             Tuple of ((net, im, fm), ModelFormat.PETRI_NET)
         """
-        logger.info("discover_ilp_started", log_id=event_log.id, alpha=alpha)
+        logger.info("discover_ilp_started", dataset_id=event_log.id, alpha=alpha)
         start_time = time.perf_counter()
         
         pm4py_log = self._to_pm4py_log(event_log)
@@ -223,7 +223,7 @@ class MiningService:
         Returns:
             Tuple of (powl_model, ModelFormat.POWL)
         """
-        logger.info("discover_powl_started", log_id=event_log.id)
+        logger.info("discover_powl_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
         
         pm4py_log = self._to_pm4py_log(event_log)
@@ -245,7 +245,7 @@ class MiningService:
         Returns:
             Tuple of (bpmn_model, ModelFormat.BPMN)
         """
-        logger.info("discover_bpmn_started", log_id=event_log.id)
+        logger.info("discover_bpmn_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
         
         pm4py_log = self._to_pm4py_log(event_log)
@@ -268,7 +268,7 @@ class MiningService:
         Returns:
             Tuple of (declare_model, ModelFormat.DECLARE)
         """
-        logger.info("discover_declare_started", log_id=event_log.id)
+        logger.info("discover_declare_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
         
         pm4py_log = self._to_pm4py_log(event_log)
@@ -296,7 +296,7 @@ class MiningService:
         Returns:
             Tuple of (log_skeleton, ModelFormat.LOG_SKELETON)
         """
-        logger.info("discover_log_skeleton_started", log_id=event_log.id)
+        logger.info("discover_log_skeleton_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
         
         pm4py_log = self._to_pm4py_log(event_log)
@@ -319,7 +319,7 @@ class MiningService:
         Returns:
             Tuple of (temporal_profile, ModelFormat.TEMPORAL_PROFILE)
         """
-        logger.info("discover_temporal_profile_started", log_id=event_log.id)
+        logger.info("discover_temporal_profile_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
         
         pm4py_log = self._to_pm4py_log(event_log)
@@ -342,7 +342,7 @@ class MiningService:
         Returns:
             Tuple of (prefix_tree, ModelFormat.PREFIX_TREE)
         """
-        logger.info("discover_prefix_tree_started", log_id=event_log.id)
+        logger.info("discover_prefix_tree_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
         
         pm4py_log = self._to_pm4py_log(event_log)
@@ -372,7 +372,7 @@ class MiningService:
         Returns:
             Tuple of (transition_system, ModelFormat.TRANSITION_SYSTEM)
         """
-        logger.info("discover_transition_system_started", log_id=event_log.id)
+        logger.info("discover_transition_system_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
         
         pm4py_log = self._to_pm4py_log(event_log)
@@ -399,7 +399,7 @@ class MiningService:
         Returns:
             Tuple of (batches_dict, ModelFormat.BATCHES)
         """
-        logger.info("discover_batches_started", log_id=event_log.id)
+        logger.info("discover_batches_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
         
         pm4py_log = self._to_pm4py_log(event_log)
@@ -431,7 +431,7 @@ class MiningService:
         Returns:
             Tuple of ((dfg, performance_dfg), ModelFormat.DFG)
         """
-        logger.info("discover_correlation_started", log_id=event_log.id)
+        logger.info("discover_correlation_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
         
         pm4py_log = self._to_pm4py_log(event_log)
@@ -896,8 +896,13 @@ class MiningService:
         return pickle.dumps(model_data)
 
     def deserialize_model(self, data: bytes) -> Any:
-        """Deserialize model from storage."""
-        return pickle.loads(data)
+        """Deserialize model from storage.
+        
+        Uses restricted unpickler to prevent RCE attacks.
+        """
+        from src.core.safe_unpickler import safe_loads
+        # BUG-028 FIX: Use safe_loads instead of pickle.loads
+        return safe_loads(data)
 
     # =========================================================================
     # Helpers
@@ -1061,13 +1066,13 @@ class MiningService:
             "Use event_log_loader.load_as_pm4py_log(log_id) instead for 10x better performance."
         )
 
-    def to_pm4py_dataframe(self, log_id: str, connection) -> "pd.DataFrame":
+    def to_pm4py_dataframe(self, dataset_id: str, connection) -> "pd.DataFrame":
         """Convert EventLog to PM4Py-compatible DataFrame using direct SQL.
         
         This is ~10x faster than ORM-based conversion for large datasets.
         
         Args:
-            log_id: The EventLog ID
+            dataset_id: The Dataset ID
             connection: SQLAlchemy sync connection (from engine.connect())
             
         Returns:
@@ -1085,11 +1090,11 @@ class MiningService:
                 pe.resource as "org:resource"
             FROM process_events pe
             JOIN process_cases pc ON pe.case_ref_id = pc.id
-            WHERE pc.log_id = :log_id
+            WHERE pc.dataset_id = :dataset_id
             ORDER BY pc.case_id, pe.timestamp
         """
         
-        df = pd.read_sql(query, connection, params={"log_id": log_id})
+        df = pd.read_sql(query, connection, params={"dataset_id": dataset_id})
         
         # Convert timestamp column to datetime if needed
         if "time:timestamp" in df.columns:
@@ -1106,7 +1111,7 @@ class MiningService:
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info(
             "sql_to_pm4py_dataframe",
-            log_id=log_id,
+            dataset_id=dataset_id,
             rows=len(df),
             duration_ms=round(duration_ms, 2),
         )
@@ -1160,7 +1165,7 @@ class MiningService:
 
     def discover_fast(
         self,
-        log_id: str,
+        dataset_id: str,
         miner_type: MinerType = MinerType.INDUCTIVE,
     ) -> tuple[Any, ModelFormat]:
         """
@@ -1169,7 +1174,7 @@ class MiningService:
         Uses EventLogLoader with DuckDB for ~10x faster loading than ORM.
         
         Args:
-            log_id: UUID of the event log
+            dataset_id: UUID of the dataset
             miner_type: Mining algorithm to use
             
         Returns:
@@ -1179,13 +1184,13 @@ class MiningService:
         
         logger.info(
             "discover_fast_started",
-            log_id=log_id,
+            dataset_id=dataset_id,
             miner_type=miner_type.value,
         )
         start_time = time.perf_counter()
         
         # Load as DataFrame (fast path via DuckDB)
-        df = event_log_loader.load_as_dataframe(log_id)
+        df = event_log_loader.load_as_dataframe(dataset_id)
         load_ms = (time.perf_counter() - start_time) * 1000
         logger.debug("discover_fast_data_loaded", duration_ms=round(load_ms, 2))
         
@@ -1195,32 +1200,32 @@ class MiningService:
         total_ms = (time.perf_counter() - start_time) * 1000
         logger.info(
             "discover_fast_completed",
-            log_id=log_id,
+            dataset_id=dataset_id,
             miner_type=miner_type.value,
             total_duration_ms=round(total_ms, 2),
         )
         
         return result
 
-    def get_dfg_fast(self, log_id: str) -> dict[str, Any]:
+    def get_dfg_fast(self, dataset_id: str) -> dict[str, Any]:
         """
         Get DFG as structured data using SQL-based computation.
         
         ~10x faster than ORM-based get_dfg_data() for large logs.
         
         Args:
-            log_id: UUID of the event log
+            dataset_id: UUID of the dataset
             
         Returns:
             Dictionary with nodes, edges, start/end activities, total_frequency
         """
         from src.services.event_log_loader import event_log_loader
         
-        logger.info("get_dfg_fast_started", log_id=log_id)
+        logger.info("get_dfg_fast_started", dataset_id=dataset_id)
         start_time = time.perf_counter()
         
         # Get DFG via SQL
-        dfg, start_activities, end_activities = event_log_loader.load_dfg(log_id)
+        dfg, start_activities, end_activities = event_log_loader.load_dfg(dataset_id)
         
         # Build nodes (unique activities)
         all_activities = set()
@@ -1264,7 +1269,7 @@ class MiningService:
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info(
             "get_dfg_fast_completed",
-            log_id=log_id,
+            dataset_id=dataset_id,
             nodes=len(nodes),
             edges=len(edges),
             duration_ms=round(duration_ms, 2),
@@ -1278,14 +1283,14 @@ class MiningService:
             "total_frequency": total_freq,
         }
 
-    def get_variants_fast(self, log_id: str, top_n: int = 20) -> dict[str, Any]:
+    def get_variants_fast(self, dataset_id: str, top_n: int = 20) -> dict[str, Any]:
         """
         Get process variants using SQL-based computation.
         
         ~10x faster than ORM-based get_variants() for large logs.
         
         Args:
-            log_id: UUID of the event log
+            dataset_id: UUID of the dataset
             top_n: Number of top variants to return
             
         Returns:
@@ -1293,15 +1298,15 @@ class MiningService:
         """
         from src.services.event_log_loader import event_log_loader
         
-        logger.info("get_variants_fast_started", log_id=log_id, top_n=top_n)
+        logger.info("get_variants_fast_started", dataset_id=dataset_id, top_n=top_n)
         start_time = time.perf_counter()
         
-        variants = event_log_loader.load_variants(log_id, top_k=top_n)
+        variants = event_log_loader.load_variants(dataset_id, top_k=top_n)
         
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info(
             "get_variants_fast_completed",
-            log_id=log_id,
+            dataset_id=dataset_id,
             variants_returned=len(variants),
             duration_ms=round(duration_ms, 2),
         )
@@ -1314,28 +1319,28 @@ class MiningService:
             "total_variants": len(variants),  # Note: this is capped by top_n
         }
 
-    def get_statistics_fast(self, log_id: str) -> dict[str, Any]:
+    def get_statistics_fast(self, dataset_id: str) -> dict[str, Any]:
         """
         Get event log statistics using SQL-based computation.
         
         Args:
-            log_id: UUID of the event log
+            dataset_id: UUID of the dataset
             
         Returns:
             Dictionary with statistics
         """
         from src.services.event_log_loader import event_log_loader
         
-        logger.info("get_statistics_fast_started", log_id=log_id)
+        logger.info("get_statistics_fast_started", dataset_id=dataset_id)
         start_time = time.perf_counter()
         
-        stats = event_log_loader.load_statistics(log_id)
-        start_activities, end_activities = event_log_loader.load_start_end_activities(log_id)
+        stats = event_log_loader.load_statistics(dataset_id)
+        start_activities, end_activities = event_log_loader.load_start_end_activities(dataset_id)
         
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info(
             "get_statistics_fast_completed",
-            log_id=log_id,
+            dataset_id=dataset_id,
             duration_ms=round(duration_ms, 2),
         )
         

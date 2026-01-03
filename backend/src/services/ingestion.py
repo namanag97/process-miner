@@ -60,11 +60,11 @@ class IngestionService:
             delimiter,
         )
 
-        # Create event log
-        log_name = name or Path(filename).stem
-        event_log = await self._create_event_log(
+        # Create dataset
+        dataset_name = name or Path(filename).stem
+        dataset = await self._create_dataset(
             session,
-            name=log_name,
+            name=dataset_name,
             source_file=filename,
             source_format="csv",
             events_data=events_data,
@@ -72,9 +72,9 @@ class IngestionService:
         )
 
         # Store the file and create UploadedFile record
-        await self._store_file(session, file_content, filename, event_log.id)
+        await self._store_file(session, file_content, filename, dataset.id)
 
-        return event_log
+        return dataset
 
     async def ingest_xes(
         self,
@@ -89,20 +89,20 @@ class IngestionService:
         # Parse XES using PM4Py
         events_data = self._parse_xes(file_content)
 
-        # Create event log
-        log_name = name or Path(filename).stem
-        event_log = await self._create_event_log(
+        # Create dataset
+        dataset_name = name or Path(filename).stem
+        dataset = await self._create_dataset(
             session,
-            name=log_name,
+            name=dataset_name,
             source_file=filename,
             source_format="xes",
             events_data=events_data,
         )
 
         # Store the file and create UploadedFile record
-        await self._store_file(session, file_content, filename, event_log.id)
+        await self._store_file(session, file_content, filename, dataset.id)
 
-        return event_log
+        return dataset
 
     async def ingest_file(
         self,
@@ -128,7 +128,7 @@ class IngestionService:
             duration_ms = (time.perf_counter() - start_time) * 1000
             logger.info(
                 "ingest_file_completed",
-                log_id=result.id,
+                dataset_id=result.id,
                 format="xes",
                 total_events=result.total_events,
                 total_cases=result.total_cases,
@@ -183,7 +183,7 @@ class IngestionService:
             duration_ms = (time.perf_counter() - start_time) * 1000
             logger.info(
                 "ingest_file_completed",
-                log_id=result.id,
+                dataset_id=result.id,
                 format="csv",
                 total_events=result.total_events,
                 total_cases=result.total_cases,
@@ -235,7 +235,7 @@ class IngestionService:
         await session.flush()
 
         # Store raw file
-        storage_path = await storage_service.store_event_log_file(
+        storage_path = await storage_service.store_dataset_file(
             file_content, dataset.id, filename
         )
 
@@ -356,7 +356,7 @@ class IngestionService:
             "row_count": len(sample_rows),
         }
 
-    async def _create_event_log(
+    async def _create_dataset(
         self,
         session: AsyncSession,
         name: str,
@@ -365,7 +365,7 @@ class IngestionService:
         events_data: list[dict[str, Any]],
         precomputed_stats: Optional[dict[str, Any]] = None,
     ) -> Dataset:
-        """Create EventLog with cases and events from parsed data."""
+        """Create Dataset with cases and events from parsed data."""
 
         # Group events by case
         cases_dict: dict[str, list[dict]] = {}
@@ -378,8 +378,8 @@ class IngestionService:
         # Collect unique activities
         activities = sorted(set(e["activity"] for e in events_data))
 
-        # Create event log
-        event_log = Dataset(
+        # Create dataset with READY status (data fully parsed)
+        dataset = Dataset(
             name=name,
             source_file=source_file,
             source_format=source_format,
@@ -388,9 +388,10 @@ class IngestionService:
             total_activities=len(activities),
             activities_json=json.dumps(activities),
             statistics_json=json.dumps(precomputed_stats) if precomputed_stats else None,
+            status=DatasetStatus.READY.value,  # FIX: Explicitly set status after successful parsing
         )
-        session.add(event_log)
-        # Flush to ensure event_log.id is populated before creating related objects
+        session.add(dataset)
+        # Flush to ensure dataset.id is populated before creating related objects
         await session.flush()
 
         # Create cases and events
@@ -406,7 +407,7 @@ class IngestionService:
             timestamps = [self._parse_timestamp(e["timestamp"]) for e in case_events]
 
             case = ProcessCase(
-                dataset_id=event_log.id,
+                dataset_id=dataset.id,
                 case_id=case_id,
                 variant_key=variant_key,
                 start_time=min(timestamps) if timestamps else None,
@@ -435,9 +436,9 @@ class IngestionService:
                 session.add(event)
 
         await session.flush()
-        await session.refresh(event_log)
+        await session.refresh(dataset)
 
-        return event_log
+        return dataset
 
     def _parse_csv(
         self,
@@ -561,24 +562,20 @@ class IngestionService:
         session,
         content: bytes,
         filename: str,
-        log_id: str,
+        dataset_id: str,
         mime_type: str = None,
     ) -> str:
-        """Store uploaded file and create UploadedFile record.
-        
-        Uses abstraction layer that supports local storage (dev)
-        and S3/MinIO (production) via configuration.
-        """
+        """Store uploaded file and create UploadedFile record."""
         from src.services.storage import storage_service
         from src.models.orm import UploadedFile
         import hashlib
         
         # Store to filesystem/S3
-        storage_path = await storage_service.store_event_log_file(content, log_id, filename)
+        storage_path = await storage_service.store_dataset_file(content, dataset_id, filename)
         
         # Create DB record
         uploaded_file = UploadedFile(
-            dataset_id=log_id,
+            dataset_id=dataset_id,
             filename=filename,
             storage_path=storage_path,
             size_bytes=len(content),

@@ -81,6 +81,51 @@ export function KPIPage() {
     );
   }
 
+  // Dataset status validation - check if ready for analysis
+  const status = (process as any).status || 'ready'; // Fallback for older API responses
+
+  const handleGoToProject = () => {
+    navigate(`/workspace/${projectId}`);
+  };
+
+  // UNSTRUCTURED: Dataset needs column mapping
+  if (status === 'unstructured') {
+    return (
+      <EmptyState
+        icon={<CalendarOutlined />}
+        title="Column Mapping Required"
+        description="Before viewing KPIs, you need to analyze this dataset. Go to your project to map the columns."
+        actionLabel="Go to Project to Analyze"
+        onAction={handleGoToProject}
+      />
+    );
+  }
+
+  // ANALYZING: Dataset is being processed
+  if (status === 'analyzing') {
+    return (
+      <LoadingState
+        type="fullPage"
+        text="Your dataset is being analyzed. This may take a few moments..."
+      />
+    );
+  }
+
+  // ERROR: Analysis failed
+  if (status === 'error') {
+    return (
+      <EmptyState
+        icon={<WarningOutlined />}
+        title="Analysis Failed"
+        description="There was an error processing your dataset. Please go back and try again."
+        actionLabel="Go to Project to Retry"
+        onAction={handleGoToProject}
+      />
+    );
+  }
+
+  // READY: Dataset is ready - show KPIs
+
   const items = [
     {
       key: 'performance',

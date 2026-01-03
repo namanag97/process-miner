@@ -36,6 +36,11 @@ settings = get_settings()
 
 router = APIRouter(prefix="/dev/logs", tags=["DevLogs"])
 
+# BUG-037 FIX: Rate limiting for log endpoints to prevent disk-filling DoS
+_rate_limit_window = 60  # seconds
+_max_requests_per_window = 100
+_client_request_counts: dict = {}  # client_ip -> (count, window_start)
+
 
 # =============================================================================
 # Enhanced Log Types
@@ -179,26 +184,49 @@ def _create_log_entry(
 # =============================================================================
 
 def log_api_request(
-    method: str, 
-    path: str, 
+    method: str,
+    path: str,
     request_id: Optional[str] = None,
     body_size: Optional[int] = None,
 ) -> None:
     """Log incoming API request with context."""
     global _active_requests
     _active_requests += 1
-    
+
     data = {"request_id": request_id} if request_id else {}
     if body_size:
         data["body_size"] = body_size
-    
+
+    # Classify request type for better filtering
+    tags = ["api", method.lower()]
+
+    # User-initiated actions (likely what caused issues)
+    if any(pattern in path for pattern in [
+        "/datasets/upload",
+        "/datasets/detect-columns",
+        "/datasets/",  # GET dataset, analyze, etc.
+        "/discovery/discover",
+        "/visualization/",
+        "/conformance/",
+        "/analytics/",
+    ]):
+        tags.append("user-action")
+
+    # Background/polling requests
+    elif any(pattern in path for pattern in [
+        "/stream",
+        "/recent",
+        "/poll",
+    ]):
+        tags.append("background")
+
     _create_log_entry(
         level=LogLevel.API_REQ,
         source=f"BE {method} {path}",
         message="→ Request",
         data=data if data else None,
         request_id=request_id,
-        tags=["api", method.lower()],
+        tags=tags,
     )
 
 
@@ -227,7 +255,7 @@ def log_api_response(
     # Build message with status emoji
     status_emoji = "✓" if status < 400 else "✗" if status < 500 else "⚠"
     message = f"← {status_emoji} {status}"
-    
+
     # Speed indicator
     if duration_ms < 100:
         speed_tag = "fast"
@@ -237,13 +265,37 @@ def log_api_response(
         speed_tag = "slow"
     else:
         speed_tag = "very-slow"
-    
+
+    # Classify request type (same logic as request)
+    tags = ["api", method.lower(), speed_tag, f"status-{status // 100}xx"]
+
+    if any(pattern in path for pattern in [
+        "/datasets/upload",
+        "/datasets/detect-columns",
+        "/datasets/",
+        "/discovery/discover",
+        "/visualization/",
+        "/conformance/",
+        "/analytics/",
+    ]):
+        tags.append("user-action")
+    elif any(pattern in path for pattern in ["/stream", "/recent", "/poll"]):
+        tags.append("background")
+
+    # Flag errors and slow requests for highlighting
+    if status >= 400:
+        tags.append("error")
+    if status >= 500:
+        tags.append("critical")
+    if duration_ms > 3000:
+        tags.append("timeout-risk")
+
     data = {}
     if response_size:
         data["response_size"] = response_size
     if timing:
         data["timing_breakdown"] = timing
-    
+
     _create_log_entry(
         level=LogLevel.API_RES,
         source=f"BE {method} {path}",
@@ -252,7 +304,7 @@ def log_api_response(
         duration=duration_ms,
         request_id=request_id,
         data=data if data else None,
-        tags=["api", method.lower(), speed_tag, f"status-{status // 100}xx"],
+        tags=tags,
         timing=timing,
     )
 

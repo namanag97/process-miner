@@ -1,0 +1,109 @@
+{
+  "export": {
+    "timestamp": "2026-01-02T16:45:30.123Z",
+    "version": "1.0",
+    "source": "DevConsole",
+    "total_entries": 5,
+    "time_range": {
+      "start": "2026-01-02T16:45:10.000Z",
+      "end": "2026-01-02T16:45:30.000Z"
+    }
+  },
+  "summary": {
+    "by_level": {
+      "info": 2,
+      "error": 1,
+      "api-req": 1,
+      "api-res": 1,
+      "action": 0,
+      "state": 0,
+      "query": 0,
+      "mutation": 0
+    },
+    "errors": 1,
+    "slow_requests": 0,
+    "avg_duration": 125
+  },
+  "logs": [
+    {
+      "id": "be-390",
+      "timestamp": "2026-01-02T16:45:10.965Z",
+      "level": "api-req",
+      "source": "BE GET /api/v1/workspaces",
+      "message": "→ Request",
+      "data": {
+        "request_id": "1e0ac628-2cee-49fa-9e00-5348c6b1fbf8"
+      },
+      "duration": null,
+      "status": null
+    },
+    {
+      "id": "be-391",
+      "timestamp": "2026-01-02T16:45:10.966Z",
+      "level": "info",
+      "source": "BE app",
+      "message": "request_started",
+      "data": {
+        "query_string": null,
+        "request_id": "1e0ac628-2cee-49fa-9e00-5348c6b1fbf8",
+        "path": "/api/v1/workspaces",
+        "client_ip": "127.0.0.1",
+        "method": "GET"
+      },
+      "duration": null,
+      "status": null
+    },
+    {
+      "id": "be-392",
+      "timestamp": "2026-01-02T16:45:11.100Z",
+      "level": "api-res",
+      "source": "BE GET /api/v1/workspaces",
+      "message": "← ✓ 200",
+      "data": {
+        "⏱️ Timing": {
+          "db_ms": 45.2,
+          "serialize_ms": 12.3
+        },
+        "🏷️ Tags": ["api", "get", "normal", "status-2xx"]
+      },
+      "duration": 125,
+      "status": 200
+    },
+    {
+      "id": "be-393",
+      "timestamp": "2026-01-02T16:45:15.200Z",
+      "level": "info",
+      "source": "BE metrics",
+      "message": "📊 discovery_time",
+      "data": {
+        "metric_name": "discovery_time",
+        "metric_value": 1423.5,
+        "metric_unit": "ms",
+        "miner": "alpha",
+        "events": 10000,
+        "cases": 250
+      },
+      "duration": null,
+      "status": null
+    },
+    {
+      "id": "be-394",
+      "timestamp": "2026-01-02T16:45:20.500Z",
+      "level": "error",
+      "source": "BE app",
+      "message": "database_connection_error",
+      "data": {
+        "error": "Connection refused",
+        "error_type": "ConnectionError",
+        "duration_ms": 5000,
+        "retry_count": 3,
+        "request_id": "abc-123-def",
+        "path": "/api/v1/datasets",
+        "client_ip": "127.0.0.1",
+        "method": "POST"
+      },
+      "duration": null,
+      "status": null
+    }
+  ]
+}

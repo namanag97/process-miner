@@ -1,13 +1,17 @@
 """Datasets Router.
 
 Endpoints for uploading, listing, and managing datasets.
+
+BUG-058 FIX: Added chunked file streaming to prevent OOM on large uploads.
 """
 
 import json
 import os
+import tempfile
 import time
 from typing import Optional
 
+import aiofiles
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
@@ -38,6 +42,7 @@ from src.models.schemas import (
 from src.services.ingestion import ingestion_service
 from src.services.mining import mining_service
 from src.services.duckdb_ingestion import duckdb_ingestion_service
+from src.services.unified_ingestion import unified_ingestion_service
 # Domain model imports for new architecture
 from src.domain.repositories import SQLAlchemyDatasetRepository
 
@@ -50,6 +55,7 @@ logger = get_logger(__name__)
 MAX_FILE_SIZE_MB = 100  # Maximum file upload size
 MIN_EVENTS_FOR_ANALYSIS = 1  # Minimum events required for analysis
 MIN_CASES_FOR_VARIANTS = 1  # Minimum cases required for variant analysis
+CHUNK_SIZE = 64 * 1024  # 64KB chunks for streaming
 
 router = APIRouter(prefix="/datasets", tags=["Datasets"])
 
@@ -164,6 +170,40 @@ async def validate_file_signature(content: bytes, filename: str) -> None:
 # =============================================================================
 
 
+async def _stream_upload_to_temp(file: UploadFile) -> tuple[str, int]:
+    """BUG-058 FIX: Stream uploaded file to temp file in chunks to prevent OOM.
+    
+    Args:
+        file: The uploaded file
+        
+    Returns:
+        Tuple of (temp_file_path, total_bytes)
+    """
+    total_bytes = 0
+    # Create temp file with same extension
+    suffix = os.path.splitext(file.filename or "")[1]
+    fd, temp_path = tempfile.mkstemp(suffix=suffix)
+    os.close(fd)
+    
+    try:
+        async with aiofiles.open(temp_path, 'wb') as out:
+            while chunk := await file.read(CHUNK_SIZE):
+                await out.write(chunk)
+                total_bytes += len(chunk)
+                # Check size limit during streaming
+                if total_bytes > MAX_FILE_SIZE_MB * 1024 * 1024:
+                    os.unlink(temp_path)
+                    raise InvalidFileError(
+                        f"File too large. Maximum size: {MAX_FILE_SIZE_MB}MB",
+                        filename=file.filename,
+                    )
+        return temp_path, total_bytes
+    except Exception:
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
+        raise
+
+
 @router.post("/upload", response_model=DatasetResponse)
 async def upload_dataset(
     db: DBSession,
@@ -204,55 +244,104 @@ async def upload_dataset(
         if not project_result.scalar_one_or_none():
             raise ProcessNotFoundError(project_id, resource_name="Project")
 
-    content = await file.read()
-    file_size_mb = len(content) / (1024 * 1024)
-    logger.info("file_read", size_mb=round(file_size_mb, 2))
-
-    # Validate file size
-    validate_file_size(content, filename)
-
-    # Validate file signature to prevent spoofing
-    await validate_file_signature(content, filename)
-
-    # Deferred ingestion: store file only, return immediately
-    if async_store:
-        logger.info("async_store_mode", filename=filename)
-        dataset = await ingestion_service.store_only(
-            session=db,
-            file_content=content,
-            filename=filename,
-            name=name,
-            project_id=project_id,
-        )
-        logger.info(
-            "async_store_completed",
-            dataset_id=dataset.id,
-            status=dataset.status,
-        )
-        return DatasetResponse(
-            id=dataset.id,
-            name=dataset.name,
-            source_format=dataset.source_format,
-            total_events=0,
-            total_cases=0,
-            total_activities=0,
-            activities=[],
-            created_at=dataset.created_at,
-            source_file=dataset.source_file,
-            status=dataset.status,
-        )
-
+    # BUG-058 FIX: Stream file to disk in chunks to prevent OOM on large uploads
+    import aiofiles
+    import tempfile
+    
+    temp_file_path = None
     try:
+        # Create temp file and stream content
+        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1]) as tmp:
+            temp_file_path = tmp.name
+        
+        total_size = 0
+        async with aiofiles.open(temp_file_path, 'wb') as out_file:
+            # Read in 64KB chunks to prevent memory exhaustion
+            while chunk := await file.read(64 * 1024):
+                total_size += len(chunk)
+                # Check size limit during streaming
+                if total_size > MAX_FILE_SIZE_MB * 1024 * 1024:
+                    raise InvalidFileError(
+                        f"File too large (>{MAX_FILE_SIZE_MB}MB). Maximum size: {MAX_FILE_SIZE_MB}MB",
+                        filename=filename,
+                    )
+                await out_file.write(chunk)
+        
+        file_size_mb = total_size / (1024 * 1024)
+        logger.info("file_streamed_to_disk", size_mb=round(file_size_mb, 2), path=temp_file_path)
+        
+        # Now read from temp file for processing
+        async with aiofiles.open(temp_file_path, 'rb') as f:
+            content = await f.read()
+        
+        # Validate file signature to prevent spoofing
+        await validate_file_signature(content, filename)
+
+        # Deferred ingestion: store file only, return immediately
+        if async_store:
+            logger.info("async_store_mode", filename=filename)
+            dataset = await ingestion_service.store_only(
+                session=db,
+                file_content=content,
+                filename=filename,
+                name=name,
+                project_id=project_id,
+            )
+            logger.info(
+                "async_store_completed",
+                dataset_id=dataset.id,
+                status=dataset.status,
+            )
+            return DatasetResponse(
+                id=dataset.id,
+                name=dataset.name,
+                source_format=dataset.source_format,
+                total_events=0,
+                total_cases=0,
+                total_activities=0,
+                activities=[],
+                created_at=dataset.created_at,
+                source_file=dataset.source_file,
+                status=dataset.status,
+            )
+
         # Use DuckDB for high-performance CSV ingestion if it's a CSV file
         ext = os.path.splitext(filename)[1].lower()
         if ext == ".csv":
+            # Auto-detect columns if not provided
+            if not all([case_id_column, activity_column, timestamp_column]):
+                logger.info("auto_detecting_columns", filename=filename)
+                # Use fast DuckDB detection
+                detection = duckdb_ingestion_service.detect_columns_fast(content)
+                suggestions = detection.get("suggestions", {})
+
+                case_id_column = case_id_column or suggestions.get("case_id_column")
+                activity_column = activity_column or suggestions.get("activity_column")
+                timestamp_column = timestamp_column or suggestions.get("timestamp_column")
+                resource_column = resource_column or suggestions.get("resource_column")
+                
+                logger.info(
+                    "columns_detected", 
+                    case=case_id_column, 
+                    activity=activity_column, 
+                    time=timestamp_column,
+                    resource=resource_column
+                )
+
+                # Validate detection success
+                if not all([case_id_column, activity_column, timestamp_column]):
+                     raise ValidationError(
+                        f"Could not auto-detect required columns. Please provide mappings. Detected: {detection['columns']}",
+                        field="columns",
+                    )
+
             # DuckDB vectorized parse
             logger.info("using_duckdb_ingestion", filename=filename)
             duck_result = duckdb_ingestion_service.parse_csv_fast(
                 file_content=content,
-                case_id_col=case_id_column or "case_id",
-                activity_col=activity_column or "activity",
-                timestamp_col=timestamp_column or "timestamp",
+                case_id_col=case_id_column,
+                activity_col=activity_column,
+                timestamp_col=timestamp_column,
                 resource_col=resource_column,
             )
 
@@ -309,6 +398,7 @@ async def upload_dataset(
             activities=activities,
             created_at=dataset.created_at,
             source_file=dataset.source_file,
+            status=dataset.status,
         )
     except ValidationError as e:
         logger.warning("upload_validation_error", error=e.message, filename=filename)
@@ -316,8 +406,29 @@ async def upload_dataset(
     except InvalidFileError:
         raise  # Let the AppException handler deal with it
     except Exception as e:
-        logger.error("upload_error", error=str(e), filename=filename, exc_info=True)
-        raise ProcessingError(f"Failed to process file: {str(e)}")
+        import traceback
+
+        # Log full exception details for debugging
+        logger.error(
+            "upload_error",
+            error=str(e),
+            error_type=type(e).__name__,
+            error_module=type(e).__module__,
+            filename=filename,
+            traceback=traceback.format_exc(),
+            exc_info=True,
+        )
+
+        # Include exception type in error message for better debugging
+        error_msg = f"[{type(e).__name__}] {str(e)}"
+        raise ProcessingError(f"Failed to process file: {error_msg}")
+    finally:
+        # BUG-058 FIX: Clean up temp file
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.unlink(temp_file_path)
+            except OSError:
+                logger.warning("temp_file_cleanup_failed", path=temp_file_path)
 
 
 @router.post("/detect-columns", response_model=ColumnDetectionResponse)
@@ -350,20 +461,8 @@ async def detect_columns(
 
     detection_start = time.perf_counter()
 
-    ext = os.path.splitext(filename)[1].lower()
-    if ext == ".csv":
-        # Use DuckDB's native schema inference for 10x speedup
-        result = duckdb_ingestion_service.detect_columns_fast(content)
-        # Adapt keys for frontend response
-        response_data = {
-            "columns": [c["name"] for c in result["columns"]],
-            "suggestions": result["suggestions"],
-            "sample_rows": [], # DuckDB doesn't return sample rows in this call yet
-            "row_count": result["row_count"],
-        }
-    else:
-        result = ingestion_service.detect_columns(content)
-        response_data = result
+    # Use unified ingestion service for consistent detection (BUG-004 fix)
+    response_data = unified_ingestion_service.detect_columns(content, filename)
 
     detection_time_ms = (time.perf_counter() - detection_start) * 1000
     
@@ -466,6 +565,70 @@ async def ingest_dataset(
     )
 
 
+@router.get("/{dataset_id}/detect-columns", response_model=ColumnDetectionResponse)
+async def detect_columns_for_dataset(
+    db: DBSession,
+    dataset_id: str,
+):
+    """
+    Detect column mappings from an already-uploaded UNSTRUCTURED dataset.
+
+    Reads the stored file and returns suggested mappings for case_id, 
+    activity, timestamp, and resource columns.
+    """
+    from src.services.storage import storage_service
+    
+    logger.info("detect_columns_for_dataset_started", dataset_id=dataset_id)
+    start_time = time.perf_counter()
+
+    # Load dataset
+    query = select(Dataset).where(Dataset.id == dataset_id)
+    result = await db.execute(query)
+    dataset = result.scalar_one_or_none()
+
+    if not dataset:
+        raise ProcessNotFoundError(dataset_id)
+
+    # Only allow for UNSTRUCTURED or ERROR datasets
+    if dataset.status not in [DatasetStatus.UNSTRUCTURED.value, DatasetStatus.ERROR.value]:
+        raise ValidationError(
+            f"Dataset {dataset_id} has status '{dataset.status}'. Column detection is only available for UNSTRUCTURED datasets.",
+            field="status",
+        )
+
+    # Get the stored file
+    if not dataset.source_file:
+        raise ValidationError(
+            f"Dataset {dataset_id} has no source file stored.",
+            field="source_file",
+        )
+
+    try:
+        content = await storage_service.retrieve_dataset_file(
+            dataset_id=dataset_id,
+            filename=dataset.source_file,
+        )
+    except FileNotFoundError:
+        raise ProcessNotFoundError(dataset_id, resource_name="Source file")
+
+    file_size_mb = len(content) / (1024 * 1024)
+    logger.info("file_read_for_detection", dataset_id=dataset_id, size_mb=round(file_size_mb, 2))
+
+    # Use unified ingestion service for consistent detection (BUG-004 fix)
+    response_data = unified_ingestion_service.detect_columns(content, dataset.source_file)
+
+    detection_time_ms = (time.perf_counter() - start_time) * 1000
+    logger.info(
+        "detect_columns_for_dataset_completed",
+        dataset_id=dataset_id,
+        columns_found=len(response_data.get("columns", [])),
+        row_count=response_data.get("row_count", 0),
+        duration_ms=round(detection_time_ms, 2),
+    )
+
+    return ColumnDetectionResponse(**response_data)
+
+
 # =============================================================================
 # List & Get
 # =============================================================================
@@ -524,6 +687,7 @@ async def list_datasets(
                 total_activities=log.total_activities,
                 activities=activities,
                 created_at=log.created_at,
+                status=log.status,
             )
         )
 
@@ -568,6 +732,7 @@ async def get_dataset(
         statistics=statistics,
         created_at=dataset.created_at,
         updated_at=dataset.updated_at,
+        status=dataset.status,
     )
 
 
@@ -578,6 +743,8 @@ async def delete_dataset(
 ):
     """
     Delete an event log and all associated data.
+    
+    BUG-052 FIX: Also deletes orphaned recommendations.
     """
     logger.info("delete_dataset_started", dataset_id=dataset_id)
     query = select(Dataset).where(Dataset.id == dataset_id)
@@ -587,6 +754,13 @@ async def delete_dataset(
     if not dataset:
         logger.warning("process_not_found", dataset_id=dataset_id)
         raise ProcessNotFoundError(dataset_id)
+
+    # BUG-052 FIX: Clean up recommendations before deleting dataset
+    from sqlalchemy import delete
+    from src.models.orm import Recommendation
+    await db.execute(
+        delete(Recommendation).where(Recommendation.dataset_id == dataset_id)
+    )
 
     await db.delete(dataset)
     await db.flush()

@@ -89,7 +89,10 @@ class CacheService:
             cached = self.redis_client.get(key)
             if cached:
                 logger.debug("cache_hit", key=key)
-                return pickle.loads(cached)
+                # BUG-028 FIX: Use safe_loads instead of pickle.loads
+                # Cache data comes from Redis which could be tampered with
+                from src.core.safe_unpickler import safe_loads
+                return safe_loads(cached)
             logger.debug("cache_miss", key=key)
             return None
         except Exception as e:

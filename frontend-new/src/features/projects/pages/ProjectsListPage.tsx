@@ -21,7 +21,7 @@ export function ProjectsListPage() {
   const navigate = useNavigate();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [form] = Form.useForm<CreateProjectInput>();
-  
+
   // Get current workspace context
   const { workspace } = useWorkspace();
 
@@ -61,10 +61,10 @@ export function ProjectsListPage() {
       render: (value: unknown) =>
         value
           ? new Date(value as string).toLocaleDateString(undefined, {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            })
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          })
           : '-',
       sorter: (a, b) => {
         const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
@@ -94,7 +94,7 @@ export function ProjectsListPage() {
   };
 
   // Description with workspace context
-  const description = workspace 
+  const description = workspace
     ? `Manage your process mining projects in ${workspace.name}`
     : 'Manage your process mining projects';
 
@@ -106,12 +106,12 @@ export function ProjectsListPage() {
         breadcrumb={[{ label: 'Projects' }]}
         isLoading={isLoading}
         error={error}
-        onRetry={refetch}
+        onRetry={() => { refetch(); }}
         isEmpty={projects.length === 0}
         emptyState={{
           icon: <FolderOutlined style={{ fontSize: 48, color: tokens.colors.neutral[400] }} />,
           title: 'No projects yet',
-          description: workspace 
+          description: workspace
             ? `Create your first project in ${workspace.name} to start analyzing your processes`
             : 'Create your first project to start analyzing your processes',
           actionLabel: 'Create Project',

@@ -69,6 +69,7 @@ def _dataset_to_response(dataset: Dataset) -> DatasetResponse:
         activities=activities,
         created_at=dataset.created_at,
         source_file=dataset.source_file,
+        status=dataset.status,  # FIX: Include dataset lifecycle status
     )
 
 
@@ -120,16 +121,16 @@ async def list_projects(
     if workspace_id:
         query = query.filter(Project.workspace_id == workspace_id)
 
-    # Apply search filter
+    # Apply search filter (case-insensitive for all databases)
     if search:
-        query = query.filter(Project.name.ilike(f"%{search}%"))
+        query = query.filter(func.lower(Project.name).contains(search.lower()))
 
     # Get total count
     count_query = select(func.count()).select_from(Project)
     if workspace_id:
         count_query = count_query.filter(Project.workspace_id == workspace_id)
     if search:
-        count_query = count_query.filter(Project.name.ilike(f"%{search}%"))
+        count_query = count_query.filter(func.lower(Project.name).contains(search.lower()))
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
@@ -147,7 +148,7 @@ async def list_projects(
         total=total,
         page=page,
         page_size=page_size,
-        pages=(total + page_size - 1) // page_size if total > 0 else 0,
+        pages=max(1, (total + page_size - 1) // page_size) if total > 0 else 0,
     )
 
 
