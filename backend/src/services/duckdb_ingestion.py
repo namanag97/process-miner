@@ -318,9 +318,9 @@ class DuckDBIngestionService:
 
                 columns.append(col_info)
 
-            # Get row count
+            # Get row count using sanitized delimiter
             row_count = conn.execute(f"""
-                SELECT COUNT(*) FROM read_csv_auto('{temp_path}', delim='{delimiter}', header=true)
+                SELECT COUNT(*) FROM read_csv_auto('{temp_path}', delim='{safe_delimiter}', header=true)
             """).fetchone()[0]
 
             return {

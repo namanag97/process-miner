@@ -138,17 +138,31 @@ class LogBroker:
 
     async def subscribe_logs(
         self,
-        include_recent: bool = True
+        include_recent: bool = True,
+        user_id: str = None,  # BUG-034 FIX: Filter logs by user/tenant
     ) -> AsyncGenerator[tuple[str, str], None]:
         """Subscribe to logs from all workers.
+
+        Args:
+            include_recent: Include recent logs from buffer on connect
+            user_id: Optional user ID for tenant filtering (BUG-034)
 
         Yields:
             Tuple of (event_type, json_data) where event_type is "log" or "heartbeat"
         """
-        # Yield recent logs from local buffer first
+        # BUG-034 FIX: Helper to check if log should be visible to user
+        def should_include_log(entry: dict) -> bool:
+            if not user_id:
+                return True  # No filtering if no user specified
+            entry_user = entry.get("user_id")
+            # Include if: no user on entry (system log), or user matches
+            return entry_user is None or entry_user == user_id
+
+        # Yield recent logs from local buffer first (filtered by user)
         if include_recent:
             for entry in list(self._local_buffer)[-50:]:
-                yield ("log", json.dumps(entry))
+                if should_include_log(entry):
+                    yield ("log", json.dumps(entry))
 
         # If Redis unavailable, can't receive cross-worker logs
         if not self._redis or not self._connected:
@@ -177,7 +191,13 @@ class LogBroker:
                     data = message["data"]
 
                     if channel == DEV_LOGS_CHANNEL:
-                        yield ("log", data)
+                        # BUG-034 FIX: Filter by user_id if provided
+                        try:
+                            entry = json.loads(data)
+                            if should_include_log(entry):
+                                yield ("log", data)
+                        except json.JSONDecodeError:
+                            yield ("log", data)  # Pass through if can't parse
                     elif channel == DEV_HEARTBEAT_CHANNEL:
                         yield ("heartbeat", data)
 

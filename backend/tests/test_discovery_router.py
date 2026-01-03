@@ -36,7 +36,7 @@ class TestModelDiscovery:
     ):
         """Discover model using inductive miner."""
         response = await client.post(
-            "/api/v1/discovery/discover",
+            "/api/v1/discovery/discover?async_mode=false",  # BUG-019: Use sync mode for tests
             json={
                 "log_id": uploaded_insurance_log_id,
                 "miner_type": "inductive",
@@ -54,7 +54,7 @@ class TestModelDiscovery:
     ):
         """Discover model using alpha miner."""
         response = await client.post(
-            "/api/v1/discovery/discover",
+            "/api/v1/discovery/discover?async_mode=false",  # BUG-019: Use sync mode for tests
             json={
                 "log_id": uploaded_insurance_log_id,
                 "miner_type": "alpha",
@@ -71,7 +71,7 @@ class TestModelDiscovery:
     ):
         """Discover model using heuristics miner."""
         response = await client.post(
-            "/api/v1/discovery/discover",
+            "/api/v1/discovery/discover?async_mode=false",  # BUG-019: Use sync mode for tests
             json={
                 "log_id": uploaded_insurance_log_id,
                 "miner_type": "heuristics",
@@ -86,7 +86,7 @@ class TestModelDiscovery:
     async def test_discover_with_invalid_log_id(self, client: AsyncClient):
         """Discover with invalid log_id should return 404."""
         response = await client.post(
-            "/api/v1/discovery/discover",
+            "/api/v1/discovery/discover?async_mode=false",
             json={"log_id": "nonexistent", "miner_type": "inductive", "model_name": "Test"},
         )
         assert response.status_code == 404
@@ -97,7 +97,7 @@ class TestModelDiscovery:
     ):
         """Discover with unsupported miner_type should return 400."""
         response = await client.post(
-            "/api/v1/discovery/discover",
+            "/api/v1/discovery/discover?async_mode=false",
             json={
                 "log_id": uploaded_insurance_log_id,
                 "miner_type": "nonexistent_miner",
@@ -112,7 +112,7 @@ class TestModelDiscovery:
     ):
         """Self-discovered model should have fitness > 0.5."""
         response = await client.post(
-            "/api/v1/discovery/discover",
+            "/api/v1/discovery/discover?async_mode=false",
             json={
                 "log_id": uploaded_insurance_log_id,
                 "miner_type": "inductive",

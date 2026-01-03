@@ -1,0 +1,32 @@
+{
+    "$schema": "https://unpkg.com/knip@5/schema.json",
+    "entry": [
+        "src/main.tsx",
+        "src/app/**/*.tsx"
+    ],
+    "project": [
+        "src/**/*.{ts,tsx}",
+        "libs/**/*.{ts,tsx}"
+    ],
+    "ignore": [
+        "**/node_modules/**",
+        "**/dist/**",
+        "**/*.d.ts",
+        "**/*.stories.tsx",
+        "**/*.spec.ts",
+        "**/*.spec.tsx",
+        "**/*.test.ts",
+        "**/*.test.tsx"
+    ],
+    "ignoreDependencies": [
+        "@nx/*",
+        "@rspack/*",
+        "@swc/*",
+        "@storybook/*",
+        "storybook",
+        "@types/*",
+        "ts-jest",
+        "babel-jest",
+        "jest-*"
+    ]
+}

@@ -173,7 +173,7 @@ async def uploaded_log_id(client: AsyncClient, sample_csv_with_multiple_variants
 async def discovered_model_id(client: AsyncClient, uploaded_log_id: str) -> str:
     """Discover a model from the uploaded log and return its ID."""
     response = await client.post(
-        "/api/v1/discovery/discover",
+        "/api/v1/discovery/discover?async_mode=false",  # BUG-019: Sync mode for tests
         json={"log_id": uploaded_log_id, "miner_type": "inductive", "model_name": "Test Model"},
     )
     assert response.status_code == 200
@@ -253,7 +253,7 @@ async def uploaded_ocel_log_id(client: AsyncClient, simple_ocel_jsonocel: bytes)
 async def discovered_petri_net_id(client: AsyncClient, uploaded_insurance_log_id: str) -> str:
     """Pre-discover Petri net model and return ID."""
     response = await client.post(
-        "/api/v1/discovery/discover",
+        "/api/v1/discovery/discover?async_mode=false",  # BUG-019: Sync mode for tests
         json={
             "log_id": uploaded_insurance_log_id,
             "miner_type": "inductive",

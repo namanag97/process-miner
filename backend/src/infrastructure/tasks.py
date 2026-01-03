@@ -339,36 +339,41 @@ async def ingest_dataset_task(
                 meta={"status": "Creating cases and events", "progress": 50},
             )
 
-            # Convert Arrow to pandas for iteration
-            # Handle newer DuckDB/PyArrow that may return RecordBatchReader
+            # BUG-049 FIX: Use Arrow batches instead of to_pandas() to reduce memory 3x
+            # Convert Arrow to batches for memory-efficient iteration
             import pyarrow as pa
             cases_arrow = duck_result["cases_arrow"]
             if isinstance(cases_arrow, pa.RecordBatchReader):
                 cases_arrow = cases_arrow.read_all()
-            cases_df = cases_arrow.to_pandas()
             
             events_arrow = duck_result["events_arrow"]
             if isinstance(events_arrow, pa.RecordBatchReader):
                 events_arrow = events_arrow.read_all()
-            events_df = events_arrow.to_pandas()
 
-            # BUG-048 FIX: Batch create cases first, then flush once
-            cases = []
-            for _, row in cases_df.iterrows():
-                case = ProcessCase(
-                    dataset_id=dataset_id,
-                    case_id=str(row["case_id"]),
-                    variant_key=row["variant"],
-                    start_time=row["start_time"],
-                    end_time=row["end_time"],
-                )
-                cases.append(case)
-            
-            db.add_all(cases)
-            await db.flush()  # Single flush for all cases
-            
-            # Build case_id map after flush when IDs are assigned
-            case_id_map = {case.case_id: case.id for case in cases}
+            # BUG-061 FIX: Process cases in chunks and flush to avoid memory bloat in ORM session
+            case_id_map = {}
+            for batch in cases_arrow.to_batches(max_chunksize=5000):
+                batch_dict = {col: batch.column(col).to_pylist() for col in batch.schema.names}
+                batch_cases = []
+                for i in range(batch.num_rows):
+                    case = ProcessCase(
+                        dataset_id=dataset_id,
+                        case_id=str(batch_dict["case_id"][i]),
+                        variant_key=batch_dict["variant"][i],
+                        start_time=batch_dict["start_time"][i],
+                        end_time=batch_dict["end_time"][i],
+                    )
+                    batch_cases.append(case)
+                
+                db.add_all(batch_cases)
+                await db.flush()
+                
+                # Update map for events reference
+                for c in batch_cases:
+                    case_id_map[c.case_id] = c.id
+                
+                # Clear session to free memory
+                db.expunge_all()
 
             # Update progress
             self.update_state(
@@ -376,26 +381,38 @@ async def ingest_dataset_task(
                 meta={"status": "Creating events", "progress": 70},
             )
 
-            # BUG-048 FIX: Batch create events then add_all (no flush in loop)
-            events = []
-            for _, row in events_df.iterrows():
-                case_ref_id = case_id_map.get(str(row["case_id"]))
-                if case_ref_id:
-                    event = ProcessEvent(
-                        case_ref_id=case_ref_id,
-                        activity=str(row["activity"]),
-                        timestamp=row["timestamp"],
-                        resource=str(row["resource"]) if row["resource"] else None,
-                    )
-                    events.append(event)
-            
-            db.add_all(events)  # Single add_all for all events
+            # BUG-061 FIX: Process events in chunks and flush to avoid memory bloat
+            for batch in events_arrow.to_batches(max_chunksize=10000):
+                batch_dict = {col: batch.column(col).to_pylist() for col in batch.schema.names}
+                batch_events = []
+                for i in range(batch.num_rows):
+                    case_ref_id = case_id_map.get(str(batch_dict["case_id"][i]))
+                    if case_ref_id:
+                        resource = batch_dict.get("resource", [None] * batch.num_rows)[i]
+                        event = ProcessEvent(
+                            case_ref_id=case_ref_id,
+                            activity=str(batch_dict["activity"][i]),
+                            timestamp=batch_dict["timestamp"][i],
+                            resource=str(resource) if resource else None,
+                        )
+                        batch_events.append(event)
+                
+                if batch_events:
+                    db.add_all(batch_events)
+                    await db.flush()
+                    db.expunge_all()
 
             # Update progress
             self.update_state(
                 state="PROGRESS",
                 meta={"status": "Finalizing dataset", "progress": 90},
             )
+
+            # Re-fetch dataset after session clear
+            result = await db.execute(
+                select(Dataset).where(Dataset.id == dataset_id)
+            )
+            dataset = result.scalar_one_or_none()
 
             # Update dataset with stats
             dataset.total_cases = stats["total_cases"]
@@ -942,19 +959,24 @@ def get_task_status(task_id: str) -> dict[str, Any]:
 
 @celery_app.task(bind=True, name="reap_zombie_jobs")
 def reap_zombie_jobs(self, timeout_minutes: int = 10) -> dict[str, Any]:
-    """Reap zombie jobs that are stuck in RUNNING state.
+    """Reap zombie jobs that are stuck in RUNNING/ANALYZING state.
     
-    BUG-057 FIX: Cross-references AsyncJob DB records with Celery's actual task status.
+    BUG-057/031/040/022 FIX: Cross-references multiple tables with Celery's actual task status.
     Should be scheduled via Celery Beat every 5 minutes.
     
+    Handles:
+    - AsyncJob records stuck in RUNNING
+    - Dataset records stuck in ANALYZING (BUG-022)
+    - Analysis records stuck in RUNNING (BUG-040)
+    
     Args:
-        timeout_minutes: Consider jobs zombie if RUNNING for longer than this
+        timeout_minutes: Consider jobs zombie if stuck for longer than this
         
     Returns:
-        Summary of reaped jobs
+        Summary of reaped items across all tables
     """
     from datetime import timedelta
-    from src.models.orm import AsyncJob, JobStatus
+    from src.models.orm import AsyncJob, JobStatus, Dataset, DatasetStatus, Analysis, AnalysisStatus
     
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -963,27 +985,25 @@ def reap_zombie_jobs(self, timeout_minutes: int = 10) -> dict[str, Any]:
         async with AsyncSessionLocal() as db:
             try:
                 cutoff_time = datetime.utcnow() - timedelta(minutes=timeout_minutes)
+                results = {"async_jobs": [], "datasets": [], "analyses": []}
                 
-                # Find potentially zombie jobs
-                result = await db.execute(
+                # === 1. Reap zombie AsyncJobs ===
+                job_result = await db.execute(
                     select(AsyncJob).where(
                         AsyncJob.status == JobStatus.RUNNING.value,
                         AsyncJob.updated_at < cutoff_time
                     )
                 )
-                stuck_jobs = result.scalars().all()
+                stuck_jobs = job_result.scalars().all()
                 
-                reaped = []
                 for job in stuck_jobs:
                     if not job.task_id:
-                        # No task ID, mark as failed
                         job.status = JobStatus.FAILED.value
                         job.error = "No task ID - orphaned job"
                         job.completed_at = datetime.utcnow()
-                        reaped.append(job.id)
+                        results["async_jobs"].append(job.id)
                         continue
                     
-                    # Check actual Celery status
                     celery_result = AsyncResult(job.task_id, app=celery_app)
                     celery_state = celery_result.state
                     
@@ -991,31 +1011,66 @@ def reap_zombie_jobs(self, timeout_minutes: int = 10) -> dict[str, Any]:
                         job.status = JobStatus.FAILED.value
                         job.error = f"Celery state: {celery_state}"
                         job.completed_at = datetime.utcnow()
-                        reaped.append(job.id)
+                        results["async_jobs"].append(job.id)
                     elif celery_state == "SUCCESS":
                         job.status = JobStatus.COMPLETED.value
                         job.completed_at = datetime.utcnow()
-                        reaped.append(job.id)
+                        results["async_jobs"].append(job.id)
                     elif celery_state == "PENDING" and job.started_at:
-                        # Task was never picked up but we thought it started
                         job.status = JobStatus.FAILED.value
                         job.error = "Task lost - worker likely crashed"
                         job.completed_at = datetime.utcnow()
-                        reaped.append(job.id)
+                        results["async_jobs"].append(job.id)
+                
+                # === 2. BUG-022 FIX: Reap zombie Datasets stuck in ANALYZING ===
+                dataset_result = await db.execute(
+                    select(Dataset).where(
+                        Dataset.status == DatasetStatus.ANALYZING.value,
+                        Dataset.updated_at < cutoff_time
+                    )
+                )
+                stuck_datasets = dataset_result.scalars().all()
+                
+                for dataset in stuck_datasets:
+                    dataset.status = DatasetStatus.ERROR.value
+                    dataset.error_message = f"Ingestion timed out after {timeout_minutes} minutes"
+                    results["datasets"].append(dataset.id)
+                
+                # === 3. BUG-040 FIX: Reap zombie Analyses stuck in RUNNING ===
+                analysis_result = await db.execute(
+                    select(Analysis).where(
+                        Analysis.status == AnalysisStatus.RUNNING.value,
+                        Analysis.completed_at.is_(None)
+                    )
+                )
+                # Filter by created_at for analyses (they may not have updated_at)
+                stuck_analyses = [
+                    a for a in analysis_result.scalars().all()
+                    if a.created_at and a.created_at < cutoff_time
+                ]
+                
+                for analysis in stuck_analyses:
+                    analysis.status = AnalysisStatus.FAILED.value
+                    analysis.error_message = f"Analysis timed out after {timeout_minutes} minutes"
+                    analysis.completed_at = datetime.utcnow()
+                    results["analyses"].append(analysis.id)
                 
                 await db.commit()
                 
+                total_reaped = sum(len(v) for v in results.values())
                 logger.info(
                     "zombie_jobs_reaped",
-                    total_checked=len(stuck_jobs),
-                    total_reaped=len(reaped),
-                    job_ids=reaped,
+                    async_jobs_reaped=len(results["async_jobs"]),
+                    datasets_reaped=len(results["datasets"]),
+                    analyses_reaped=len(results["analyses"]),
+                    total_reaped=total_reaped,
                 )
                 
                 return {
-                    "checked": len(stuck_jobs),
-                    "reaped": len(reaped),
-                    "job_ids": reaped,
+                    "async_jobs": results["async_jobs"],
+                    "datasets": results["datasets"],
+                    "analyses": results["analyses"],
+                    "total_reaped": total_reaped,
                 }
                 
             except Exception as e:

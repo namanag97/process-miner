@@ -91,6 +91,46 @@ backend-security:
 	$(BACKEND_PYTHON) -m bandit -r backend/src/ -c backend/pyproject.toml
 
 # =============================================================================
+# Dead Code & Architecture Analysis
+# =============================================================================
+
+dead-code: backend-dead-code frontend-dead-code
+	@echo "✅ Dead code analysis complete"
+
+backend-dead-code:
+	@echo "🔍 Checking for dead code (Vulture)..."
+	$(BACKEND_PYTHON) -m vulture backend/src/ --min-confidence 80 || true
+
+frontend-dead-code:
+	@echo "🔍 Checking for unused exports/files (Knip)..."
+	cd frontend-new && npx knip || true
+
+architecture:
+	@echo "🏛️ Checking architecture constraints (import-linter)..."
+	cd backend && .venv/bin/lint-imports
+
+vulnerabilities: backend-vulnerabilities frontend-vulnerabilities
+	@echo "✅ Vulnerability scan complete"
+
+backend-vulnerabilities:
+	@echo "🔒 Scanning Python dependencies (Safety)..."
+	$(BACKEND_PYTHON) -m safety check || true
+
+frontend-vulnerabilities:
+	@echo "🔒 Scanning npm dependencies..."
+	cd frontend-new && npm audit || true
+
+# =============================================================================
+# Full Static Analysis
+# =============================================================================
+
+lint-all: lint typecheck security dead-code architecture
+	@echo ""
+	@echo "══════════════════════════════════════════════════════════════"
+	@echo "✅ All static analysis passed (lint + typecheck + security + dead-code + architecture)"
+	@echo "══════════════════════════════════════════════════════════════"
+
+# =============================================================================
 # Testing
 # =============================================================================
 

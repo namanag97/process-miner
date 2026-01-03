@@ -5,7 +5,7 @@ export default [
   ...nx.configs['flat/typescript'],
   ...nx.configs['flat/javascript'],
   {
-    ignores: ['**/dist', '**/out-tsc'],
+    ignores: ['**/dist', '**/out-tsc', '**/node_modules'],
   },
   {
     files: [
@@ -18,13 +18,37 @@ export default [
       '**/*.cjs',
       '**/*.mjs',
     ],
-    // Override or add rules here
-    rules: {},
+    rules: {
+      // Catch unused variables and imports
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_'
+      }],
+      'no-unused-vars': 'off', // Use TypeScript version instead
+
+      // Import/export issues
+      'no-duplicate-imports': 'error',
+
+      // Call pattern issues
+      'no-unreachable': 'error',
+      'no-constant-condition': 'error',
+      'no-empty': ['error', { allowEmptyCatch: true }],
+    },
   },
   ...nx.configs['flat/react'],
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
-    // Override or add rules here
-    rules: {},
+    rules: {
+      // React hooks - catch missing dependencies
+      'react-hooks/exhaustive-deps': 'warn',
+      'react-hooks/rules-of-hooks': 'error',
+
+      // No console.log in production
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+
+      // Enforce consistent returns
+      'consistent-return': 'warn',
+    },
   },
 ];

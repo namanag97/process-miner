@@ -229,24 +229,24 @@ async def get_dfg_svg(
 
     Discovers DFG and returns SVG visualization.
     """
-    # Load event log
-    query = (
-        select(Dataset)
-        .options(selectinload(Dataset.cases).selectinload(ProcessCase.events))
-        .where(Dataset.id == log_id)
-    )
+    # BUG-060 FIX: Remove eager load of cases/events (OOM risk)
+    # mining_service methods below use DuckDB path which is memory efficient
+    query = select(Dataset).where(Dataset.id == log_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
 
     if not event_log:
         raise HTTPException(status_code=404, detail=f"Event log not found: {log_id}")
 
-    # Discover DFG
+    # Discover DFG using efficient DuckDB path
     try:
-        dfg, start_activities, end_activities = mining_service._discover_dfg(
-            mining_service._to_pm4py_log(event_log)
+        # BUG-060 FIX: Use mining_service.get_dfg_data which uses DuckDB
+        dfg_data = mining_service.get_dfg_data(event_log)
+        svg_bytes = mining_service.visualize_dfg(
+            dfg_data["dfg"], 
+            dfg_data["start_activities"], 
+            dfg_data["end_activities"]
         )
-        svg_bytes = mining_service.visualize_dfg(dfg, start_activities, end_activities)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Visualization failed: {str(e)}")
 
@@ -271,11 +271,8 @@ async def get_footprints(
 
     Shows sequence and parallel relations between activities.
     """
-    query = (
-        select(Dataset)
-        .options(selectinload(Dataset.cases).selectinload(ProcessCase.events))
-        .where(Dataset.id == log_id)
-    )
+    # BUG-060 FIX: Remove eager load (OOM risk)
+    query = select(Dataset).where(Dataset.id == log_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
 
@@ -325,12 +322,10 @@ async def get_explorer_data(
     )
     start_time = time.perf_counter()
 
-    # Load event log with all related data
-    query = (
-        select(Dataset)
-        .options(selectinload(Dataset.cases).selectinload(ProcessCase.events))
-        .where(Dataset.id == log_id)
-    )
+    # BUG-060 FIX: Remove eager loading of cases/events (Severe OOM risk)
+    # mining_service methods below (get_dfg_data, get_variants_fast, etc.) 
+    # all leverage DuckDB for vectorized/streaming calculation.
+    query = select(Dataset).where(Dataset.id == log_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
 
@@ -352,26 +347,13 @@ async def get_explorer_data(
         total_frequency=dfg_data["total_frequency"],
     )
 
-    # Get variants
-    variant_cases: dict[str, list[ProcessCase]] = {}
-    for case in event_log.cases:
-        key = case.variant_key or "unknown"
-        if key not in variant_cases:
-            variant_cases[key] = []
-        variant_cases[key].append(case)
-
-    total_cases = len(event_log.cases)
-    sorted_variants = sorted(variant_cases.items(), key=lambda x: -len(x[1]))[:top_variants]
-
+    # BUG-060 FIX: Use vectorized variant computation (DuckDB) instead of ORM loop
+    variants_data = mining_service.get_variants_fast(log_id, top_n=top_variants)
+    
     variants = []
-    for variant_key, cases in sorted_variants:
-        durations = []
-        for case in cases:
-            if case.start_time and case.end_time:
-                durations.append((case.end_time - case.start_time).total_seconds())
-
-        avg_duration = sum(durations) / len(durations) if durations else None
-
+    for v in variants_data.get("top_variants", []):
+        variant_key = v["variant_key"]
+        
         # Build response with optional complexity
         complexity_score: Optional[float] = None
         rework_count: Optional[int] = None
@@ -386,9 +368,9 @@ async def get_explorer_data(
         variants.append(VariantResponse(
             variant_key=variant_key,
             activity_trace=variant_key,
-            case_count=len(cases),
-            frequency_percent=round(len(cases) / total_cases * 100, 2) if total_cases > 0 else 0.0,
-            avg_duration_seconds=avg_duration,
+            case_count=v["case_count"],
+            frequency_percent=v["frequency_percent"],
+            avg_duration_seconds=v.get("avg_duration_seconds"),
             complexity_score=complexity_score,
             rework_count=rework_count,
             unique_activity_count=unique_activity_count,
@@ -398,29 +380,26 @@ async def get_explorer_data(
     activities_data = mining_service.get_activity_statistics(event_log)
     activities = [ActivityDetailResponse(**a) for a in activities_data]
 
-    # Get statistics
-    activities_list = json.loads(event_log.activities_json) if event_log.activities_json else []
+    # BUG-060 FIX: Use cached statistics if available, otherwise use DuckDB path
     start_activities = mining_service.get_start_activities(event_log)
     end_activities = mining_service.get_end_activities(event_log)
     case_stats = mining_service.get_case_statistics(event_log)
-    variants_data = mining_service.get_variants(event_log)
+    # mining_service.get_variants uses DuckDB
+    variants_stats = mining_service.get_variants(event_log)
 
     date_range = None
-    if event_log.cases:
-        all_times = []
-        for case in event_log.cases:
-            if case.start_time:
-                all_times.append(case.start_time)
-            if case.end_time:
-                all_times.append(case.end_time)
-        if all_times:
-            date_range = {"start": min(all_times), "end": max(all_times)}
+    if case_stats.get("start_time"):
+        date_range = {
+            "start": case_stats["start_time"], 
+            "end": case_stats["end_time"]
+        }
 
+    activities_list = json.loads(event_log.activities_json) if event_log.activities_json else []
     statistics = StatisticsResponse(
         total_events=event_log.total_events,
         total_cases=event_log.total_cases,
         total_activities=event_log.total_activities,
-        total_variants=variants_data.get("total_variants", 0),
+        total_variants=variants_stats.get("total_variants", 0),
         activities=activities_list,
         start_activities=start_activities,
         end_activities=end_activities,

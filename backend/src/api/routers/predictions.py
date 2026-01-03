@@ -48,6 +48,7 @@ async def train_predictor(
     request: TrainPredictorRequest,
     db: AsyncSession = Depends(get_db),
     async_mode: bool = True,
+    user_id: str = None,  # BUG-046: Optional user_id for job ownership
 ) -> dict[str, Any]:
     """Train a prediction model for an event log.
 
@@ -83,11 +84,12 @@ async def train_predictor(
             algorithm=request.algorithm,
         )
 
-        # Create async job record
+        # Create async job record with user ownership (BUG-046 FIX)
         async_job = AsyncJob(
             task_id=task.id,
             job_type="train_prediction",
             status="pending",
+            user_id=user_id,  # BUG-046: Track job owner for security
             parameters_json=json.dumps(
                 {
                     "log_id": log_id,
@@ -151,24 +153,35 @@ async def train_predictor(
 
 
 @router.get("/jobs/{job_id}")
-async def get_job_status(job_id: str, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+async def get_job_status(
+    job_id: str,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = None,  # BUG-046: Optional user_id for ownership validation
+) -> dict[str, Any]:
     """Get status of an async training job.
 
     Args:
         job_id: Celery task ID
+        user_id: Optional user ID for ownership validation (BUG-046)
 
     Returns:
         Job status with progress information
     """
-    logger.info("getting_job_status", job_id=job_id)
+    logger.info("getting_job_status", job_id=job_id, user_id=user_id)
 
     # Get task status from Celery
     task_status = get_task_status(job_id)
 
-    # Get job record from database - query by task_id (Celery task ID), not internal id
+    # BUG-046 FIX: Filter by user_id if provided for security
     query = select(AsyncJob).where(AsyncJob.task_id == job_id)
+    if user_id:
+        query = query.where(AsyncJob.user_id == user_id)
     result = await db.execute(query)
     job = result.scalar_one_or_none()
+
+    # BUG-046: Return 404 if job not found (either doesn't exist or user doesn't own it)
+    if not job and user_id:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found or access denied")
 
     if job:
         task_status["job_type"] = job.job_type

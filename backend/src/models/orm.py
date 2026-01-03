@@ -719,6 +719,9 @@ class AsyncJob(Base):
     # External reference (Celery task ID) - CRITICAL for job status lookups
     task_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True, index=True)
 
+    # BUG-046 FIX: Owner tracking for security - prevents job result information leak
+    user_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
+
     # Type & State
     job_type: Mapped[str] = mapped_column(String(50), nullable=False)
     status: Mapped[str] = mapped_column(String(20), default=JobStatus.PENDING.value)
@@ -734,3 +737,4 @@ class AsyncJob(Base):
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+

@@ -72,6 +72,9 @@ dev = [
     "types-python-dateutil>=2.8.0",
     # Security scanning
     "bandit>=1.7.0",
+    "safety>=3.0.0",
+    # Dead code detection
+    "vulture>=2.11",
     # Pre-commit hooks
     "pre-commit>=3.6.0",
 ]
@@ -103,8 +106,30 @@ line-length = 100
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W"]
-ignore = ["E501"]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes (unused imports, variables, etc.)
+    "W",    # pycodestyle warnings
+    "I",    # isort (import sorting/organization)
+    "B",    # flake8-bugbear (common bugs and design problems)
+    "C4",   # flake8-comprehensions (better list/dict comprehensions)
+    "SIM",  # flake8-simplify (simplify code patterns)
+    "UP",   # pyupgrade (upgrade syntax for newer Python)
+    "RUF",  # ruff-specific rules
+    "ICN",  # flake8-import-conventions
+    "PIE",  # flake8-pie (misc lints)
+    "T20",  # flake8-print (no print statements)
+    "RET",  # flake8-return (return statement issues)
+    "ARG",  # flake8-unused-arguments
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "B008",   # function call in default argument (needed for FastAPI Depends)
+    "ARG001", # unused function argument (common in abstract methods)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["T20", "ARG"]  # Allow print and unused args in tests
 
 [tool.mypy]
 python_version = "3.10"
@@ -126,23 +151,23 @@ skips = ["B101"]  # Skip assert warnings in tests
 # =============================================================================
 # Architecture Layers (inner → outer, dependencies flow outward only):
 #   domain       → Pure business logic, entities, value objects (NO external deps)
-#   application  → Use cases, services (depends on domain)
-#   infrastructure → DB, external APIs, messaging (depends on domain, application)  
-#   presentation → API routers, DTOs (depends on all layers)
+#   services     → Use cases, business services (depends on domain)
+#   infrastructure → DB, external APIs, messaging (depends on domain, services)  
+#   api          → API routers, DTOs (depends on all layers)
 # =============================================================================
 
 [tool.importlinter]
 root_package = "src"
-include_external_packages = false
+include_external_packages = true
 
 # Contract 1: Layered Architecture - Dependencies must flow outward
 [[tool.importlinter.contracts]]
 name = "Layered Architecture"
 type = "layers"
 layers = [
-    "src.presentation",
+    "src.api",
     "src.infrastructure", 
-    "src.application",
+    "src.services",
     "src.domain",
 ]
 # Outer layers can import from inner layers, but not vice versa
@@ -154,15 +179,16 @@ type = "forbidden"
 source_modules = ["src.domain"]
 forbidden_modules = [
     "src.infrastructure",
-    "src.presentation",
+    "src.api",
     "sqlalchemy",
     "fastapi",
     "httpx",
 ]
 
-# Contract 3: Application layer cannot depend on presentation
+# Contract 3: Services layer cannot depend on API/presentation
 [[tool.importlinter.contracts]]
-name = "Application Independence from Presentation"
+name = "Services Independence from API"
 type = "forbidden"
-source_modules = ["src.application"]
-forbidden_modules = ["src.presentation"]
+source_modules = ["src.services"]
+forbidden_modules = ["src.api"]
+

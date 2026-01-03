@@ -83,6 +83,7 @@ class EventLogLoader:
         self,
         dataset_id: str,
         include_attributes: bool = False,
+        max_events: int = 500000,  # BUG-050 FIX: Default limit to prevent OOM
     ) -> pd.DataFrame:
         """
         Load dataset directly as pandas DataFrame via DuckDB.
@@ -92,15 +93,19 @@ class EventLogLoader:
         Args:
             dataset_id: UUID of the dataset
             include_attributes: Whether to parse JSON attributes
+            max_events: Maximum events to load (default 500K, set to 0 for no limit)
         """
-        logger.info("dataset_loader_started", dataset_id=dataset_id)
+        logger.info("dataset_loader_started", dataset_id=dataset_id, max_events=max_events)
 
         conn = self._get_connection()
         
         try:
+            # BUG-050 FIX: Add LIMIT clause when max_events > 0
+            limit_clause = f"LIMIT {max_events}" if max_events > 0 else ""
+            
             # Query SQLite through DuckDB
             # BUG-032 FIX: Use parameterized query to prevent SQL injection
-            query = """
+            query = f"""
                 SELECT 
                     pc.case_id AS "case:concept:name",
                     pe.activity AS "concept:name",
@@ -111,6 +116,7 @@ class EventLogLoader:
                     ON pe.case_ref_id = pc.id
                 WHERE pc.dataset_id = ?
                 ORDER BY pc.case_id, pe.timestamp
+                {limit_clause}
             """
             
             # Execute and get Arrow table (zero-copy)
@@ -129,6 +135,15 @@ class EventLogLoader:
             if df.empty:
                 logger.warning("dataset_loader_empty", dataset_id=dataset_id)
                 return self._empty_dataframe()
+            
+            # BUG-050: Warn if data was truncated
+            if max_events > 0 and len(df) >= max_events:
+                logger.warning(
+                    "dataset_loader_truncated",
+                    dataset_id=dataset_id,
+                    loaded_events=len(df),
+                    limit=max_events,
+                )
             
             # Ensure timestamp is datetime
             if "time:timestamp" in df.columns:

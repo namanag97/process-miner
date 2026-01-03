@@ -114,11 +114,33 @@ class UnifiedIngestionService:
             )
         else:
             # Use PM4Py for XES (standard library)
-            # Note: PM4Py service has a different interface, we may need to adapt
-            raise NotImplementedError(
-                f"Parsing for {ext} files is not yet implemented in unified service. "
-                "Use ingestion_service directly for XES files."
-            )
+            # Parse using PM4Py service and return standardized format
+            events_data = self.pm4py_service._parse_xes(file_content)
+            
+            # Compute statistics manually from events
+            cases = {}
+            activities = set()
+            for event in events_data:
+                case_id = event.get("case_id")
+                if case_id not in cases:
+                    cases[case_id] = {"events": [], "start_time": None, "end_time": None}
+                cases[case_id]["events"].append(event)
+                activities.add(event.get("activity"))
+            
+            # Build statistics
+            statistics = {
+                "total_cases": len(cases),
+                "total_events": len(events_data),
+                "total_activities": len(activities),
+                "activities": list(activities),
+            }
+            
+            return {
+                "statistics": statistics,
+                "events_data": events_data,  # Raw events for DB insert
+                "cases_arrow": None,  # XES doesn't use Arrow path
+                "events_arrow": None,
+            }
 
     def _standardize_suggestions(self, suggestions: dict[str, Any]) -> dict[str, Any]:
         """Standardize suggestion keys to use snake_case.

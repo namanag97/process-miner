@@ -490,8 +490,14 @@ def _get_system_metrics() -> SystemMetrics:
 # SSE Streaming with Heartbeat
 # =============================================================================
 
-async def _stream_logs(request: Request, include_recent: bool = True) -> AsyncGenerator[str, None]:
-    """Generate SSE events with logs and periodic heartbeats using Redis pubsub."""
+async def _stream_logs(request: Request, include_recent: bool = True, user_id: str = None) -> AsyncGenerator[str, None]:
+    """Generate SSE events with logs and periodic heartbeats using Redis pubsub.
+    
+    Args:
+        request: FastAPI request for disconnect detection
+        include_recent: Include recent logs from buffer
+        user_id: Optional user ID for tenant filtering (BUG-034)
+    """
     from src.infrastructure.log_broker import log_broker
 
     # Ensure broker is connected
@@ -510,8 +516,8 @@ async def _stream_logs(request: Request, include_recent: bool = True) -> AsyncGe
 
         last_heartbeat = time.time()
 
-        # Subscribe to Redis pubsub (receives logs from ALL workers)
-        async for event_type, data in log_broker.subscribe_logs(include_recent=include_recent):
+        # BUG-034 FIX: Subscribe with user_id filtering
+        async for event_type, data in log_broker.subscribe_logs(include_recent=include_recent, user_id=user_id):
             # Check if client disconnected
             if await request.is_disconnected():
                 break
@@ -545,6 +551,7 @@ async def _stream_logs(request: Request, include_recent: bool = True) -> AsyncGe
 async def stream_logs(
     request: Request,
     include_recent: bool = Query(True, description="Include recent logs on connect"),
+    user_id: str = Query(None, description="Optional user ID for tenant filtering (BUG-034)"),
 ):
     """Stream backend observability to frontend DevConsole via SSE.
     
@@ -552,13 +559,14 @@ async def stream_logs(
     - `data:` events for log entries
     - `event: heartbeat` for system metrics every 5s
     
-    Connect with: `new EventSource('/api/v1/dev/logs/stream')`
+    BUG-034 FIX: Pass user_id to filter logs by tenant.
+    Connect with: `new EventSource('/api/v1/dev/logs/stream?user_id=xxx')`
     """
     if not settings.debug:
         return {"error": "Dev logs only available in debug mode"}
     
     return StreamingResponse(
-        _stream_logs(request, include_recent),
+        _stream_logs(request, include_recent, user_id=user_id),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

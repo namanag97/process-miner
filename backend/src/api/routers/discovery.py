@@ -54,25 +54,35 @@ async def list_miners():
 # =============================================================================
 
 
-@router.post("/discover", response_model=ModelResponse)
+@router.post("/discover")
 async def discover_model(
     db: DBSession,
     request: DiscoverRequest,
+    async_mode: bool = True,  # BUG-019 FIX: Default to async to prevent API blocking
 ):
     """
     Discover a process model from an event log.
 
-    Runs the specified mining algorithm and stores the resulting model.
+    BUG-019 FIX: Heavy mining is now offloaded to Celery by default.
+    Set async_mode=False for synchronous execution (not recommended for large logs).
+    
+    Args:
+        request: Discovery request with log_id, miner_type, model_name
+        async_mode: If True (default), runs in background and returns job_id
+    
+    Returns:
+        - If async_mode=True: {"job_id": "...", "status": "pending"}
+        - If async_mode=False: ModelResponse with discovered model
     """
     logger.info(
         "discovery_started",
         log_id=request.log_id,
         miner_type=str(request.miner_type),
         model_name=request.model_name,
+        async_mode=async_mode,
     )
-    start_time = time.perf_counter()
 
-    # Load event log metadata only (discovery uses event_log_loader internally)
+    # Verify log exists
     query = select(Dataset).where(Dataset.id == request.log_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
@@ -81,6 +91,7 @@ async def discover_model(
         logger.warning("log_not_found", log_id=request.log_id)
         raise ProcessNotFoundError(request.log_id)
 
+    # Validate miner type
     try:
         miner_type = MinerType(request.miner_type)
     except ValueError:
@@ -90,6 +101,45 @@ async def discover_model(
             f"Invalid miner type: {request.miner_type}. Valid types: {valid_types}",
             field="miner_type",
         )
+
+    # BUG-019 FIX: Async mode - offload to Celery
+    if async_mode:
+        from src.infrastructure.tasks import perform_discovery_task
+        from src.models.orm import AsyncJob
+        import json
+
+        task = perform_discovery_task.delay(
+            log_id=request.log_id,
+            miner_type=miner_type.value,
+            model_name=request.model_name,
+        )
+
+        # Create AsyncJob record
+        # BUG-062 FIX: Track user_id for security
+        # BUG-019/046: Ensure ownership is tracked
+        async_job = AsyncJob(
+            task_id=task.id,
+            user_id="system",  # Default system owner for now (auth bypass in effect)
+            job_type="process_discovery",
+            status="pending",
+            parameters_json=json.dumps({
+                "log_id": request.log_id,
+                "miner_type": miner_type.value,
+                "model_name": request.model_name,
+            }),
+        )
+        db.add(async_job)
+        await db.commit()
+
+        logger.info("async_discovery_started", job_id=task.id, log_id=request.log_id)
+        return {
+            "job_id": task.id,
+            "status": "pending",
+            "message": "Discovery started. Use /predictions/jobs/{job_id} to check status.",
+        }
+
+    # Sync mode (legacy, not recommended for large logs)
+    start_time = time.perf_counter()
 
     try:
         model_data, model_format = mining_service.discover(event_log, miner_type)
@@ -184,12 +234,14 @@ async def list_models(
     query = select(ProcessModel).order_by(ProcessModel.created_at.desc())
 
     if log_id:
-        query = query.where(ProcessModel.log_id == log_id)
+        # BUG-059 FIX: Use dataset_id (ORM field name)
+        query = query.where(ProcessModel.dataset_id == log_id)
 
     # Count total
     count_query = select(func.count()).select_from(ProcessModel)
     if log_id:
-        count_query = count_query.where(ProcessModel.log_id == log_id)
+        # BUG-059 FIX
+        count_query = count_query.where(ProcessModel.dataset_id == log_id)
 
     total = await db.scalar(count_query) or 0
 
@@ -206,7 +258,7 @@ async def list_models(
             name=m.name,
             miner_type=m.miner_type,
             model_format=m.model_format,
-            log_id=m.log_id,
+            dataset_id=m.dataset_id,  # BUG-059 FIX
             fitness=m.fitness,
             precision=m.precision,
             created_at=m.created_at,
@@ -243,7 +295,7 @@ async def get_model(
         name=model.name,
         miner_type=model.miner_type,
         model_format=model.model_format,
-        log_id=model.log_id,
+        dataset_id=model.dataset_id,  # BUG-059 FIX
         fitness=model.fitness,
         precision=model.precision,
         created_at=model.created_at,

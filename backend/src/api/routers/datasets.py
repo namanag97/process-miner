@@ -311,8 +311,8 @@ async def upload_dataset(
             # Auto-detect columns if not provided
             if not all([case_id_column, activity_column, timestamp_column]):
                 logger.info("auto_detecting_columns", filename=filename)
-                # Use fast DuckDB detection
-                detection = duckdb_ingestion_service.detect_columns_fast(content)
+                # Use unified service for consistent column detection (routes to DuckDB for CSV)
+                detection = unified_ingestion_service.detect_columns(content, filename)
                 suggestions = detection.get("suggestions", {})
 
                 case_id_column = case_id_column or suggestions.get("case_id_column")
@@ -451,32 +451,62 @@ async def detect_columns(
     logger.info("detect_columns_started", filename=filename)
     start_time = time.perf_counter()
 
-    content = await file.read()
-    file_size_mb = len(content) / (1024 * 1024)
-    read_time_ms = (time.perf_counter() - start_time) * 1000
-    logger.debug("file_read_for_detection", size_mb=round(file_size_mb, 2), duration_ms=round(read_time_ms, 2))
+    # BUG-061 FIX: Stream file to temp file to prevent OOM on large files
+    temp_file_path = None
+    try:
+        suffix = os.path.splitext(filename)[1]
+        fd, temp_file_path = tempfile.mkstemp(suffix=suffix)
+        os.close(fd)
+        
+        total_size = 0
+        MAX_DETECT_SIZE_MB = 50  # Column detection doesn't need full file
+        
+        async with aiofiles.open(temp_file_path, 'wb') as out_file:
+            while chunk := await file.read(CHUNK_SIZE):
+                total_size += len(chunk)
+                if total_size > MAX_DETECT_SIZE_MB * 1024 * 1024:
+                    # For detection, we only need a sample - stop reading
+                    await out_file.write(chunk)
+                    break
+                await out_file.write(chunk)
+        
+        file_size_mb = total_size / (1024 * 1024)
+        
+        # Read from temp file
+        async with aiofiles.open(temp_file_path, 'rb') as f:
+            content = await f.read()
+        
+        read_time_ms = (time.perf_counter() - start_time) * 1000
+        logger.debug("file_read_for_detection", size_mb=round(file_size_mb, 2), duration_ms=round(read_time_ms, 2))
 
-    # Validate file signature to prevent spoofing
-    await validate_file_signature(content, filename)
+        # Validate file signature to prevent spoofing
+        await validate_file_signature(content, filename)
 
-    detection_start = time.perf_counter()
+        detection_start = time.perf_counter()
 
-    # Use unified ingestion service for consistent detection (BUG-004 fix)
-    response_data = unified_ingestion_service.detect_columns(content, filename)
+        # Use unified ingestion service for consistent detection (BUG-004 fix)
+        response_data = unified_ingestion_service.detect_columns(content, filename)
 
-    detection_time_ms = (time.perf_counter() - detection_start) * 1000
-    
-    total_time_ms = (time.perf_counter() - start_time) * 1000
-    logger.info(
-        "detect_columns_completed",
-        columns_found=len(response_data.get("columns", [])),
-        row_count=response_data.get("row_count", 0),
-        file_size_mb=round(file_size_mb, 2),
-        detection_ms=round(detection_time_ms, 2),
-        total_ms=round(total_time_ms, 2),
-    )
+        detection_time_ms = (time.perf_counter() - detection_start) * 1000
+        
+        total_time_ms = (time.perf_counter() - start_time) * 1000
+        logger.info(
+            "detect_columns_completed",
+            columns_found=len(response_data.get("columns", [])),
+            row_count=response_data.get("row_count", 0),
+            file_size_mb=round(file_size_mb, 2),
+            detection_ms=round(detection_time_ms, 2),
+            total_ms=round(total_time_ms, 2),
+        )
 
-    return ColumnDetectionResponse(**response_data)
+        return ColumnDetectionResponse(**response_data)
+    finally:
+        # BUG-061 FIX: Clean up temp file
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.unlink(temp_file_path)
+            except OSError:
+                logger.warning("detect_columns_temp_cleanup_failed", path=temp_file_path)
 
 
 @router.post("/{dataset_id}/ingest", response_model=JobStatusResponse)
