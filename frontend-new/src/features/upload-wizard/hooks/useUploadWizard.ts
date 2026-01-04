@@ -12,7 +12,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { message } from 'antd';
 import { instrumentedFetch } from '@lumina/design-system';
 import { env } from '../../../config/env';
@@ -58,9 +58,7 @@ async function checkJobStatus(jobId: string): Promise<{ id: string; status: stri
 
 const STEP_ORDER: WizardStep[] = ['upload', 'sheets', 'configure', 'mapping', 'finalize'];
 
-export function useUploadWizard(projectId: string, initialDatasetId?: string) {
-    const queryClient = useQueryClient();
-
+export function useUploadWizard(_projectId: string, initialDatasetId?: string) {
     const [state, setState] = useState<WizardState>({
         currentStep: initialDatasetId ? 'sheets' : 'upload',
         datasetId: initialDatasetId || null,

@@ -59,7 +59,7 @@ const { Panel } = Collapse;
 function formatLogData(data: unknown): string {
   if (typeof data === 'string') return data;
   try {
-    return JSON.stringify(null, 2);
+    return JSON.stringify(data, null, 2);
   } catch {
     return String(data);
   }
@@ -105,7 +105,7 @@ function calculateImportance(
   level: LogLevel,
   source: string,
   message: string,
-  data?: unknown,
+  _data?: unknown,
   extra?: { duration?: number; status?: number }
 ): Importance {
   // Critical: Errors and failed requests
@@ -145,7 +145,7 @@ function calculateImportance(
 let correlationCounter = 0;
 let activeCorrelation: string | null = null;
 
-export function startCorrelation(action: string): string {
+export function startCorrelation(_action: string): string {
   const id = `flow-${++correlationCounter}-${Date.now()}`;
   activeCorrelation = id;
   // Auto-expire after 30 seconds

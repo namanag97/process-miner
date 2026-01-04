@@ -3,9 +3,9 @@
 Clean, React-optimized response shapes.
 """
 
+import json
 from datetime import datetime
 from typing import Any
-import json
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -178,7 +178,7 @@ class ProjectResponse(BaseModel):
                 if hasattr(data, k)
             }
         if isinstance(data, dict):
-            if "tags_json" in data and data["tags_json"]:
+            if data.get("tags_json"):
                 try:
                     data["tags"] = json.loads(data["tags_json"])
                 except (json.JSONDecodeError, TypeError):
@@ -280,7 +280,7 @@ class DatasetResponse(BaseModel):
                 if hasattr(data, k)
             }
         if isinstance(data, dict):
-            if "activities_json" in data and data["activities_json"]:
+            if data.get("activities_json"):
                 try:
                     data["activities"] = json.loads(data["activities_json"])
                 except (json.JSONDecodeError, TypeError):
@@ -692,7 +692,7 @@ class WorkflowResponse(BaseModel):
                 if hasattr(data, k)
             }
         if isinstance(data, dict):
-            if "steps_json" in data and data["steps_json"]:
+            if data.get("steps_json"):
                 try:
                     data["steps"] = json.loads(data["steps_json"])
                 except (json.JSONDecodeError, TypeError):
@@ -795,7 +795,7 @@ class OCELLogResponse(BaseModel):
                 if hasattr(data, k)
             }
         if isinstance(data, dict):
-            if "metadata_json" in data and data["metadata_json"]:
+            if data.get("metadata_json"):
                 try:
                     metadata = json.loads(data["metadata_json"])
                     # object_types is extracted from objects_per_type keys (ORM storage format)
@@ -869,7 +869,7 @@ class OCPetriNetResponse(BaseModel):
                 if hasattr(data, k)
             }
         if isinstance(data, dict):
-            if "object_types_json" in data and data["object_types_json"]:
+            if data.get("object_types_json"):
                 try:
                     data["object_types"] = json.loads(data["object_types_json"])
                 except (json.JSONDecodeError, TypeError):
@@ -1089,7 +1089,7 @@ class FilteredLogResponse(BaseModel):
             # Map source_dataset_id to source_log_id
             if "source_dataset_id" in data and "source_log_id" not in data:
                 data["source_log_id"] = data["source_dataset_id"] or ""
-            if "filter_config_json" in data and data["filter_config_json"]:
+            if data.get("filter_config_json"):
                 try:
                     config_list = json.loads(data["filter_config_json"])
                     data["filter_config"] = [FilterConfig(**c) for c in config_list]
@@ -1097,7 +1097,7 @@ class FilteredLogResponse(BaseModel):
                     data["filter_config"] = []
             elif "filter_config" not in data:
                 data["filter_config"] = []
-            if "filter_stats_json" in data and data["filter_stats_json"]:
+            if data.get("filter_stats_json"):
                 try:
                     stats_dict = json.loads(data["filter_stats_json"])
                     data["statistics"] = FilterStatistics(**stats_dict)
@@ -1377,7 +1377,7 @@ class PredictorResponse(BaseModel):
             # Map dataset_id to log_id for API consistency
             if "dataset_id" in data and "log_id" not in data:
                 data["log_id"] = data["dataset_id"]
-            if "metrics_json" in data and data["metrics_json"]:
+            if data.get("metrics_json"):
                 try:
                     data["metrics"] = json.loads(data["metrics_json"])
                 except (json.JSONDecodeError, TypeError):
@@ -1533,12 +1533,12 @@ class AnalysisResponse(BaseModel):
                 if hasattr(data, k)
             }
         if isinstance(data, dict):
-            if "config_json" in data and data["config_json"]:
+            if data.get("config_json"):
                 try:
                     data["config"] = json.loads(data["config_json"])
                 except (json.JSONDecodeError, TypeError):
                     data["config"] = None
-            if "result_summary_json" in data and data["result_summary_json"]:
+            if data.get("result_summary_json"):
                 try:
                     data["result_summary"] = json.loads(data["result_summary_json"])
                 except (json.JSONDecodeError, TypeError):

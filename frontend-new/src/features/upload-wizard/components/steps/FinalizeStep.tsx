@@ -10,7 +10,7 @@
  * Includes comprehensive DevConsole telemetry for debugging
  */
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, Typography, Progress, Spin, Alert, Button, Steps, Result } from 'antd';
 import {
     LoadingOutlined,
@@ -148,7 +148,6 @@ export function FinalizeStep({
 
     const isComplete = jobStatus?.status === 'completed';
     const isFailed = jobStatus?.status === 'failed';
-    const isProcessing = !isComplete && !isFailed;
     const progress = jobStatus?.progress || 0;
     const currentProcessingStep = getProcessingStep(progress);
 

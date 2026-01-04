@@ -11,23 +11,23 @@
  * - Removable filter chips
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   Typography,
   Collapse,
   DatePicker,
   Select,
-  Slider,
+
   Tag,
   Button,
   Space,
-  Divider,
-  Input,
+
+
   InputNumber,
   Radio,
-  Checkbox,
+
   Empty,
-  Tooltip,
+
 } from 'antd';
 import {
   ClearOutlined,
@@ -300,7 +300,7 @@ interface TimeRangeFilterSectionProps {
   onApply: (filter: AppliedFilter) => void;
 }
 
-function TimeRangeFilterSection({ timeRange, onApply }: TimeRangeFilterSectionProps) {
+function TimeRangeFilterSection({ timeRange: _timeRange, onApply }: TimeRangeFilterSectionProps) {
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(
     null
   );
@@ -365,8 +365,8 @@ function TimeRangeFilterSection({ timeRange, onApply }: TimeRangeFilterSectionPr
         <Button size="small" onClick={() => handlePresetClick('last30')}>Last 30d</Button>
         <Button size="small" onClick={() => handlePresetClick('last90')}>Last 90d</Button>
         <Button size="small" onClick={() => handlePresetClick('ytd')}>YTD</Button>
-        <Button 
-          size="small" 
+        <Button
+          size="small"
           type={showCustom ? 'primary' : 'default'}
           onClick={() => setShowCustom(!showCustom)}
         >
@@ -538,7 +538,6 @@ export function FilterPanel({
   onApplyFilter,
   onRemoveFilter,
   onClearAllFilters,
-  loading = false,
 }: FilterPanelProps) {
   log.debug('Rendering FilterPanel', { appliedCount: appliedFilters.length });
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Table, Button, Space, Typography, Tag, Modal, Form, Select, Card, Skeleton } from 'antd';
 import {
@@ -122,7 +122,7 @@ export function PredictionsPage() {
       title: 'Name',
       dataIndex: 'id', // PredictorResponse might not have 'name' yet, check schema? Schema has no name.
       key: 'name',
-      render: (id: string, record: any) => (
+      render: (_id: string, record: any) => (
         <Space>
           <ExperimentOutlined style={{ color: tokens.colors.primary[500] }} />
           <Text strong>{record.target_type} Model ({record.algorithm})</Text>

@@ -435,7 +435,7 @@ export function TestBenchPage() {
         {/* AI MODULE */}
         <Panel header={<><ExperimentOutlined /> <strong>AI</strong> — 3 endpoints</>} key="ai">
           <Space wrap style={{ marginBottom: 12 }}>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('ai.listPredictors', () => sdk.ai.listPredictors())} loading={apiResults['ai.listPredictors']?.status === 'loading'}>
+            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('ai.listPredictors', () => sdk.ai.listPredictors(logIdInput))} loading={apiResults['ai.listPredictors']?.status === 'loading'} disabled={!logIdInput}>
               listPredictors()
             </Button>
             <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('ai.getInsights', () => sdk.ai.getInsights(logIdInput))} loading={apiResults['ai.getInsights']?.status === 'loading'} disabled={!logIdInput}>

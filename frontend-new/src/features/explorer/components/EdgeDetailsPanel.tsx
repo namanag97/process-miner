@@ -8,7 +8,7 @@
  * - Filter actions
  */
 
-import { Typography, Descriptions, Tag, Button, Space, Divider, Tooltip } from 'antd';
+import { Typography, Descriptions, Tag, Button, Space, Divider } from 'antd';
 import {
   FilterOutlined,
   CloseOutlined,
@@ -18,7 +18,7 @@ import {
 } from '@ant-design/icons';
 import { tokens } from '@lumina/design-system';
 import { createLogger } from '../../../utils/logger';
-import { formatDuration, formatNumber, COLORS } from '../utils/colorScales';
+import { formatDuration, formatNumber } from '../utils/colorScales';
 import type { EdgeDetail } from '../types';
 
 const log = createLogger('EdgeDetailsPanel');
@@ -111,77 +111,6 @@ function TransitionVisual({ source, target, probability }: TransitionVisualProps
         title={target}
       >
         {target}
-      </div>
-    </div>
-  );
-}
-
-// =============================================================================
-// DURATION BAR
-// =============================================================================
-
-interface DurationBarProps {
-  avgDuration: number;
-  minDuration: number;
-  maxDuration: number;
-}
-
-function DurationBar({ avgDuration, minDuration, maxDuration }: DurationBarProps) {
-  const range = maxDuration - minDuration;
-  const avgPosition = range > 0 ? ((avgDuration - minDuration) / range) * 100 : 50;
-
-  return (
-    <div style={{ marginTop: 8, marginBottom: 16 }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          fontSize: 10,
-          color: tokens.colors.neutral[500],
-          marginBottom: 4,
-        }}
-      >
-        <span>Min: {formatDuration(minDuration)}</span>
-        <span>Max: {formatDuration(maxDuration)}</span>
-      </div>
-      <div
-        style={{
-          position: 'relative',
-          height: 8,
-          backgroundColor: tokens.colors.neutral[200],
-          borderRadius: 4,
-        }}
-      >
-        {/* Range indicator */}
-        <div
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            top: 0,
-            bottom: 0,
-            background: `linear-gradient(to right, ${COLORS.performance.good}, ${COLORS.performance.moderate}, ${COLORS.performance.poor})`,
-            borderRadius: 4,
-            opacity: 0.6,
-          }}
-        />
-        {/* Average marker */}
-        <Tooltip title={`Average: ${formatDuration(avgDuration)}`}>
-          <div
-            style={{
-              position: 'absolute',
-              left: `${avgPosition}%`,
-              top: -4,
-              width: 16,
-              height: 16,
-              backgroundColor: tokens.colors.neutral[0],
-              border: `2px solid ${tokens.colors.primary[500]}`,
-              borderRadius: '50%',
-              transform: 'translateX(-50%)',
-              cursor: 'pointer',
-            }}
-          />
-        </Tooltip>
       </div>
     </div>
   );

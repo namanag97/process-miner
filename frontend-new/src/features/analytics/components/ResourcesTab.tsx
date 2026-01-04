@@ -9,7 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { MetricCard, tokens, formatDurationFromSeconds, useSDK } from '@lumina/design-system';
 import { createLogger } from '../../../utils/logger';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 const log = createLogger('ResourcesTab');
 
 interface ResourceData {

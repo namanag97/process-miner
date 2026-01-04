@@ -4,7 +4,7 @@
  * Flow: Load Data → Map Columns → Queue Analysis → Process Map
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal, Select, Button, Alert, Spin, Space, Typography, Form, Tag, Steps, Card } from 'antd';
 import {
     LoadingOutlined,

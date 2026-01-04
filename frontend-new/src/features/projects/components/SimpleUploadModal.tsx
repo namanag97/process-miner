@@ -5,7 +5,7 @@
  * Uses async_store=true for deferred ingestion.
  */
 
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Modal, Upload, Button, Alert, Progress, Typography, Tag } from 'antd';
 import type { UploadFile, UploadProps } from 'antd';
 import { InboxOutlined, FileTextOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';

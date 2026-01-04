@@ -12,7 +12,7 @@ import {
   useThroughput,
 } from '@lumina/design-system';
 
-const { Text } = Typography;
+const { Text: _Text } = Typography;
 
 interface PerformanceTabProps {
   logId: string;

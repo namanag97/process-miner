@@ -7,7 +7,7 @@
  * - User-friendly error UI with recovery options
  * - Session/context preservation where possible
  */
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode } from 'react';
 import { Button, Result, Typography, Card, Space } from 'antd';
 import { ReloadOutlined, HomeOutlined, BugOutlined } from '@ant-design/icons';
 

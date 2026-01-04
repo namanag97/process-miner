@@ -8,7 +8,7 @@
  * - Automation potential assessment
  */
 
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { Tabs, Button } from 'antd';
 import {

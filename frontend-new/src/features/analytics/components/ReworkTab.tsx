@@ -6,7 +6,7 @@ import {
 import { MetricCard, tokens, formatCompactNumber, type ReworkData } from '@lumina/design-system';
 import { createLogger } from '../../../utils/logger';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 const log = createLogger('ReworkTab');
 
 interface ReworkTabProps {

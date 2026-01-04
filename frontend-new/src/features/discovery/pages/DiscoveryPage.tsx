@@ -13,7 +13,6 @@ import { useState, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { logAction, logError } from '@lumina/design-system';
 import {
-    useDiscoveryMutation,
     useModelVisualization,
 } from '../hooks';
 import { JobStatusPanel, ModelList, JSONViewer, GraphViewer } from '../components';
@@ -38,7 +37,6 @@ export function DiscoveryPage() {
     const [showAlgorithmSelector, setShowAlgorithmSelector] = useState(false);
 
     // Mutations and queries
-    const discoveryMutation = useDiscoveryMutation();
     const { data: modelDetail } = useModelVisualization(selectedModel?.id || '');
 
     // Handle discovery completion
@@ -189,7 +187,7 @@ export function DiscoveryPage() {
 }
 
 // Helper to transform model data to graph format
-function transformToGraphData(modelDetail: any: ModelFormat) {
+function transformToGraphData(modelDetail: any) {
     // Handle DFG format (already has nodes/edges)
     if (modelDetail.nodes && modelDetail.edges) {
         return {

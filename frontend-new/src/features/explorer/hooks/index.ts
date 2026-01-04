@@ -73,18 +73,18 @@ export const useActivities = createQueryHook({
   queryFn: async (sdk, logId: string) => {
     // Use DFG to get activity information since getActivityStats may not exist
     const dfg = await sdk.discovery.buildDFG(logId);
-    // Transform nodes to activity details
+    // Transform nodes to activity details (matching ActivityDetail type)
     return dfg.nodes.map((node: { id: string; label: string; frequency: number; isStart?: boolean; isEnd?: boolean }) => ({
       id: node.id,
       name: node.label,
       frequency: node.frequency,
       frequencyPercent: 0,
-      avgDuration: null,
-      minDuration: null,
-      maxDuration: null,
-      isStart: node.isStart || false,
-      isEnd: node.isEnd || false,
-      resources: [],
+      avgDuration: undefined,
+      minDuration: undefined,
+      maxDuration: undefined,
+      isStartActivity: node.isStart || false,
+      isEndActivity: node.isEnd || false,
+      resources: [] as string[],
     }));
   },
   enabled: (logId: string) => !!logId,

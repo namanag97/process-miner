@@ -2,7 +2,7 @@
  * UploadStep - Step 1: File upload with drag-drop
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Upload, Card, Typography, Space, Alert, Progress } from 'antd';
 import { InboxOutlined, FileTextOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';

@@ -24,7 +24,7 @@ import {
   PlusOutlined,
   QuestionCircleOutlined,
 } from '@ant-design/icons';
-import { tokens, toast, logAction, logError, ErrorBoundary } from '@lumina/design-system';
+import { tokens, toast, logAction, logError, ErrorBoundary, type ActivityDetail } from '@lumina/design-system';
 import { createLogger } from '../../../utils/logger';
 
 const { Text } = Typography;
@@ -125,7 +125,6 @@ export function ExplorerDetailPage() {
   } = useActivities(logId || '');
 
   const loading = logLoading || dfgLoading || variantsLoading || activitiesLoading;
-  const error = dfgError || variantsError || activitiesError;
 
   // Apply fallbacks - Re-enabled for graceful degradation when backend is unavailable
   const logInfoWithFallback = useFallbackData(
@@ -149,7 +148,7 @@ export function ExplorerDetailPage() {
     { source: 'ExplorerDetailPage', hookType: 'useVariants', logId: logId || '', endpoint: '/api/datasets/variants', disableFallback: false }
   );
 
-  const activitiesWithFallback = useFallbackData(
+  const activitiesWithFallback = useFallbackData<ActivityDetail[]>(
     activities,
     activitiesError,
     mockOrderToCashActivities,
@@ -345,7 +344,7 @@ export function ExplorerDetailPage() {
       name: a.name,
       frequency: a.frequency ?? 0,
       casePercent: a.frequencyPercent ?? 0,
-      avgDuration: a.avgDuration,
+      avgDuration: a.avgDuration ?? undefined,
     }));
   }, [activitiesWithFallback]);
 
@@ -581,7 +580,7 @@ export function ExplorerDetailPage() {
               style={{ padding: 40 }}
             />
           }
-          onError={(error) => {
+          onError={(_error) => {
             logError('VariantPanel', { logId: logId || '', componentCrash: true });
           }}
         >
@@ -935,7 +934,7 @@ export function ExplorerDetailPage() {
                   }
                 />
               }
-              onError={(error) => {
+              onError={(_error) => {
                 logError('ProcessCanvas', { logId: logId || '', componentCrash: true });
               }}
             >

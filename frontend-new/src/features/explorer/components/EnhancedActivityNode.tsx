@@ -10,7 +10,7 @@
  * - Hover tooltips
  */
 
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { Tooltip, Badge } from 'antd';
 import {

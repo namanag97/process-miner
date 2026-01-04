@@ -13,13 +13,6 @@ import { createLogger } from '../../../utils/logger';
 const { Text } = Typography;
 const log = createLogger('ConformanceTab');
 
-// Impact color mapping
-const impactColors: Record<string, string> = {
-  high: tokens.colors.error[500],
-  medium: tokens.colors.warning[500],
-  low: tokens.colors.success[500],
-};
-
 function FitnessGauge({ value, label }: { value: number; label: string }) {
   const getColor = (val: number) => {
     if (val >= 90) return tokens.colors.success[500];

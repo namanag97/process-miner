@@ -381,7 +381,6 @@ JWT-based authentication with optional workspace context.
     app.include_router(dev_log_router, prefix=settings.api_prefix)
     app.include_router(dev_logs_stream_router, prefix=settings.api_prefix)
     app.include_router(telemetry_proxy_router, prefix=settings.api_prefix)
-    app.include_router(jobs_router, prefix=settings.api_prefix)
 
     # Test endpoint for telemetry (debug mode only)
     if settings.debug:

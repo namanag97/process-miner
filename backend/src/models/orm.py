@@ -445,8 +445,13 @@ class ProcessModel(Base):
     miner_type: Mapped[str] = mapped_column(String(50), nullable=False)
     model_format: Mapped[str] = mapped_column(String(50), nullable=False)
 
-    # Serialized PM4Py model (pickled)
+    # Serialized PM4Py model (pickled) - DEPRECATED: Use standard_content_path instead
     serialized_model: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+
+    # Standard format storage (new architecture)
+    standard_content_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    graph_structure_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Quality metrics
     fitness: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -456,6 +461,66 @@ class ProcessModel(Base):
 
     # Relationships
     source_dataset: Mapped[Optional["Dataset"]] = relationship(back_populates="models")
+    metrics: Mapped[Optional["ProcessModelMetrics"]] = relationship(
+        back_populates="model", uselist=False, cascade="all, delete-orphan"
+    )
+    graph_caches: Mapped[list["GraphCache"]] = relationship(
+        back_populates="model", cascade="all, delete-orphan"
+    )
+
+
+class ProcessModelMetrics(Base):
+    """Precomputed metrics for process models."""
+
+    __tablename__ = "process_model_metrics"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    model_id: Mapped[str] = mapped_column(
+        ForeignKey("process_models.id", ondelete="CASCADE"), nullable=False
+    )
+
+    # Computed metrics
+    total_activities: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_transitions: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    complexity_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    fitness_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    precision_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    computed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    # Relationships
+    model: Mapped["ProcessModel"] = relationship(back_populates="metrics")
+
+
+class GraphCache(Base):
+    """Cached graph layouts for process models."""
+
+    __tablename__ = "graph_cache"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    model_id: Mapped[str] = mapped_column(
+        ForeignKey("process_models.id", ondelete="CASCADE"), nullable=False
+    )
+
+    # Cache parameters
+    abstraction_level: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    layout_algorithm: Mapped[str] = mapped_column(String(50), default="dagre", nullable=False)
+
+    # Cached data
+    cached_layout_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    # Relationships
+    model: Mapped["ProcessModel"] = relationship(back_populates="graph_caches")
 
 
 class ConformanceResult(Base):

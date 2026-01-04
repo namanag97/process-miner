@@ -5,7 +5,7 @@
  * Handles Petri Nets, Transition Systems, Prefix Trees as node/edge graphs.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import ReactFlow, {
     Background,
     Controls,
@@ -138,8 +138,8 @@ export function GraphViewer({
         [graphEdges]
     );
 
-    const [nodes, onNodesChange] = useNodesState(initialNodes);
-    const [edges, onEdgesChange] = useEdgesState(initialEdges);
+    const [nodes, , onNodesChange] = useNodesState(initialNodes);
+    const [edges, , onEdgesChange] = useEdgesState(initialEdges);
 
     if (graphNodes.length === 0) {
         return (

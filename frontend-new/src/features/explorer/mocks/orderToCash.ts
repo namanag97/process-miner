@@ -22,181 +22,200 @@ const mockDFGNodes: DFGNode[] = [
     id: 'receive-order',
     label: 'Receive Order',
     frequency: 1000,
-    isStartActivity: true,
-    isEndActivity: false,
+    isStart: true,
+    isEnd: false,
   },
   {
     id: 'check-inventory',
     label: 'Check Inventory',
     frequency: 850,
-    isStartActivity: false,
-    isEndActivity: false,
+    isStart: false,
+    isEnd: false,
   },
   {
     id: 'request-restock',
     label: 'Request Restock',
     frequency: 150,
-    isStartActivity: false,
-    isEndActivity: false,
+    isStart: false,
+    isEnd: false,
   },
   {
     id: 'pick-items',
     label: 'Pick Items',
     frequency: 980,
-    isStartActivity: false,
-    isEndActivity: false,
+    isStart: false,
+    isEnd: false,
   },
   {
     id: 'pack-order',
     label: 'Pack Order',
     frequency: 970,
-    isStartActivity: false,
-    isEndActivity: false,
+    isStart: false,
+    isEnd: false,
   },
   {
     id: 'generate-invoice',
     label: 'Generate Invoice',
     frequency: 960,
-    isStartActivity: false,
-    isEndActivity: false,
+    isStart: false,
+    isEnd: false,
   },
   {
     id: 'ship-order',
     label: 'Ship Order',
     frequency: 950,
-    isStartActivity: false,
-    isEndActivity: false,
+    isStart: false,
+    isEnd: false,
   },
   {
     id: 'deliver-order',
     label: 'Deliver Order',
     frequency: 920,
-    isStartActivity: false,
-    isEndActivity: false,
+    isStart: false,
+    isEnd: false,
   },
   {
     id: 'close-order',
     label: 'Close Order',
     frequency: 900,
-    isStartActivity: false,
-    isEndActivity: true,
+    isStart: false,
+    isEnd: true,
   },
   {
     id: 'process-return',
     label: 'Process Return',
     frequency: 50,
-    isStartActivity: false,
-    isEndActivity: false,
+    isStart: false,
+    isEnd: false,
   },
   {
     id: 'issue-refund',
     label: 'Issue Refund',
     frequency: 45,
-    isStartActivity: false,
-    isEndActivity: true,
+    isStart: false,
+    isEnd: true,
   },
 ];
 
 const mockDFGEdges: DFGEdge[] = [
   // Happy path
   {
+    id: 'edge-0',
     source: 'receive-order',
     target: 'check-inventory',
     frequency: 850,
+    probability: 0.85,
     avgDuration: 1800, // 30 minutes
   },
   {
+    id: 'edge-1',
     source: 'check-inventory',
     target: 'pick-items',
     frequency: 800,
+    probability: 0.94,
     avgDuration: 3600, // 1 hour
   },
   {
+    id: 'edge-2',
     source: 'pick-items',
     target: 'pack-order',
     frequency: 970,
+    probability: 0.99,
     avgDuration: 1200, // 20 minutes
   },
   {
+    id: 'edge-3',
     source: 'pack-order',
     target: 'generate-invoice',
     frequency: 960,
+    probability: 0.99,
     avgDuration: 600, // 10 minutes
   },
   {
+    id: 'edge-4',
     source: 'generate-invoice',
     target: 'ship-order',
     frequency: 950,
+    probability: 0.99,
     avgDuration: 7200, // 2 hours
   },
   {
+    id: 'edge-5',
     source: 'ship-order',
     target: 'deliver-order',
     frequency: 920,
+    probability: 0.97,
     avgDuration: 86400, // 24 hours
   },
   {
+    id: 'edge-6',
     source: 'deliver-order',
     target: 'close-order',
     frequency: 870,
+    probability: 0.95,
     avgDuration: 1800, // 30 minutes
   },
 
   // Rush orders (skip inventory check)
   {
+    id: 'edge-7',
     source: 'receive-order',
     target: 'pick-items',
     frequency: 150,
+    probability: 0.15,
     avgDuration: 900, // 15 minutes
   },
 
   // Backorder flow
   {
+    id: 'edge-8',
     source: 'check-inventory',
     target: 'request-restock',
     frequency: 50,
+    probability: 0.06,
     avgDuration: 3600, // 1 hour
   },
   {
+    id: 'edge-9',
     source: 'request-restock',
     target: 'check-inventory',
     frequency: 150,
+    probability: 1.0,
     avgDuration: 172800, // 48 hours (rework loop)
   },
 
   // Rework: Packing issues
   {
+    id: 'edge-10',
     source: 'pack-order',
     target: 'pick-items',
     frequency: 10,
+    probability: 0.01,
     avgDuration: 1800, // 30 minutes (repick)
   },
 
   // Return flow
   {
+    id: 'edge-11',
     source: 'deliver-order',
     target: 'process-return',
     frequency: 50,
+    probability: 0.05,
     avgDuration: 7200, // 2 hours
   },
   {
+    id: 'edge-12',
     source: 'process-return',
     target: 'issue-refund',
     frequency: 45,
+    probability: 0.9,
     avgDuration: 3600, // 1 hour
   },
 ];
 
 export const mockOrderToCashDFG: DFGData = {
   nodes: mockDFGNodes,
-  edges: mockDFGEdges.map((edge, index) => ({
-    id: `edge-${edge.source}-${edge.target}-${index}`,
-    source: edge.source,
-    target: edge.target,
-    frequency: edge.frequency,
-    probability: edge.probability || 0,
-    avgDuration: edge.avgDuration,
-  })),
+  edges: mockDFGEdges,
   startActivities: {
     'receive-order': 1000,
   },

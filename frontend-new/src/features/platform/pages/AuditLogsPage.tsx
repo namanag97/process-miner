@@ -40,10 +40,6 @@ import dayjs from 'dayjs';
 
 const { Text } = Typography;
 
-// ============ TYPES ============
-
-type UserRole = 'ADMIN' | 'USER' | 'VIEWER';
-
 // ============ CONSTANTS ============
 
 const eventColors: Record<string, string> = {
@@ -63,12 +59,6 @@ const eventColors: Record<string, string> = {
   'process.deleted': 'red',
   'explorer.viewed': 'cyan',
   'kpi.viewed': 'purple',
-};
-
-const roleColors: Record<UserRole, string> = {
-  ADMIN: 'red',
-  USER: 'blue',
-  VIEWER: 'default',
 };
 
 const retentionOptions = [

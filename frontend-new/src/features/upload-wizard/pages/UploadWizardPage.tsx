@@ -15,7 +15,7 @@
  * - ERROR → Show error with retry option
  */
 
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, Typography, Button, Space, Spin, message } from 'antd';
 import { ArrowLeftOutlined, LoadingOutlined } from '@ant-design/icons';

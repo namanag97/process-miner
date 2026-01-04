@@ -7,7 +7,7 @@ that go beyond simple field mapping.
 Usage:
     # In routers, instead of manual json.loads() calls:
     from src.models.converters import dataset_to_response, project_to_response
-    
+
     return dataset_to_response(orm_dataset)
 """
 
@@ -16,23 +16,23 @@ from typing import TYPE_CHECKING
 
 from src.models.schemas import (
     AnalysisResponse,
-    DatasetResponse,
     DatasetDetailResponse,
+    DatasetResponse,
+    FilterConfig,
+    FilteredLogResponse,
+    FilterStatistics,
+    OCELLogResponse,
     ProjectResponse,
     WorkflowResponse,
-    OCELLogResponse,
-    FilteredLogResponse,
-    FilterConfig,
-    FilterStatistics,
 )
 
 if TYPE_CHECKING:
-    from src.models.orm import Dataset, Project, Analysis, Workflow, OCELLog
+    from src.models.orm import Analysis, Dataset, OCELLog, Project, Workflow
 
 
 def dataset_to_response(dataset: "Dataset") -> DatasetResponse:
     """Convert ORM Dataset to API response with JSON field parsing.
-    
+
     Handles: activities_json → activities
     """
     return DatasetResponse.model_validate(dataset)
@@ -40,7 +40,7 @@ def dataset_to_response(dataset: "Dataset") -> DatasetResponse:
 
 def dataset_to_detail_response(dataset: "Dataset") -> DatasetDetailResponse:
     """Convert ORM Dataset to detailed API response.
-    
+
     Handles: activities_json → activities, statistics_json → statistics
     """
     activities = []
@@ -49,14 +49,14 @@ def dataset_to_detail_response(dataset: "Dataset") -> DatasetDetailResponse:
             activities = json.loads(dataset.activities_json)
         except (json.JSONDecodeError, TypeError):
             pass
-    
+
     statistics = None
     if dataset.statistics_json:
         try:
             statistics = json.loads(dataset.statistics_json)
         except (json.JSONDecodeError, TypeError):
             pass
-    
+
     return DatasetDetailResponse(
         id=dataset.id,
         name=dataset.name,
@@ -75,7 +75,7 @@ def dataset_to_detail_response(dataset: "Dataset") -> DatasetDetailResponse:
 
 def project_to_response(project: "Project") -> ProjectResponse:
     """Convert ORM Project to API response with JSON field parsing.
-    
+
     Handles: tags_json → tags
     """
     return ProjectResponse.model_validate(project)
@@ -83,7 +83,7 @@ def project_to_response(project: "Project") -> ProjectResponse:
 
 def analysis_to_response(analysis: "Analysis") -> AnalysisResponse:
     """Convert ORM Analysis to API response with JSON field parsing.
-    
+
     Handles: config_json → config, result_summary_json → result_summary
     """
     return AnalysisResponse.model_validate(analysis)
@@ -91,7 +91,7 @@ def analysis_to_response(analysis: "Analysis") -> AnalysisResponse:
 
 def workflow_to_response(workflow: "Workflow") -> WorkflowResponse:
     """Convert ORM Workflow to API response with JSON field parsing.
-    
+
     Handles: steps_json → steps
     """
     return WorkflowResponse.model_validate(workflow)
@@ -99,7 +99,7 @@ def workflow_to_response(workflow: "Workflow") -> WorkflowResponse:
 
 def ocel_log_to_response(log: "OCELLog") -> OCELLogResponse:
     """Convert ORM OCELLog to API response with metadata parsing.
-    
+
     Handles: metadata_json → object_types, activities
     """
     metadata = {}
@@ -108,7 +108,7 @@ def ocel_log_to_response(log: "OCELLog") -> OCELLogResponse:
             metadata = json.loads(log.metadata_json)
         except (json.JSONDecodeError, TypeError):
             pass
-    
+
     return OCELLogResponse(
         id=log.id,
         name=log.name,
@@ -125,7 +125,7 @@ def ocel_log_to_response(log: "OCELLog") -> OCELLogResponse:
 
 def filtered_dataset_to_response(dataset: "Dataset") -> FilteredLogResponse:
     """Convert filtered ORM Dataset to FilteredLogResponse.
-    
+
     Handles: filter_config_json → filter_config, filter_stats_json → statistics
     """
     filter_config = []
@@ -135,7 +135,7 @@ def filtered_dataset_to_response(dataset: "Dataset") -> FilteredLogResponse:
             filter_config = [FilterConfig(**c) for c in config_list]
         except (json.JSONDecodeError, TypeError):
             pass
-    
+
     statistics = None
     if dataset.filter_stats_json:
         try:
@@ -143,7 +143,7 @@ def filtered_dataset_to_response(dataset: "Dataset") -> FilteredLogResponse:
             statistics = FilterStatistics(**stats_dict)
         except (json.JSONDecodeError, TypeError):
             pass
-    
+
     return FilteredLogResponse(
         id=dataset.id,
         name=dataset.name,

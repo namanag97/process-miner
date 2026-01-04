@@ -9,7 +9,7 @@
  * - Table configuration panel
  */
 
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
     Card,
     Typography,

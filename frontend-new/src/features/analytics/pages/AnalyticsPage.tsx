@@ -8,7 +8,7 @@
  * - Resource utilization
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, useSearchParams, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Row, Col, Card, Tabs, Select, Space, Typography, Skeleton, Alert } from 'antd';
@@ -55,7 +55,7 @@ export function AnalyticsPage() {
   }, [logs, selectedLogId, searchParams]);
 
   // Fetch performance data for selected log
-  const { data: performanceData, isLoading: perfLoading, error: perfError } = useQuery({
+  const { data: performanceData, isLoading: perfLoading, error: _perfError } = useQuery({
     queryKey: ['analytics', 'performance', selectedLogId],
     queryFn: () => sdk.analytics.getPerformance(selectedLogId!),
     enabled: !!selectedLogId,

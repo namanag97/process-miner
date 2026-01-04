@@ -4,7 +4,7 @@
 
 import { Breadcrumb, Dropdown, Space, Typography, theme } from 'antd';
 import { HomeOutlined, AppstoreOutlined, DownOutlined } from '@ant-design/icons';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useWorkspace, type Workspace } from '../../../context/UserContext';
 import type { MenuProps } from 'antd';
 
@@ -23,10 +23,9 @@ interface WorkspaceHeaderProps {
 export function WorkspaceHeader({ breadcrumbItems = [] }: WorkspaceHeaderProps) {
   const { token } = theme.useToken();
   const { workspace, workspaces, setWorkspace } = useWorkspace();
-  const location = useLocation();
 
   // Build workspace dropdown menu
-  const workspaceMenuItems: MenuProps['items'] = workspaces.map((ws) => ({
+  const workspaceMenuItems: MenuProps['items'] = workspaces.map((ws: Workspace) => ({
     key: ws.id,
     label: (
       <Space>

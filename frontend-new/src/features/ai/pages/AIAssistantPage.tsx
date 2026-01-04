@@ -9,7 +9,7 @@ import {
   WarningOutlined,
   FileTextOutlined,
   InfoCircleOutlined,
-  ReloadOutlined,
+  
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader, EmptyState, tokens } from '@lumina/design-system';
@@ -18,14 +18,11 @@ import { ProcessSelector } from '../components/ProcessSelector';
 import type { ProcessOption } from '../components/ProcessSelector';
 import { ChatMessage } from '../components/ChatMessage';
 import { InsightCard } from '../components/InsightCard';
-import { buildProcessContext } from '../utils/processContextBuilder';
 import { ChatMessage as ChatMessageType, DEFAULT_PROMPTS } from '../types';
 import type { ProcessSummaryData } from '@lumina/design-system';
 import { useAIProcesses, useAIProcessSummary } from '../hooks';
-import { createLogger } from '../../../utils/logger';
 
 const { Text, Title } = Typography;
-const log = createLogger('AIAssistantPage');
 
 // Icon mapping for prompt suggestions
 const iconComponents: Record<string, React.ReactNode> = {
@@ -71,7 +68,6 @@ export function AIAssistantPage() {
   const {
     data: processSummary,
     isLoading: summaryLoading,
-    error: summaryError,
   } = useAIProcessSummary(selectedProcessId || '');
 
   // Transform processes data to ProcessOption[]
@@ -141,8 +137,7 @@ export function AIAssistantPage() {
     // Simulate LLM response (replace with actual LLM call in future)
     setTimeout(() => {
       const selectedProcess = processes.find((p) => p.id === selectedProcessId);
-      const context = buildProcessContext(processSummary, selectedProcess?.name || 'Process');
-      
+
       // Generate contextual mock response based on the question
       const response = generateMockResponse(inputValue, processSummary, selectedProcess?.name || 'Process');
 

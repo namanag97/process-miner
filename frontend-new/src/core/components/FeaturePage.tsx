@@ -28,7 +28,7 @@
  * </FeaturePage>
  */
 
-import React, { Suspense, ReactNode, useEffect } from 'react';
+import { Suspense, ReactNode, useEffect } from 'react';
 import { Button, Result, Skeleton } from 'antd';
 import {
   ReloadOutlined,

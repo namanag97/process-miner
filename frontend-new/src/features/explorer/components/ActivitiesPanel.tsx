@@ -5,7 +5,7 @@
  * Allows filtering and highlighting by clicking activities.
  */
 
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Input, Button, Badge, Tooltip, Empty } from 'antd';
 import { SearchOutlined, PlusOutlined, FilterOutlined } from '@ant-design/icons';
 import { tokens } from '@lumina/design-system';

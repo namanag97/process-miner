@@ -42,10 +42,8 @@ import { ProcessNode, ProcessNodeData } from '@lumina/design-system';
 import {
   applyDagreLayout,
   LayoutDirection,
-  calculateNodeScale,
 } from '../utils/layoutAlgorithms';
 import {
-  getPerformanceColor,
   getEdgeStyle,
   calculateStats,
   formatDuration,
@@ -158,27 +156,8 @@ const InnerCanvas = memo(function InnerCanvas({
     });
   }, [dfgEdges, complexityThreshold]);
 
-  // Build ReactFlow nodes with enhanced data
   const processedNodes = useMemo(() => {
-    const showPerformance = metricMode === 'performance';
-
     return dfgNodes.map((node): Node<ProcessNodeData> => {
-      const scale = calculateNodeScale(
-        node.frequency,
-        stats.frequency.max,
-        stats.frequency.min
-      );
-
-      // Calculate performance color if in performance mode
-      let performanceColor: string | undefined;
-      if (showPerformance && node.avgDuration !== undefined) {
-        performanceColor = getPerformanceColor(
-          node.avgDuration,
-          stats.duration.min,
-          stats.duration.max
-        );
-      }
-
       return {
         id: node.id,
         type: 'processNode',
@@ -193,7 +172,7 @@ const InnerCanvas = memo(function InnerCanvas({
         },
       };
     });
-  }, [dfgNodes, selectedNodeId, highlightedPath, metricMode, stats]);
+  }, [dfgNodes, selectedNodeId, highlightedPath]);
 
   // Build ReactFlow edges with styling
   const processedEdges = useMemo(() => {

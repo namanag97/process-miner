@@ -20,7 +20,7 @@ import { useEventLogsList } from '../hooks';
 import { createLogger } from '../../../utils/logger';
 
 const log = createLogger('ExploreProcessesPage');
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 interface ProcessDataset {
     id: string;

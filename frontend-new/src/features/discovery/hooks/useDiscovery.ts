@@ -65,7 +65,7 @@ export function useDiscoveryMutation() {
 
             return response.json();
         },
-        onSuccess: (data, variables) => {
+        onSuccess: (_data, variables) => {
             // Invalidate models list after discovery
             queryClient.invalidateQueries({
                 queryKey: discoveryQueryKeys.models(variables.logId)

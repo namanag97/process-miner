@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Row, Col, Card, Select, Space, Typography, Input, Tag, Skeleton, Alert, Collapse } from 'antd';
 import {
@@ -158,12 +158,6 @@ export function AIInsightsPage() {
     log.info('Natural language query submitted', { query: nlQuery });
     // Mock - just show a toast or feedback
     setNlQuery('');
-  };
-
-  const handleRefresh = () => {
-    log.info('Refreshing insights');
-    setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 1000);
   };
 
   const totalInsights =

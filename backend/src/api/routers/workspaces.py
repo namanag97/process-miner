@@ -3,7 +3,6 @@
 Endpoints for managing workspaces within an organization.
 """
 
-import json
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query

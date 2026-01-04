@@ -63,7 +63,7 @@ const ANALYSIS_TYPES = [
 export function ProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
+  const [_selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
 
   // Modal state
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
