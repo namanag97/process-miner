@@ -93,7 +93,7 @@ async def play_out_model(
 
     return PlayOutResponse(
         model_id=model_id,
-        generated_log_id=new_log.id,
+        generated_dataset_id=new_log.id,
         traces_generated=new_log.total_cases,
         events_generated=new_log.total_events,
     )
@@ -119,7 +119,7 @@ async def simulate_scenario(
     simulation_result = simulation_service.simulate_scenario(pm4py_log, request.modifications)
 
     return SimulationResponse(
-        log_id=log_id,
+        dataset_id=log_id,
         scenario=simulation_result["scenario"],
         original_metrics=simulation_result["original_metrics"],
         simulated_metrics=simulation_result["simulated_metrics"],

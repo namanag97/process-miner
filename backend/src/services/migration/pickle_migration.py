@@ -251,7 +251,7 @@ class PickleMigrationService:
                 )
 
             # Step 3: Save PNML to filesystem (if generated)
-            if result.pnml_path and not dry_run:
+            if result.pnml_path and not dry_run and pnml_result is not None:
                 pnml_content = pnml_result.get("content")
                 if pnml_content:
                     self._save_pnml_file(result.pnml_path, pnml_content)

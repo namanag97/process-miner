@@ -39,7 +39,7 @@ class RootCauseAnalyzer:
         diagnostics = conformance_service.get_diagnostics(event_log, model)
 
         # Aggregate deviations by activity
-        activity_deviations = defaultdict(lambda: {"missing_tokens": 0, "remaining_tokens": 0})
+        activity_deviations: dict[str, dict[str, int]] = defaultdict(lambda: {"missing_tokens": 0, "remaining_tokens": 0})  # type: ignore[arg-type]
 
         for deviation in diagnostics.get("deviations", []):
             deviation_type = deviation.get("type")
@@ -66,7 +66,7 @@ class RootCauseAnalyzer:
             )
 
         # Sort by total deviations descending
-        aggregated.sort(key=lambda x: x["total_deviations"], reverse=True)
+        aggregated.sort(key=lambda x: x["total_deviations"], reverse=True)  # type: ignore[arg-type, return-value]
 
         logger.info(
             "deviation_aggregation_completed",
@@ -103,7 +103,7 @@ class RootCauseAnalyzer:
         )
 
         # Aggregate deviations by position
-        position_deviations = defaultdict(lambda: {"log_only": 0, "model_only": 0})
+        position_deviations: dict[int, dict[str, int]] = defaultdict(lambda: {"log_only": 0, "model_only": 0})  # type: ignore[arg-type]
 
         for case_alignment in alignment_diagnostics.get("case_alignments", []):
             for position, move in enumerate(case_alignment.get("alignment", [])):
@@ -174,9 +174,9 @@ class RootCauseAnalyzer:
         )
 
         # Aggregate deviations by attribute value
-        attribute_stats = defaultdict(
+        attribute_stats: dict[str, dict[str, int]] = defaultdict(
             lambda: {"total_cases": 0, "deviating_cases": 0, "total_deviations": 0}
-        )
+        )  # type: ignore[arg-type]
 
         for _i, (trace, case_alignment) in enumerate(
             zip(pm4py_log, alignment_diagnostics.get("case_alignments", []), strict=False)
@@ -241,7 +241,7 @@ class RootCauseAnalyzer:
             )
 
         # Sort by deviation rate descending
-        aggregated.sort(key=lambda x: x["deviation_rate"], reverse=True)
+        aggregated.sort(key=lambda x: x["deviation_rate"], reverse=True)  # type: ignore[arg-type, return-value]
 
         logger.info(
             "attribute_correlation_completed",

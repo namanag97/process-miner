@@ -202,7 +202,7 @@ async def list_predictors(log_id: str, db: AsyncSession = Depends(get_db)) -> Pr
 
     items = [PredictorResponse.model_validate(p) for p in predictors]
 
-    return PredictorListResponse(log_id=log_id, predictors=items, total=len(items))
+    return PredictorListResponse(dataset_id=log_id, predictors=items, total=len(items))
 
 
 @router.get("/predictors/{predictor_id}", response_model=PredictorResponse)

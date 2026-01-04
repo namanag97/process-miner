@@ -478,7 +478,6 @@ class AuthorizationError(AppException):
 
 class ForbiddenError(AuthorizationError):
     """Forbidden action (alias for AuthorizationError)."""
-    pass
 
 
 # =============================================================================

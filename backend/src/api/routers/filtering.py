@@ -80,7 +80,7 @@ async def apply_filters(
         return FilteredLogResponse(
             id="preview",
             name=request.name or f"Filtered {source_log.name}",
-            source_log_id=log_id,
+            source_dataset_id=log_id,
             is_filtered=True,
             filter_config=request.filters,
             total_events=stats["filtered_events"],
@@ -168,7 +168,7 @@ async def apply_filters(
     return FilteredLogResponse(
         id=new_log.id,
         name=new_log.name,
-        source_log_id=log_id,
+        source_dataset_id=log_id,
         is_filtered=True,
         filter_config=request.filters,
         total_events=new_log.total_events,
@@ -320,7 +320,7 @@ async def list_filtered_logs(
             FilteredLogResponse(
                 id=log.id,
                 name=log.name,
-                source_log_id=log_id,
+                source_dataset_id=log_id,
                 is_filtered=True,
                 filter_config=filter_config,
                 total_events=log.total_events,
@@ -332,8 +332,8 @@ async def list_filtered_logs(
         )
 
     return FilteredLogListResponse(
-        source_log_id=log_id,
-        source_log_name=source_log.name,
+        source_dataset_id=log_id,
+        source_dataset_name=source_log.name,
         filtered_logs=items,
         total=len(items),
     )

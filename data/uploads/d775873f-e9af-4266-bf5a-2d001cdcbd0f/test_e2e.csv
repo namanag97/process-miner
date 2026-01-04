@@ -1,0 +1,29 @@
+case:concept:name,concept:name,time:timestamp,org:resource
+1,Submit Application,2023-01-01 09:00:00,John
+1,Review Application,2023-01-01 10:00:00,Sarah
+1,Verify Documents,2023-01-01 11:00:00,Mike
+1,Approve Application,2023-01-01 14:00:00,Manager
+1,Send Confirmation,2023-01-01 14:30:00,System
+2,Submit Application,2023-01-01 09:30:00,Sarah
+2,Review Application,2023-01-01 10:30:00,John
+2,Verify Documents,2023-01-01 11:30:00,Sarah
+2,Request Additional Info,2023-01-01 12:00:00,John
+2,Review Application,2023-01-01 15:00:00,Mike
+2,Verify Documents,2023-01-01 16:00:00,Sarah
+2,Approve Application,2023-01-01 17:00:00,Manager
+2,Send Confirmation,2023-01-01 17:30:00,System
+3,Submit Application,2023-01-02 08:00:00,Mike
+3,Review Application,2023-01-02 09:00:00,Sarah
+3,Verify Documents,2023-01-02 10:00:00,John
+3,Reject Application,2023-01-02 11:00:00,Manager
+3,Send Rejection,2023-01-02 11:15:00,System
+4,Submit Application,2023-01-02 10:00:00,John
+4,Review Application,2023-01-02 11:00:00,Mike
+4,Verify Documents,2023-01-02 12:00:00,Sarah
+4,Approve Application,2023-01-02 15:00:00,Manager
+4,Send Confirmation,2023-01-02 15:30:00,System
+5,Submit Application,2023-01-03 09:00:00,Sarah
+5,Review Application,2023-01-03 10:00:00,John
+5,Verify Documents,2023-01-03 11:00:00,Mike
+5,Approve Application,2023-01-03 13:00:00,Manager
+5,Send Confirmation,2023-01-03 13:15:00,System

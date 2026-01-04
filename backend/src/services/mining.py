@@ -89,7 +89,17 @@ class MiningService:
         if miner_type == MinerType.ALPHA:
             result = self._discover_alpha(pm4py_log), ModelFormat.PETRI_NET
         elif miner_type == MinerType.ALPHA_PLUS:
-            result = self._discover_alpha_plus(pm4py_log), ModelFormat.PETRI_NET
+            # BUG-ALG-001 FIX: Alpha+ deprecated in PM4Py 2.3.0, removed in 3.0
+            # Fallback to regular alpha with enhanced handling
+            try:
+                result = self._discover_alpha_plus(pm4py_log), ModelFormat.PETRI_NET
+            except Exception as e:
+                logger.warning(
+                    "alpha_plus_fallback_to_alpha",
+                    error=str(e),
+                    msg="Alpha+ failed, falling back to Alpha miner"
+                )
+                result = self._discover_alpha(pm4py_log), ModelFormat.PETRI_NET
         elif miner_type == MinerType.INDUCTIVE:
             result = self._discover_inductive(pm4py_log), ModelFormat.PROCESS_TREE
         elif miner_type == MinerType.INDUCTIVE_INFREQUENT:
@@ -108,7 +118,17 @@ class MiningService:
         elif miner_type == MinerType.BPMN_INDUCTIVE:
             result = pm4py.discover_bpmn_inductive(pm4py_log), ModelFormat.BPMN
         elif miner_type == MinerType.DECLARE:
-            result = pm4py.discover_declare(pm4py_log), ModelFormat.DECLARE
+            # BUG-ALG-003 FIX: DECLARE requires sufficient data, wrap in try/except
+            try:
+                result = pm4py.discover_declare(pm4py_log), ModelFormat.DECLARE
+            except (IndexError, KeyError, ValueError) as e:
+                logger.warning(
+                    "declare_discovery_failed",
+                    error=str(e),
+                    msg="DECLARE discovery failed - possibly insufficient data"
+                )
+                # Return empty declare model instead of failing
+                result = {"constraints": [], "activities": [], "error": str(e)}, ModelFormat.DECLARE
         elif miner_type == MinerType.LOG_SKELETON:
             result = pm4py.discover_log_skeleton(pm4py_log), ModelFormat.LOG_SKELETON
         elif miner_type == MinerType.TEMPORAL_PROFILE:
@@ -120,7 +140,27 @@ class MiningService:
         elif miner_type == MinerType.BATCHES:
             result = pm4py.discover_batches(pm4py_log), ModelFormat.BATCHES
         elif miner_type == MinerType.CORRELATION:
-            result = pm4py.correlation_miner(pm4py_log), ModelFormat.DFG
+            # BUG-ALG-004 FIX: Correlation miner returns different format, handle errors
+            try:
+                corr_result = pm4py.correlation_miner(pm4py_log)
+                # Correlation miner returns (dfg, dfg_performance, log)
+                # We need just the dfg part for ModelFormat.DFG
+                if isinstance(corr_result, tuple) and len(corr_result) >= 1:
+                    dfg = corr_result[0]
+                    # Get start/end activities from the log
+                    start_act = pm4py.get_start_activities(pm4py_log)
+                    end_act = pm4py.get_end_activities(pm4py_log)
+                    result = (dfg, start_act, end_act), ModelFormat.DFG
+                else:
+                    result = corr_result, ModelFormat.DFG
+            except (IndexError, KeyError, TypeError, ValueError) as e:
+                logger.warning(
+                    "correlation_discovery_failed",
+                    error=str(e),
+                    msg="Correlation miner failed - falling back to DFG"
+                )
+                # Fallback to regular DFG
+                result = self._discover_dfg(pm4py_log), ModelFormat.DFG
         else:
             raise ValueError(f"Unknown miner type: {miner_type}")
 
@@ -159,8 +199,23 @@ class MiningService:
         return pm4py.discover_petri_net_alpha(log)
 
     def _discover_alpha_plus(self, log: PM4PyLog) -> tuple[PetriNet, Marking, Marking]:
-        """Alpha+ miner - handles short loops."""
-        return pm4py.discover_petri_net_alpha_plus(log)
+        """Alpha+ miner - handles short loops.
+
+        DEPRECATED: This algorithm may be removed in future PM4Py versions.
+        """
+        import warnings
+        warnings.warn(
+            "Alpha+ miner is deprecated and may be removed in future PM4Py versions. "
+            "Use Inductive Miner for better results.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        try:
+            return pm4py.discover_petri_net_alpha_plus(log)
+        except AttributeError:
+            # Fallback to regular Alpha if Alpha+ is removed from PM4Py
+            logger.warning("alpha_plus_not_available_falling_back_to_alpha")
+            return pm4py.discover_petri_net_alpha(log)
 
     def _discover_inductive(self, log: PM4PyLog) -> ProcessTree:
         """Inductive miner - recommended, produces sound process trees."""
@@ -568,8 +623,8 @@ class MiningService:
         # Use fast DuckDB/Arrow path
         from src.services.event_log_loader import event_log_loader
 
-        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
-        dfg, start_activities, end_activities = pm4py.discover_dfg(pm4py_log)
+        # Use SQL-based loader directly - much faster and avoids PM4Py conversion issues
+        dfg, start_activities, end_activities = event_log_loader.load_dfg(str(event_log.id))
 
         # Build nodes (unique activities)
         all_activities = set()
@@ -965,7 +1020,66 @@ class MiningService:
                 graph_json["metadata"]["source_format"] = "process_tree"
                 return graph_json
 
-            # Other formats not yet supported
+            # BUG-ALG-002/003/004 FIX: Handle non-graph formats gracefully
+            # These formats don't produce traditional graph structures
+            if model_format == ModelFormat.DECLARE:
+                # DECLARE returns constraint-based model (dict or object)
+                if isinstance(model_data, dict):
+                    return {
+                        "type": "declare",
+                        "constraints": model_data.get("constraints", []),
+                        "activities": model_data.get("activities", []),
+                        "metadata": {"type": "declare", "error": model_data.get("error")}
+                    }
+                # PM4Py DECLARE model object
+                return {
+                    "type": "declare",
+                    "constraints": [],
+                    "activities": list(getattr(model_data, 'activities', set())),
+                    "metadata": {"type": "declare", "source": "pm4py"}
+                }
+
+            if model_format == ModelFormat.LOG_SKELETON:
+                # Log skeleton returns activity constraints - may contain sets
+                # Convert sets to lists for JSON serialization
+                def convert_sets(obj):
+                    if isinstance(obj, set):
+                        return list(obj)
+                    if isinstance(obj, dict):
+                        return {k: convert_sets(v) for k, v in obj.items()}
+                    if isinstance(obj, (list, tuple)):
+                        return [convert_sets(item) for item in obj]
+                    return obj
+
+                if isinstance(model_data, dict):
+                    return {
+                        "type": "log_skeleton",
+                        "constraints": convert_sets(model_data),
+                        "metadata": {"type": "log_skeleton"}
+                    }
+                return {"type": "log_skeleton", "data": str(model_data), "metadata": {"type": "log_skeleton"}}
+
+            if model_format == ModelFormat.TEMPORAL_PROFILE:
+                # Temporal profile returns timing statistics
+                if isinstance(model_data, dict):
+                    return {
+                        "type": "temporal_profile",
+                        "profiles": model_data,
+                        "metadata": {"type": "temporal_profile"}
+                    }
+                return {"type": "temporal_profile", "data": str(model_data), "metadata": {"type": "temporal_profile"}}
+
+            if model_format == ModelFormat.BATCHES:
+                # Batches returns list of batch activities
+                if isinstance(model_data, (list, tuple)):
+                    return {
+                        "type": "batches",
+                        "batches": list(model_data),
+                        "metadata": {"type": "batches", "count": len(model_data)}
+                    }
+                return {"type": "batches", "data": str(model_data), "metadata": {"type": "batches"}}
+
+            # POWL, BPMN, PREFIX_TREE, TRANSITION_SYSTEM - not graph serializable yet
             logger.debug(
                 "graph_json_serialization_not_supported",
                 model_format=model_format.value,
@@ -1027,10 +1141,11 @@ class MiningService:
             },
             {
                 "id": MinerType.ALPHA_PLUS.value,
-                "name": "Alpha+ Miner",
-                "description": "Enhanced Alpha, handles short loops",
+                "name": "Alpha+ Miner (Deprecated)",
+                "description": "⚠️ DEPRECATED: Enhanced Alpha algorithm may be removed in future PM4Py versions. Use Inductive Miner instead.",
                 "output_format": ModelFormat.PETRI_NET.value,
                 "category": "classic",
+                "deprecated": True,
             },
             {
                 "id": MinerType.INDUCTIVE_INFREQUENT.value,

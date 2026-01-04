@@ -62,7 +62,7 @@ async def get_bottlenecks(
     pm4py_log, _ = await _get_pm4py_log(log_id, db)
     result = analytics_service.detect_bottlenecks(pm4py_log)
     response = BottleneckListResponse(
-        log_id=log_id,
+        dataset_id=log_id,
         bottlenecks=[BottleneckResponse(**b) for b in result["bottlenecks"]],
         total_bottlenecks=result["total_bottlenecks"],
     )
@@ -86,7 +86,7 @@ async def get_rework(log_id: str, db: AsyncSession = Depends(get_db)) -> ReworkL
     pm4py_log, _ = await _get_pm4py_log(log_id, db)
     result = analytics_service.analyze_rework(pm4py_log)
     response = ReworkListResponse(
-        log_id=log_id,
+        dataset_id=log_id,
         rework_activities=[ReworkResponse(**r) for r in result["rework_activities"]],
         total_rework_cases=result["total_rework_cases"],
         rework_percentage=result["rework_percentage"],
@@ -125,7 +125,7 @@ async def get_cycle_time(log_id: str, db: AsyncSession = Depends(get_db)) -> Cyc
     logger.info("getting_cycle_time", log_id=log_id)
     pm4py_log, _ = await _get_pm4py_log(log_id, db)
     result = analytics_service.get_cycle_time(pm4py_log)
-    return CycleTimeResponse(log_id=log_id, **result)
+    return CycleTimeResponse(dataset_id=log_id, **result)
 
 
 @router.get("/logs/{log_id}/throughput", response_model=ThroughputResponse)
@@ -134,7 +134,7 @@ async def get_throughput(log_id: str, db: AsyncSession = Depends(get_db)) -> Thr
     logger.info("getting_throughput", log_id=log_id)
     pm4py_log, _ = await _get_pm4py_log(log_id, db)
     result = analytics_service.get_throughput(pm4py_log)
-    return ThroughputResponse(log_id=log_id, **result)
+    return ThroughputResponse(dataset_id=log_id, **result)
 
 
 @router.get("/logs/{log_id}/patterns")
@@ -175,7 +175,7 @@ async def get_rework_chains(
     result = analytics_service.detect_rework_chains(pm4py_log)
 
     response = ReworkChainListResponse(
-        log_id=log_id,
+        dataset_id=log_id,
         chains=[ReworkChain(**c) for c in result["chains"]],
         total_chains=result["total_chains"],
         most_problematic_activity=result["most_problematic_activity"],
@@ -197,9 +197,9 @@ async def get_performance_dashboard(
     pm4py_log, _ = await _get_pm4py_log(log_id, db)
     result = analytics_service.get_performance_dashboard(pm4py_log)
     return PerformanceDashboardResponse(
-        log_id=log_id,
-        cycle_time=CycleTimeResponse(log_id=log_id, **result["cycle_time"]),
-        throughput=ThroughputResponse(log_id=log_id, **result["throughput"]),
+        dataset_id=log_id,
+        cycle_time=CycleTimeResponse(dataset_id=log_id, **result["cycle_time"]),
+        throughput=ThroughputResponse(dataset_id=log_id, **result["throughput"]),
         top_bottlenecks=[BottleneckResponse(**b) for b in result["top_bottlenecks"]],
         rework_summary=result["rework_summary"],
     )

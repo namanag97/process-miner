@@ -46,7 +46,7 @@ async def get_handover_network(
     pm4py_log = await _get_pm4py_log(log_id, db)
     result = organizational_service.discover_handover_network(pm4py_log)
     return SocialNetworkResponse(
-        log_id=log_id,
+        dataset_id=log_id,
         network_type=result["network_type"],
         nodes=[NetworkNode(**n) for n in result["nodes"]],
         edges=[NetworkEdge(**e) for e in result["edges"]],
@@ -63,7 +63,7 @@ async def get_collaboration_network(
     pm4py_log = await _get_pm4py_log(log_id, db)
     result = organizational_service.discover_working_together_network(pm4py_log)
     return SocialNetworkResponse(
-        log_id=log_id,
+        dataset_id=log_id,
         network_type=result["network_type"],
         nodes=[NetworkNode(**n) for n in result["nodes"]],
         edges=[NetworkEdge(**e) for e in result["edges"]],
@@ -80,7 +80,7 @@ async def get_resource_similarity(
     pm4py_log = await _get_pm4py_log(log_id, db)
     result = organizational_service.discover_resource_similarity(pm4py_log)
     return SocialNetworkResponse(
-        log_id=log_id,
+        dataset_id=log_id,
         network_type=result["network_type"],
         nodes=[NetworkNode(**n) for n in result["nodes"]],
         edges=[NetworkEdge(**e) for e in result["edges"]],
@@ -114,4 +114,4 @@ async def get_workload(log_id: str, db: AsyncSession = Depends(get_db)) -> Resou
     logger.info("getting_workload", log_id=log_id)
     pm4py_log = await _get_pm4py_log(log_id, db)
     result = organizational_service.get_resource_workload(pm4py_log)
-    return ResourceWorkloadResponse(log_id=log_id, **result)
+    return ResourceWorkloadResponse(dataset_id=log_id, **result)

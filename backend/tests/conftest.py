@@ -7,12 +7,13 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
+from sqlalchemy import text
 
 from src.api.main import app
 from src.models.database import get_session
 from src.models.orm import Base, User, Project, Dataset, Analysis, ProcessModel, Organization, Workspace
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def test_db_path():
     """Create a temporary SQLite database file."""
     import tempfile
@@ -25,7 +26,7 @@ def test_db_path():
         os.unlink(path)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 async def test_engine(test_db_path):
     """Create test database engine using file-based SQLite."""
     # Use file path instead of :memory: so DuckDB can attach to it
@@ -41,6 +42,8 @@ async def test_engine(test_db_path):
     )
 
     async with engine.begin() as conn:
+        # Use WAL mode for better concurrency and avoiding file handle invalidation
+        await conn.execute(text("PRAGMA journal_mode=WAL"))
         await conn.run_sync(Base.metadata.create_all)
 
     yield engine
@@ -280,7 +283,10 @@ async def default_project(test_session: AsyncSession) -> str:
 
 @pytest.fixture
 async def uploaded_log_id(
-    client: AsyncClient, sample_csv_with_multiple_variants: bytes, default_project: str
+    client: AsyncClient, 
+    sample_csv_with_multiple_variants: bytes, 
+    default_project: str,
+    test_session: AsyncSession,
 ) -> str:
     """Pre-upload a log and return its ID for dependent tests."""
     response = await client.post(
@@ -289,6 +295,12 @@ async def uploaded_log_id(
         data={"project_id": default_project},
     )
     assert response.status_code == 200
+    
+    # Force sync to disk for DuckDB visibility (same as e2e_log_id)
+    await test_session.commit()
+    from sqlalchemy import text
+    await test_session.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
+    
     return response.json()["id"]
 
 

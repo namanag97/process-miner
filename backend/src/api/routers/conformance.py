@@ -7,6 +7,7 @@ import json
 import time
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -56,25 +57,25 @@ async def check_conformance(
     """
     logger.info(
         "conformance_check_started",
-        log_id=request.log_id,
+        log_id=request.dataset_id,
         model_id=request.model_id,
         method=str(request.method),
     )
     start_time = time.perf_counter()
 
     # Get the event log with cases and events
-    log_result = await session.execute(select(Dataset).where(Dataset.id == request.log_id))
+    log_result = await session.execute(select(Dataset).where(Dataset.id == request.dataset_id))
     event_log = log_result.scalar_one_or_none()
 
     if not event_log:
-        logger.warning("log_not_found", log_id=request.log_id)
+        logger.warning("log_not_found", log_id=request.dataset_id)
         raise HTTPException(status_code=404, detail="Event log not found")
 
     # FIX: Validate dataset is ready for conformance checking
     from src.models.orm import DatasetStatus
 
     if event_log.status != DatasetStatus.READY.value:
-        logger.warning("dataset_not_ready", log_id=request.log_id, status=event_log.status)
+        logger.warning("dataset_not_ready", log_id=request.dataset_id, status=event_log.status)
         raise HTTPException(
             status_code=409,
             detail=f"Dataset not ready (status: {event_log.status}). Complete ingestion first.",
@@ -107,7 +108,7 @@ async def check_conformance(
 
         # Store result in database
         conformance_record = ConformanceResult(
-            dataset_id=request.log_id,  # BUG-001 FIX: ORM uses dataset_id
+            dataset_id=request.dataset_id,  # BUG-001 FIX: ORM uses dataset_id
             model_id=request.model_id,
             fitness=result["fitness"],
             precision=result.get("precision"),
@@ -152,7 +153,7 @@ async def check_conformance(
     except Exception as e:
         logger.error(
             "conformance_check_failed",
-            log_id=request.log_id,
+            log_id=request.dataset_id,
             model_id=request.model_id,
             error=str(e),
             exc_info=True,
@@ -447,7 +448,7 @@ async def get_alignment_diagnostics(
         )
 
         return AlignmentDiagnosticsResponse(
-            log_id=log_id,
+            dataset_id=log_id,
             model_id=model_id,
             total_cases=diagnostics["total_cases"],
             fitting_cases=diagnostics["fitting_cases"],
@@ -553,7 +554,7 @@ async def get_quality_metrics(
         )
 
         return QualityMetricsResponse(
-            log_id=log_id,
+            dataset_id=log_id,
             model_id=model_id,
             fitness=metrics["fitness"],
             precision=metrics.get("precision"),

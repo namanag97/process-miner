@@ -299,7 +299,7 @@ async def add_file_to_project(
 
     await db.commit()
 
-    return await get_project(db, project_id)
+    return await get_project(db, project_id, user)
 
 
 @router.delete("/{project_id}/files/{dataset_id}", status_code=204)

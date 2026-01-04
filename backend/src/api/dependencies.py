@@ -1,7 +1,7 @@
 """FastAPI dependencies - DB session, auth, etc."""
 
 from collections.abc import AsyncGenerator
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, Header
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -12,6 +12,10 @@ from src.core.config import get_settings
 from src.core.exceptions import AuthenticationError
 from src.core.logging_config import get_logger
 from src.models.database import get_session
+
+if TYPE_CHECKING:
+    from src.models.orm import User
+    from src.services.authorization import AuthorizationService
 
 logger = get_logger(__name__)
 settings = get_settings()

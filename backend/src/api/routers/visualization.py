@@ -439,7 +439,7 @@ async def get_explorer_data(
     )
 
     return ProcessExplorerDataResponse(
-        log_id=log_id,
+        dataset_id=log_id,
         dfg=dfg_response,
         variants=variants,
         activities=activities,

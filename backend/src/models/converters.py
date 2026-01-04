@@ -147,7 +147,7 @@ def filtered_dataset_to_response(dataset: "Dataset") -> FilteredLogResponse:
     return FilteredLogResponse(
         id=dataset.id,
         name=dataset.name,
-        source_log_id=dataset.source_dataset_id or "",
+        source_dataset_id=dataset.source_dataset_id or "",
         is_filtered=dataset.is_filtered,
         filter_config=filter_config,
         total_events=dataset.total_events,

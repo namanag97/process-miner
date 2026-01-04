@@ -6,7 +6,7 @@ Provides:
 - Row-level security helpers for org_id filtering
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -285,7 +285,7 @@ async def require_dataset_permission(
     dataset_id: str,
     user: "User",
     permission: Permission,
-) -> tuple[str, "Dataset"]:
+) -> tuple[str, Any]:
     """Verify user has permission to access dataset.
 
     Args:
@@ -316,8 +316,8 @@ async def require_dataset_permission(
     )
     project = project_result.scalar_one_or_none()
 
-    if not project:
-        raise NotFoundError("Project", dataset.project_id)
+    if not project or not project.workspace_id:
+        raise NotFoundError("Project", dataset.project_id or "unknown")
 
     # Check workspace access and permission
     auth_service = AuthorizationService(db)
@@ -331,7 +331,7 @@ async def require_project_permission(
     project_id: str,
     user: "User",
     permission: Permission,
-) -> tuple[str, "Project"]:
+) -> tuple[str, Any]:
     """Verify user has permission to access project.
 
     Args:
@@ -357,6 +357,8 @@ async def require_project_permission(
         raise NotFoundError("Project", project_id)
 
     # Check workspace access and permission
+    if not project.workspace_id:
+        raise NotFoundError("Project", project_id)
     auth_service = AuthorizationService(db)
     await auth_service.verify_workspace_access(project.workspace_id, user, permission)
 
@@ -368,7 +370,7 @@ async def require_analysis_permission(
     analysis_id: str,
     user: "User",
     permission: Permission,
-) -> tuple[str, "Analysis"]:
+) -> tuple[str, Any]:
     """Verify user has permission to access analysis.
 
     Args:
@@ -384,26 +386,37 @@ async def require_analysis_permission(
         NotFoundError: If analysis doesn't exist
         ForbiddenError: If user lacks permission
     """
-    from src.models.orm import Analysis, Project
+    from src.models.orm import Analysis, Dataset, Project
 
-    # Get analysis with project
+    # Get analysis
     result = await db.execute(select(Analysis).filter(Analysis.id == analysis_id))
     analysis = result.scalar_one_or_none()
 
     if not analysis:
         raise NotFoundError("Analysis", analysis_id)
 
+    # Get dataset to find project
+    dataset_result = await db.execute(
+        select(Dataset).filter(Dataset.id == analysis.dataset_id)
+    )
+    dataset = dataset_result.scalar_one_or_none()
+
+    if not dataset or not dataset.project_id:
+        raise NotFoundError("Dataset", analysis.dataset_id)
+
     # Get project to find workspace_id
     project_result = await db.execute(
-        select(Project).filter(Project.id == analysis.project_id)
+        select(Project).filter(Project.id == dataset.project_id)
     )
     project = project_result.scalar_one_or_none()
 
     if not project:
-        raise NotFoundError("Project", analysis.project_id)
+        raise NotFoundError("Project", dataset.project_id or "unknown")
 
     # Check workspace access and permission
     auth_service = AuthorizationService(db)
+    if not project.workspace_id:
+        raise NotFoundError("Project", dataset.project_id or "unknown")
     await auth_service.verify_workspace_access(project.workspace_id, user, permission)
 
     return project.workspace_id, analysis
@@ -414,7 +427,7 @@ async def require_model_permission(
     model_id: str,
     user: "User",
     permission: Permission,
-) -> tuple[str, "ProcessModel"]:
+) -> tuple[str, Any]:
     """Verify user has permission to access process model.
 
     Args:
@@ -440,18 +453,18 @@ async def require_model_permission(
         raise NotFoundError("ProcessModel", model_id)
 
     # Get dataset to find project
-    dataset_result = await db.execute(select(Dataset).filter(Dataset.id == model.log_id))
+    dataset_result = await db.execute(select(Dataset).filter(Dataset.id == model.dataset_id))
     dataset = dataset_result.scalar_one_or_none()
 
     if not dataset or not dataset.project_id:
-        raise NotFoundError("Dataset", model.log_id)
+        raise NotFoundError("Dataset", model.dataset_id or "unknown")
 
     # Get project to find workspace
     project_result = await db.execute(select(Project).filter(Project.id == dataset.project_id))
     project = project_result.scalar_one_or_none()
 
-    if not project:
-        raise NotFoundError("Project", dataset.project_id)
+    if not project or not project.workspace_id:
+        raise NotFoundError("Project", dataset.project_id or "unknown")
 
     # Check workspace access and permission
     auth_service = AuthorizationService(db)

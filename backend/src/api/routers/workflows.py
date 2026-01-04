@@ -125,7 +125,7 @@ async def run_workflow(
     logger.info(
         "workflow_run_started",
         workflow_id=workflow_id,
-        log_id=request.log_id,
+        dataset_id=request.dataset_id,
     )
     start_time = time.perf_counter()
 
@@ -137,16 +137,16 @@ async def run_workflow(
         raise HTTPException(status_code=404, detail="Workflow not found")
 
     # Validate log exists if provided
-    if request.log_id:
-        log_result = await session.execute(select(Dataset).where(Dataset.id == request.log_id))
+    if request.dataset_id:
+        log_result = await session.execute(select(Dataset).where(Dataset.id == request.dataset_id))
         if not log_result.scalar_one_or_none():
-            logger.warning("log_not_found", log_id=request.log_id)
+            logger.warning("dataset_not_found", dataset_id=request.dataset_id)
             raise HTTPException(status_code=404, detail="Event log not found")
 
     # Create run record
     run = WorkflowRun(
         workflow_id=workflow_id,
-        dataset_id=request.log_id,
+        dataset_id=request.dataset_id,
         status=WorkflowStatus.RUNNING.value,
         started_at=datetime.utcnow(),
     )
@@ -158,7 +158,7 @@ async def run_workflow(
     try:
         steps = json.loads(workflow.steps_json)
         results = {}
-        context = {"log_id": request.log_id, **request.params}
+        context = {"dataset_id": request.dataset_id, **request.params}
 
         for step in steps:
             step_result = await workflow_service.execute_step(

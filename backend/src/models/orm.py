@@ -875,6 +875,7 @@ class AsyncJob(Base):
     parameters_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     result_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Timestamps for state transitions
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

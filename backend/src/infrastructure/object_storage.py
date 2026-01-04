@@ -283,7 +283,7 @@ class ObjectStorageClient:
             raise FileNotFoundError(f"File not found: {file_path}")
 
         try:
-            extra_args = {}
+            extra_args: dict[str, str | dict[str, str]] = {}
             if content_type:
                 extra_args["ContentType"] = content_type
             if metadata:
@@ -334,7 +334,7 @@ class ObjectStorageClient:
         bucket = self._get_bucket(bucket_type)
 
         try:
-            extra_args = {}
+            extra_args: dict[str, str | dict[str, str]] = {}
             if content_type:
                 extra_args["ContentType"] = content_type
             if metadata:

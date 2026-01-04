@@ -1,0 +1,7 @@
+case:concept:name,concept:name,time:timestamp,org:resource
+case_1,Register,2023-01-01 09:00:00,User
+case_1,Verify Email,2023-01-01 09:05:00,System
+case_1,Create Workspace,2023-01-01 09:10:00,User
+case_1,Upload Data,2023-01-01 09:15:00,User
+case_2,Register,2023-01-01 10:00:00,User
+case_2,Verify Email,2023-01-01 10:05:00,System
