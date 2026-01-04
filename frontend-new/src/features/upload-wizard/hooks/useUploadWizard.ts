@@ -49,10 +49,11 @@ async function startIngestion(datasetId: string, mapping: ColumnMapping): Promis
     return res.json();
 }
 
-async function checkJobStatus(jobId: string): Promise<{ status: string; progress?: number; error?: string }> {
+async function checkJobStatus(jobId: string): Promise<{ id: string; status: string; progress?: number; error?: string }> {
     const res = await instrumentedFetch(`${API_BASE}/api/v1/jobs/${jobId}`);
     if (!res.ok) throw new Error('Failed to check job status');
-    return res.json();
+    const data = await res.json();
+    return { id: jobId, ...data };
 }
 
 const STEP_ORDER: WizardStep[] = ['upload', 'sheets', 'configure', 'mapping', 'finalize'];

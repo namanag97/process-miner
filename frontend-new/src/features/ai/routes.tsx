@@ -17,16 +17,19 @@ const PredictorDetailPage = lazy(() => import('./pages/PredictorDetailPage'));
  * Route configuration for FeatureRegistry
  */
 export const aiRouteConfig: RouteObject[] = [
-  {
-    path: '/ai',
-    children: [
-      { index: true, element: <AIIndexPage /> },
-      { path: 'assistant', element: <AIAssistantPage /> },
-      { path: 'insights', element: <AIInsightsPage /> },
-      { path: 'predictions', element: <PredictionsPage /> },
-      { path: 'predictions/:predictorId', element: <PredictorDetailPage /> },
-    ],
-  },
+  // Standalone AI routes
+  { path: '/ai', element: <AIIndexPage /> },
+  { path: '/ai/assistant', element: <AIAssistantPage /> },
+  { path: '/ai/insights', element: <AIInsightsPage /> },
+  { path: '/ai/predictions', element: <PredictionsPage /> },
+  { path: '/ai/predictions/:id', element: <PredictorDetailPage /> },
+
+  // Workspace-scoped AI routes
+  { path: '/workspace/:projectId/ai', element: <AIIndexPage /> },
+  { path: '/workspace/:projectId/ai/assistant', element: <AIAssistantPage /> },
+  { path: '/workspace/:projectId/ai/insights', element: <AIInsightsPage /> },
+  { path: '/workspace/:projectId/ai/predictions', element: <PredictionsPage /> },
+  { path: '/workspace/:projectId/ai/predictions/:id', element: <PredictorDetailPage /> },
 ];
 
 /**

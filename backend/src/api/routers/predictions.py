@@ -206,7 +206,7 @@ async def list_predictors(log_id: str, db: AsyncSession = Depends(get_db)) -> Pr
         items.append(
             PredictorResponse(
                 id=p.id,
-                log_id=p.log_id,
+                log_id=p.dataset_id,
                 target_type=p.target_type,
                 algorithm=p.algorithm,
                 metrics=metrics,
@@ -233,7 +233,7 @@ async def get_predictor(predictor_id: str, db: AsyncSession = Depends(get_db)) -
 
     return PredictorResponse(
         id=predictor.id,
-        log_id=predictor.log_id,
+        log_id=predictor.dataset_id,
         target_type=predictor.target_type,
         algorithm=predictor.algorithm,
         metrics=metrics,

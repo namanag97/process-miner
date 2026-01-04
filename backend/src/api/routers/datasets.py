@@ -537,9 +537,9 @@ async def ingest_dataset(
 
     Returns AsyncJob status for progress tracking via GET /jobs/{job_id}.
     """
-    from src.core.enums import EntityType, JobType
+    from src.core.enums import EntityType, JobStatus, JobType
     from src.infrastructure.tasks import ingest_dataset_task
-    from src.models.orm import AsyncJob, JobStatus
+    from src.models.orm import AsyncJob
 
     logger.info("ingest_dataset_started", dataset_id=dataset_id)
 

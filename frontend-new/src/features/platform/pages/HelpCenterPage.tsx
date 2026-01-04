@@ -38,7 +38,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader, tokens } from '@lumina/design-system';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../../utils/logger';
 
 const log = createLogger('Help');
 const { Title, Paragraph, Text } = Typography;
@@ -246,24 +246,30 @@ const changelog: ChangelogEntry[] = [
 ];
 
 const keyboardShortcuts = [
-  { category: 'Navigation', shortcuts: [
-    { keys: ['G', 'H'], description: 'Go to Home' },
-    { keys: ['G', 'P'], description: 'Go to Processes' },
-    { keys: ['G', 'E'], description: 'Go to Explorer' },
-    { keys: ['G', 'A'], description: 'Go to Analytics' },
-  ]},
-  { category: 'Process Explorer', shortcuts: [
-    { keys: ['F'], description: 'Toggle filter panel' },
-    { keys: ['R'], description: 'Reset view' },
-    { keys: ['+'], description: 'Zoom in' },
-    { keys: ['-'], description: 'Zoom out' },
-    { keys: ['Esc'], description: 'Deselect node' },
-  ]},
-  { category: 'General', shortcuts: [
-    { keys: ['?'], description: 'Show keyboard shortcuts' },
-    { keys: ['Cmd', 'K'], description: 'Quick search' },
-    { keys: ['Cmd', 'S'], description: 'Save changes' },
-  ]},
+  {
+    category: 'Navigation', shortcuts: [
+      { keys: ['G', 'H'], description: 'Go to Home' },
+      { keys: ['G', 'P'], description: 'Go to Processes' },
+      { keys: ['G', 'E'], description: 'Go to Explorer' },
+      { keys: ['G', 'A'], description: 'Go to Analytics' },
+    ]
+  },
+  {
+    category: 'Process Explorer', shortcuts: [
+      { keys: ['F'], description: 'Toggle filter panel' },
+      { keys: ['R'], description: 'Reset view' },
+      { keys: ['+'], description: 'Zoom in' },
+      { keys: ['-'], description: 'Zoom out' },
+      { keys: ['Esc'], description: 'Deselect node' },
+    ]
+  },
+  {
+    category: 'General', shortcuts: [
+      { keys: ['?'], description: 'Show keyboard shortcuts' },
+      { keys: ['Cmd', 'K'], description: 'Quick search' },
+      { keys: ['Cmd', 'S'], description: 'Save changes' },
+    ]
+  },
 ];
 
 // ============ COMPONENTS ============
@@ -691,8 +697,8 @@ export function HelpCenterPage() {
                 release.type === 'major'
                   ? tokens.colors.primary[500]
                   : release.type === 'minor'
-                  ? tokens.colors.success[500]
-                  : tokens.colors.neutral[400],
+                    ? tokens.colors.success[500]
+                    : tokens.colors.neutral[400],
               children: (
                 <Card
                   size="small"
@@ -708,8 +714,8 @@ export function HelpCenterPage() {
                         release.type === 'major'
                           ? 'blue'
                           : release.type === 'minor'
-                          ? 'green'
-                          : 'default'
+                            ? 'green'
+                            : 'default'
                       }
                     >
                       {release.type.toUpperCase()}

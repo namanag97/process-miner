@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { ProcessQuestionsPage } from '../../pages/questions/ProcessQuestionsPage';
+import { ProcessQuestionsPage } from '../pages/ProcessQuestionsPage';
 import { useProcess } from '@lumina/design-system';
 
 // Mock dependencies

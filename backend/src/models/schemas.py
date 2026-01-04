@@ -5,8 +5,9 @@ Clean, React-optimized response shapes.
 
 from datetime import datetime
 from typing import Any
+import json
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from src.core.enums import ConformanceMethod, MinerType
 
@@ -154,11 +155,28 @@ class ProjectResponse(BaseModel):
     id: str
     name: str
     description: str | None
-    tags: list[str]
+    tags: list[str] = []
     total_files: int
     total_analyses: int
     created_at: datetime
     updated_at: datetime | None
+
+    @model_validator(mode='before')
+    @classmethod
+    def parse_json_fields(cls, data: Any) -> Any:
+        """Auto-parse tags_json to tags list."""
+        if hasattr(data, '__dict__'):
+            # ORM object - convert to dict
+            data = {k: getattr(data, k) for k in ['id', 'name', 'description', 'tags_json', 'total_files', 'total_analyses', 'created_at', 'updated_at'] if hasattr(data, k)}
+        if isinstance(data, dict):
+            if 'tags_json' in data and data['tags_json']:
+                try:
+                    data['tags'] = json.loads(data['tags_json'])
+                except (json.JSONDecodeError, TypeError):
+                    data['tags'] = []
+            elif 'tags' not in data:
+                data['tags'] = []
+        return data
 
     class Config:
         from_attributes = True
@@ -218,10 +236,36 @@ class DatasetResponse(BaseModel):
     total_events: int
     total_cases: int
     total_activities: int
-    activities: list[str]
+    activities: list[str] = []
     created_at: datetime
     source_file: str | None = None  # FE expects this for display
     status: str = "ready"  # Dataset lifecycle: unstructured, analyzing, ready, error
+    # Job tracking for progress visibility
+    validation_job_id: str | None = None
+    ingestion_job_id: str | None = None
+    # File metadata
+    file_size_bytes: int | None = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def parse_json_fields(cls, data: Any) -> Any:
+        """Auto-parse activities_json to activities list."""
+        if hasattr(data, '__dict__'):
+            # ORM object - convert to dict with relevant fields
+            data = {k: getattr(data, k) for k in [
+                'id', 'name', 'source_format', 'total_events', 'total_cases',
+                'total_activities', 'activities_json', 'created_at', 'source_file', 'status',
+                'validation_job_id', 'ingestion_job_id', 'file_size_bytes'
+            ] if hasattr(data, k)}
+        if isinstance(data, dict):
+            if 'activities_json' in data and data['activities_json']:
+                try:
+                    data['activities'] = json.loads(data['activities_json'])
+                except (json.JSONDecodeError, TypeError):
+                    data['activities'] = []
+            elif 'activities' not in data:
+                data['activities'] = []
+        return data
 
     class Config:
         from_attributes = True
@@ -391,9 +435,13 @@ class MinerInfo(BaseModel):
 class DiscoverRequest(BaseModel):
     """Request to discover a process model."""
 
-    log_id: str
+    # Accept both 'dataset_id' (preferred) and 'log_id' (legacy) for backward compatibility
+    dataset_id: str = Field(..., alias="log_id", description="Dataset/log ID to mine")
     miner_type: MinerType = MinerType.INDUCTIVE
     model_name: str | None = None
+
+    class Config:
+        populate_by_name = True  # Accept both 'dataset_id' and 'log_id'
 
 
 class ModelResponse(BaseModel):
@@ -403,7 +451,7 @@ class ModelResponse(BaseModel):
     name: str
     miner_type: str
     model_format: str
-    log_id: str | None
+    dataset_id: str | None
     fitness: float | None
     precision: float | None
     created_at: datetime
@@ -520,7 +568,7 @@ class ConformanceResponse(BaseModel):
     """Conformance check result."""
 
     id: str
-    log_id: str
+    dataset_id: str
     model_id: str
     fitness: float
     precision: float | None
@@ -610,10 +658,28 @@ class WorkflowResponse(BaseModel):
 
     id: str
     name: str
-    steps: list[WorkflowStep]
+    steps: list[WorkflowStep] = []
     schedule: str | None
     is_active: bool
     created_at: datetime
+
+    @model_validator(mode='before')
+    @classmethod
+    def parse_json_fields(cls, data: Any) -> Any:
+        """Auto-parse steps_json to steps list."""
+        if hasattr(data, '__dict__'):
+            data = {k: getattr(data, k) for k in [
+                'id', 'name', 'steps_json', 'schedule', 'is_active', 'created_at'
+            ] if hasattr(data, k)}
+        if isinstance(data, dict):
+            if 'steps_json' in data and data['steps_json']:
+                try:
+                    data['steps'] = json.loads(data['steps_json'])
+                except (json.JSONDecodeError, TypeError):
+                    data['steps'] = []
+            elif 'steps' not in data:
+                data['steps'] = []
+        return data
 
     class Config:
         from_attributes = True
@@ -631,7 +697,7 @@ class WorkflowRunResponse(BaseModel):
 
     id: str
     workflow_id: str
-    log_id: str | None
+    dataset_id: str | None
     status: str
     started_at: datetime | None
     completed_at: datetime | None
@@ -1292,7 +1358,7 @@ class AnalysisResponse(BaseModel):
     """Analysis response."""
 
     id: str
-    log_id: str
+    dataset_id: str
     name: str
     analysis_type: str
     status: str
@@ -1302,6 +1368,29 @@ class AnalysisResponse(BaseModel):
     created_at: datetime
     completed_at: datetime | None = None
     error_message: str | None = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def parse_json_fields(cls, data: Any) -> Any:
+        """Auto-parse config_json and result_summary_json."""
+        if hasattr(data, '__dict__'):
+            data = {k: getattr(data, k) for k in [
+                'id', 'dataset_id', 'name', 'analysis_type', 'status',
+                'config_json', 'result_summary_json', 'model_id',
+                'created_at', 'completed_at', 'error_message'
+            ] if hasattr(data, k)}
+        if isinstance(data, dict):
+            if 'config_json' in data and data['config_json']:
+                try:
+                    data['config'] = json.loads(data['config_json'])
+                except (json.JSONDecodeError, TypeError):
+                    data['config'] = None
+            if 'result_summary_json' in data and data['result_summary_json']:
+                try:
+                    data['result_summary'] = json.loads(data['result_summary_json'])
+                except (json.JSONDecodeError, TypeError):
+                    data['result_summary'] = None
+        return data
 
     class Config:
         from_attributes = True

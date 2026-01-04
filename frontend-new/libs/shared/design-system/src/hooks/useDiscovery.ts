@@ -13,7 +13,7 @@ import type { DFGOptions, VariantOptions } from '../api/modules/discovery';
  */
 export function useDFG(logId: string, options?: DFGOptions) {
   const sdk = useSDK();
-  
+
   return useQuery({
     queryKey: queryKeys.dfg.data(logId, options),
     queryFn: () => sdk.discovery.buildDFG(logId, options),
@@ -27,7 +27,7 @@ export function useDFG(logId: string, options?: DFGOptions) {
  */
 export function useVariants(logId: string, options?: VariantOptions) {
   const sdk = useSDK();
-  
+
   return useQuery({
     queryKey: queryKeys.variants.list(logId, options as Parameters<typeof queryKeys.variants.list>[1]),
     queryFn: () => sdk.discovery.getVariants(logId, options),
@@ -41,7 +41,7 @@ export function useVariants(logId: string, options?: VariantOptions) {
  */
 export function useActivities(logId: string, sortBy?: string) {
   const sdk = useSDK();
-  
+
   return useQuery({
     queryKey: queryKeys.activities.list(logId),
     queryFn: () => sdk.discovery.getActivities(logId, sortBy),
@@ -56,11 +56,11 @@ export function useActivities(logId: string, sortBy?: string) {
 export function useDiscoverProcess() {
   const sdk = useSDK();
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (options: { logId: string; minerType?: string; modelName?: string }) =>
       sdk.discovery.discover(options),
-    onSuccess: (result, variables) => {
+    onSuccess: (_result, variables) => {
       // Invalidate DFG to show new model
       queryClient.invalidateQueries({ queryKey: queryKeys.dfg.data(variables.logId) });
       toast.success('Process model discovered successfully');
@@ -79,7 +79,7 @@ export function useExplorerData(logId: string, options?: { includePerformance?: 
   const dfgQuery = useDFG(logId, { includePerformance: options?.includePerformance });
   const variantsQuery = useVariants(logId);
   const activitiesQuery = useActivities(logId);
-  
+
   return {
     dfg: dfgQuery.data,
     variants: variantsQuery.data,

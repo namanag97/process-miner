@@ -13,16 +13,16 @@ const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
  * Route configuration for FeatureRegistry
  */
 export const analyticsRouteConfig: RouteObject[] = [
-  {
-    path: '/analytics',
-    element: <AnalyticsPage />,
-    children: [
-      { index: true, element: null },
-      { path: 'conformance', element: null },
-      { path: 'rework', element: null },
-      { path: 'resources', element: null },
-    ],
-  },
+  // Standalone analytics routes
+  { path: '/analytics', element: <AnalyticsPage /> },
+  { path: '/analytics/performance', element: <AnalyticsPage /> },
+  { path: '/analytics/conformance', element: <AnalyticsPage /> },
+  { path: '/analytics/rework', element: <AnalyticsPage /> },
+  { path: '/analytics/resources', element: <AnalyticsPage /> },
+
+  // Workspace-scoped analytics
+  { path: '/workspace/:projectId/analytics', element: <AnalyticsPage /> },
+  { path: '/workspace/:projectId/analytics/:tab', element: <AnalyticsPage /> },
 ];
 
 /**

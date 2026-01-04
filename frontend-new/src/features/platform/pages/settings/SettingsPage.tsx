@@ -5,7 +5,7 @@ import { PageHeader, tokens, logAction } from '@lumina/design-system';
 import { ProfileTab } from './ProfileTab';
 import { PreferencesTab } from './PreferencesTab';
 import { NotificationsTab } from './NotificationsTab';
-import { createLogger } from '../../utils/logger';
+import { createLogger } from '../../../../utils/logger';
 
 const log = createLogger('Settings');
 

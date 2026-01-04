@@ -29,47 +29,13 @@ router = APIRouter(prefix="/projects", tags=["Projects"])
 
 
 def _project_to_response(project: Project) -> ProjectResponse:
-    """Convert Project ORM to ProjectResponse."""
-    tags = []
-    if project.tags_json:
-        try:
-            tags = json.loads(project.tags_json)
-        except json.JSONDecodeError:
-            tags = []
-
-    return ProjectResponse(
-        id=project.id,
-        name=project.name,
-        description=project.description,
-        tags=tags,
-        total_files=project.total_files,
-        total_analyses=project.total_analyses,
-        created_at=project.created_at,
-        updated_at=project.updated_at,
-    )
+    """Convert Project ORM to ProjectResponse using Pydantic model_validate."""
+    return ProjectResponse.model_validate(project)
 
 
 def _dataset_to_response(dataset: Dataset) -> DatasetResponse:
-    """Convert Dataset ORM to DatasetResponse."""
-    activities = []
-    if dataset.activities_json:
-        try:
-            activities = json.loads(dataset.activities_json)
-        except json.JSONDecodeError:
-            activities = []
-
-    return DatasetResponse(
-        id=dataset.id,
-        name=dataset.name,
-        source_format=dataset.source_format,
-        total_events=dataset.total_events,
-        total_cases=dataset.total_cases,
-        total_activities=dataset.total_activities,
-        activities=activities,
-        created_at=dataset.created_at,
-        source_file=dataset.source_file,
-        status=dataset.status,  # FIX: Include dataset lifecycle status
-    )
+    """Convert Dataset ORM to DatasetResponse using Pydantic model_validate."""
+    return DatasetResponse.model_validate(dataset)
 
 
 # =============================================================================
@@ -167,22 +133,18 @@ async def get_project(
     datasets_result = await db.execute(select(Dataset).filter(Dataset.project_id == project_id))
     datasets = datasets_result.scalars().all()
 
-    tags = []
-    if project.tags_json:
-        try:
-            tags = json.loads(project.tags_json)
-        except json.JSONDecodeError:
-            tags = []
+    # Use model_validate to handle tags_json parsing
+    base_response = ProjectResponse.model_validate(project)
 
     return ProjectDetailResponse(
-        id=project.id,
-        name=project.name,
-        description=project.description,
-        tags=tags,
+        id=base_response.id,
+        name=base_response.name,
+        description=base_response.description,
+        tags=base_response.tags,
         total_files=len(datasets),
-        total_analyses=project.total_analyses,
-        created_at=project.created_at,
-        updated_at=project.updated_at,
+        total_analyses=base_response.total_analyses,
+        created_at=base_response.created_at,
+        updated_at=base_response.updated_at,
         datasets=[_dataset_to_response(ds) for ds in datasets],
     )
 

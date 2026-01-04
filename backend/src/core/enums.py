@@ -101,11 +101,15 @@ class JobType(str, Enum):
 class JobStatus(str, Enum):
     """Job lifecycle states."""
 
+    # Primary status values
     QUEUED = "queued"  # Job created, waiting to start
     RUNNING = "running"  # Job in progress
     COMPLETED = "completed"  # Job finished successfully
     FAILED = "failed"  # Job failed with error
     CANCELLED = "cancelled"  # Job cancelled by user
+
+    # Legacy alias (for backward compatibility with existing code/data)
+    PENDING = "pending"  # Legacy: prefer QUEUED for new code
 
 
 class EntityType(str, Enum):

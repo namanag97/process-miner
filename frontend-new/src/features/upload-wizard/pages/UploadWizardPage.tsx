@@ -229,7 +229,7 @@ export function UploadWizardPage() {
                     <div style={{
                         background: tokens.colors.error[50],
                         padding: tokens.spacing[4],
-                        borderRadius: tokens.radii.md,
+                        borderRadius: tokens.radius.md,
                         marginBottom: tokens.spacing[4],
                     }}>
                         <Text type="danger">{error}</Text>

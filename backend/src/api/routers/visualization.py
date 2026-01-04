@@ -385,6 +385,9 @@ async def get_explorer_data(
             VariantResponse(
                 variant_key=variant_key,
                 activity_trace=variant_key,
+                activities=variant_key.split(" → ")
+                if variant_key
+                else [],  # Parse activities from trace
                 case_count=v["case_count"],
                 frequency_percent=v["frequency_percent"],
                 avg_duration_seconds=v.get("avg_duration_seconds"),

@@ -206,6 +206,7 @@ async def list_conformance_results(
                 fitness=r.fitness,
                 precision=r.precision,
                 method=r.method,
+                algorithm_used=r.method,  # Default to method for historical data
                 is_conformant=r.fitness >= 0.8,
                 fitting_traces=diagnostics.get("fitting_traces", 0),
                 total_traces=diagnostics.get("total_traces", 0),
@@ -247,6 +248,7 @@ async def get_conformance_result(
         fitness=record.fitness,
         precision=record.precision,
         method=record.method,
+        algorithm_used=record.method,  # Default to method for historical data
         is_conformant=record.fitness >= 0.8,
         fitting_traces=diagnostics.get("fitting_traces", 0),
         total_traces=diagnostics.get("total_traces", 0),

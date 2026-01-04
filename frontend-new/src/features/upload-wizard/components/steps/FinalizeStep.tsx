@@ -26,7 +26,7 @@ const { Title, Text } = Typography;
 
 interface JobStatus {
     id: string;
-    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+    status: string; // 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
     progress?: number;
     error?: string;
     result?: Record<string, unknown>;

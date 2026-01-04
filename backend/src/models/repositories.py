@@ -15,7 +15,10 @@ Usage:
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, Protocol, TypeVar
+from typing import TYPE_CHECKING, Optional, Protocol, TypeVar
+
+if TYPE_CHECKING:
+    from src.models.orm import AsyncJob, Dataset, ProcessModel, Project
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession

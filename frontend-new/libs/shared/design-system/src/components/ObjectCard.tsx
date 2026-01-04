@@ -351,7 +351,7 @@ export interface ObjectCardGridProps {
 
 export function ObjectCardGrid({
   children,
-  _columns = 3,
+  columns: _columns = 3,
   gap = tokens.spacing[4],
 }: ObjectCardGridProps) {
   return (

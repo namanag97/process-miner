@@ -11,6 +11,8 @@ from uuid import uuid4
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, deferred, mapped_column, relationship
 
+from src.core.enums import JobStatus
+
 
 class Base(DeclarativeBase):
     """Base class for all models."""
@@ -56,15 +58,6 @@ class DatasetStatus(str, Enum):
     UNSTRUCTURED = "unstructured"  # Legacy: same as AWAITING_MAPPING
     ANALYZING = "analyzing"  # Legacy: same as INGESTING
 
-
-class JobStatus(str, Enum):
-    """AsyncJob lifecycle states."""
-
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
 
 
 # =============================================================================

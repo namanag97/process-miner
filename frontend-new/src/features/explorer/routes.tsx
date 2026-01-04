@@ -9,17 +9,22 @@ import type { RouteObject } from 'react-router-dom';
 // Lazy load pages
 const ExplorerIndexPage = lazy(() => import('./pages/ExplorerIndexPage'));
 const ExplorerDetailPage = lazy(() => import('./pages/ExplorerDetailPage'));
+const ExploreProcessesPage = lazy(() => import('./pages/ExploreProcessesPage'));
 
 /**
  * Route configuration for FeatureRegistry
  */
 export const explorerRouteConfig: RouteObject[] = [
+  // Standalone explore page
+  { path: '/explore', element: <ExploreProcessesPage /> },
+
+  // Explorer index and detail
+  { path: '/explorer/:datasetId/*', element: <ExplorerDetailPage /> },
+
+  // Workspace-scoped explorer
   {
-    path: '/explorer',
-    children: [
-      { index: true, element: <ExplorerIndexPage /> },
-      { path: ':logId', element: <ExplorerDetailPage /> },
-    ],
+    path: '/workspace/:projectId/data/:datasetId/explorer',
+    element: <ExplorerDetailPage />
   },
 ];
 

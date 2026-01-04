@@ -163,7 +163,7 @@ async def run_workflow(
     # Create run record
     run = WorkflowRun(
         workflow_id=workflow_id,
-        log_id=request.log_id,
+        dataset_id=request.log_id,
         status=WorkflowStatus.RUNNING.value,
         started_at=datetime.utcnow(),
     )
@@ -214,7 +214,7 @@ async def run_workflow(
     return WorkflowRunResponse(
         id=run.id,
         workflow_id=run.workflow_id,
-        log_id=run.log_id,
+        dataset_id=run.dataset_id,
         status=run.status,
         started_at=run.started_at,
         completed_at=run.completed_at,
@@ -239,7 +239,7 @@ async def list_workflow_runs(
         WorkflowRunResponse(
             id=r.id,
             workflow_id=r.workflow_id,
-            log_id=r.log_id,
+            dataset_id=r.dataset_id,
             status=r.status,
             started_at=r.started_at,
             completed_at=r.completed_at,
@@ -264,7 +264,7 @@ async def get_workflow_run(
     return WorkflowRunResponse(
         id=run.id,
         workflow_id=run.workflow_id,
-        log_id=run.log_id,
+        dataset_id=run.dataset_id,
         status=run.status,
         started_at=run.started_at,
         completed_at=run.completed_at,

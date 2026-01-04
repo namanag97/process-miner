@@ -7,8 +7,8 @@ import {
   CloseCircleOutlined,
 } from '@ant-design/icons';
 import { PageHeader, EmptyState, tokens, logAction } from '@lumina/design-system';
-import { useNotifications, Notification } from '../context/NotificationContext';
-import { createLogger } from '../utils/logger';
+import { useNotifications, Notification } from '../../../context/NotificationContext';
+import { createLogger } from '../../../utils/logger';
 
 const log = createLogger('Notifications');
 const { Text, Paragraph } = Typography;

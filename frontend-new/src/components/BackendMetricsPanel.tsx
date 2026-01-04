@@ -7,7 +7,6 @@
  * - Request waterfall and timing
  * - Error rate tracking
  */
-import React from 'react';
 import { Card, Progress, Tag, Space, Statistic, Row, Col, Tooltip, Badge } from 'antd';
 import {
   ThunderboltOutlined,
@@ -37,9 +36,9 @@ export function BackendMetricsPanel({ observability }: MetricsPanelProps) {
 
   if (!connected || !metrics) {
     return (
-      <Card 
-        size="small" 
-        style={{ 
+      <Card
+        size="small"
+        style={{
           background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
           border: 'none',
           borderRadius: 8,
@@ -58,7 +57,7 @@ export function BackendMetricsPanel({ observability }: MetricsPanelProps) {
   const memColor = metrics.memory_percent > 80 ? '#ff4d4f' : metrics.memory_percent > 60 ? '#faad14' : '#52c41a';
 
   return (
-    <div style={{ 
+    <div style={{
       background: 'linear-gradient(135deg, #0d0d1a 0%, #1a1a2e 50%, #16213e 100%)',
       borderRadius: 12,
       padding: 16,
@@ -66,9 +65,9 @@ export function BackendMetricsPanel({ observability }: MetricsPanelProps) {
       border: '1px solid rgba(255,255,255,0.1)',
     }}>
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: 'space-between',
         marginBottom: 16,
       }}>
@@ -92,9 +91,9 @@ export function BackendMetricsPanel({ observability }: MetricsPanelProps) {
       <Row gutter={[12, 12]}>
         {/* RPS */}
         <Col span={6}>
-          <div style={{ 
-            background: 'rgba(24, 144, 255, 0.1)', 
-            borderRadius: 8, 
+          <div style={{
+            background: 'rgba(24, 144, 255, 0.1)',
+            borderRadius: 8,
             padding: 12,
             border: '1px solid rgba(24, 144, 255, 0.2)',
           }}>
@@ -110,24 +109,24 @@ export function BackendMetricsPanel({ observability }: MetricsPanelProps) {
 
         {/* Response Time */}
         <Col span={6}>
-          <div style={{ 
-            background: metrics.avg_response_time_ms > 500 
-              ? 'rgba(255, 77, 79, 0.1)' 
-              : 'rgba(82, 196, 26, 0.1)', 
-            borderRadius: 8, 
+          <div style={{
+            background: metrics.avg_response_time_ms > 500
+              ? 'rgba(255, 77, 79, 0.1)'
+              : 'rgba(82, 196, 26, 0.1)',
+            borderRadius: 8,
             padding: 12,
-            border: `1px solid ${metrics.avg_response_time_ms > 500 
-              ? 'rgba(255, 77, 79, 0.2)' 
+            border: `1px solid ${metrics.avg_response_time_ms > 500
+              ? 'rgba(255, 77, 79, 0.2)'
               : 'rgba(82, 196, 26, 0.2)'}`,
           }}>
             <div style={{ color: '#888', fontSize: 11, marginBottom: 4 }}>
               <ClockCircleOutlined style={{ marginRight: 4 }} />
               AVG RESPONSE
             </div>
-            <div style={{ 
-              color: metrics.avg_response_time_ms > 500 ? '#ff4d4f' : '#52c41a', 
-              fontSize: 24, 
-              fontWeight: 700 
+            <div style={{
+              color: metrics.avg_response_time_ms > 500 ? '#ff4d4f' : '#52c41a',
+              fontSize: 24,
+              fontWeight: 700
             }}>
               {metrics.avg_response_time_ms.toFixed(0)}
               <span style={{ fontSize: 12, fontWeight: 400 }}>ms</span>
@@ -137,24 +136,24 @@ export function BackendMetricsPanel({ observability }: MetricsPanelProps) {
 
         {/* Error Rate */}
         <Col span={6}>
-          <div style={{ 
-            background: metrics.error_rate_percent > 5 
-              ? 'rgba(255, 77, 79, 0.1)' 
-              : 'rgba(82, 196, 26, 0.1)', 
-            borderRadius: 8, 
+          <div style={{
+            background: metrics.error_rate_percent > 5
+              ? 'rgba(255, 77, 79, 0.1)'
+              : 'rgba(82, 196, 26, 0.1)',
+            borderRadius: 8,
             padding: 12,
-            border: `1px solid ${metrics.error_rate_percent > 5 
-              ? 'rgba(255, 77, 79, 0.2)' 
+            border: `1px solid ${metrics.error_rate_percent > 5
+              ? 'rgba(255, 77, 79, 0.2)'
               : 'rgba(82, 196, 26, 0.2)'}`,
           }}>
             <div style={{ color: '#888', fontSize: 11, marginBottom: 4 }}>
               <WarningOutlined style={{ marginRight: 4 }} />
               ERROR RATE
             </div>
-            <div style={{ 
-              color: metrics.error_rate_percent > 5 ? '#ff4d4f' : '#52c41a', 
-              fontSize: 24, 
-              fontWeight: 700 
+            <div style={{
+              color: metrics.error_rate_percent > 5 ? '#ff4d4f' : '#52c41a',
+              fontSize: 24,
+              fontWeight: 700
             }}>
               {metrics.error_rate_percent.toFixed(1)}
               <span style={{ fontSize: 12, fontWeight: 400 }}>%</span>
@@ -164,9 +163,9 @@ export function BackendMetricsPanel({ observability }: MetricsPanelProps) {
 
         {/* Memory */}
         <Col span={6}>
-          <div style={{ 
-            background: 'rgba(114, 46, 209, 0.1)', 
-            borderRadius: 8, 
+          <div style={{
+            background: 'rgba(114, 46, 209, 0.1)',
+            borderRadius: 8,
             padding: 12,
             border: '1px solid rgba(114, 46, 209, 0.2)',
           }}>
@@ -186,8 +185,8 @@ export function BackendMetricsPanel({ observability }: MetricsPanelProps) {
       <div style={{ marginTop: 16, display: 'flex', gap: 24 }}>
         <div style={{ flex: 1 }}>
           <div style={{ color: '#888', fontSize: 11, marginBottom: 4 }}>CPU Usage</div>
-          <Progress 
-            percent={metrics.cpu_percent} 
+          <Progress
+            percent={metrics.cpu_percent}
             strokeColor={cpuColor}
             trailColor="rgba(255,255,255,0.1)"
             size="small"
@@ -196,8 +195,8 @@ export function BackendMetricsPanel({ observability }: MetricsPanelProps) {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ color: '#888', fontSize: 11, marginBottom: 4 }}>Memory Usage</div>
-          <Progress 
-            percent={metrics.memory_percent} 
+          <Progress
+            percent={metrics.memory_percent}
             strokeColor={memColor}
             trailColor="rgba(255,255,255,0.1)"
             size="small"
@@ -218,10 +217,10 @@ export function BackendMetricsPanel({ observability }: MetricsPanelProps) {
               const config = circuitStateConfig[state] || circuitStateConfig.closed;
               return (
                 <Tooltip key={name} title={`${name}: ${config.label}`}>
-                  <Tag 
-                    color={config.color} 
+                  <Tag
+                    color={config.color}
                     icon={config.icon}
-                    style={{ 
+                    style={{
                       margin: 0,
                       background: `${config.color}20`,
                       border: `1px solid ${config.color}40`,
@@ -237,9 +236,9 @@ export function BackendMetricsPanel({ observability }: MetricsPanelProps) {
       )}
 
       {/* Footer Stats */}
-      <div style={{ 
-        marginTop: 16, 
-        paddingTop: 12, 
+      <div style={{
+        marginTop: 16,
+        paddingTop: 12,
         borderTop: '1px solid rgba(255,255,255,0.1)',
         display: 'flex',
         justifyContent: 'space-between',
