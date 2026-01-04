@@ -3,15 +3,29 @@
  *
  * Type definitions for process explorer entities including
  * DFG nodes, edges, variants, and activities.
+ *
+ * NOTE: SDK types are available at @frontend-new/openapi-sdk for API validation.
+ * Frontend uses camelCase conventions while SDK uses snake_case from backend.
  */
 
 // ============================================
-// DFG Types
+// SDK Types for Reference/Validation
 // ============================================
 
-/**
- * DFG Node data from SDK
- */
+export type {
+  DFGNode as SDKDFGNode,
+  DFGEdge as SDKDFGEdge,
+  DFGResponse as SDKDFGResponse,
+  VariantResponse as SDKVariantResponse,
+  ActivityDetailResponse as SDKActivityDetail,
+  StatisticsResponse as SDKStatisticsResponse,
+  FilterOptionsResponse as SDKFilterOptions,
+} from '@frontend-new/openapi-sdk';
+
+// ============================================
+// DFG Types (frontend shape)
+// ============================================
+
 export interface DFGNode {
   id: string;
   label: string;
@@ -20,9 +34,6 @@ export interface DFGNode {
   isEnd: boolean;
 }
 
-/**
- * DFG Edge data from SDK
- */
 export interface DFGEdge {
   source: string;
   target: string;
@@ -31,18 +42,12 @@ export interface DFGEdge {
   avgDuration?: number;
 }
 
-/**
- * Complete DFG response from SDK
- */
 export interface DFGResponse {
   nodes: DFGNode[];
   edges: DFGEdge[];
   stats?: DFGStats;
 }
 
-/**
- * DFG statistics
- */
 export interface DFGStats {
   totalCases: number;
   totalActivities: number;
@@ -53,9 +58,6 @@ export interface DFGStats {
 // Variant Types
 // ============================================
 
-/**
- * Process variant from SDK
- */
 export interface Variant {
   key: string;
   activities: string[];
@@ -65,9 +67,6 @@ export interface Variant {
   complexityScore?: number;
 }
 
-/**
- * Processed variant for UI display
- */
 export interface ProcessedVariant extends Variant {
   isHappyPath: boolean;
   hasRework: boolean;
@@ -79,9 +78,6 @@ export interface ProcessedVariant extends Variant {
 // Activity Types
 // ============================================
 
-/**
- * Activity detail from SDK
- */
 export interface ActivityDetail {
   id: string;
   name: string;
@@ -95,9 +91,6 @@ export interface ActivityDetail {
   resources: string[];
 }
 
-/**
- * Activity data for UI display
- */
 export interface ActivityData {
   id: string;
   name: string;
@@ -113,9 +106,6 @@ export interface ActivityData {
 // Edge Types
 // ============================================
 
-/**
- * Edge detail for UI display
- */
 export interface EdgeDetail {
   id: string;
   source: string;
@@ -129,9 +119,6 @@ export interface EdgeDetail {
 // Canvas Types (for ProcessCanvas component)
 // ============================================
 
-/**
- * DFG Node data for ProcessCanvas
- */
 export interface DFGNodeData {
   id: string;
   label: string;
@@ -143,28 +130,19 @@ export interface DFGNodeData {
   maxDuration?: number;
 }
 
-/**
- * DFG Edge data for ProcessCanvas
- */
 export interface DFGEdgeData {
   source: string;
   target: string;
   frequency: number;
-  performance?: number; // avg duration in seconds
+  performance?: number;
 }
 
-/**
- * Metric display mode
- */
 export type MetricMode = 'frequency' | 'performance';
 
 // ============================================
 // Filter Types
 // ============================================
 
-/**
- * Filter type enumeration
- */
 export type FilterType =
   | 'timeRange'
   | 'activity'
@@ -174,9 +152,6 @@ export type FilterType =
   | 'variant'
   | 'rework';
 
-/**
- * Applied filter
- */
 export interface AppliedFilter {
   id: string;
   type: FilterType;
@@ -185,9 +160,6 @@ export interface AppliedFilter {
   color?: string;
 }
 
-/**
- * Filter options available for the current log
- */
 export interface FilterOptions {
   activities: string[];
   resources: string[];
@@ -200,9 +172,6 @@ export interface FilterOptions {
 // KPI Types
 // ============================================
 
-/**
- * Process KPIs for the KPI bar
- */
 export interface ProcessKPIs {
   totalCases: number;
   uniqueVariants: number;
@@ -216,18 +185,12 @@ export interface ProcessKPIs {
 // Query Options
 // ============================================
 
-/**
- * Options for building DFG
- */
 export interface DFGBuildOptions {
   includePerformance?: boolean;
   activityThreshold?: number;
   pathThreshold?: number;
 }
 
-/**
- * Options for getting variants
- */
 export interface VariantOptions {
   topN?: number;
   includeComplexity?: boolean;
@@ -237,9 +200,6 @@ export interface VariantOptions {
 // Utility Functions
 // ============================================
 
-/**
- * Check if a variant has rework (repeated activities)
- */
 export function hasReworkInVariant(activities: string[]): boolean {
   const seen = new Set<string>();
   for (const activity of activities) {
@@ -249,9 +209,6 @@ export function hasReworkInVariant(activities: string[]): boolean {
   return false;
 }
 
-/**
- * Transform SDK variant to processed variant for UI
- */
 export function toProcessedVariant(variant: Variant, index: number): ProcessedVariant {
   return {
     ...variant,
@@ -261,9 +218,6 @@ export function toProcessedVariant(variant: Variant, index: number): ProcessedVa
   };
 }
 
-/**
- * Transform activity detail to activity data for UI
- */
 export function toActivityData(activity: ActivityDetail): ActivityData {
   return {
     id: activity.id,

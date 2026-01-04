@@ -1,0 +1,19 @@
+{
+    "name": "@frontend-new/openapi-sdk",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/openapi-sdk/src",
+    "projectType": "library",
+    "tags": [
+        "scope:shared",
+        "type:generated"
+    ],
+    "targets": {
+        "generate": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "bash scripts/generate.sh",
+                "cwd": "libs/openapi-sdk"
+            }
+        }
+    }
+}

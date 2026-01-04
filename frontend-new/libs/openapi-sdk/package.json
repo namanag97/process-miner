@@ -1,0 +1,16 @@
+{
+    "name": "@frontend-new/openapi-sdk",
+    "version": "0.1.0",
+    "description": "Auto-generated TypeScript SDK from FastAPI OpenAPI spec",
+    "main": "src/index.ts",
+    "types": "src/index.ts",
+    "private": true,
+    "scripts": {
+        "generate": "bash scripts/generate.sh",
+        "clean": "rm -rf src/core src/models src/services src/index.ts"
+    },
+    "dependencies": {},
+    "devDependencies": {
+        "openapi-typescript-codegen": "^0.27.0"
+    }
+}

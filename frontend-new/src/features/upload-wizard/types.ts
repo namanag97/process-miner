@@ -1,6 +1,25 @@
 /**
  * Upload Wizard Types
+ *
+ * NOTE: SDK types are available for reference at @frontend-new/openapi-sdk
+ * The local types here maintain frontend naming conventions (camelCase).
  */
+
+// ============================================
+// SDK Types for Reference (use transform functions)
+// ============================================
+
+export type {
+    ColumnTypeInfo as SDKColumnTypeInfo,
+    DataPreviewResponse as SDKDataPreview,
+    SheetInfo as SDKSheetInfo,
+    SheetsResponse as SDKSheetsResponse,
+    IngestRequest as SDKColumnMapping,
+} from '@frontend-new/openapi-sdk';
+
+// ============================================
+// Wizard Types (frontend-specific)
+// ============================================
 
 export type WizardStep = 'upload' | 'sheets' | 'configure' | 'mapping' | 'finalize';
 

@@ -215,17 +215,16 @@ export function CytoscapeCanvas({
             style: getProcessGraphStyle(),
             layout: {
                 name: layout,  // BUG-004 FIX: dagre is now properly registered
-                directed: true,
-                spacingFactor: 1.5,
-                animate: false,
-                // dagre-specific options
+                // Using type assertion for dagre-specific options (no types available)
                 ...(layout === 'dagre' && {
                     rankDir: 'TB',  // Top to bottom
                     nodeSep: 50,
                     rankSep: 80,
                     edgeSep: 10,
+                    spacingFactor: 1.5,
+                    animate: false,
                 }),
-            },
+            } as CytoscapeOptions['layout'],
             minZoom: 0.2,
             maxZoom: 3,
             wheelSensitivity: 0.3,

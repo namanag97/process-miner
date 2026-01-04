@@ -1,9 +1,30 @@
 /**
  * Analytics Feature Types
+ *
+ * NOTE: Core API types are now auto-generated from OpenAPI spec.
+ * Import them from @frontend-new/openapi-sdk for type safety.
  */
 
 // ============================================
-// Performance Types
+// Re-export SDK types
+// ============================================
+
+export type {
+  PerformanceDashboardResponse,
+  CycleTimeResponse,
+  ThroughputResponse,
+  BottleneckResponse,
+  BottleneckListResponse,
+  ReworkResponse,
+  ReworkListResponse,
+  ConformanceResponse,
+  DiagnosticsResponse,
+  ResourceProfileResponse,
+  ResourceWorkloadResponse,
+} from '@frontend-new/openapi-sdk';
+
+// ============================================
+// Performance Types (frontend extensions)
 // ============================================
 
 export interface AnalyticsPerformanceData {

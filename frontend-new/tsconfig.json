@@ -22,6 +22,12 @@
       ],
       "@lumina/design-system/*": [
         "libs/shared/design-system/src/*"
+      ],
+      "@frontend-new/openapi-sdk": [
+        "libs/openapi-sdk/src/index.ts"
+      ],
+      "@frontend-new/openapi-sdk/*": [
+        "libs/openapi-sdk/src/*"
       ]
     },
     "jsx": "react-jsx",

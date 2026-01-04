@@ -2,15 +2,29 @@
  * Projects Feature Types
  *
  * Type definitions for projects and related entities.
+ *
+ * NOTE: SDK types are available at @frontend-new/openapi-sdk for API validation.
+ * Frontend uses camelCase conventions while SDK uses snake_case from backend.
  */
 
 // ============================================
-// Core Entity Types
+// SDK Types for Reference/Validation
 // ============================================
 
-/**
- * Project entity (list view)
- */
+export type {
+  ProjectResponse as SDKProjectResponse,
+  ProjectDetailResponse as SDKProjectDetailResponse,
+  ProjectListResponse as SDKProjectListResponse,
+  ProjectCreateRequest as SDKProjectCreateRequest,
+  ProjectUpdateRequest as SDKProjectUpdateRequest,
+  DatasetResponse as SDKDatasetResponse,
+  DatasetListResponse as SDKDatasetListResponse,
+} from '@frontend-new/openapi-sdk';
+
+// ============================================
+// Frontend Types (camelCase convention)
+// ============================================
+
 export interface Project {
   id: string;
   name: string;
@@ -22,21 +36,8 @@ export interface Project {
   totalAnalyses?: number;
 }
 
-/**
- * Project entity with datasets (detail view)
- */
-export interface ProjectDetail extends Project {
-  datasets: DatasetSummary[];
-}
-
-/**
- * Dataset status for lifecycle tracking
- */
 export type DatasetStatus = 'unstructured' | 'analyzing' | 'ready' | 'error';
 
-/**
- * Dataset summary within a project
- */
 export interface DatasetSummary {
   id: string;
   name: string;
@@ -51,9 +52,10 @@ export interface DatasetSummary {
   errorMessage?: string;
 }
 
-/**
- * Data source representation for UI
- */
+export interface ProjectDetail extends Project {
+  datasets: DatasetSummary[];
+}
+
 export interface DataSourceInfo {
   id: string;
   name: string;
@@ -69,17 +71,11 @@ export interface DataSourceInfo {
 // Input Types (mutations)
 // ============================================
 
-/**
- * Input for creating a new project
- */
 export interface CreateProjectInput {
   name: string;
   description?: string;
 }
 
-/**
- * Input for updating a project
- */
 export interface UpdateProjectInput {
   name?: string;
   description?: string;
@@ -89,9 +85,6 @@ export interface UpdateProjectInput {
 // Query Options
 // ============================================
 
-/**
- * Options for listing projects
- */
 export interface ProjectListOptions {
   page?: number;
   pageSize?: number;
@@ -100,9 +93,6 @@ export interface ProjectListOptions {
   sortOrder?: 'asc' | 'desc';
 }
 
-/**
- * Paginated response for project list
- */
 export interface ProjectListResponse {
   items: Project[];
   total: number;
@@ -115,9 +105,6 @@ export interface ProjectListResponse {
 // Utility Functions
 // ============================================
 
-/**
- * Transform datasets to data source info format
- */
 export function toDataSources(datasets: DatasetSummary[]): DataSourceInfo[] {
   return datasets.map((dataset) => ({
     id: dataset.id,

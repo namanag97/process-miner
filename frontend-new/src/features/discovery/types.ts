@@ -1,8 +1,25 @@
 /**
  * Discovery Feature Types
- * 
+ *
  * Types for process discovery algorithms, jobs, and model visualization.
+ *
+ * NOTE: SDK types are available at @frontend-new/openapi-sdk for API validation.
+ * Frontend uses camelCase conventions while SDK uses snake_case from backend.
  */
+
+// ============================================
+// SDK Types for Reference/Validation
+// ============================================
+
+export type {
+    DFGNode as SDKDFGNode,
+    DFGEdge as SDKDFGEdge,
+    DFGResponse as SDKDFGResponse,
+    MinerType as SDKMinerType,
+    DiscoverRequest as SDKDiscoverRequest,
+    ModelResponse as SDKModelResponse,
+    JobStatusResponse as SDKJobStatusResponse,
+} from '@frontend-new/openapi-sdk';
 
 // ============================================
 // Job Types
