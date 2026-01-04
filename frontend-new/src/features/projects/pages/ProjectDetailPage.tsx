@@ -7,7 +7,7 @@
 
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Button, Space, Typography, Popconfirm, Row, Col, message, Dropdown, Divider, Tag, List } from 'antd';
+import { Card, Button, Space, Typography, Popconfirm, Row, Col, message, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   UploadOutlined,
@@ -17,14 +17,12 @@ import {
   PlayCircleOutlined,
   BranchesOutlined,
   LineChartOutlined,
-  SettingOutlined,
   ExperimentOutlined,
-  ClockCircleOutlined,
   CheckCircleOutlined,
 } from '@ant-design/icons';
 import { tokens, logAction } from '@lumina/design-system';
 import { devLog } from '../../../components/DevConsole';
-import { FeaturePage, PageSection } from '../../../core/components/FeaturePage';
+import { FeaturePage } from '../../../core/components/FeaturePage';
 import { useProjectDetail, useDeleteProject } from '../hooks';
 import { DataSourcesList } from '../components/DataSourcesList';
 import { SimpleUploadModal } from '../components/SimpleUploadModal';

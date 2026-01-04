@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Table, Button, Space, Typography, Tag, Modal, Form, Input, Select, Card, Skeleton } from 'antd';
+import { Table, Button, Space, Typography, Tag, Modal, Form, Select, Card, Skeleton } from 'antd';
 import {
   PlusOutlined,
   ExperimentOutlined,

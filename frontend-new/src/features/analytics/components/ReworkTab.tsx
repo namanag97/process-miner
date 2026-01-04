@@ -1,7 +1,6 @@
 import { Row, Col, Card, Table, Progress, Typography, Space, Tag, Tooltip, Skeleton } from 'antd';
 import {
   ReloadOutlined,
-  WarningOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons';
 import { MetricCard, tokens, formatCompactNumber, type ReworkData } from '@lumina/design-system';

@@ -22,7 +22,6 @@ import {
   SettingOutlined,
   EyeOutlined,
   ClockCircleOutlined,
-  GlobalOutlined,
   FilterOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';

@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { Modal, Upload, Button, Alert, Progress, Typography, Space, Tag } from 'antd';
+import { Modal, Upload, Button, Alert, Progress, Typography, Tag } from 'antd';
 import type { UploadFile, UploadProps } from 'antd';
 import { InboxOutlined, FileTextOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { tokens } from '@lumina/design-system';

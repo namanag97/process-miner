@@ -11,7 +11,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Card, Typography, Space, Progress, Spin, Alert, Button, Steps, Result } from 'antd';
+import { Card, Typography, Progress, Spin, Alert, Button, Steps, Result } from 'antd';
 import {
     LoadingOutlined,
     CheckCircleOutlined,

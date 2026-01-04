@@ -5,11 +5,10 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Modal, Select, Button, Alert, Spin, Space, Typography, Form, Divider, Tag, Steps, Card } from 'antd';
+import { Modal, Select, Button, Alert, Spin, Space, Typography, Form, Tag, Steps, Card } from 'antd';
 import {
     LoadingOutlined,
     CheckCircleOutlined,
-    ExclamationCircleOutlined,
     TableOutlined,
     SettingOutlined,
     RocketOutlined,

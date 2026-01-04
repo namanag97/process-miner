@@ -30,10 +30,7 @@ import {
   Tooltip,
 } from 'antd';
 import {
-  CloseOutlined,
   ClearOutlined,
-  PlusOutlined,
-  SaveOutlined,
   FilterOutlined,
   ClockCircleOutlined,
   UserOutlined,

@@ -12,19 +12,19 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import { PageHeader, MetricCard, EmptyState, tokens } from '@lumina/design-system';
+import { PageHeader, EmptyState, tokens } from '@lumina/design-system';
 import { FeaturePage } from '../../../core/components/FeaturePage';
 import { ProcessSelector } from '../components/ProcessSelector';
 import type { ProcessOption } from '../components/ProcessSelector';
 import { ChatMessage } from '../components/ChatMessage';
 import { InsightCard } from '../components/InsightCard';
-import { buildProcessContext, buildQuickContext } from '../utils/processContextBuilder';
-import { ChatMessage as ChatMessageType, DEFAULT_PROMPTS, ProcessInsight } from '../types';
+import { buildProcessContext } from '../utils/processContextBuilder';
+import { ChatMessage as ChatMessageType, DEFAULT_PROMPTS } from '../types';
 import type { ProcessSummaryData } from '@lumina/design-system';
 import { useAIProcesses, useAIProcessSummary } from '../hooks';
 import { createLogger } from '../../../utils/logger';
 
-const { Text, Title, Paragraph } = Typography;
+const { Text, Title } = Typography;
 const log = createLogger('AIAssistantPage');
 
 // Icon mapping for prompt suggestions

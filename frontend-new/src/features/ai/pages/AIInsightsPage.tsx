@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Select, Space, Typography, Input, Tag, Skeleton, Alert, Collapse, List, Progress } from 'antd';
+import { Row, Col, Card, Select, Space, Typography, Input, Tag, Skeleton, Alert, Collapse } from 'antd';
 import {
   BulbOutlined,
   ThunderboltOutlined,
@@ -10,7 +10,6 @@ import {
   ClockCircleOutlined,
   RiseOutlined,
   NodeIndexOutlined,
-  ReloadOutlined,
   SendOutlined,
 } from '@ant-design/icons';
 import { PageHeader, MetricCard, EmptyState, tokens } from '@lumina/design-system';

@@ -36,7 +36,6 @@ import {
   DownloadOutlined,
   SearchOutlined,
   CloseOutlined,
-  FilterOutlined,
   AimOutlined,
   BranchesOutlined,
   ClockCircleOutlined,

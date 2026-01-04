@@ -3,7 +3,7 @@
  */
 
 import React, { useState } from 'react';
-import { Upload, Button, Card, Typography, Space, Alert, Progress } from 'antd';
+import { Upload, Card, Typography, Space, Alert, Progress } from 'antd';
 import { InboxOutlined, FileTextOutlined } from '@ant-design/icons';
 import type { UploadProps, UploadFile } from 'antd';
 import { tokens } from '@lumina/design-system';

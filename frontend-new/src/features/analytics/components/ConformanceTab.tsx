@@ -1,7 +1,6 @@
-import { Row, Col, Card, Table, Progress, Typography, Space, Tag, Tooltip, Skeleton, Empty, Button } from 'antd';
+import { Row, Col, Card, Progress, Typography, Space, Tooltip, Skeleton, Empty } from 'antd';
 import {
   CheckCircleOutlined,
-  CloseCircleOutlined,
   ExclamationCircleOutlined,
   InfoCircleOutlined,
   FileSearchOutlined,

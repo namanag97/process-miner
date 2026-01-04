@@ -7,11 +7,10 @@
  * - Request waterfall and timing
  * - Error rate tracking
  */
-import { Card, Progress, Tag, Space, Statistic, Row, Col, Tooltip, Badge } from 'antd';
+import { Card, Progress, Tag, Space, Row, Col, Tooltip, Badge } from 'antd';
 import {
   ThunderboltOutlined,
   CloudServerOutlined,
-  ApiOutlined,
   SafetyCertificateOutlined,
   WarningOutlined,
   CheckCircleOutlined,

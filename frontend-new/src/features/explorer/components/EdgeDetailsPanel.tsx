@@ -15,11 +15,10 @@ import {
   SwapRightOutlined,
   ClockCircleOutlined,
   ThunderboltOutlined,
-  PercentageOutlined,
 } from '@ant-design/icons';
 import { tokens } from '@lumina/design-system';
 import { createLogger } from '../../../utils/logger';
-import { formatDuration, formatNumber, COLORS, getPerformanceColor } from '../utils/colorScales';
+import { formatDuration, formatNumber, COLORS } from '../utils/colorScales';
 import type { EdgeDetail } from '../types';
 
 const log = createLogger('EdgeDetailsPanel');

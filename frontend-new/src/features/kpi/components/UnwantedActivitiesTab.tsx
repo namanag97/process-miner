@@ -1,4 +1,4 @@
-import { Row, Col, Card, Table, Tag, Typography, Statistic } from 'antd';
+import { Row, Col, Card, Table, Tag, Typography } from 'antd';
 import { WarningOutlined, SyncOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import {
   MetricCard,
