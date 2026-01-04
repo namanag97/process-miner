@@ -32,14 +32,13 @@ import {
   ExclamationCircleOutlined,
   InfoCircleOutlined,
   SearchOutlined,
-  FilterOutlined,
   ExportOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { SeverityBadge, type SeverityLevel } from './StatusBadge';
 import { tokens } from '../theme';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 // ============================================
 // Types
@@ -118,7 +117,7 @@ export function DeviationViewer({
   title = 'Process Deviations',
   showSummary = true,
 }: DeviationViewerProps) {
-  const [viewMode, setViewMode] = useState<'table' | 'grouped'>('table');
+  const [_viewMode, _setViewMode] = useState<'table' | 'grouped'>('table');
   const [searchText, setSearchText] = useState('');
   const [severityFilter, setSeverityFilter] = useState<SeverityLevel | 'all'>('all');
 
@@ -130,9 +129,9 @@ export function DeviationViewer({
         d.caseId.toLowerCase().includes(searchText.toLowerCase()) ||
         d.description.toLowerCase().includes(searchText.toLowerCase()) ||
         d.activity?.toLowerCase().includes(searchText.toLowerCase());
-      
+
       const matchesSeverity = severityFilter === 'all' || d.severity === severityFilter;
-      
+
       return matchesSearch && matchesSeverity;
     });
   }, [deviations, searchText, severityFilter]);
@@ -141,7 +140,7 @@ export function DeviationViewer({
   const summary = useMemo(() => {
     const byType: Record<DeviationType, number> = {} as any;
     const bySeverity: Record<SeverityLevel, number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
-    
+
     deviations.forEach((d) => {
       byType[d.type] = (byType[d.type] || 0) + 1;
       bySeverity[d.severity]++;

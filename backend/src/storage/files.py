@@ -1,7 +1,5 @@
 """File storage operations."""
 
-from typing import Optional
-
 from src.core.config import get_settings
 
 
@@ -24,7 +22,7 @@ async def save_upload(
 async def get_upload(
     log_id: str,
     filename: str,
-) -> Optional[bytes]:
+) -> bytes | None:
     """Retrieve uploaded file from storage."""
     settings = get_settings()
     file_path = settings.upload_dir / log_id / filename

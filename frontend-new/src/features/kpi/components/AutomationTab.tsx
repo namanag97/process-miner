@@ -1,5 +1,4 @@
-import React from 'react';
-import { Row, Col, Card, Table, Tag, Typography, Progress, List } from 'antd';
+import { Row, Col, Card, Table, Tag, Typography, Progress } from 'antd';
 import { RobotOutlined, UserOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import {
   MetricCard,

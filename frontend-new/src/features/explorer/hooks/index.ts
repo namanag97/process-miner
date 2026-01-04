@@ -12,7 +12,27 @@ import { createQueryHook } from '../../../core/hooks/createFeatureHook';
 // ============================================
 
 /**
+ * Hook to fetch unified explorer data (DFG, variants, activities, statistics)
+ * This is the recommended hook for the Process Explorer page
+ */
+export const useExplorerData = createQueryHook({
+  queryKey: ({ logId, options }: { logId: string; options?: { includePerformance?: boolean; includeComplexity?: boolean; topVariants?: number } }) =>
+    queryKeys.explorer.data(logId, options as any),
+  queryFn: async (sdk, { logId, options }: { logId: string; options?: { includePerformance?: boolean; includeComplexity?: boolean; topVariants?: number } }) => {
+    const result = await sdk.discovery.getExplorerData(logId, {
+      includePerformance: options?.includePerformance ?? true,
+      includeComplexity: options?.includeComplexity ?? true,
+      topVariants: options?.topVariants ?? 50,
+    });
+    return result;
+  },
+  enabled: ({ logId }: { logId: string }) => !!logId,
+  staleTime: 5 * 60 * 1000,
+});
+
+/**
  * Hook to fetch DFG (Directly-Follows Graph) for a log
+ * @deprecated Use useExplorerData instead for better performance
  */
 export const useDFG = createQueryHook({
   queryKey: ({ logId, options }: { logId: string; options?: { includePerformance?: boolean } }) =>
@@ -29,6 +49,7 @@ export const useDFG = createQueryHook({
 
 /**
  * Hook to fetch variants for a log
+ * @deprecated Use useExplorerData instead for better performance
  */
 export const useVariants = createQueryHook({
   queryKey: ({ logId, options }: { logId: string; options?: { topN?: number } }) =>
@@ -45,6 +66,7 @@ export const useVariants = createQueryHook({
 
 /**
  * Hook to fetch activities for a log
+ * @deprecated Use useExplorerData instead for better performance
  */
 export const useActivities = createQueryHook({
   queryKey: (logId: string) => queryKeys.activities.list(logId),

@@ -1,5 +1,4 @@
-import React from 'react';
-import { Row, Col, Card, Typography, Progress, Empty, Statistic } from 'antd';
+import { Row, Col, Card, Typography, Progress, Empty } from 'antd';
 import { CalendarOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import {
   MetricCard,

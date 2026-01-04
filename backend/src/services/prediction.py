@@ -28,7 +28,7 @@ class PredictionService:
         for trace in pm4py_log:
             for event in trace:
                 all_activities.add(event.get("concept:name", ""))
-        activity_list = sorted(list(all_activities))
+        activity_list = sorted(all_activities)
         activity_to_idx = {a: i for i, a in enumerate(activity_list)}
 
         X, y_next, y_time = [], [], []
@@ -44,7 +44,7 @@ class PredictionService:
                     if a in activity_to_idx:
                         prefix_encoded[activity_to_idx[a]] = 1
 
-                features = prefix_encoded + [len(prefix), i / len(activities)]
+                features = [*prefix_encoded, len(prefix), i / len(activities)]
                 X.append(features)
                 y_next.append(activity_to_idx.get(activities[i], 0))
 
@@ -171,7 +171,7 @@ class PredictionService:
             if a in activity_to_idx:
                 prefix_encoded[activity_to_idx[a]] = 1
 
-        features = np.array([prefix_encoded + [len(case_prefix), 0.5]])
+        features = np.array([[*prefix_encoded, len(case_prefix), 0.5]])
 
         prediction_idx = model.predict(features)[0]
         probas = model.predict_proba(features)[0] if hasattr(model, "predict_proba") else [1.0]
@@ -214,7 +214,7 @@ class PredictionService:
             if a in activity_to_idx:
                 prefix_encoded[activity_to_idx[a]] = 1
 
-        features = np.array([prefix_encoded + [len(case_prefix), 0.5]])
+        features = np.array([[*prefix_encoded, len(case_prefix), 0.5]])
         prediction = model.predict(features)[0]
 
         return {"prediction_seconds": round(float(prediction), 2), "confidence": 0.8}
@@ -225,7 +225,7 @@ class PredictionService:
         for trace in pm4py_log:
             for event in trace:
                 activities.add(event.get("concept:name", ""))
-        return sorted(list(activities))
+        return sorted(activities)
 
 
 prediction_service = PredictionService()

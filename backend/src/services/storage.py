@@ -6,18 +6,16 @@ Provides unified interface for file operations that works with:
 
 Usage:
     from src.services.storage import storage_service
-    
+
     # Store a file
     path = await storage_service.store(content, "logs/abc123/data.csv")
-    
+
     # Retrieve a file
     content = await storage_service.retrieve(path)
 """
 
-import os
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional
 
 from src.core.config import get_settings
 from src.core.logging_config import get_logger
@@ -31,27 +29,22 @@ class StorageBackend(ABC):
     @abstractmethod
     async def store(self, content: bytes, path: str) -> str:
         """Store content at the given path. Returns the full storage path."""
-        pass
 
     @abstractmethod
     async def retrieve(self, path: str) -> bytes:
         """Retrieve content from the given path."""
-        pass
 
     @abstractmethod
     async def delete(self, path: str) -> None:
         """Delete content at the given path."""
-        pass
 
     @abstractmethod
     async def exists(self, path: str) -> bool:
         """Check if a file exists at the given path."""
-        pass
 
     @abstractmethod
     async def get_url(self, path: str, expires_in: int = 3600) -> str:
         """Get a URL to access the file (presigned for S3, file:// for local)."""
-        pass
 
 
 class LocalStorageBackend(StorageBackend):
@@ -67,40 +60,40 @@ class LocalStorageBackend(StorageBackend):
         # Normalize and remove any leading slashes
         clean_path = path.lstrip("/").lstrip("\\")
         resolved = (self.base_dir / clean_path).resolve()
-        
+
         # Security: ensure resolved path is within base_dir
         if not str(resolved).startswith(str(self.base_dir.resolve())):
             raise ValueError(f"Path traversal detected: {path}")
-        
+
         return resolved
 
     async def store(self, content: bytes, path: str) -> str:
         """Store content to local filesystem."""
         file_path = self._resolve_path(path)
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         file_path.write_bytes(content)
         logger.debug("file_stored", path=str(file_path), size=len(content))
-        
+
         return str(file_path)
 
     async def retrieve(self, path: str) -> bytes:
         """Retrieve content from local filesystem."""
         file_path = self._resolve_path(path)
-        
+
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {path}")
-        
+
         return file_path.read_bytes()
 
     async def delete(self, path: str) -> None:
         """Delete file from local filesystem."""
         file_path = self._resolve_path(path)
-        
+
         if file_path.exists():
             file_path.unlink()
             logger.debug("file_deleted", path=str(file_path))
-            
+
             # Clean up empty parent directories
             parent = file_path.parent
             while parent != self.base_dir and not any(parent.iterdir()):
@@ -120,11 +113,11 @@ class LocalStorageBackend(StorageBackend):
 
 class S3StorageBackend(StorageBackend):
     """S3/MinIO storage backend for production.
-    
+
     TODO: Implement when needed for production deployment.
     """
 
-    def __init__(self, bucket: str, endpoint_url: Optional[str] = None):
+    def __init__(self, bucket: str, endpoint_url: str | None = None):
         self.bucket = bucket
         self.endpoint_url = endpoint_url
         # Future: Initialize boto3 client here
@@ -148,7 +141,7 @@ class S3StorageBackend(StorageBackend):
 
 class StorageService:
     """High-level storage service with backend abstraction.
-    
+
     Provides convenience methods for common storage patterns.
     """
 
@@ -162,12 +155,12 @@ class StorageService:
         filename: str,
     ) -> str:
         """Store an uploaded dataset file.
-        
+
         Args:
             content: File content
             dataset_id: Dataset ID (used as directory)
             filename: Original filename
-            
+
         Returns:
             Storage path
         """
@@ -185,7 +178,7 @@ class StorageService:
 
     async def delete_dataset_files(self, dataset_id: str) -> None:
         """Delete all files for a dataset.
-        
+
         Note: For local backend, deletes the dataset directory.
         """
         # For local storage, we can walk the directory
@@ -193,6 +186,7 @@ class StorageService:
             dataset_dir = self.backend._resolve_path(dataset_id)
             if dataset_dir.exists() and dataset_dir.is_dir():
                 import shutil
+
                 shutil.rmtree(dataset_dir)
                 logger.info("dataset_files_deleted", dataset_id=dataset_id)
 
@@ -209,13 +203,13 @@ class StorageService:
 def get_storage_service() -> StorageService:
     """Factory function to get configured storage service."""
     settings = get_settings()
-    
+
     # Future: Check for S3 configuration
     # if settings.s3_bucket:
     #     backend = S3StorageBackend(settings.s3_bucket, settings.s3_endpoint)
     # else:
     backend = LocalStorageBackend(settings.upload_dir)
-    
+
     return StorageService(backend)
 
 

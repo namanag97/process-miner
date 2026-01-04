@@ -11,7 +11,7 @@
  * />
  */
 
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Card,
   List,
@@ -19,12 +19,10 @@ import {
   Typography,
   Tag,
   Button,
-  Tooltip,
   Empty,
   Segmented,
   Badge,
   Avatar,
-  Progress,
 } from 'antd';
 import {
   InboxOutlined,
@@ -34,12 +32,11 @@ import {
   CheckOutlined,
   ThunderboltOutlined,
   ExclamationCircleOutlined,
-  FilterOutlined,
 } from '@ant-design/icons';
 import { SeverityBadge, type SeverityLevel } from './StatusBadge';
 import { tokens } from '../theme';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 // ============================================
 // Types
@@ -132,14 +129,14 @@ function formatTimeRemaining(dueAt: Date | undefined): string | null {
   if (!dueAt) return null;
   const now = new Date();
   const diffMs = dueAt.getTime() - now.getTime();
-  
+
   if (diffMs < 0) {
     const overdueMs = Math.abs(diffMs);
     const overdueHours = Math.floor(overdueMs / 3600000);
     if (overdueHours < 24) return `${overdueHours}h overdue`;
     return `${Math.floor(overdueHours / 24)}d overdue`;
   }
-  
+
   const hoursRemaining = Math.floor(diffMs / 3600000);
   if (hoursRemaining < 1) return `${Math.floor(diffMs / 60000)}m remaining`;
   if (hoursRemaining < 24) return `${hoursRemaining}h remaining`;
@@ -159,7 +156,6 @@ export function WorkQueueList({
   items,
   onItemClick,
   onCompleteItem,
-  onAssignItem,
   loading = false,
   title = 'Work Queue',
   showStats = true,
@@ -171,12 +167,12 @@ export function WorkQueueList({
   // Filter and sort items
   const filteredItems = useMemo(() => {
     let result = [...items];
-    
+
     // Apply status filter
     if (selectedFilter !== 'all') {
       result = result.filter((item) => item.status === selectedFilter);
     }
-    
+
     // Sort by priority and due date
     result.sort((a, b) => {
       const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
@@ -188,7 +184,7 @@ export function WorkQueueList({
       }
       return 0;
     });
-    
+
     return maxItems ? result.slice(0, maxItems) : result;
   }, [items, selectedFilter, maxItems]);
 
@@ -197,7 +193,7 @@ export function WorkQueueList({
     const pending = items.filter((i) => i.status === 'pending').length;
     const overdue = items.filter((i) => i.status === 'overdue' || isOverdue(i.dueAt)).length;
     const inProgress = items.filter((i) => i.status === 'in_progress').length;
-    
+
     return { total: items.length, pending, overdue, inProgress };
   }, [items]);
 

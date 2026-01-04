@@ -1,0 +1,63 @@
+/**
+ * GraphViewer Styles
+ */
+
+.container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--color-surface, #1e1e2e);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.title {
+    padding: 0.75rem 1rem;
+    background: var(--color-surface-secondary, #252535);
+    border-bottom: 1px solid var(--color-border, #333);
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--color-text-primary, #e0e0e0);
+}
+
+.canvas {
+    flex: 1;
+    min-height: 400px;
+}
+
+.empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-tertiary, #666);
+    min-height: 300px;
+}
+
+/* React Flow overrides */
+.canvas :global(.react-flow__node) {
+    color: var(--color-text-primary, #e0e0e0);
+    background: var(--color-surface-secondary, #252535);
+    border: 1px solid var(--color-border, #444);
+}
+
+.canvas :global(.react-flow__node.selected) {
+    border-color: var(--color-primary, #6366f1);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+}
+
+.canvas :global(.react-flow__controls) {
+    background: var(--color-surface-secondary, #252535);
+    border: 1px solid var(--color-border, #333);
+    border-radius: 6px;
+}
+
+.canvas :global(.react-flow__controls-button) {
+    background: var(--color-surface, #1e1e2e);
+    border-bottom: 1px solid var(--color-border, #333);
+    fill: var(--color-text-secondary, #888);
+}
+
+.canvas :global(.react-flow__controls-button:hover) {
+    background: var(--color-surface-hover, #2a2a3e);
+}

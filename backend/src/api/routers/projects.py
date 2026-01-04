@@ -5,7 +5,6 @@ Endpoints for managing projects (folders for organizing datasets).
 
 import json
 from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, select
@@ -13,12 +12,12 @@ from sqlalchemy import func, select
 from src.api.dependencies import DBSession
 from src.models.orm import Dataset, Project
 from src.models.schemas import (
+    DatasetResponse,
     ProjectCreateRequest,
     ProjectDetailResponse,
     ProjectListResponse,
     ProjectResponse,
     ProjectUpdateRequest,
-    DatasetResponse,
 )
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
@@ -82,7 +81,7 @@ def _dataset_to_response(dataset: Dataset) -> DatasetResponse:
 async def create_project(
     db: DBSession,
     request: ProjectCreateRequest,
-    workspace_id: Optional[str] = Query(None, description="Workspace ID to associate project with"),
+    workspace_id: str | None = Query(None, description="Workspace ID to associate project with"),
 ) -> ProjectResponse:
     """
     Create a new project, optionally within a workspace.
@@ -108,8 +107,8 @@ async def list_projects(
     db: DBSession,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    search: Optional[str] = Query(None, description="Search by project name"),
-    workspace_id: Optional[str] = Query(None, description="Filter by workspace ID"),
+    search: str | None = Query(None, description="Search by project name"),
+    workspace_id: str | None = Query(None, description="Filter by workspace ID"),
 ) -> ProjectListResponse:
     """
     List all projects with pagination, optionally filtered by workspace.
@@ -136,9 +135,7 @@ async def list_projects(
 
     # Paginate
     query = (
-        query.order_by(Project.created_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
+        query.order_by(Project.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
     )
     result = await db.execute(query)
     projects = result.scalars().all()
@@ -167,9 +164,7 @@ async def get_project(
         raise HTTPException(status_code=404, detail="Project not found")
 
     # Get datasets for this project
-    datasets_result = await db.execute(
-        select(Dataset).filter(Dataset.project_id == project_id)
-    )
+    datasets_result = await db.execute(select(Dataset).filter(Dataset.project_id == project_id))
     datasets = datasets_result.scalars().all()
 
     tags = []
@@ -241,10 +236,9 @@ async def delete_project(
 
     # Unlink datasets (they remain, just not in a project)
     from sqlalchemy import update
+
     await db.execute(
-        update(Dataset)
-        .where(Dataset.project_id == project_id)
-        .values(project_id=None)
+        update(Dataset).where(Dataset.project_id == project_id).values(project_id=None)
     )
 
     await db.delete(project)

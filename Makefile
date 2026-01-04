@@ -60,9 +60,13 @@ backend-lint:
 	$(BACKEND_PYTHON) -m ruff format --check backend/src/ backend/tests/
 
 sdk-lint:
-	@echo "🔍 Linting SDK (ESLint + Prettier)..."
-	cd sdk && npm run lint
-	cd sdk && npm run format:check
+	@if [ -d sdk ]; then \
+		echo "🔍 Linting SDK (ESLint + Prettier)..."; \
+		cd sdk && npm run lint; \
+		cd sdk && npm run format:check; \
+	else \
+		echo "⏭️ Skipping SDK lint (sdk/ not found)"; \
+	fi
 
 # =============================================================================
 # Type Checking
@@ -205,6 +209,27 @@ frontend-test:
 frontend-e2e:
 	@echo "🧪 E2E testing frontend (Playwright)..."
 	cd frontend && npx nx e2e process-mining-e2e
+
+# =============================================================================
+# Quick Dev Shortcuts (AI-friendly)
+# =============================================================================
+
+# Quick commit: runs checks first, then commits if passing
+quick-commit:
+	@echo "🔍 Running checks..."
+	@$(MAKE) check && git add -A && git commit -m "wip: checkpoint $$(date +%Y-%m-%d-%H%M)" && echo "✅ Committed!"
+
+# Checkpoint: commit without full checks (for broken state saves)
+checkpoint:
+	git add -A && git commit -m "checkpoint: saving work $$(date +%Y-%m-%d-%H%M)" && echo "💾 Checkpointed!"
+
+# Start both backend and frontend
+dev-full:
+	@echo "🚀 Starting dev servers..."
+	@echo "Backend: http://localhost:8001"
+	@echo "Frontend: http://localhost:4200"
+	@cd backend && .venv/bin/python -m uvicorn src.main:app --reload --port 8001 &
+	@cd frontend-new && npm run dev
 
 # =============================================================================
 # Cleanup

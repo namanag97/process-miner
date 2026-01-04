@@ -1,4 +1,4 @@
-import React, { useEffect, lazy, Suspense } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
 import { AppShell, SDKProvider, luminaTheme, logAction } from '@lumina/design-system';
@@ -25,9 +25,11 @@ const ProjectsListPage = lazy(() => import('./features/projects/pages/ProjectsLi
 const ProjectDetailPage = lazy(() => import('./features/projects/pages/ProjectDetailPage'));
 
 // Explorer feature
-const ExplorerIndexPage = lazy(() => import('./features/explorer/pages/ExplorerIndexPage'));
 const ExplorerDetailPage = lazy(() => import('./features/explorer/pages/ExplorerDetailPage'));
 const ExploreProcessesPage = lazy(() => import('./features/explorer/pages/ExploreProcessesPage'));
+
+// Discovery feature
+const DiscoveryPage = lazy(() => import('./features/discovery/pages/DiscoveryPage'));
 
 // KPI feature
 const KPIPage = lazy(() => import('./features/kpi/pages/KPIPage'));
@@ -51,26 +53,14 @@ const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const ActivityLogPage = lazy(() => import('./pages/ActivityLogPage'));
 const AuditLogsPage = lazy(() => import('./pages/AuditLogsPage'));
 const HelpCenterPage = lazy(() => import('./pages/HelpCenterPage'));
-const EventLogsPage = lazy(() => import('./pages/logs/EventLogsPage'));
-// DEPRECATED: Upload wizard replaced by SimpleUploadModal in ProjectDetailPage
-// const UploadWizardPage = lazy(() => import('./pages/logs/UploadWizardPage'));
-const LogDetailPage = lazy(() => import('./pages/logs/LogDetailPage'));
+// New Celonis-style upload wizard
+const UploadWizardPage = lazy(() => import('./features/upload-wizard/pages/UploadWizardPage'));
 const ProcessQuestionsPage = lazy(() => import('./pages/questions/ProcessQuestionsPage'));
 
 // Developer pages
 const TestBenchPage = lazy(() => import('./pages/TestBenchPage'));
 
 const log = createLogger('Navigation');
-
-// Redirect component for deprecated /explorer routes
-function ExplorerRedirect() {
-  const navigate = useNavigate();
-  React.useEffect(() => {
-    toast.info('Explorer is now part of Workspace. Please access processes through your projects.');
-    navigate('/workspace', { replace: true });
-  }, [navigate]);
-  return <PageLoader fullPage message="Redirecting to Workspace..." />;
-}
 
 // Error reporting handler (integrate with your error tracking service)
 function handleGlobalError(report: ErrorReport): void {
@@ -129,8 +119,8 @@ function AppLayout() {
 
   // Log route changes for dev debugging
   useEffect(() => {
-    logAction('Route', { path: location.pathname });
-    devLog.action('Navigation', `Route: ${location.pathname}`);
+    logAction('Navigation', location.pathname, { from: document.referrer || 'direct' });
+    devLog.action('Route Change', location.pathname);
   }, [location.pathname]);
 
   // Determine active nav item from URL
@@ -187,11 +177,12 @@ function AppLayout() {
           {/* ============================================ */}
           <Route path="/workspace" element={<ProjectsListPage />} />
           <Route path="/workspace/:projectId" element={<ProjectDetailPage />} />
-          {/* DEPRECATED: Upload wizard replaced by modal in ProjectDetailPage */}
-          <Route path="/workspace/:projectId/upload" element={<Navigate to="/workspace/:projectId" replace />} />
-          <Route path="/workspace/:projectId/data/:logId/questions" element={<ProcessQuestionsPage />} />
-          <Route path="/workspace/:projectId/data/:logId/explorer" element={<ExplorerDetailPage />} />
-          <Route path="/workspace/:projectId/data/:logId/kpi" element={<KPIPage />} />
+          {/* Celonis-style 5-step upload wizard */}
+          <Route path="/workspace/:projectId/upload" element={<UploadWizardPage />} />
+          <Route path="/workspace/:projectId/data/:datasetId/questions" element={<ProcessQuestionsPage />} />
+          <Route path="/workspace/:projectId/data/:datasetId/explorer" element={<ExplorerDetailPage />} />
+          <Route path="/workspace/:projectId/data/:datasetId/discovery" element={<DiscoveryPage />} />
+          <Route path="/workspace/:projectId/data/:datasetId/kpi" element={<KPIPage />} />
 
           {/* Project-scoped Analytics */}
           <Route path="/workspace/:projectId/analytics" element={<AnalyticsPage />} />
@@ -213,7 +204,7 @@ function AppLayout() {
           {/* Explorer Feature (DEPRECATED - redirects to explore) */}
           {/* ============================================ */}
           <Route path="/explorer" element={<Navigate to="/explore" replace />} />
-          <Route path="/explorer/:logId/*" element={<ExplorerDetailPage />} />
+          <Route path="/explorer/:datasetId/*" element={<ExplorerDetailPage />} />
 
           {/* ============================================ */}
           {/* Analytics Feature */}

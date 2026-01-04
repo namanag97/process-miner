@@ -1,12 +1,22 @@
 """Add user_id column to async_jobs table.
 
+Revision ID: 010_add_user_id_to_async_jobs
+Revises: 009_add_result_json
+Create Date: 2026-01-03
+
 This migration adds the user_id column that was added to the ORM model
 as part of BUG-046 FIX for owner tracking / security to prevent job
 result information leaks.
 """
 
-import sqlalchemy as sa
 from alembic import op
+import sqlalchemy as sa
+
+
+revision = '010_add_user_id_to_async_jobs'
+down_revision = '009_add_result_json'
+branch_labels = None
+depends_on = None
 
 
 def upgrade():

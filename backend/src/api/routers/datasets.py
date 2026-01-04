@@ -9,42 +9,44 @@ import json
 import os
 import tempfile
 import time
-from typing import Optional
 
 import aiofiles
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import func, select
-from sqlalchemy.orm import selectinload
 
 from src.api.dependencies import DBSession
 from src.core.exceptions import (
-    InsufficientDataError,
     InvalidFileError,
-    ProcessNotFoundError,
     ProcessingError,
+    ProcessNotFoundError,
     ValidationError,
 )
 from src.core.logging_config import get_logger
 from src.models.orm import Dataset, DatasetStatus, ProcessCase, Project
+
+# Repository imports from models layer (infrastructure)
+from src.models.repositories import SQLAlchemyDatasetRepository
 from src.models.schemas import (
     ActivityDetailResponse,
     CaseListResponse,
     CaseResponse,
     ColumnDetectionResponse,
+    ColumnTypeInfo,
+    DataPreviewResponse,
     DatasetDetailResponse,
     DatasetListResponse,
     DatasetResponse,
     IngestRequest,
     JobStatusResponse,
+    SheetInfo,
+    SheetsResponse,
     StatisticsResponse,
     VariantResponse,
 )
+from src.services.duckdb_ingestion import duckdb_ingestion_service
 from src.services.ingestion import ingestion_service
 from src.services.mining import mining_service
-from src.services.duckdb_ingestion import duckdb_ingestion_service
 from src.services.unified_ingestion import unified_ingestion_service
-# Domain model imports for new architecture
-from src.domain.repositories import SQLAlchemyDatasetRepository
 
 logger = get_logger(__name__)
 
@@ -58,7 +60,6 @@ MIN_CASES_FOR_VARIANTS = 1  # Minimum cases required for variant analysis
 CHUNK_SIZE = 64 * 1024  # 64KB chunks for streaming
 
 router = APIRouter(prefix="/datasets", tags=["Datasets"])
-
 
 
 # =============================================================================
@@ -91,8 +92,12 @@ def validate_file_upload(file: UploadFile) -> None:
 
     # Validate content type (allow common browser defaults)
     allowed_mimetypes = {
-        "text/csv", "application/csv", "application/xml", "text/xml",
-        "application/octet-stream", "text/plain",  # Common browser defaults
+        "text/csv",
+        "application/csv",
+        "application/xml",
+        "text/xml",
+        "application/octet-stream",
+        "text/plain",  # Common browser defaults
     }
     if file.content_type and file.content_type not in allowed_mimetypes:
         logger.warning(
@@ -108,11 +113,11 @@ def validate_file_upload(file: UploadFile) -> None:
 
 def validate_file_size(content: bytes, filename: str) -> None:
     """Validate file size is within limits.
-    
+
     Args:
         content: File content as bytes
         filename: Original filename
-        
+
     Raises:
         InvalidFileError: If file is too large
     """
@@ -147,7 +152,7 @@ async def validate_file_signature(content: bytes, filename: str) -> None:
 
     if ext == ".xes":
         # XES files should start with XML declaration
-        if not (signature.startswith(b"<?xml") or signature.startswith(b"<log")):
+        if not (signature.startswith((b"<?xml", b"<log"))):
             logger.warning("file_signature_mismatch", filename=filename, extension=ext)
             raise InvalidFileError(
                 "File appears to be invalid XES format (not valid XML)",
@@ -172,10 +177,10 @@ async def validate_file_signature(content: bytes, filename: str) -> None:
 
 async def _stream_upload_to_temp(file: UploadFile) -> tuple[str, int]:
     """BUG-058 FIX: Stream uploaded file to temp file in chunks to prevent OOM.
-    
+
     Args:
         file: The uploaded file
-        
+
     Returns:
         Tuple of (temp_file_path, total_bytes)
     """
@@ -184,9 +189,9 @@ async def _stream_upload_to_temp(file: UploadFile) -> tuple[str, int]:
     suffix = os.path.splitext(file.filename or "")[1]
     fd, temp_path = tempfile.mkstemp(suffix=suffix)
     os.close(fd)
-    
+
     try:
-        async with aiofiles.open(temp_path, 'wb') as out:
+        async with aiofiles.open(temp_path, "wb") as out:
             while chunk := await file.read(CHUNK_SIZE):
                 await out.write(chunk)
                 total_bytes += len(chunk)
@@ -208,13 +213,15 @@ async def _stream_upload_to_temp(file: UploadFile) -> tuple[str, int]:
 async def upload_dataset(
     db: DBSession,
     file: UploadFile = File(...),
-    name: Optional[str] = Form(None),
-    project_id: Optional[str] = Form(None, description="Project ID to assign dataset to"),
-    case_id_column: Optional[str] = Form(None),
-    activity_column: Optional[str] = Form(None),
-    timestamp_column: Optional[str] = Form(None),
-    resource_column: Optional[str] = Form(None),
-    async_store: bool = Form(False, description="If true, store file only without parsing (deferred ingestion)"),
+    name: str | None = Form(None),
+    project_id: str | None = Form(None, description="Project ID to assign dataset to"),
+    case_id_column: str | None = Form(None),
+    activity_column: str | None = Form(None),
+    timestamp_column: str | None = Form(None),
+    resource_column: str | None = Form(None),
+    async_store: bool = Form(
+        False, description="If true, store file only without parsing (deferred ingestion)"
+    ),
 ):
     """
     Upload and ingest an event log file.
@@ -245,17 +252,18 @@ async def upload_dataset(
             raise ProcessNotFoundError(project_id, resource_name="Project")
 
     # BUG-058 FIX: Stream file to disk in chunks to prevent OOM on large uploads
-    import aiofiles
     import tempfile
-    
+
+    import aiofiles
+
     temp_file_path = None
     try:
         # Create temp file and stream content
         with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1]) as tmp:
             temp_file_path = tmp.name
-        
+
         total_size = 0
-        async with aiofiles.open(temp_file_path, 'wb') as out_file:
+        async with aiofiles.open(temp_file_path, "wb") as out_file:
             # Read in 64KB chunks to prevent memory exhaustion
             while chunk := await file.read(64 * 1024):
                 total_size += len(chunk)
@@ -266,14 +274,14 @@ async def upload_dataset(
                         filename=filename,
                     )
                 await out_file.write(chunk)
-        
+
         file_size_mb = total_size / (1024 * 1024)
         logger.info("file_streamed_to_disk", size_mb=round(file_size_mb, 2), path=temp_file_path)
-        
+
         # Now read from temp file for processing
-        async with aiofiles.open(temp_file_path, 'rb') as f:
+        async with aiofiles.open(temp_file_path, "rb") as f:
             content = await f.read()
-        
+
         # Validate file signature to prevent spoofing
         await validate_file_signature(content, filename)
 
@@ -319,18 +327,18 @@ async def upload_dataset(
                 activity_column = activity_column or suggestions.get("activity_column")
                 timestamp_column = timestamp_column or suggestions.get("timestamp_column")
                 resource_column = resource_column or suggestions.get("resource_column")
-                
+
                 logger.info(
-                    "columns_detected", 
-                    case=case_id_column, 
-                    activity=activity_column, 
+                    "columns_detected",
+                    case=case_id_column,
+                    activity=activity_column,
                     time=timestamp_column,
-                    resource=resource_column
+                    resource=resource_column,
                 )
 
                 # Validate detection success
                 if not all([case_id_column, activity_column, timestamp_column]):
-                     raise ValidationError(
+                    raise ValidationError(
                         f"Could not auto-detect required columns. Please provide mappings. Detected: {detection['columns']}",
                         field="columns",
                     )
@@ -420,7 +428,7 @@ async def upload_dataset(
         )
 
         # Include exception type in error message for better debugging
-        error_msg = f"[{type(e).__name__}] {str(e)}"
+        error_msg = f"[{type(e).__name__}] {e!s}"
         raise ProcessingError(f"Failed to process file: {error_msg}")
     finally:
         # BUG-058 FIX: Clean up temp file
@@ -457,11 +465,11 @@ async def detect_columns(
         suffix = os.path.splitext(filename)[1]
         fd, temp_file_path = tempfile.mkstemp(suffix=suffix)
         os.close(fd)
-        
+
         total_size = 0
         MAX_DETECT_SIZE_MB = 50  # Column detection doesn't need full file
-        
-        async with aiofiles.open(temp_file_path, 'wb') as out_file:
+
+        async with aiofiles.open(temp_file_path, "wb") as out_file:
             while chunk := await file.read(CHUNK_SIZE):
                 total_size += len(chunk)
                 if total_size > MAX_DETECT_SIZE_MB * 1024 * 1024:
@@ -469,15 +477,19 @@ async def detect_columns(
                     await out_file.write(chunk)
                     break
                 await out_file.write(chunk)
-        
+
         file_size_mb = total_size / (1024 * 1024)
-        
+
         # Read from temp file
-        async with aiofiles.open(temp_file_path, 'rb') as f:
+        async with aiofiles.open(temp_file_path, "rb") as f:
             content = await f.read()
-        
+
         read_time_ms = (time.perf_counter() - start_time) * 1000
-        logger.debug("file_read_for_detection", size_mb=round(file_size_mb, 2), duration_ms=round(read_time_ms, 2))
+        logger.debug(
+            "file_read_for_detection",
+            size_mb=round(file_size_mb, 2),
+            duration_ms=round(read_time_ms, 2),
+        )
 
         # Validate file signature to prevent spoofing
         await validate_file_signature(content, filename)
@@ -488,7 +500,7 @@ async def detect_columns(
         response_data = unified_ingestion_service.detect_columns(content, filename)
 
         detection_time_ms = (time.perf_counter() - detection_start) * 1000
-        
+
         total_time_ms = (time.perf_counter() - start_time) * 1000
         logger.info(
             "detect_columns_completed",
@@ -509,22 +521,25 @@ async def detect_columns(
                 logger.warning("detect_columns_temp_cleanup_failed", path=temp_file_path)
 
 
-@router.post("/{dataset_id}/ingest", response_model=JobStatusResponse)
+@router.post("/{dataset_id}/ingest", response_model=JobStatusResponse, status_code=202)
 async def ingest_dataset(
     db: DBSession,
     dataset_id: str,
     request: IngestRequest,
 ):
     """
-    Trigger background ingestion for an UNSTRUCTURED dataset.
+    Trigger background ingestion for an AWAITING_MAPPING dataset.
+
+    Job-Centric Architecture: Returns 202 with job_id for progress tracking.
 
     Phase 2 of deferred ingestion: user provides column mapping,
     background worker parses file and computes variants.
 
-    Returns AsyncJob status for progress tracking.
+    Returns AsyncJob status for progress tracking via GET /jobs/{job_id}.
     """
-    from src.models.orm import AsyncJob, JobStatus
+    from src.core.enums import EntityType, JobType
     from src.infrastructure.tasks import ingest_dataset_task
+    from src.models.orm import AsyncJob, JobStatus
 
     logger.info("ingest_dataset_started", dataset_id=dataset_id)
 
@@ -536,22 +551,28 @@ async def ingest_dataset(
     if not dataset:
         raise ProcessNotFoundError(dataset_id)
 
-    # Idempotency: reject if already analyzing
-    if dataset.status == DatasetStatus.ANALYZING.value:
+    # Idempotency: reject if already ingesting
+    if dataset.status in [DatasetStatus.INGESTING.value, DatasetStatus.ANALYZING.value]:
         raise ValidationError(
-            f"Dataset {dataset_id} is already being analyzed. Check job status.",
+            f"Dataset {dataset_id} is already being ingested. Check job status.",
             field="status",
         )
 
-    # Only allow ingestion for UNSTRUCTURED or ERROR datasets
-    if dataset.status not in [DatasetStatus.UNSTRUCTURED.value, DatasetStatus.ERROR.value]:
+    # Only allow ingestion for AWAITING_MAPPING, UNSTRUCTURED (legacy), or ERROR datasets
+    valid_statuses = [
+        DatasetStatus.AWAITING_MAPPING.value,
+        DatasetStatus.UNSTRUCTURED.value,  # Legacy support
+        DatasetStatus.ERROR.value,
+    ]
+    if dataset.status not in valid_statuses:
         raise ValidationError(
-            f"Dataset {dataset_id} has status '{dataset.status}'. Only UNSTRUCTURED or ERROR datasets can be ingested.",
+            f"Dataset {dataset_id} has status '{dataset.status}'. Only AWAITING_MAPPING or ERROR datasets can be ingested.",
             field="status",
         )
 
     # Store mapping
     import json
+
     mapping = {
         "case_id_column": request.case_id_column,
         "activity_column": request.activity_column,
@@ -559,17 +580,23 @@ async def ingest_dataset(
         "resource_column": request.resource_column,
     }
     dataset.mapping_json = json.dumps(mapping)
-    dataset.status = DatasetStatus.ANALYZING.value
+    dataset.status = DatasetStatus.INGESTING.value  # Job-centric status
     dataset.error_message = None  # Clear previous errors
     await db.flush()
 
-    # Create AsyncJob record
+    # Create AsyncJob record with new job-centric fields
     job = AsyncJob(
-        job_type="ingest_dataset",
+        job_type=JobType.INGESTION.value,
         status=JobStatus.PENDING.value,
+        entity_type=EntityType.DATASET.value,
+        entity_id=dataset_id,
         parameters_json=json.dumps({"dataset_id": dataset_id, "mapping": mapping}),
     )
     db.add(job)
+    await db.flush()
+
+    # Link job to dataset
+    dataset.ingestion_job_id = job.id
     await db.flush()
 
     # Queue Celery task
@@ -603,11 +630,11 @@ async def detect_columns_for_dataset(
     """
     Detect column mappings from an already-uploaded UNSTRUCTURED dataset.
 
-    Reads the stored file and returns suggested mappings for case_id, 
+    Reads the stored file and returns suggested mappings for case_id,
     activity, timestamp, and resource columns.
     """
     from src.services.storage import storage_service
-    
+
     logger.info("detect_columns_for_dataset_started", dataset_id=dataset_id)
     start_time = time.perf_counter()
 
@@ -660,6 +687,272 @@ async def detect_columns_for_dataset(
 
 
 # =============================================================================
+# Upload Wizard: Preview & Sheets (Celonis-style 5-step wizard)
+# =============================================================================
+
+
+@router.get("/{dataset_id}/preview", response_model=DataPreviewResponse)
+async def get_data_preview(
+    db: DBSession,
+    dataset_id: str,
+    rows: int = Query(10, ge=1, le=50, description="Number of preview rows"),
+):
+    """
+    Get data preview with column types for upload wizard Configure step.
+
+    Returns:
+    - Column names with detected types (STRING, INTEGER, DATETIME, etc.)
+    - Sample preview rows
+    - Parsing configuration info
+
+    Supports navigation away and back - data is preserved in storage.
+    """
+    import csv
+    import io
+
+    from src.services.storage import storage_service
+
+    logger.info("get_data_preview_started", dataset_id=dataset_id, rows=rows)
+    start_time = time.perf_counter()
+
+    # Load dataset
+    query = select(Dataset).where(Dataset.id == dataset_id)
+    result = await db.execute(query)
+    dataset = result.scalar_one_or_none()
+
+    if not dataset:
+        raise ProcessNotFoundError(dataset_id)
+
+    if not dataset.source_file:
+        raise ValidationError(
+            f"Dataset {dataset_id} has no source file stored.",
+            field="source_file",
+        )
+
+    # Retrieve stored file
+    try:
+        content = await storage_service.retrieve_dataset_file(
+            dataset_id=dataset_id,
+            filename=dataset.source_file,
+        )
+    except FileNotFoundError:
+        raise ProcessNotFoundError(dataset_id, resource_name="Source file")
+
+    # Parse CSV for preview
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError:
+        text = content.decode("latin-1")
+
+    text.split("\n")
+    reader = csv.reader(io.StringIO(text))
+    all_rows = list(reader)
+
+    if len(all_rows) < 1:
+        raise ValidationError("File contains no data", field="file")
+
+    # First row is header
+    headers = all_rows[0]
+    data_rows = all_rows[1 : rows + 1]  # Get requested number of rows
+
+    # Detect column types from sample data
+    columns = []
+    for i, header in enumerate(headers):
+        sample_values = [row[i] for row in data_rows if i < len(row)]
+        detected_type = _detect_column_type(sample_values)
+        date_format = None
+
+        if detected_type == "DATETIME":
+            date_format = _detect_date_format(sample_values)
+
+        null_count = sum(1 for v in sample_values if not v or v.strip() == "")
+
+        columns.append(
+            ColumnTypeInfo(
+                name=header,
+                detected_type=detected_type,
+                sample_values=sample_values[:5],
+                null_count=null_count,
+                date_format=date_format,
+            )
+        )
+
+    # Create row dictionaries
+    preview_rows = []
+    for row in data_rows:
+        row_dict = {}
+        for i, header in enumerate(headers):
+            row_dict[header] = row[i] if i < len(row) else ""
+        preview_rows.append(row_dict)
+
+    duration_ms = (time.perf_counter() - start_time) * 1000
+    logger.info(
+        "get_data_preview_completed",
+        dataset_id=dataset_id,
+        columns=len(columns),
+        rows_returned=len(preview_rows),
+        duration_ms=round(duration_ms, 2),
+    )
+
+    return DataPreviewResponse(
+        dataset_id=dataset_id,
+        filename=dataset.source_file,
+        columns=columns,
+        rows=preview_rows,
+        total_rows=len(all_rows) - 1,  # Exclude header
+        has_header=True,
+        field_separator=",",
+        encoding="utf-8",
+    )
+
+
+def _detect_column_type(values: list[str]) -> str:
+    """Detect column type from sample values."""
+    non_empty = [v for v in values if v and v.strip()]
+    if not non_empty:
+        return "STRING"
+
+    # Check for datetime patterns
+    datetime_patterns = [
+        r"\d{4}-\d{2}-\d{2}",  # 2024-01-15
+        r"\d{1,2}/\d{1,2}/\d{2,4}",  # 1/15/2024 or 01/15/24
+        r"\d{4}/\d{2}/\d{2}",  # 2024/01/15
+    ]
+    import re
+
+    for v in non_empty[:5]:
+        for pattern in datetime_patterns:
+            if re.match(pattern, v.strip()):
+                return "DATETIME"
+
+    # Check for numbers
+    try:
+        for v in non_empty[:10]:
+            v = v.strip().replace(",", "").replace(" ", "")
+            if v:
+                float(v)
+        # Check if integers
+        if all("." not in v for v in non_empty[:10] if v.strip()):
+            return "INTEGER"
+        return "DECIMAL"
+    except ValueError:
+        pass
+
+    # Check for boolean
+    bool_values = {"true", "false", "1", "0", "yes", "no", "y", "n"}
+    if all(v.lower().strip() in bool_values for v in non_empty[:10]):
+        return "BOOLEAN"
+
+    return "STRING"
+
+
+def _detect_date_format(values: list[str]) -> str:
+    """Detect date format from sample values."""
+    import re
+
+    for v in values:
+        if not v or not v.strip():
+            continue
+        v = v.strip()
+
+        # MM/dd/yyyy HH:mm
+        if re.match(r"\d{1,2}/\d{1,2}/\d{4}\s+\d{1,2}:\d{2}", v):
+            return "MM/dd/yyyy HH:mm"
+        # yyyy-MM-dd HH:mm:ss
+        if re.match(r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}", v):
+            return "yyyy-MM-dd HH:mm:ss"
+        # yyyy-MM-dd
+        if re.match(r"\d{4}-\d{2}-\d{2}$", v):
+            return "yyyy-MM-dd"
+        # dd/MM/yyyy
+        if re.match(r"\d{2}/\d{2}/\d{4}$", v):
+            return "dd/MM/yyyy"
+
+    return "yyyy-MM-dd HH:mm:ss"
+
+
+@router.get("/{dataset_id}/sheets", response_model=SheetsResponse)
+async def get_sheets(
+    db: DBSession,
+    dataset_id: str,
+):
+    """
+    List available sheets in an Excel file.
+
+    For CSV files, returns a single pseudo-sheet.
+    Required for upload wizard Step 2 (Select Sheet).
+    """
+    from src.services.storage import storage_service
+
+    logger.info("get_sheets_started", dataset_id=dataset_id)
+
+    # Load dataset
+    query = select(Dataset).where(Dataset.id == dataset_id)
+    result = await db.execute(query)
+    dataset = result.scalar_one_or_none()
+
+    if not dataset:
+        raise ProcessNotFoundError(dataset_id)
+
+    if not dataset.source_file:
+        raise ValidationError(
+            f"Dataset {dataset_id} has no source file stored.",
+            field="source_file",
+        )
+
+    filename = dataset.source_file
+    ext = os.path.splitext(filename)[1].lower()
+
+    # For CSV files, return single sheet
+    if ext == ".csv":
+        return SheetsResponse(
+            dataset_id=dataset_id,
+            filename=filename,
+            sheets=[SheetInfo(name="Sheet1", index=0, row_count=0, column_count=0)],
+        )
+
+    # For Excel files, parse sheet names
+    if ext in [".xlsx", ".xls"]:
+        try:
+            content = await storage_service.retrieve_dataset_file(
+                dataset_id=dataset_id,
+                filename=filename,
+            )
+
+            # Use openpyxl for xlsx
+            from io import BytesIO
+
+            import openpyxl
+
+            workbook = openpyxl.load_workbook(BytesIO(content), read_only=True)
+            sheets = []
+            for idx, sheet_name in enumerate(workbook.sheetnames):
+                sheet = workbook[sheet_name]
+                sheets.append(
+                    SheetInfo(
+                        name=sheet_name,
+                        index=idx,
+                        row_count=sheet.max_row or 0,
+                        column_count=sheet.max_column or 0,
+                    )
+                )
+            workbook.close()
+
+            logger.info("get_sheets_completed", dataset_id=dataset_id, sheets=len(sheets))
+            return SheetsResponse(
+                dataset_id=dataset_id,
+                filename=filename,
+                sheets=sheets,
+            )
+        except Exception as e:
+            logger.error("get_sheets_error", dataset_id=dataset_id, error=str(e))
+            raise ProcessingError(f"Failed to read Excel file: {e!s}")
+
+    # Unsupported format
+    raise ValidationError(f"Unsupported file format: {ext}", field="source_file")
+
+
+# =============================================================================
 # List & Get
 # =============================================================================
 
@@ -669,22 +962,28 @@ async def list_datasets(
     db: DBSession,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    source_format: Optional[str] = Query(None),
-    project_id: Optional[str] = Query(None, description="Filter by project ID"),
+    source_format: str | None = Query(None),
+    project_id: str | None = Query(None, description="Filter by project ID"),
 ):
     """
     List all uploaded datasets.
 
     Supports pagination and filtering by source format.
     """
-    logger.debug("list_datasets", page=page, page_size=page_size, source_format=source_format, project_id=project_id)
+    logger.debug(
+        "list_datasets",
+        page=page,
+        page_size=page_size,
+        source_format=source_format,
+        project_id=project_id,
+    )
 
     # Build query
     query = select(Dataset).order_by(Dataset.created_at.desc())
 
     if source_format:
         query = query.where(Dataset.source_format == source_format)
-    
+
     if project_id:
         query = query.where(Dataset.project_id == project_id)
 
@@ -773,7 +1072,7 @@ async def delete_dataset(
 ):
     """
     Delete an event log and all associated data.
-    
+
     BUG-052 FIX: Also deletes orphaned recommendations.
     """
     logger.info("delete_dataset_started", dataset_id=dataset_id)
@@ -787,10 +1086,10 @@ async def delete_dataset(
 
     # BUG-052 FIX: Clean up recommendations before deleting dataset
     from sqlalchemy import delete
+
     from src.models.orm import Recommendation
-    await db.execute(
-        delete(Recommendation).where(Recommendation.dataset_id == dataset_id)
-    )
+
+    await db.execute(delete(Recommendation).where(Recommendation.dataset_id == dataset_id))
 
     await db.delete(dataset)
     await db.flush()
@@ -813,7 +1112,7 @@ async def get_statistics(
     Get comprehensive statistics for an event log.
 
     Includes activities, variants, case durations, and more.
-    
+
     PERFORMANCE: Uses SQL aggregations instead of ORM eager loading
     to prevent OOM on large datasets (1M+ events).
     """
@@ -840,19 +1139,20 @@ async def get_statistics(
 
     # Get case duration stats via SQL aggregation (NO ORM object instantiation!)
     from sqlalchemy import func as sql_func
+
     duration_stats = await db.execute(
         select(
             sql_func.avg(
-                sql_func.extract('epoch', ProcessCase.end_time) - 
-                sql_func.extract('epoch', ProcessCase.start_time)
+                sql_func.extract("epoch", ProcessCase.end_time)
+                - sql_func.extract("epoch", ProcessCase.start_time)
             ).label("avg_duration"),
             sql_func.min(
-                sql_func.extract('epoch', ProcessCase.end_time) - 
-                sql_func.extract('epoch', ProcessCase.start_time)
+                sql_func.extract("epoch", ProcessCase.end_time)
+                - sql_func.extract("epoch", ProcessCase.start_time)
             ).label("min_duration"),
             sql_func.max(
-                sql_func.extract('epoch', ProcessCase.end_time) - 
-                sql_func.extract('epoch', ProcessCase.start_time)
+                sql_func.extract("epoch", ProcessCase.end_time)
+                - sql_func.extract("epoch", ProcessCase.start_time)
             ).label("max_duration"),
             sql_func.min(ProcessCase.start_time).label("date_start"),
             sql_func.max(ProcessCase.end_time).label("date_end"),
@@ -862,12 +1162,12 @@ async def get_statistics(
         .where(ProcessCase.end_time.isnot(None))
     )
     stats_row = duration_stats.one_or_none()
-    
+
     # Extract values from SQL result (handles None cases)
     avg_duration = float(stats_row.avg_duration) if stats_row and stats_row.avg_duration else None
     min_duration = float(stats_row.min_duration) if stats_row and stats_row.min_duration else None
     max_duration = float(stats_row.max_duration) if stats_row and stats_row.max_duration else None
-    
+
     date_range = None
     if stats_row and stats_row.date_start and stats_row.date_end:
         date_range = {
@@ -924,7 +1224,6 @@ async def list_cases(
     total = await db.scalar(count_query) or 0
 
     # Paginate cases with event count via SQL subquery (avoid loading events)
-    from sqlalchemy import lateral
     from src.models.orm import ProcessEvent
 
     # Create a subquery to count events per case
@@ -976,13 +1275,13 @@ async def get_variants(
     db: DBSession,
     dataset_id: str,
     top_n: int = Query(20, ge=1, le=100),
-    top_k_percent: Optional[float] = Query(
+    top_k_percent: float | None = Query(
         None, ge=0, le=100, description="Return variants covering top K% of cases"
     ),
     include_complexity: bool = Query(
         False, description="Include complexity metrics (score, rework count, unique activities)"
     ),
-    sort_by: Optional[str] = Query(
+    sort_by: str | None = Query(
         None,
         description="Sort variants by: 'frequency', 'complexity', 'duration'. Default: frequency",
     ),
@@ -1022,19 +1321,18 @@ async def get_variants(
 
     # Use SQL aggregation to compute variant statistics
     # This is 100x faster than loading all cases into memory
-    variant_query = select(
-        ProcessCase.variant_key,
-        func.count(ProcessCase.id).label("case_count"),
-        func.avg(
-            func.extract('epoch', ProcessCase.end_time) -
-            func.extract('epoch', ProcessCase.start_time)
-        ).label("avg_duration"),
-    ).where(
-        ProcessCase.dataset_id == dataset_id
-    ).group_by(
-        ProcessCase.variant_key
-    ).order_by(
-        func.count(ProcessCase.id).desc()
+    variant_query = (
+        select(
+            ProcessCase.variant_key,
+            func.count(ProcessCase.id).label("case_count"),
+            func.avg(
+                func.extract("epoch", ProcessCase.end_time)
+                - func.extract("epoch", ProcessCase.start_time)
+            ).label("avg_duration"),
+        )
+        .where(ProcessCase.dataset_id == dataset_id)
+        .group_by(ProcessCase.variant_key)
+        .order_by(func.count(ProcessCase.id).desc())
     )
 
     variant_results = await db.execute(variant_query)
@@ -1062,9 +1360,9 @@ async def get_variants(
         variant_key = variant_row.variant_key or "unknown"
 
         # Optional complexity calculation
-        complexity_score: Optional[float] = None
-        rework_count: Optional[int] = None
-        unique_activity_count: Optional[int] = None
+        complexity_score: float | None = None
+        rework_count: int | None = None
+        unique_activity_count: int | None = None
 
         if include_complexity:
             complexity = mining_service.calculate_variant_complexity(variant_key)
@@ -1080,17 +1378,23 @@ async def get_variants(
         else:
             activities = [variant_key.strip()] if variant_key.strip() else []
 
-        variants.append(VariantResponse(
-            variant_key=variant_key,
-            activity_trace=variant_key,
-            activities=activities,
-            case_count=variant_row.case_count,
-            frequency_percent=round(variant_row.case_count / total_cases * 100, 2) if total_cases > 0 else 0.0,
-            avg_duration_seconds=float(variant_row.avg_duration) if variant_row.avg_duration else None,
-            complexity_score=complexity_score,
-            rework_count=rework_count,
-            unique_activity_count=unique_activity_count,
-        ))
+        variants.append(
+            VariantResponse(
+                variant_key=variant_key,
+                activity_trace=variant_key,
+                activities=activities,
+                case_count=variant_row.case_count,
+                frequency_percent=round(variant_row.case_count / total_cases * 100, 2)
+                if total_cases > 0
+                else 0.0,
+                avg_duration_seconds=float(variant_row.avg_duration)
+                if variant_row.avg_duration
+                else None,
+                complexity_score=complexity_score,
+                rework_count=rework_count,
+                unique_activity_count=unique_activity_count,
+            )
+        )
 
     # Apply sorting if specified
     if sort_by == "complexity" and include_complexity:
@@ -1113,7 +1417,7 @@ async def get_variants(
 async def get_activities(
     db: DBSession,
     dataset_id: str,
-    sort_by: Optional[str] = Query(
+    sort_by: str | None = Query(
         None,
         description="Sort activities by: 'frequency', 'duration', 'position'. Default: frequency",
     ),
@@ -1179,51 +1483,51 @@ async def get_domain_analysis(
 ):
     """
     Get process analysis using the new rich domain model.
-    
+
     This endpoint demonstrates the improved architecture:
     1. Repository pattern for data access
     2. DatasetAggregate for domain logic
     3. PM4Py log caching (single conversion)
     4. Computed properties on domain entities
-    
+
     Returns aggregate statistics, variant analysis, and PM4Py cache status.
     """
     import pm4py
-    
+
     logger.info("domain_analysis_started", dataset_id=dataset_id)
     start_time = time.perf_counter()
-    
+
     # 1. Load via repository (eager loading)
     repo = SQLAlchemyDatasetRepository(db)
     aggregate = await repo.get(dataset_id)
-    
+
     if not aggregate:
         logger.warning("process_not_found", dataset_id=dataset_id)
         raise ProcessNotFoundError(dataset_id)
-    
+
     repo_load_ms = (time.perf_counter() - start_time) * 1000
-    
+
     # 2. First PM4Py conversion (builds cache)
     pm4py_start = time.perf_counter()
-    pm4py_log = aggregate.to_pm4py_log()
+    aggregate.to_pm4py_log()
     first_conversion_ms = (time.perf_counter() - pm4py_start) * 1000
-    
+
     # 3. Second PM4Py access (cache hit)
     cache_start = time.perf_counter()
     pm4py_log_cached = aggregate.to_pm4py_log()  # Should be instant
     cache_hit_ms = (time.perf_counter() - cache_start) * 1000
-    
+
     # 4. Use PM4Py for analysis (uses cached log)
     pm4py_analysis_start = time.perf_counter()
     dfg, start_acts, end_acts = pm4py.discover_dfg(pm4py_log_cached)
     pm4py_analysis_ms = (time.perf_counter() - pm4py_analysis_start) * 1000
-    
+
     # 5. Get domain computed properties
     stats = aggregate.statistics
     variant_stats = aggregate.get_variant_stats(top_n=5)
-    
+
     total_ms = (time.perf_counter() - start_time) * 1000
-    
+
     logger.info(
         "domain_analysis_completed",
         dataset_id=dataset_id,
@@ -1233,11 +1537,10 @@ async def get_domain_analysis(
         pm4py_analysis_ms=round(pm4py_analysis_ms, 2),
         total_ms=round(total_ms, 2),
     )
-    
+
     return {
         "dataset_id": aggregate.id,
         "name": aggregate.name,
-        
         # Statistics from domain aggregate
         "statistics": {
             "total_events": stats.total_events,
@@ -1247,7 +1550,6 @@ async def get_domain_analysis(
             "avg_events_per_case": round(stats.avg_events_per_case, 2),
             "avg_case_duration_seconds": stats.avg_case_duration_seconds,
         },
-        
         # Top variants from domain model
         "top_variants": [
             {
@@ -1259,14 +1561,12 @@ async def get_domain_analysis(
             }
             for v in variant_stats
         ],
-        
         # DFG summary from PM4Py (using cached log)
         "dfg_summary": {
             "edges_count": len(dfg),
             "start_activities": list(start_acts.keys())[:5],
             "end_activities": list(end_acts.keys())[:5],
         },
-        
         # Performance metrics (demonstrates caching benefit)
         "performance": {
             "repository_load_ms": round(repo_load_ms, 2),

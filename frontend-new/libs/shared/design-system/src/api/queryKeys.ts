@@ -89,6 +89,14 @@ export const queryKeys = {
   },
 
   // ----------------------------------------
+  // Explorer (unified data)
+  // ----------------------------------------
+  explorer: {
+    data: (logId: string, options?: { includePerformance?: boolean; topVariants?: number }) =>
+      ['explorer', logId, options] as const,
+  },
+
+  // ----------------------------------------
   // Analytics
   // ----------------------------------------
   analytics: {

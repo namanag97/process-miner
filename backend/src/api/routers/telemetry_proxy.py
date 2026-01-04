@@ -9,7 +9,8 @@ Endpoints:
 """
 
 import json
-from typing import Any, Dict
+from typing import Any
+
 from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel
 
@@ -22,15 +23,17 @@ router = APIRouter(prefix="/telemetry", tags=["Telemetry"])
 
 class BrowserTrace(BaseModel):
     """Browser trace data (OTLP format simplified)."""
-    resourceSpans: list[Dict[str, Any]]
+
+    resourceSpans: list[dict[str, Any]]
 
 
 class BrowserLog(BaseModel):
     """Browser log entry."""
+
     level: str
     message: str
     timestamp: str
-    data: Dict[str, Any] | None = None
+    data: dict[str, Any] | None = None
     trace_id: str | None = None
     span_id: str | None = None
 
@@ -50,6 +53,7 @@ async def proxy_traces(request: Request):
 
         # In debug mode, send to DevConsole
         from src.core.config import get_settings
+
         settings = get_settings()
 
         if settings.debug:
@@ -75,8 +79,8 @@ async def proxy_logs(log: BrowserLog):
     In production, would send to Loki.
     """
     try:
+        from src.api.routers.dev_logs_stream import LogLevel, devConsoleLog
         from src.core.config import get_settings
-        from src.api.routers.dev_logs_stream import devConsoleLog, LogLevel
 
         settings = get_settings()
 
@@ -91,7 +95,7 @@ async def proxy_logs(log: BrowserLog):
 
             devConsoleLog(
                 level=level_map.get(log.level.lower(), LogLevel.INFO),
-                source=f"FE Browser",
+                source="FE Browser",
                 message=log.message,
                 data=log.data,
                 extra={
@@ -111,11 +115,12 @@ async def proxy_logs(log: BrowserLog):
         return {"status": "error", "error": str(e)}
 
 
-def _process_otlp_for_devconsole(otlp_data: Dict[str, Any]) -> None:
+def _process_otlp_for_devconsole(otlp_data: dict[str, Any]) -> None:
     """Extract spans from OTLP data and send to DevConsole."""
     try:
-        from src.api.routers.dev_logs_stream import log_trace_span, TraceSpan
         from datetime import datetime
+
+        from src.api.routers.dev_logs_stream import TraceSpan, log_trace_span
 
         # OTLP format: resourceSpans[] -> scopeSpans[] -> spans[]
         for resource_span in otlp_data.get("resourceSpans", []):
@@ -170,7 +175,8 @@ def _process_otlp_for_devconsole(otlp_data: Dict[str, Any]) -> None:
                         event_ts = int(event_data.get("timeUnixNano", 0))
                         event = {
                             "name": event_data.get("name", ""),
-                            "timestamp": datetime.utcfromtimestamp(event_ts / 1e9).isoformat() + "Z",
+                            "timestamp": datetime.utcfromtimestamp(event_ts / 1e9).isoformat()
+                            + "Z",
                             "attributes": {},
                         }
                         events.append(event)

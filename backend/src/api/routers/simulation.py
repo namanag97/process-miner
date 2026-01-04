@@ -62,7 +62,7 @@ async def play_out_model(
         total_cases=len(pm4py_log),
         total_events=sum(len(t) for t in pm4py_log),
         total_activities=len(activities),
-        activities_json=json.dumps(sorted(list(activities))),
+        activities_json=json.dumps(sorted(activities)),
     )
     db.add(new_log)
     await db.flush()
@@ -73,13 +73,13 @@ async def play_out_model(
         case_id = trace.attributes.get("concept:name", f"case_{hash(str(trace))}")
         case = ProcessCase(log_id=new_log.id, case_id=case_id)
         cases.append(case)
-    
+
     db.add_all(cases)
     await db.flush()  # Single flush for all cases
 
     # Now create events with the flushed case IDs
     events = []
-    for case, trace in zip(cases, pm4py_log):
+    for case, trace in zip(cases, pm4py_log, strict=False):
         for event in trace:
             process_event = ProcessEvent(
                 case_ref_id=case.id,
@@ -87,7 +87,7 @@ async def play_out_model(
                 timestamp=event.get("time:timestamp"),
             )
             events.append(process_event)
-    
+
     db.add_all(events)  # Single add_all for all events
     await db.commit()
 

@@ -5,12 +5,10 @@ In production, replace with proper OAuth/JWT implementation.
 """
 
 from datetime import datetime
-from typing import Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
 from src.api.dependencies import DBSession
 from src.models.orm import Organization, User, Workspace, WorkspaceMember
@@ -73,31 +71,33 @@ def _workspace_to_response(workspace: Workspace) -> WorkspaceResponse:
 @router.get("/me", response_model=CurrentUserResponse)
 async def get_current_user(
     db: DBSession,
-    email: Optional[str] = Query(None, description="Email to identify user (MVP mode)"),
+    email: str | None = Query(None, description="Email to identify user (MVP mode)"),
 ) -> CurrentUserResponse:
     """
     Get current user context.
-    
+
     MVP Mode: Creates a default user/org/workspace if none exists.
     In production, this would use JWT/session auth.
     """
     # For MVP, use email param or default to demo user
     user_email = email or "demo@processminer.io"
-    
+
     # Try to find existing user
     result = await db.execute(select(User).filter(User.email == user_email))
     user = result.scalar_one_or_none()
-    
+
     if not user:
         # Create default setup for MVP
-        user, org, workspace = await _create_default_setup(db, user_email)
+        user, org, _workspace = await _create_default_setup(db, user_email)
     else:
         # Get organization
         org = None
         if user.org_id:
-            org_result = await db.execute(select(Organization).filter(Organization.id == user.org_id))
+            org_result = await db.execute(
+                select(Organization).filter(Organization.id == user.org_id)
+            )
             org = org_result.scalar_one_or_none()
-    
+
     # Get user's workspaces via memberships (single query with join)
     workspaces_result = await db.execute(
         select(Workspace)
@@ -105,14 +105,12 @@ async def get_current_user(
         .filter(WorkspaceMember.user_id == user.id)
     )
     workspaces: list[Workspace] = list(workspaces_result.scalars().all())
-    
+
     # If no memberships but org has workspaces, use those
     if not workspaces and org:
-        ws_result = await db.execute(
-            select(Workspace).filter(Workspace.org_id == org.id)
-        )
+        ws_result = await db.execute(select(Workspace).filter(Workspace.org_id == org.id))
         workspaces = list(ws_result.scalars().all())
-    
+
     return CurrentUserResponse(
         user=_user_to_response(user),
         organization=_org_to_response(org) if org else None,
@@ -121,16 +119,13 @@ async def get_current_user(
     )
 
 
-async def _create_default_setup(
-    db: DBSession, 
-    email: str
-) -> tuple[User, Organization, Workspace]:
+async def _create_default_setup(db: DBSession, email: str) -> tuple[User, Organization, Workspace]:
     """Create default org, workspace, and user for MVP."""
-    
+
     # Check if demo org already exists
     org_result = await db.execute(select(Organization).filter(Organization.slug == "demo-org"))
     org = org_result.scalar_one_or_none()
-    
+
     if not org:
         # Create organization
         org = Organization(
@@ -141,13 +136,13 @@ async def _create_default_setup(
             created_at=datetime.utcnow(),
         )
         db.add(org)
-    
+
     # Check if default workspace already exists for this org
-    # (Assuming we want to reuse it too, or create new one? 
+    # (Assuming we want to reuse it too, or create new one?
     #  For MVP simpler to reuse if we are reusing Org)
     # But for now, let's just make sure we don't crash on Org unique slug.
     # Workspace names are not unique usually, but let's see model.
-    
+
     # Create workspace
     workspace_result = await db.execute(
         select(Workspace)
@@ -155,7 +150,7 @@ async def _create_default_setup(
         .filter(Workspace.name == "Default Workspace")
     )
     workspace = workspace_result.scalar_one_or_none()
-    
+
     if not workspace:
         workspace = Workspace(
             id=str(uuid4()),
@@ -165,7 +160,7 @@ async def _create_default_setup(
             created_at=datetime.utcnow(),
         )
         db.add(workspace)
-    
+
     # Create user
     user = User(
         id=str(uuid4()),
@@ -178,7 +173,7 @@ async def _create_default_setup(
         last_login_at=datetime.utcnow(),
     )
     db.add(user)
-    
+
     # Create membership
     membership = WorkspaceMember(
         id=str(uuid4()),
@@ -188,21 +183,21 @@ async def _create_default_setup(
         joined_at=datetime.utcnow(),
     )
     db.add(membership)
-    
+
     await db.commit()
     await db.refresh(user)
     if org not in db.dirty and org not in db.new:
-         # Refresh might fail if not attached? 
-         # Just proceed, we have the object.
-         pass
+        # Refresh might fail if not attached?
+        # Just proceed, we have the object.
+        pass
     else:
         await db.refresh(org)
-        
+
     if workspace not in db.dirty and workspace not in db.new:
         pass
     else:
         await db.refresh(workspace)
-    
+
     return user, org, workspace
 
 
@@ -214,7 +209,7 @@ async def login(
 ) -> CurrentUserResponse:
     """
     Login endpoint (MVP mode - accepts any credentials).
-    
+
     In production, replace with proper authentication.
     """
     # MVP: Just return the user context
@@ -225,7 +220,7 @@ async def login(
 async def logout() -> dict[str, str]:
     """
     Logout endpoint (MVP mode - no-op).
-    
+
     In production, invalidate session/token.
     """
     return {"status": "logged_out", "message": "MVP mode - no session to invalidate"}

@@ -7,6 +7,7 @@ import type {
   DFGResponse,
   VariantResponse,
   ActivityDetailResponse,
+  ProcessExplorerDataResponse,
 } from '../types';
 import {
   transformDFG,
@@ -28,10 +29,37 @@ export interface VariantOptions {
   sortBy?: 'frequency' | 'complexity' | 'duration';
 }
 
+export interface ExplorerDataOptions {
+  includePerformance?: boolean;
+  includeComplexity?: boolean;
+  topVariants?: number;
+}
+
+export interface ExplorerData {
+  logId: string;
+  dfg: DFGData;
+  variants: Variant[];
+  activities: ActivityDetail[];
+  statistics: {
+    totalEvents: number;
+    totalCases: number;
+    totalActivities: number;
+    totalVariants: number;
+    activities: string[];
+    startActivities: Record<string, number>;
+    endActivities: Record<string, number>;
+    avgCaseDurationSeconds?: number;
+    minCaseDurationSeconds?: number;
+    maxCaseDurationSeconds?: number;
+    dateRange?: { start: string; end: string };
+  };
+}
+
 export interface DiscoveryModule {
   buildDFG: (logId: string, options?: DFGOptions) => Promise<DFGData>;
   getVariants: (logId: string, options?: VariantOptions) => Promise<Variant[]>;
   getActivities: (logId: string, sortBy?: string) => Promise<ActivityDetail[]>;
+  getExplorerData: (logId: string, options?: ExplorerDataOptions) => Promise<ExplorerData>;
   discover: (options: { logId: string; minerType?: string; modelName?: string }) => Promise<{ modelId: string }>;
 }
 
@@ -59,6 +87,35 @@ export function createDiscoveryModule(client: ApiClient): DiscoveryModule {
         sort_by: sortBy,
       });
       return transformActivityDetails(response);
+    },
+
+    async getExplorerData(logId: string, options?: ExplorerDataOptions): Promise<ExplorerData> {
+      const response = await client.get<ProcessExplorerDataResponse>(`/visualization/${logId}/explorer-data`, {
+        include_performance: options?.includePerformance ?? true,
+        include_complexity: options?.includeComplexity ?? true,
+        top_variants: options?.topVariants ?? 50,
+      });
+
+      // Transform to frontend-friendly format
+      return {
+        logId: response.log_id,
+        dfg: transformDFG(response.dfg),
+        variants: transformVariants(response.variants),
+        activities: transformActivityDetails(response.activities),
+        statistics: {
+          totalEvents: response.statistics.total_events,
+          totalCases: response.statistics.total_cases,
+          totalActivities: response.statistics.total_activities,
+          totalVariants: response.statistics.total_variants,
+          activities: response.statistics.activities,
+          startActivities: response.statistics.start_activities,
+          endActivities: response.statistics.end_activities,
+          avgCaseDurationSeconds: response.statistics.avg_case_duration_seconds,
+          minCaseDurationSeconds: response.statistics.min_case_duration_seconds,
+          maxCaseDurationSeconds: response.statistics.max_case_duration_seconds,
+          dateRange: response.statistics.date_range,
+        },
+      };
     },
 
     async discover(options: { logId: string; minerType?: string; modelName?: string }) {

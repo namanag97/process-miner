@@ -1,5 +1,5 @@
-import React, { memo, useMemo } from 'react';
-import { Card, Statistic, Space, Typography } from 'antd';
+import { memo, useMemo } from 'react';
+import { Card, Space, Typography } from 'antd';
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import { tokens } from '../theme';
 
@@ -95,7 +95,7 @@ export const MetricCard = memo(function MetricCard({
         <Text style={titleStyle}>
           {title}
         </Text>
-        
+
         <div style={valueContainerStyle}>
           <span style={valueStyle}>
             {prefix}
@@ -106,7 +106,7 @@ export const MetricCard = memo(function MetricCard({
               </span>
             )}
           </span>
-          
+
           {trend && trendStyle && (
             <span style={trendStyle}>
               {trend.isPositive ? <ArrowUpOutlined /> : <ArrowDownOutlined />}

@@ -10,7 +10,7 @@ Usage:
     # Setup in main.py
     from src.infrastructure.tracing import setup_tracing
     setup_tracing(app, service_name="process-mining-api")
-    
+
     # Manual spans
     from src.infrastructure.tracing import create_span
     with create_span("custom_operation") as span:
@@ -19,8 +19,9 @@ Usage:
 """
 
 import functools
+from collections.abc import Callable
 from contextlib import contextmanager
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, TypeVar
 
 from src.core.logging_config import get_logger
 
@@ -39,8 +40,13 @@ try:
     from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor, ConsoleSpanExporter
-    from opentelemetry.trace import Status, StatusCode, Span
+    from opentelemetry.sdk.trace.export import (
+        BatchSpanProcessor,
+        ConsoleSpanExporter,
+        SimpleSpanProcessor,
+    )
+    from opentelemetry.trace import Span, Status, StatusCode
+
     OTEL_AVAILABLE = True
 except ImportError:
     OTEL_AVAILABLE = False
@@ -49,7 +55,7 @@ except ImportError:
 
 
 # Global tracer instance
-_tracer: Optional[Any] = None
+_tracer: Any | None = None
 
 
 def setup_tracing(
@@ -57,7 +63,7 @@ def setup_tracing(
     service_name: str = "process-mining-api",
     service_version: str = "1.0.0",
     environment: str = "development",
-    otlp_endpoint: Optional[str] = None,
+    otlp_endpoint: str | None = None,
     console_export: bool = True,
     devconsole_export: bool = True,
 ) -> None:
@@ -75,43 +81,41 @@ def setup_tracing(
     global _tracer
 
     if not OTEL_AVAILABLE:
-        logger.warning("opentelemetry_not_available",
-                      message="Install opentelemetry-* packages for tracing")
+        logger.warning(
+            "opentelemetry_not_available", message="Install opentelemetry-* packages for tracing"
+        )
         return
 
     # Resource attributes
-    resource = Resource.create({
-        "service.name": service_name,
-        "service.version": service_version,
-        "deployment.environment": environment,
-    })
+    resource = Resource.create(
+        {
+            "service.name": service_name,
+            "service.version": service_version,
+            "deployment.environment": environment,
+        }
+    )
 
     # Create tracer provider
     provider = TracerProvider(resource=resource)
 
     # Add exporters
     if console_export:
-        provider.add_span_processor(
-            BatchSpanProcessor(ConsoleSpanExporter())
-        )
+        provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
 
     # Add DevConsole exporter for real-time trace visualization
     # Use SimpleSpanProcessor for immediate export (no batching delay)
     if devconsole_export:
         try:
             from src.infrastructure.devconsole_exporter import DevConsoleSpanExporter
-            provider.add_span_processor(
-                SimpleSpanProcessor(DevConsoleSpanExporter())
-            )
+
+            provider.add_span_processor(SimpleSpanProcessor(DevConsoleSpanExporter()))
             logger.info("devconsole_exporter_enabled")
         except ImportError:
             logger.debug("devconsole_exporter_not_available")
 
     if otlp_endpoint:
         otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint, insecure=True)
-        provider.add_span_processor(
-            BatchSpanProcessor(otlp_exporter)
-        )
+        provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
 
     # Set as global provider
     trace.set_tracer_provider(provider)
@@ -146,7 +150,7 @@ def setup_tracing(
     )
 
 
-def get_tracer() -> Optional[Any]:
+def get_tracer() -> Any | None:
     """Get the global tracer instance."""
     return _tracer
 
@@ -154,11 +158,11 @@ def get_tracer() -> Optional[Any]:
 @contextmanager
 def create_span(
     name: str,
-    attributes: Optional[dict[str, Any]] = None,
-    kind: Optional[Any] = None,
+    attributes: dict[str, Any] | None = None,
+    kind: Any | None = None,
 ):
     """Create a new span for tracing.
-    
+
     Usage:
         with create_span("process_events", {"event_count": 100}) as span:
             result = process_events()
@@ -167,14 +171,14 @@ def create_span(
     if not OTEL_AVAILABLE or _tracer is None:
         yield None
         return
-    
+
     span_kind = kind or trace.SpanKind.INTERNAL
-    
+
     with _tracer.start_as_current_span(name, kind=span_kind) as span:
         if attributes:
             for key, value in attributes.items():
                 span.set_attribute(key, value)
-        
+
         try:
             yield span
         except Exception as e:
@@ -184,46 +188,46 @@ def create_span(
 
 
 def trace_function(
-    name: Optional[str] = None,
-    attributes: Optional[dict[str, Any]] = None,
+    name: str | None = None,
+    attributes: dict[str, Any] | None = None,
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Decorator to trace a function.
-    
+
     Usage:
         @trace_function("discover_process_model")
         def discover(log, miner_type):
             ...
     """
+
     def decorator(fn: Callable[..., T]) -> Callable[..., T]:
         span_name = name or fn.__name__
-        
+
         @functools.wraps(fn)
         def wrapper(*args: Any, **kwargs: Any) -> T:
             with create_span(span_name, attributes) as span:
                 try:
-                    result = fn(*args, **kwargs)
-                    return result
+                    return fn(*args, **kwargs)
                 except Exception as e:
                     if span is not None:
                         span.set_status(Status(StatusCode.ERROR, str(e)))
                     raise
-        
+
         @functools.wraps(fn)
         async def async_wrapper(*args: Any, **kwargs: Any) -> T:
             with create_span(span_name, attributes) as span:
                 try:
-                    result = await fn(*args, **kwargs)
-                    return result
+                    return await fn(*args, **kwargs)
                 except Exception as e:
                     if span is not None:
                         span.set_status(Status(StatusCode.ERROR, str(e)))
                     raise
-        
+
         import asyncio
+
         if asyncio.iscoroutinefunction(fn):
             return async_wrapper
         return wrapper
-    
+
     return decorator
 
 
@@ -231,27 +235,27 @@ def add_span_attribute(key: str, value: Any) -> None:
     """Add an attribute to the current span if one exists."""
     if not OTEL_AVAILABLE:
         return
-    
+
     span = trace.get_current_span()
     if span:
         span.set_attribute(key, value)
 
 
-def add_span_event(name: str, attributes: Optional[dict[str, Any]] = None) -> None:
+def add_span_event(name: str, attributes: dict[str, Any] | None = None) -> None:
     """Add an event to the current span if one exists."""
     if not OTEL_AVAILABLE:
         return
-    
+
     span = trace.get_current_span()
     if span:
         span.add_event(name, attributes or {})
 
 
-def get_trace_id() -> Optional[str]:
+def get_trace_id() -> str | None:
     """Get the current trace ID as a string."""
     if not OTEL_AVAILABLE:
         return None
-    
+
     span = trace.get_current_span()
     if span:
         context = span.get_span_context()
@@ -260,11 +264,11 @@ def get_trace_id() -> Optional[str]:
     return None
 
 
-def get_span_id() -> Optional[str]:
+def get_span_id() -> str | None:
     """Get the current span ID as a string."""
     if not OTEL_AVAILABLE:
         return None
-    
+
     span = trace.get_current_span()
     if span:
         context = span.get_span_context()
@@ -277,14 +281,15 @@ def get_span_id() -> Optional[str]:
 # Instrumentation for SQLAlchemy
 # =============================================================================
 
+
 def instrument_database(engine: Any) -> None:
     """Instrument SQLAlchemy for tracing.
-    
+
     Args:
         engine: SQLAlchemy engine instance
     """
     if not OTEL_AVAILABLE:
         return
-    
+
     SQLAlchemyInstrumentor().instrument(engine=engine)
     logger.info("database_tracing_enabled")

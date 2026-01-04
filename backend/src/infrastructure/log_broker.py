@@ -16,13 +16,11 @@ Performance:
 - No persistent storage (logs are ephemeral)
 """
 
-import asyncio
 import json
 from collections import deque
-from typing import AsyncGenerator, Deque, Optional
+from collections.abc import AsyncGenerator
 
 import redis.asyncio as redis
-from pydantic import BaseModel
 
 from src.core.config import get_settings
 from src.core.logging_config import get_logger
@@ -45,11 +43,11 @@ class LogBroker:
     """
 
     def __init__(self):
-        self._redis: Optional[redis.Redis] = None
+        self._redis: redis.Redis | None = None
         self._connected = False
         # Per-worker buffer capped at 200 logs to prevent RAM creep
         # With typical 4 workers, total memory usage stays under 800 logs
-        self._local_buffer: Deque = deque(maxlen=200)
+        self._local_buffer: deque = deque(maxlen=200)
         self._log_id_counter = 0
 
     async def connect(self):
@@ -59,7 +57,7 @@ class LogBroker:
 
         try:
             # Use redis_url from settings if available, otherwise use default
-            redis_url = getattr(settings, 'redis_url', 'redis://localhost:6379/0')
+            redis_url = getattr(settings, "redis_url", "redis://localhost:6379/0")
 
             self._redis = redis.from_url(
                 redis_url,
@@ -76,9 +74,7 @@ class LogBroker:
 
         except (redis.ConnectionError, redis.TimeoutError, Exception) as e:
             logger.warning(
-                "log_broker_connection_failed",
-                error=str(e),
-                fallback="in-memory buffer only"
+                "log_broker_connection_failed", error=str(e), fallback="in-memory buffer only"
             )
             self._redis = None
             self._connected = False
@@ -107,15 +103,10 @@ class LogBroker:
         # Try to publish to Redis (broadcast to all workers)
         if self._redis and self._connected:
             try:
-                await self._redis.publish(
-                    DEV_LOGS_CHANNEL,
-                    json.dumps(entry_dict)
-                )
+                await self._redis.publish(DEV_LOGS_CHANNEL, json.dumps(entry_dict))
             except (redis.ConnectionError, redis.TimeoutError) as e:
                 logger.warning(
-                    "log_broker_publish_failed",
-                    error=str(e),
-                    fallback="local buffer only"
+                    "log_broker_publish_failed", error=str(e), fallback="local buffer only"
                 )
                 # Mark as disconnected to avoid spamming errors
                 self._connected = False
@@ -128,10 +119,7 @@ class LogBroker:
         """
         if self._redis and self._connected:
             try:
-                await self._redis.publish(
-                    DEV_HEARTBEAT_CHANNEL,
-                    json.dumps(heartbeat_dict)
-                )
+                await self._redis.publish(DEV_HEARTBEAT_CHANNEL, json.dumps(heartbeat_dict))
             except (redis.ConnectionError, redis.TimeoutError):
                 # Silently fail for heartbeats (not critical)
                 pass
@@ -139,7 +127,7 @@ class LogBroker:
     async def subscribe_logs(
         self,
         include_recent: bool = True,
-        user_id: str = None,  # BUG-034 FIX: Filter logs by user/tenant
+        user_id: str | None = None,  # BUG-034 FIX: Filter logs by user/tenant
     ) -> AsyncGenerator[tuple[str, str], None]:
         """Subscribe to logs from all workers.
 
@@ -150,6 +138,7 @@ class LogBroker:
         Yields:
             Tuple of (event_type, json_data) where event_type is "log" or "heartbeat"
         """
+
         # BUG-034 FIX: Helper to check if log should be visible to user
         def should_include_log(entry: dict) -> bool:
             if not user_id:
@@ -168,7 +157,7 @@ class LogBroker:
         if not self._redis or not self._connected:
             logger.warning(
                 "log_broker_subscribe_without_redis",
-                limitation="Only logs from THIS worker will be visible"
+                limitation="Only logs from THIS worker will be visible",
             )
             # Could return here, or implement a local-only fallback
             # For now, just return (client will still get logs via direct notification)

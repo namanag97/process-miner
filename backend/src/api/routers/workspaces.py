@@ -5,13 +5,12 @@ Endpoints for managing workspaces within an organization.
 
 import json
 from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, select
 
 from src.api.dependencies import DBSession
-from src.models.orm import Project, Workspace, WorkspaceMember, User
+from src.models.orm import Project, Workspace
 from src.models.schemas import (
     ProjectResponse,
     WorkspaceCreateRequest,
@@ -50,8 +49,6 @@ def _project_to_response(project: Project) -> ProjectResponse:
         except json.JSONDecodeError:
             tags = []
 
-    activities: list[str] = []  # Not loaded at this level
-
     return ProjectResponse(
         id=project.id,
         name=project.name,
@@ -74,7 +71,7 @@ async def list_workspaces(
     db: DBSession,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    org_id: Optional[str] = Query(None, description="Filter by organization ID"),
+    org_id: str | None = Query(None, description="Filter by organization ID"),
 ) -> WorkspaceListResponse:
     """
     List all workspaces, optionally filtered by organization.
@@ -95,9 +92,7 @@ async def list_workspaces(
 
     # Paginate
     query = (
-        query.order_by(Workspace.created_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
+        query.order_by(Workspace.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
     )
     result = await db.execute(query)
     workspaces = result.scalars().all()
@@ -126,9 +121,7 @@ async def get_workspace(
         raise HTTPException(status_code=404, detail="Workspace not found")
 
     # Get projects for this workspace
-    projects_result = await db.execute(
-        select(Project).filter(Project.workspace_id == workspace_id)
-    )
+    projects_result = await db.execute(select(Project).filter(Project.workspace_id == workspace_id))
     projects = projects_result.scalars().all()
 
     return WorkspaceDetailResponse(
@@ -210,9 +203,8 @@ async def delete_workspace(
 
     # BUG-036 FIX: Delete projects instead of orphaning
     from sqlalchemy import delete
-    await db.execute(
-        delete(Project).where(Project.workspace_id == workspace_id)
-    )
+
+    await db.execute(delete(Project).where(Project.workspace_id == workspace_id))
 
     await db.delete(workspace)
     await db.commit()

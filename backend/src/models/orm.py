@@ -15,8 +15,6 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, deferred, mapped_column, rel
 class Base(DeclarativeBase):
     """Base class for all models."""
 
-    pass
-
 
 # =============================================================================
 # State Machine Enums
@@ -24,21 +22,39 @@ class Base(DeclarativeBase):
 
 
 class DatasetStatus(str, Enum):
-    """Dataset lifecycle states for deferred ingestion.
+    """Dataset lifecycle states for job-centric deferred ingestion.
+
+    State Machine:
+        PENDING → VALIDATING → AWAITING_MAPPING → INGESTING → READY
+                       ↓              ↓               ↓
+                     ERROR          ERROR           ERROR
 
     Lifecycle:
-    - UNSTRUCTURED: File uploaded but not yet analyzed (mapping missing)
-    - ANALYZING: Background job in progress (parsing, computing variants)
+    - PENDING: File just uploaded, awaiting validation
+    - VALIDATING: Background job detecting columns and format
+    - AWAITING_MAPPING: Validation complete, waiting for user to confirm column mapping
+    - INGESTING: Background job parsing events and computing variants
     - READY: Fully ingested and ready for analysis
-    - ERROR: Analysis failed (check error_message)
+    - ERROR: Operation failed (check error_message)
     - ARCHIVED: Soft-deleted/archived
+
+    Legacy mapping (for backward compatibility):
+    - UNSTRUCTURED → AWAITING_MAPPING
+    - ANALYZING → INGESTING
     """
 
-    UNSTRUCTURED = "unstructured"  # File exists, mapping missing
-    ANALYZING = "analyzing"        # Background job in progress
-    READY = "ready"                # Fully ingested and ready
-    ERROR = "error"                # Analysis failed
-    ARCHIVED = "archived"          # Soft-deleted
+    # New job-centric states
+    PENDING = "pending"  # Just uploaded, awaiting validation
+    VALIDATING = "validating"  # Detecting columns, validating format
+    AWAITING_MAPPING = "awaiting_mapping"  # Waiting for user column mapping
+    INGESTING = "ingesting"  # Parsing events, computing variants
+    READY = "ready"  # Fully processed and ready
+    ERROR = "error"  # Operation failed
+    ARCHIVED = "archived"  # Soft-deleted
+
+    # Legacy aliases (for backward compatibility with existing data)
+    UNSTRUCTURED = "unstructured"  # Legacy: same as AWAITING_MAPPING
+    ANALYZING = "analyzing"  # Legacy: same as INGESTING
 
 
 class JobStatus(str, Enum):
@@ -67,7 +83,7 @@ class Organization(Base):
     plan: Mapped[str] = mapped_column(String(50), default="free", nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     workspaces: Mapped[list["Workspace"]] = relationship(
@@ -91,10 +107,10 @@ class Workspace(Base):
         ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     organization: Mapped["Organization"] = relationship(back_populates="workspaces")
@@ -115,17 +131,17 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    org_id: Mapped[Optional[str]] = mapped_column(
+    org_id: Mapped[str | None] = mapped_column(
         ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True
     )
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
-    name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     auth_provider: Mapped[str] = mapped_column(String(50), default="local", nullable=False)
-    auth_provider_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    auth_provider_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     role: Mapped[str] = mapped_column(String(50), default="member", nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     organization: Mapped[Optional["Organization"]] = relationship(back_populates="users")
@@ -145,10 +161,10 @@ class WorkspaceMember(Base):
     workspace_id: Mapped[str] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False
     )
-    user_id: Mapped[str] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-    role: Mapped[str] = mapped_column(String(20), default="member", nullable=False)  # owner, admin, member, viewer
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    role: Mapped[str] = mapped_column(
+        String(20), default="member", nullable=False
+    )  # owner, admin, member, viewer
 
     joined_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -168,19 +184,19 @@ class Project(Base):
     __tablename__ = "projects"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    workspace_id: Mapped[Optional[str]] = mapped_column(
+    workspace_id: Mapped[str | None] = mapped_column(
         ForeignKey("workspaces.id", ondelete="SET NULL"), nullable=True
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    tags_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array of tags
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tags_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON array of tags
 
     # Statistics
     total_files: Mapped[int] = mapped_column(Integer, default=0)
     total_analyses: Mapped[int] = mapped_column(Integer, default=0)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     workspace: Mapped[Optional["Workspace"]] = relationship(back_populates="projects")
@@ -202,11 +218,11 @@ class Dataset(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    source_file: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    source_file: Mapped[str | None] = mapped_column(String(500), nullable=True)
     source_format: Mapped[str] = mapped_column(String(20), default="csv")
 
     # Project association (optional for backward compatibility)
-    project_id: Mapped[Optional[str]] = mapped_column(
+    project_id: Mapped[str | None] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=True
     )
 
@@ -216,26 +232,43 @@ class Dataset(Base):
     total_activities: Mapped[int] = mapped_column(Integer, default=0)
 
     # JSON columns for flexibility
-    activities_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    statistics_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    activities_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    statistics_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Lifecycle state machine (deferred ingestion)
-    status: Mapped[str] = mapped_column(String(20), default=DatasetStatus.UNSTRUCTURED.value)
-    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Lifecycle state machine (job-centric deferred ingestion)
+    status: Mapped[str] = mapped_column(String(20), default=DatasetStatus.PENDING.value, index=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Column mapping for deferred ingestion (JSON: {"case_id": "col1", "activity": "col2", ...})
-    mapping_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    mapping_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # AI-detected column suggestions (JSON: {"case_id": "col1", "activity": "col2", "confidence": 0.95})
+    column_suggestions_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Detected columns from validation (JSON array of column names)
+    detected_columns_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # File metadata
+    file_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Job tracking for job-centric architecture
+    validation_job_id: Mapped[str | None] = mapped_column(
+        ForeignKey("async_jobs.id", ondelete="SET NULL"), nullable=True
+    )
+    ingestion_job_id: Mapped[str | None] = mapped_column(
+        ForeignKey("async_jobs.id", ondelete="SET NULL"), nullable=True
+    )
 
     # Filtering support
-    source_dataset_id: Mapped[Optional[str]] = mapped_column(
+    source_dataset_id: Mapped[str | None] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"), nullable=True
     )
-    filter_config_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    filter_config_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_filtered: Mapped[bool] = mapped_column(Boolean, default=False)
-    filter_stats_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    filter_stats_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     # CRITICAL: Never load cases eagerly - datasets can have 100K+ cases
@@ -287,9 +320,9 @@ class UploadedFile(Base):
     # File info
     filename: Mapped[str] = mapped_column(String(500), nullable=False)
     storage_path: Mapped[str] = mapped_column(String(1000), nullable=False)
-    size_bytes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    mime_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    checksum: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)  # SHA256
+    size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    mime_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    checksum: Mapped[str | None] = mapped_column(String(64), nullable=True)  # SHA256
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -329,23 +362,25 @@ class Analysis(Base):
     analysis_type: Mapped[str] = mapped_column(String(50), nullable=False)
 
     # Configuration
-    config_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    config_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Status
     status: Mapped[str] = mapped_column(String(20), default=AnalysisStatus.PENDING.value)
-    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Cached results
-    result_summary_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    result_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Full DFG/variants/statistics
+    result_summary_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result_json: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # Full DFG/variants/statistics
 
     # Link to ProcessModel for discovery analyses
-    model_id: Mapped[Optional[str]] = mapped_column(
+    model_id: Mapped[str | None] = mapped_column(
         ForeignKey("process_models.id", ondelete="SET NULL"), nullable=True
     )
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     dataset: Mapped["Dataset"] = relationship(back_populates="analyses")
@@ -357,7 +392,6 @@ class ProcessCase(Base):
 
     __tablename__ = "process_cases"
 
-
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     dataset_id: Mapped[str] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False
@@ -365,11 +399,11 @@ class ProcessCase(Base):
     case_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
 
     # Variant (activity sequence hash for grouping)
-    variant_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    variant_key: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Case-level timestamps
-    start_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    end_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    start_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    end_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     dataset: Mapped["Dataset"] = relationship(back_populates="cases")
@@ -394,10 +428,10 @@ class ProcessEvent(Base):
     )
     activity: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
-    resource: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    resource: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Additional attributes as JSON
-    attributes_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    attributes_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
     case: Mapped["ProcessCase"] = relationship(back_populates="events")
@@ -410,7 +444,7 @@ class ProcessModel(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    dataset_id: Mapped[Optional[str]] = mapped_column(
+    dataset_id: Mapped[str | None] = mapped_column(
         ForeignKey("datasets.id", ondelete="SET NULL"), nullable=True
     )
 
@@ -419,11 +453,11 @@ class ProcessModel(Base):
     model_format: Mapped[str] = mapped_column(String(50), nullable=False)
 
     # Serialized PM4Py model (pickled)
-    serialized_model: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    serialized_model: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
 
     # Quality metrics
-    fitness: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    precision: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    fitness: Mapped[float | None] = mapped_column(Float, nullable=True)
+    precision: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -446,20 +480,22 @@ class ConformanceResult(Base):
 
     # Results - Core metrics
     fitness: Mapped[float] = mapped_column(Float, nullable=False)
-    precision: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    precision: Mapped[float | None] = mapped_column(Float, nullable=True)
     method: Mapped[str] = mapped_column(String(50), default="token_replay")
 
     # Extended quality metrics (PM4py full output)
-    generalization: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    simplicity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    f_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Harmonic mean of fitness & precision
+    generalization: Mapped[float | None] = mapped_column(Float, nullable=True)
+    simplicity: Mapped[float | None] = mapped_column(Float, nullable=True)
+    f_score: Mapped[float | None] = mapped_column(
+        Float, nullable=True
+    )  # Harmonic mean of fitness & precision
 
     # Alignment statistics
-    non_fitting_traces: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    average_alignment_cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    non_fitting_traces: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    average_alignment_cost: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Detailed diagnostics as JSON
-    diagnostics_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    diagnostics_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -476,11 +512,11 @@ class Workflow(Base):
     steps_json: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Scheduling
-    schedule: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    schedule: Mapped[str | None] = mapped_column(String(100), nullable=True)
     is_active: Mapped[bool] = mapped_column(default=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     runs: Mapped[list["WorkflowRun"]] = relationship(
@@ -499,18 +535,18 @@ class WorkflowRun(Base):
     workflow_id: Mapped[str] = mapped_column(
         ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False
     )
-    dataset_id: Mapped[Optional[str]] = mapped_column(
+    dataset_id: Mapped[str | None] = mapped_column(
         ForeignKey("datasets.id", ondelete="SET NULL"), nullable=True
     )
 
     # Execution state
     status: Mapped[str] = mapped_column(String(50), default="pending")
-    result_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    result_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Timestamps
-    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     workflow: Mapped["Workflow"] = relationship(back_populates="runs")
@@ -528,7 +564,7 @@ class OCELLog(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    source_file: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    source_file: Mapped[str | None] = mapped_column(String(500), nullable=True)
     source_format: Mapped[str] = mapped_column(String(20), default="jsonocel")
 
     # Statistics
@@ -537,13 +573,11 @@ class OCELLog(Base):
     total_object_types: Mapped[int] = mapped_column(Integer, default=0)
 
     # JSON metadata (activities, objects_per_type)
-    metadata_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # BUG-051 FIX: Use deferred() to prevent loading blob on SELECT *
     # Raw OCEL data for re-parsing (enables OC-DFG and other analyses)
-    ocel_data: Mapped[Optional[bytes]] = deferred(
-        mapped_column(LargeBinary, nullable=True)
-    )
+    ocel_data: Mapped[bytes | None] = deferred(mapped_column(LargeBinary, nullable=True))
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -573,7 +607,7 @@ class OCELObjectType(Base):
     object_count: Mapped[int] = mapped_column(Integer, default=0)
 
     # Attributes schema as JSON
-    attributes_schema_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    attributes_schema_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
     ocel_log: Mapped["OCELLog"] = relationship(back_populates="object_types")
@@ -591,10 +625,10 @@ class OCPetriNet(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
 
     # Object types this model covers
-    object_types_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    object_types_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Serialized OC-PN (pickled)
-    serialized_model: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    serialized_model: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -617,7 +651,7 @@ class AnalyticsCache(Base):
         ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False
     )
     metric_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    result_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    result_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     computed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     ttl_seconds: Mapped[int] = mapped_column(Integer, default=3600)
 
@@ -637,8 +671,8 @@ class SocialNetwork(Base):
         ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False
     )
     network_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    graph_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    metrics_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    graph_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metrics_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
@@ -658,8 +692,8 @@ class PredictionModel(Base):
     )
     target_type: Mapped[str] = mapped_column(String(50), nullable=False)
     algorithm: Mapped[str] = mapped_column(String(50), nullable=False)
-    model_binary: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
-    metrics_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    model_binary: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    metrics_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     trained_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
@@ -672,9 +706,9 @@ class Prediction(Base):
     model_id: Mapped[str] = mapped_column(
         ForeignKey("prediction_models.id", ondelete="CASCADE"), nullable=False
     )
-    case_prefix_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    prediction_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    case_prefix_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    prediction_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     predicted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
@@ -687,16 +721,18 @@ class Recommendation(Base):
     dataset_id: Mapped[str] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False
     )
-    case_id: Mapped[str] = mapped_column(String(255), nullable=False)  # Logical ID, not FK to avoid tight coupling
+    case_id: Mapped[str] = mapped_column(
+        String(255), nullable=False
+    )  # Logical ID, not FK to avoid tight coupling
 
     # The Signal (Why we are recommending this)
     signal_type: Mapped[str] = mapped_column(String(50), nullable=False)  # e.g. "predicted_delay"
-    signal_data_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    signal_data_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # The Prescription (What to do)
     action_type: Mapped[str] = mapped_column(String(50), nullable=False)  # e.g. "reassign_resource"
-    action_params_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    
+    action_params_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # Metadata
     priority: Mapped[str] = mapped_column(String(20), default="medium")
     state: Mapped[str] = mapped_column(String(20), default="pending")  # pending, accepted, rejected
@@ -709,7 +745,16 @@ class Recommendation(Base):
 
 
 class AsyncJob(Base):
-    """Async job tracking for long-running operations with proper state machine."""
+    """Async job tracking for long-running operations with proper state machine.
+
+    Job-Centric Architecture: Every mutation taking >2s returns a Job object.
+    All progress is tracked uniformly via this model.
+
+    State Machine:
+        QUEUED → RUNNING → COMPLETED
+                    ↓
+                 FAILED / CANCELLED
+    """
 
     __tablename__ = "async_jobs"
 
@@ -717,24 +762,47 @@ class AsyncJob(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
 
     # External reference (Celery task ID) - CRITICAL for job status lookups
-    task_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True, index=True)
+    task_id: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True, index=True)
 
     # BUG-046 FIX: Owner tracking for security - prevents job result information leak
-    user_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
+    user_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
-    # Type & State
-    job_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    status: Mapped[str] = mapped_column(String(20), default=JobStatus.PENDING.value)
+    # Type & State (Job-Centric Architecture)
+    job_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(20), default=JobStatus.PENDING.value, index=True)
     progress: Mapped[int] = mapped_column(Integer, default=0)
+    stage: Mapped[str | None] = mapped_column(
+        String(100), nullable=True
+    )  # e.g., "parsing", "computing_variants"
+
+    # Entity tracking (what this job creates/affects)
+    entity_type: Mapped[str | None] = mapped_column(
+        String(50), nullable=True, index=True
+    )  # dataset, model, analysis, etc.
+    entity_id: Mapped[str | None] = mapped_column(
+        String(36), nullable=True, index=True
+    )  # ID of created entity
+
+    # Chained job support (for discovery → conformance chains)
+    parent_job_id: Mapped[str | None] = mapped_column(
+        ForeignKey("async_jobs.id", ondelete="SET NULL"), nullable=True
+    )
 
     # Input/Output
-    parameters_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    result_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    parameters_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Timestamps for state transitions
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
+    # Relationships
+    parent_job: Mapped[Optional["AsyncJob"]] = relationship(
+        "AsyncJob",
+        remote_side="AsyncJob.id",
+        foreign_keys=[parent_job_id],
+        lazy="selectin",
+    )

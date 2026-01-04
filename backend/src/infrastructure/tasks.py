@@ -277,6 +277,8 @@ async def ingest_dataset_task(
         )
 
         async with AsyncSessionLocal() as db:
+            import json
+
             from src.models.orm import (
                 AsyncJob,
                 Dataset,
@@ -285,14 +287,11 @@ async def ingest_dataset_task(
                 ProcessEvent,
                 UploadedFile,
             )
-            from src.services.storage import storage_service
             from src.services.duckdb_ingestion import duckdb_ingestion_service
-            import json
+            from src.services.storage import storage_service
 
             # Load dataset and file
-            result = await db.execute(
-                select(Dataset).where(Dataset.id == dataset_id)
-            )
+            result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
             dataset = result.scalar_one_or_none()
             if not dataset:
                 raise ValueError(f"Dataset not found: {dataset_id}")
@@ -315,11 +314,25 @@ async def ingest_dataset_task(
                 f"{dataset_id}/{uploaded_file.filename}"
             )
 
-            # Update progress
+            # Update progress with stage
             self.update_state(
                 state="PROGRESS",
-                meta={"status": "Parsing with DuckDB", "progress": 20},
+                meta={"status": "Parsing with DuckDB", "progress": 20, "stage": "parsing"},
             )
+
+            # Update job with stage
+            job_result = await db.execute(
+                select(AsyncJob).where(AsyncJob.task_id == self.request.id)
+            )
+            job = job_result.scalar_one_or_none()
+            if job:
+                job.status = "running"
+                job.started_at = datetime.utcnow() if not job.started_at else job.started_at
+                job.stage = "parsing"
+                job.progress = 20
+                job.entity_type = "dataset"
+                job.entity_id = dataset_id
+                await db.flush()
 
             # Parse with DuckDB
             duck_result = duckdb_ingestion_service.parse_csv_fast(
@@ -333,19 +346,28 @@ async def ingest_dataset_task(
             stats = duck_result["statistics"]
             cases_arrow = duck_result["cases_arrow"]
 
-            # Update progress
+            # Update progress with stage
             self.update_state(
                 state="PROGRESS",
-                meta={"status": "Creating cases and events", "progress": 50},
+                meta={
+                    "status": "Creating cases and events",
+                    "progress": 50,
+                    "stage": "creating_entities",
+                },
             )
+            if job:
+                job.stage = "creating_entities"
+                job.progress = 50
+                await db.flush()
 
             # BUG-049 FIX: Use Arrow batches instead of to_pandas() to reduce memory 3x
             # Convert Arrow to batches for memory-efficient iteration
             import pyarrow as pa
+
             cases_arrow = duck_result["cases_arrow"]
             if isinstance(cases_arrow, pa.RecordBatchReader):
                 cases_arrow = cases_arrow.read_all()
-            
+
             events_arrow = duck_result["events_arrow"]
             if isinstance(events_arrow, pa.RecordBatchReader):
                 events_arrow = events_arrow.read_all()
@@ -364,22 +386,26 @@ async def ingest_dataset_task(
                         end_time=batch_dict["end_time"][i],
                     )
                     batch_cases.append(case)
-                
+
                 db.add_all(batch_cases)
                 await db.flush()
-                
+
                 # Update map for events reference
                 for c in batch_cases:
                     case_id_map[c.case_id] = c.id
-                
+
                 # Clear session to free memory
                 db.expunge_all()
 
-            # Update progress
+            # Update progress with stage
             self.update_state(
                 state="PROGRESS",
-                meta={"status": "Creating events", "progress": 70},
+                meta={"status": "Creating events", "progress": 70, "stage": "creating_events"},
             )
+            if job:
+                job.stage = "creating_events"
+                job.progress = 70
+                await db.flush()
 
             # BUG-061 FIX: Process events in chunks and flush to avoid memory bloat
             for batch in events_arrow.to_batches(max_chunksize=10000):
@@ -396,22 +422,24 @@ async def ingest_dataset_task(
                             resource=str(resource) if resource else None,
                         )
                         batch_events.append(event)
-                
+
                 if batch_events:
                     db.add_all(batch_events)
                     await db.flush()
                     db.expunge_all()
 
-            # Update progress
+            # Update progress with stage
             self.update_state(
                 state="PROGRESS",
-                meta={"status": "Finalizing dataset", "progress": 90},
+                meta={"status": "Computing statistics", "progress": 90, "stage": "computing_stats"},
             )
+            if job:
+                job.stage = "computing_stats"
+                job.progress = 90
+                await db.flush()
 
             # Re-fetch dataset after session clear
-            result = await db.execute(
-                select(Dataset).where(Dataset.id == dataset_id)
-            )
+            result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
             dataset = result.scalar_one_or_none()
 
             # Update dataset with stats
@@ -431,11 +459,13 @@ async def ingest_dataset_task(
             if job:
                 job.status = "completed"
                 job.progress = 100
-                job.result_json = json.dumps({
-                    "dataset_id": dataset_id,
-                    "total_cases": stats["total_cases"],
-                    "total_events": stats["total_events"],
-                })
+                job.result_json = json.dumps(
+                    {
+                        "dataset_id": dataset_id,
+                        "total_cases": stats["total_cases"],
+                        "total_events": stats["total_events"],
+                    }
+                )
                 job.completed_at = datetime.utcnow()
 
             await db.commit()
@@ -470,9 +500,7 @@ async def ingest_dataset_task(
         async with AsyncSessionLocal() as db:
             from src.models.orm import AsyncJob, Dataset, DatasetStatus
 
-            result = await db.execute(
-                select(Dataset).where(Dataset.id == dataset_id)
-            )
+            result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
             dataset = result.scalar_one_or_none()
             if dataset:
                 dataset.status = DatasetStatus.ERROR.value
@@ -492,13 +520,206 @@ async def ingest_dataset_task(
         raise
 
 
-@celery_app.task(bind=True, base=AsyncTask, name="perform_analysis", time_limit=600, soft_time_limit=540)
+@celery_app.task(bind=True, base=AsyncTask, name="validate_dataset")
+async def validate_dataset_task(
+    self,
+    dataset_id: str,
+    job_id: str,
+) -> dict[str, Any]:
+    """Job-Centric Architecture: Async task for CSV validation and column detection.
+
+    Phase 1 of deferred ingestion:
+    1. Load raw file from storage
+    2. Detect columns using unified ingestion service
+    3. Compute AI column suggestions
+    4. Update dataset with detected columns and status=AWAITING_MAPPING
+
+    Args:
+        dataset_id: Dataset ID to validate
+        job_id: Job ID for progress tracking
+
+    Returns:
+        dict with detected columns and suggestions
+    """
+    logger.info(
+        "validate_dataset_task_started",
+        dataset_id=dataset_id,
+        job_id=job_id,
+        task_id=self.request.id,
+    )
+    start = time.perf_counter()
+
+    try:
+        self.update_state(
+            state="PROGRESS",
+            meta={"status": "Loading file", "progress": 10, "stage": "loading"},
+        )
+
+        async with AsyncSessionLocal() as db:
+            import json
+
+            from src.core.enums import JobStatus
+            from src.models.orm import (
+                AsyncJob,
+                Dataset,
+                DatasetStatus,
+                UploadedFile,
+            )
+            from src.services.storage import storage_service
+            from src.services.unified_ingestion import unified_ingestion_service
+
+            # Load dataset
+            result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
+            dataset = result.scalar_one_or_none()
+            if not dataset:
+                raise ValueError(f"Dataset not found: {dataset_id}")
+
+            # Load uploaded file
+            result = await db.execute(
+                select(UploadedFile).where(UploadedFile.dataset_id == dataset_id)
+            )
+            uploaded_file = result.scalar_one_or_none()
+            if not uploaded_file:
+                raise ValueError(f"No uploaded file for dataset: {dataset_id}")
+
+            # Update job progress
+            job = await db.get(AsyncJob, job_id)
+            if job:
+                job.status = JobStatus.RUNNING.value
+                job.started_at = datetime.utcnow()
+                job.stage = "loading"
+                job.progress = 10
+                await db.flush()
+
+            self.update_state(
+                state="PROGRESS",
+                meta={"status": "Reading file from storage", "progress": 20, "stage": "reading"},
+            )
+
+            # Read file content
+            file_content = await storage_service.backend.retrieve(
+                f"{dataset_id}/{uploaded_file.filename}"
+            )
+
+            # Update job
+            if job:
+                job.stage = "detecting_columns"
+                job.progress = 40
+                await db.flush()
+
+            self.update_state(
+                state="PROGRESS",
+                meta={"status": "Detecting columns", "progress": 40, "stage": "detecting_columns"},
+            )
+
+            # Detect columns using unified service
+            detection_result = unified_ingestion_service.detect_columns(
+                file_content, uploaded_file.filename
+            )
+
+            columns = detection_result.get("columns", [])
+            suggestions = detection_result.get("suggestions", {})
+            row_count = detection_result.get("row_count", 0)
+
+            # Update job
+            if job:
+                job.stage = "computing_suggestions"
+                job.progress = 70
+                await db.flush()
+
+            self.update_state(
+                state="PROGRESS",
+                meta={
+                    "status": "Computing suggestions",
+                    "progress": 70,
+                    "stage": "computing_suggestions",
+                },
+            )
+
+            # Update dataset with detection results
+            dataset.detected_columns_json = json.dumps(columns)
+            dataset.column_suggestions_json = json.dumps(suggestions)
+            dataset.file_size_bytes = len(file_content)
+            dataset.status = DatasetStatus.AWAITING_MAPPING.value
+            dataset.validation_job_id = job_id
+            dataset.error_message = None
+            dataset.updated_at = datetime.utcnow()
+
+            # Complete job
+            if job:
+                job.status = JobStatus.COMPLETED.value
+                job.progress = 100
+                job.stage = "completed"
+                job.entity_id = dataset_id
+                job.result_json = json.dumps(
+                    {
+                        "dataset_id": dataset_id,
+                        "columns": columns,
+                        "suggestions": suggestions,
+                        "row_count": row_count,
+                    }
+                )
+                job.completed_at = datetime.utcnow()
+
+            await db.commit()
+
+            duration = (time.perf_counter() - start) * 1000
+            logger.info(
+                "validate_dataset_task_completed",
+                dataset_id=dataset_id,
+                columns_found=len(columns),
+                row_count=row_count,
+                duration_ms=round(duration, 2),
+                task_id=self.request.id,
+            )
+
+            return {
+                "dataset_id": dataset_id,
+                "columns": columns,
+                "suggestions": suggestions,
+                "row_count": row_count,
+                "duration_ms": round(duration, 2),
+            }
+
+    except Exception as e:
+        logger.error(
+            "validate_dataset_task_failed",
+            error=str(e),
+            dataset_id=dataset_id,
+            task_id=self.request.id,
+        )
+
+        # Update dataset and job status
+        async with AsyncSessionLocal() as db:
+            from src.core.enums import JobStatus
+            from src.models.orm import AsyncJob, Dataset, DatasetStatus
+
+            result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
+            dataset = result.scalar_one_or_none()
+            if dataset:
+                dataset.status = DatasetStatus.ERROR.value
+                dataset.error_message = str(e)
+
+            job = await db.get(AsyncJob, job_id)
+            if job:
+                job.status = JobStatus.FAILED.value
+                job.error = str(e)
+                job.completed_at = datetime.utcnow()
+
+            await db.commit()
+
+        raise
+
+
+@celery_app.task(
+    bind=True, base=AsyncTask, name="perform_analysis", time_limit=600, soft_time_limit=540
+)
 async def perform_analysis_task(
     self,
     analysis_id: str,
     log_id: str,
     analysis_type: str,
-    config: dict[str, Any] = None,
+    config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Async task for performing process analysis.
 
@@ -533,14 +754,13 @@ async def perform_analysis_task(
         )
 
         async with AsyncSessionLocal() as db:
-            from src.models.orm import Analysis, AnalysisStatus, AnalysisType
-            from src.services.mining import mining_service
             import json
 
+            from src.models.orm import Analysis, AnalysisStatus, AnalysisType
+            from src.services.mining import mining_service
+
             # Load analysis record
-            result = await db.execute(
-                select(Analysis).where(Analysis.id == analysis_id)
-            )
+            result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
             analysis = result.scalar_one_or_none()
             if not analysis:
                 raise ValueError(f"Analysis not found: {analysis_id}")
@@ -563,12 +783,14 @@ async def perform_analysis_task(
                 dfg_data = mining_service.get_dfg_fast(log_id)
                 result_data["dfg"] = dfg_data
 
-                analysis.result_summary_json = json.dumps({
-                    "nodes_count": len(dfg_data.get("nodes", [])),
-                    "edges_count": len(dfg_data.get("edges", [])),
-                    "start_activities": list(dfg_data.get("start_activities", {}).keys()),
-                    "end_activities": list(dfg_data.get("end_activities", {}).keys()),
-                })
+                analysis.result_summary_json = json.dumps(
+                    {
+                        "nodes_count": len(dfg_data.get("nodes", [])),
+                        "edges_count": len(dfg_data.get("edges", [])),
+                        "start_activities": list(dfg_data.get("start_activities", {}).keys()),
+                        "end_activities": list(dfg_data.get("end_activities", {}).keys()),
+                    }
+                )
 
             elif analysis_type == AnalysisType.VARIANTS.value:
                 # Get variants
@@ -579,10 +801,14 @@ async def perform_analysis_task(
                 variants_data = mining_service.get_variants_fast(log_id, top_n=50)
                 result_data["variants"] = variants_data
 
-                analysis.result_summary_json = json.dumps({
-                    "total_variants": variants_data.get("total_variants", 0),
-                    "top_variant": variants_data.get("top_variants", [{}])[0] if variants_data.get("top_variants") else None,
-                })
+                analysis.result_summary_json = json.dumps(
+                    {
+                        "total_variants": variants_data.get("total_variants", 0),
+                        "top_variant": variants_data.get("top_variants", [{}])[0]
+                        if variants_data.get("top_variants")
+                        else None,
+                    }
+                )
 
             else:
                 # Generic: get statistics
@@ -630,9 +856,7 @@ async def perform_analysis_task(
         async with AsyncSessionLocal() as db:
             from src.models.orm import Analysis, AnalysisStatus
 
-            result = await db.execute(
-                select(Analysis).where(Analysis.id == analysis_id)
-            )
+            result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
             analysis = result.scalar_one_or_none()
             if analysis:
                 analysis.status = AnalysisStatus.FAILED.value
@@ -643,12 +867,14 @@ async def perform_analysis_task(
         raise
 
 
-@celery_app.task(bind=True, base=AsyncTask, name="perform_discovery", time_limit=900, soft_time_limit=840)
+@celery_app.task(
+    bind=True, base=AsyncTask, name="perform_discovery", time_limit=900, soft_time_limit=840
+)
 async def perform_discovery_task(
     self,
     log_id: str,
     miner_type: str,
-    model_name: str = None,
+    model_name: str | None = None,
 ) -> dict[str, Any]:
     """BUG-054 FIX: Async task for process discovery to prevent API thread blocking.
 
@@ -673,13 +899,13 @@ async def perform_discovery_task(
     try:
         self.update_state(
             state="PROGRESS",
-            meta={"status": "Loading dataset", "progress": 10},
+            meta={"status": "Loading dataset", "progress": 10, "stage": "loading"},
         )
 
         async with AsyncSessionLocal() as db:
+            from src.core.enums import MinerType
             from src.models.orm import AsyncJob, Dataset, ProcessModel
             from src.services.mining import mining_service
-            from src.core.enums import MinerType
 
             # Load dataset
             result = await db.execute(select(Dataset).where(Dataset.id == log_id))
@@ -688,9 +914,23 @@ async def perform_discovery_task(
             if not dataset:
                 raise ValueError(f"Dataset not found: {log_id}")
 
+            # Update job with stage
+            job_result = await db.execute(
+                select(AsyncJob).where(AsyncJob.task_id == self.request.id)
+            )
+            job = job_result.scalar_one_or_none()
+            if job:
+                from src.core.enums import JobStatus
+
+                job.status = JobStatus.RUNNING.value
+                job.started_at = datetime.utcnow() if not job.started_at else job.started_at
+                job.stage = "mining"
+                job.progress = 30
+                await db.flush()
+
             self.update_state(
                 state="PROGRESS",
-                meta={"status": f"Running {miner_type} miner", "progress": 30},
+                meta={"status": f"Running {miner_type} miner", "progress": 30, "stage": "mining"},
             )
 
             # Run discovery (synchronous PM4Py call)
@@ -701,9 +941,14 @@ async def perform_discovery_task(
 
             model_data, model_format = mining_service.discover(dataset, miner_enum)
 
+            if job:
+                job.stage = "serializing"
+                job.progress = 70
+                await db.flush()
+
             self.update_state(
                 state="PROGRESS",
-                meta={"status": "Serializing model", "progress": 70},
+                meta={"status": "Serializing model", "progress": 70, "stage": "serializing"},
             )
 
             # Serialize model
@@ -742,15 +987,21 @@ async def perform_discovery_task(
             )
             db.add(process_model)
 
-            # Update AsyncJob
-            job_result = await db.execute(
-                select(AsyncJob).where(AsyncJob.task_id == self.request.id)
-            )
-            job = job_result.scalar_one_or_none()
+            # Update AsyncJob with completed status and entity_id
             if job:
                 import json
+
                 job.status = "completed"
-                job.result_json = json.dumps({"model_id": process_model.id})
+                job.progress = 100
+                job.stage = "completed"
+                job.entity_id = process_model.id  # Link to created model
+                job.result_json = json.dumps(
+                    {
+                        "model_id": process_model.id,
+                        "fitness": fitness,
+                        "precision": precision,
+                    }
+                )
                 job.completed_at = datetime.utcnow()
 
             await db.commit()
@@ -780,6 +1031,7 @@ async def perform_discovery_task(
 
         async with AsyncSessionLocal() as db:
             from src.models.orm import AsyncJob
+
             job_result = await db.execute(
                 select(AsyncJob).where(AsyncJob.task_id == self.request.id)
             )
@@ -793,7 +1045,9 @@ async def perform_discovery_task(
         raise
 
 
-@celery_app.task(bind=True, base=AsyncTask, name="perform_conformance", time_limit=600, soft_time_limit=540)
+@celery_app.task(
+    bind=True, base=AsyncTask, name="perform_conformance", time_limit=600, soft_time_limit=540
+)
 async def perform_conformance_task(
     self,
     log_id: str,
@@ -826,9 +1080,10 @@ async def perform_conformance_task(
         )
 
         async with AsyncSessionLocal() as db:
-            from src.models.orm import AsyncJob, Dataset, ProcessModel, ConformanceResult
-            from src.services.conformance import conformance_service
             import json
+
+            from src.models.orm import AsyncJob, ConformanceResult, Dataset, ProcessModel
+            from src.services.conformance import conformance_service
 
             # Load dataset and model
             result = await db.execute(select(Dataset).where(Dataset.id == log_id))
@@ -865,10 +1120,12 @@ async def perform_conformance_task(
                 fitness=conf_result["fitness"],
                 precision=conf_result.get("precision"),
                 method=conf_result["method"],
-                diagnostics_json=json.dumps({
-                    "fitting_traces": conf_result["fitting_traces"],
-                    "total_traces": conf_result["total_traces"],
-                }),
+                diagnostics_json=json.dumps(
+                    {
+                        "fitting_traces": conf_result["fitting_traces"],
+                        "total_traces": conf_result["total_traces"],
+                    }
+                ),
             )
             db.add(conformance_record)
 
@@ -879,10 +1136,12 @@ async def perform_conformance_task(
             job = job_result.scalar_one_or_none()
             if job:
                 job.status = "completed"
-                job.result_json = json.dumps({
-                    "conformance_id": conformance_record.id,
-                    "fitness": conf_result["fitness"],
-                })
+                job.result_json = json.dumps(
+                    {
+                        "conformance_id": conformance_record.id,
+                        "fitness": conf_result["fitness"],
+                    }
+                )
                 job.completed_at = datetime.utcnow()
 
             await db.commit()
@@ -911,6 +1170,7 @@ async def perform_conformance_task(
 
         async with AsyncSessionLocal() as db:
             from src.models.orm import AsyncJob
+
             job_result = await db.execute(
                 select(AsyncJob).where(AsyncJob.task_id == self.request.id)
             )
@@ -957,45 +1217,47 @@ def get_task_status(task_id: str) -> dict[str, Any]:
 # BUG-057 FIX: Zombie Job Reaper
 # =============================================================================
 
+
 @celery_app.task(bind=True, name="reap_zombie_jobs")
 def reap_zombie_jobs(self, timeout_minutes: int = 10) -> dict[str, Any]:
     """Reap zombie jobs that are stuck in RUNNING/ANALYZING state.
-    
+
     BUG-057/031/040/022 FIX: Cross-references multiple tables with Celery's actual task status.
     Should be scheduled via Celery Beat every 5 minutes.
-    
+
     Handles:
     - AsyncJob records stuck in RUNNING
     - Dataset records stuck in ANALYZING (BUG-022)
     - Analysis records stuck in RUNNING (BUG-040)
-    
+
     Args:
         timeout_minutes: Consider jobs zombie if stuck for longer than this
-        
+
     Returns:
         Summary of reaped items across all tables
     """
     from datetime import timedelta
-    from src.models.orm import AsyncJob, JobStatus, Dataset, DatasetStatus, Analysis, AnalysisStatus
-    
+
+    from src.models.orm import Analysis, AnalysisStatus, AsyncJob, Dataset, DatasetStatus, JobStatus
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    
+
     async def _reap():
         async with AsyncSessionLocal() as db:
             try:
                 cutoff_time = datetime.utcnow() - timedelta(minutes=timeout_minutes)
                 results = {"async_jobs": [], "datasets": [], "analyses": []}
-                
+
                 # === 1. Reap zombie AsyncJobs ===
                 job_result = await db.execute(
                     select(AsyncJob).where(
                         AsyncJob.status == JobStatus.RUNNING.value,
-                        AsyncJob.updated_at < cutoff_time
+                        AsyncJob.updated_at < cutoff_time,
                     )
                 )
                 stuck_jobs = job_result.scalars().all()
-                
+
                 for job in stuck_jobs:
                     if not job.task_id:
                         job.status = JobStatus.FAILED.value
@@ -1003,10 +1265,10 @@ def reap_zombie_jobs(self, timeout_minutes: int = 10) -> dict[str, Any]:
                         job.completed_at = datetime.utcnow()
                         results["async_jobs"].append(job.id)
                         continue
-                    
+
                     celery_result = AsyncResult(job.task_id, app=celery_app)
                     celery_state = celery_result.state
-                    
+
                     if celery_state in ("FAILURE", "REVOKED"):
                         job.status = JobStatus.FAILED.value
                         job.error = f"Celery state: {celery_state}"
@@ -1021,42 +1283,43 @@ def reap_zombie_jobs(self, timeout_minutes: int = 10) -> dict[str, Any]:
                         job.error = "Task lost - worker likely crashed"
                         job.completed_at = datetime.utcnow()
                         results["async_jobs"].append(job.id)
-                
+
                 # === 2. BUG-022 FIX: Reap zombie Datasets stuck in ANALYZING ===
                 dataset_result = await db.execute(
                     select(Dataset).where(
                         Dataset.status == DatasetStatus.ANALYZING.value,
-                        Dataset.updated_at < cutoff_time
+                        Dataset.updated_at < cutoff_time,
                     )
                 )
                 stuck_datasets = dataset_result.scalars().all()
-                
+
                 for dataset in stuck_datasets:
                     dataset.status = DatasetStatus.ERROR.value
                     dataset.error_message = f"Ingestion timed out after {timeout_minutes} minutes"
                     results["datasets"].append(dataset.id)
-                
+
                 # === 3. BUG-040 FIX: Reap zombie Analyses stuck in RUNNING ===
                 analysis_result = await db.execute(
                     select(Analysis).where(
                         Analysis.status == AnalysisStatus.RUNNING.value,
-                        Analysis.completed_at.is_(None)
+                        Analysis.completed_at.is_(None),
                     )
                 )
                 # Filter by created_at for analyses (they may not have updated_at)
                 stuck_analyses = [
-                    a for a in analysis_result.scalars().all()
+                    a
+                    for a in analysis_result.scalars().all()
                     if a.created_at and a.created_at < cutoff_time
                 ]
-                
+
                 for analysis in stuck_analyses:
                     analysis.status = AnalysisStatus.FAILED.value
                     analysis.error_message = f"Analysis timed out after {timeout_minutes} minutes"
                     analysis.completed_at = datetime.utcnow()
                     results["analyses"].append(analysis.id)
-                
+
                 await db.commit()
-                
+
                 total_reaped = sum(len(v) for v in results.values())
                 logger.info(
                     "zombie_jobs_reaped",
@@ -1065,16 +1328,16 @@ def reap_zombie_jobs(self, timeout_minutes: int = 10) -> dict[str, Any]:
                     analyses_reaped=len(results["analyses"]),
                     total_reaped=total_reaped,
                 )
-                
+
                 return {
                     "async_jobs": results["async_jobs"],
                     "datasets": results["datasets"],
                     "analyses": results["analyses"],
                     "total_reaped": total_reaped,
                 }
-                
+
             except Exception as e:
                 logger.error("zombie_reaper_error", error=str(e), exc_info=True)
                 raise
-    
+
     return loop.run_until_complete(_reap())

@@ -8,7 +8,7 @@ Adding a new analysis type is now as simple as adding one entry to this registry
 The UI will automatically discover it and generate the appropriate form.
 """
 
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 from src.core.logging_config import get_logger
 
@@ -25,7 +25,7 @@ class AnalysisDefinition:
         description: str,
         worker_func: str,
         result_type: str = "json",
-        config_schema: Optional[Dict[str, Any]] = None,
+        config_schema: dict[str, Any] | None = None,
     ):
         """Initialize analysis definition.
 
@@ -49,7 +49,7 @@ class AnalysisDefinition:
 # Analysis Registry
 # =============================================================================
 
-ANALYSIS_REGISTRY: Dict[str, AnalysisDefinition] = {
+ANALYSIS_REGISTRY: dict[str, AnalysisDefinition] = {
     # Discovery Algorithms
     "dfg_discovery": AnalysisDefinition(
         name="Directly-Follows Graph (DFG)",
@@ -66,7 +66,6 @@ ANALYSIS_REGISTRY: Dict[str, AnalysisDefinition] = {
             },
         },
     ),
-
     "alpha_miner": AnalysisDefinition(
         name="Alpha Miner",
         category="Discovery",
@@ -75,7 +74,6 @@ ANALYSIS_REGISTRY: Dict[str, AnalysisDefinition] = {
         result_type="graph",
         config_schema={},
     ),
-
     "inductive_miner": AnalysisDefinition(
         name="Inductive Miner",
         category="Discovery",
@@ -92,7 +90,6 @@ ANALYSIS_REGISTRY: Dict[str, AnalysisDefinition] = {
             },
         },
     ),
-
     "heuristic_miner": AnalysisDefinition(
         name="Heuristics Miner",
         category="Discovery",
@@ -116,7 +113,143 @@ ANALYSIS_REGISTRY: Dict[str, AnalysisDefinition] = {
             },
         },
     ),
-
+    # Alpha+ Miner - handles loops better than Alpha
+    "alpha_plus_miner": AnalysisDefinition(
+        name="Alpha+ Miner",
+        category="Discovery",
+        description="Improved Alpha algorithm with loop handling (length 1 and 2)",
+        worker_func="mining_service._discover_alpha_plus",
+        result_type="graph",
+        config_schema={},
+    ),
+    # Inductive Miner Infrequent - aggressive noise filtering
+    "inductive_infrequent": AnalysisDefinition(
+        name="Inductive Miner (Infrequent)",
+        category="Discovery",
+        description="Inductive miner with aggressive noise filtering for highly variable logs",
+        worker_func="mining_service._discover_inductive_infrequent",
+        result_type="graph",
+        config_schema={
+            "noise_threshold": {
+                "type": "float",
+                "default": 0.2,
+                "min": 0.0,
+                "max": 1.0,
+                "description": "Noise filtering threshold (higher = more filtering)",
+            },
+        },
+    ),
+    # Performance DFG - DFG with timing information
+    "performance_dfg": AnalysisDefinition(
+        name="Performance DFG",
+        category="Discovery",
+        description="Directly-Follows Graph with performance metrics (durations between activities)",
+        worker_func="mining_service._discover_performance_dfg",
+        result_type="graph",
+        config_schema={},
+    ),
+    # ILP Miner - Integer Linear Programming
+    "ilp_miner": AnalysisDefinition(
+        name="ILP Miner",
+        category="Discovery",
+        description="Integer Linear Programming miner for optimal Petri net discovery",
+        worker_func="mining_service.discover_ilp",
+        result_type="graph",
+        config_schema={
+            "alpha": {
+                "type": "float",
+                "default": 1.0,
+                "min": 0.0,
+                "max": 1.0,
+                "description": "Noise filtering parameter (0=max filtering, 1=no filtering)",
+            },
+        },
+    ),
+    # POWL - Partially Ordered Workflow Language
+    "powl_miner": AnalysisDefinition(
+        name="POWL Discovery",
+        category="Discovery",
+        description="Partially Ordered Workflow Language - discovers models with partial order semantics",
+        worker_func="mining_service.discover_powl",
+        result_type="graph",
+        config_schema={},
+    ),
+    # BPMN Discovery - Direct BPMN 2.0 output
+    "bpmn_discovery": AnalysisDefinition(
+        name="BPMN Discovery",
+        category="Discovery",
+        description="Discover BPMN 2.0 compliant models directly (using Inductive Miner)",
+        worker_func="mining_service.discover_bpmn",
+        result_type="bpmn",
+        config_schema={},
+    ),
+    # Declare Miner - Declarative constraints
+    "declare_miner": AnalysisDefinition(
+        name="Declare Miner",
+        category="Discovery",
+        description="Discover declarative constraints (LTL) instead of procedural control-flow",
+        worker_func="mining_service.discover_declare",
+        result_type="declare",
+        config_schema={},
+    ),
+    # Log Skeleton - Declarative constraints from activity patterns
+    "log_skeleton": AnalysisDefinition(
+        name="Log Skeleton",
+        category="Discovery",
+        description="Discover declarative constraints based on activity occurrences and ordering",
+        worker_func="mining_service.discover_log_skeleton",
+        result_type="json",
+        config_schema={
+            "noise_threshold": {
+                "type": "float",
+                "default": 0.0,
+                "min": 0.0,
+                "max": 1.0,
+                "description": "Fraction of traces that can violate constraints",
+            },
+        },
+    ),
+    # Temporal Profile - Time-based constraints
+    "temporal_profile": AnalysisDefinition(
+        name="Temporal Profile",
+        category="Discovery",
+        description="Discover temporal constraints (avg/stdev time between activities)",
+        worker_func="mining_service.discover_temporal_profile",
+        result_type="json",
+        config_schema={},
+    ),
+    # Prefix Tree - Trie of all trace prefixes
+    "prefix_tree": AnalysisDefinition(
+        name="Prefix Tree",
+        category="Discovery",
+        description="Build prefix automaton for all unique trace prefixes (useful for prediction)",
+        worker_func="mining_service.discover_prefix_tree",
+        result_type="graph",
+        config_schema={},
+    ),
+    # Transition System - State-based model
+    "transition_system": AnalysisDefinition(
+        name="Transition System",
+        category="Discovery",
+        description="Discover state-based model where states are defined by activity sequences",
+        worker_func="mining_service.discover_transition_system",
+        result_type="graph",
+        config_schema={
+            "direction": {
+                "type": "string",
+                "default": "forward",
+                "enum": ["forward", "backward", "both"],
+                "description": "Direction for state construction",
+            },
+            "window": {
+                "type": "integer",
+                "default": 2,
+                "min": 1,
+                "max": 10,
+                "description": "Window size for state definition",
+            },
+        },
+    ),
     # Variants Analysis
     "variant_analysis": AnalysisDefinition(
         name="Process Variants",
@@ -141,7 +274,6 @@ ANALYSIS_REGISTRY: Dict[str, AnalysisDefinition] = {
             },
         },
     ),
-
     # Statistics
     "basic_statistics": AnalysisDefinition(
         name="Basic Statistics",
@@ -151,7 +283,6 @@ ANALYSIS_REGISTRY: Dict[str, AnalysisDefinition] = {
         result_type="json",
         config_schema={},
     ),
-
     # Organizational Mining
     "social_network_handover": AnalysisDefinition(
         name="Social Network: Handover of Work",
@@ -169,7 +300,6 @@ ANALYSIS_REGISTRY: Dict[str, AnalysisDefinition] = {
             },
         },
     ),
-
     "social_network_working_together": AnalysisDefinition(
         name="Social Network: Working Together",
         category="Organizational",
@@ -178,7 +308,6 @@ ANALYSIS_REGISTRY: Dict[str, AnalysisDefinition] = {
         result_type="graph",
         config_schema={},
     ),
-
     "resource_utilization": AnalysisDefinition(
         name="Resource Utilization",
         category="Organizational",
@@ -187,7 +316,6 @@ ANALYSIS_REGISTRY: Dict[str, AnalysisDefinition] = {
         result_type="table",
         config_schema={},
     ),
-
     # Performance Analysis
     "bottleneck_analysis": AnalysisDefinition(
         name="Bottleneck Analysis",
@@ -205,7 +333,6 @@ ANALYSIS_REGISTRY: Dict[str, AnalysisDefinition] = {
             },
         },
     ),
-
     # Conformance Checking
     "token_replay": AnalysisDefinition(
         name="Token-Based Replay",
@@ -220,7 +347,6 @@ ANALYSIS_REGISTRY: Dict[str, AnalysisDefinition] = {
             },
         },
     ),
-
     "alignments": AnalysisDefinition(
         name="Alignments",
         category="Conformance",
@@ -243,7 +369,7 @@ class AnalysisRegistry:
     def __init__(self):
         self.registry = ANALYSIS_REGISTRY
 
-    def get(self, analysis_type: str) -> Optional[AnalysisDefinition]:
+    def get(self, analysis_type: str) -> AnalysisDefinition | None:
         """Get analysis definition by type.
 
         Args:
@@ -254,7 +380,7 @@ class AnalysisRegistry:
         """
         return self.registry.get(analysis_type)
 
-    def list_all(self) -> Dict[str, AnalysisDefinition]:
+    def list_all(self) -> dict[str, AnalysisDefinition]:
         """Get all registered analysis types.
 
         Returns:
@@ -262,7 +388,7 @@ class AnalysisRegistry:
         """
         return self.registry.copy()
 
-    def list_by_category(self, category: str) -> Dict[str, AnalysisDefinition]:
+    def list_by_category(self, category: str) -> dict[str, AnalysisDefinition]:
         """Get all analysis types in a category.
 
         Args:
@@ -277,7 +403,7 @@ class AnalysisRegistry:
             if definition.category == category
         }
 
-    def get_categories(self) -> List[str]:
+    def get_categories(self) -> list[str]:
         """Get list of all categories.
 
         Returns:
@@ -286,7 +412,7 @@ class AnalysisRegistry:
         categories = {definition.category for definition in self.registry.values()}
         return sorted(categories)
 
-    def get_metadata(self) -> Dict[str, Any]:
+    def get_metadata(self) -> dict[str, Any]:
         """Get metadata for all analysis types (for frontend consumption).
 
         Returns:

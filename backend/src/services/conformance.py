@@ -34,6 +34,7 @@ class ConformanceService:
         """
         # Use fast path: event_log_loader instead of ORM iteration
         from src.services.event_log_loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
 
         net, im, fm = self._get_petri_net(model)
@@ -53,6 +54,7 @@ class ConformanceService:
         """Calculate fitness score for log-model pair."""
         # Use fast path: event_log_loader instead of ORM iteration
         from src.services.event_log_loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
 
         net, im, fm = self._get_petri_net(model)
@@ -68,12 +70,12 @@ class ConformanceService:
         """Calculate precision score for log-model pair."""
         # Use fast path: event_log_loader instead of ORM iteration
         from src.services.event_log_loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
 
         net, im, fm = self._get_petri_net(model)
 
-        precision = pm4py.precision_token_based_replay(pm4py_log, net, im, fm)
-        return precision
+        return pm4py.precision_token_based_replay(pm4py_log, net, im, fm)
 
     def calculate_generalization(
         self,
@@ -87,14 +89,14 @@ class ConformanceService:
         """
         # Use fast path: event_log_loader instead of ORM iteration
         from src.services.event_log_loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
 
         net, im, fm = self._get_petri_net(model)
 
         try:
             # PM4py's generalization function
-            generalization = pm4py.generalization_tbr(pm4py_log, net, im, fm)
-            return generalization
+            return pm4py.generalization_tbr(pm4py_log, net, im, fm)
         except Exception:
             return None
 
@@ -103,16 +105,15 @@ class ConformanceService:
         model: ProcessModel,
     ) -> float:
         """Calculate simplicity score for a process model.
-        
+
         Simplicity measures how simple/understandable the model is,
         typically based on the number of elements.
         """
         net, im, fm = self._get_petri_net(model)
-        
+
         try:
             # PM4py's simplicity function for Petri nets
-            simplicity = pm4py.simplicity_petri_net(net, im, fm)
-            return simplicity
+            return pm4py.simplicity_petri_net(net, im, fm)
         except Exception:
             return None
 
@@ -122,7 +123,7 @@ class ConformanceService:
         precision: float,
     ) -> float:
         """Calculate F-score (harmonic mean of fitness and precision).
-        
+
         F-score balances fitness and precision into a single quality metric.
         """
         if fitness is None or precision is None:
@@ -137,7 +138,7 @@ class ConformanceService:
         model: ProcessModel,
     ) -> dict[str, Any]:
         """Get all 4 quality dimensions: fitness, precision, generalization, simplicity.
-        
+
         Plus computed f_score.
         """
         fitness = self.calculate_fitness(event_log, model)
@@ -145,7 +146,7 @@ class ConformanceService:
         generalization = self.calculate_generalization(event_log, model)
         simplicity = self.calculate_simplicity(model)
         f_score = self.calculate_f_score(fitness, precision)
-        
+
         return {
             "fitness": fitness,
             "precision": precision,
@@ -162,6 +163,7 @@ class ConformanceService:
         """Get detailed conformance diagnostics."""
         # Use fast path: event_log_loader instead of ORM iteration
         from src.services.event_log_loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
 
         net, im, fm = self._get_petri_net(model)
@@ -214,6 +216,7 @@ class ConformanceService:
         """Detect specific deviations from the model."""
         # Use fast path: event_log_loader instead of ORM iteration
         from src.services.event_log_loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
 
         net, im, fm = self._get_petri_net(model)
@@ -221,7 +224,7 @@ class ConformanceService:
         diagnostics = pm4py.conformance_diagnostics_token_based_replay(pm4py_log, net, im, fm)
 
         deviations = []
-        for i, (trace, diag) in enumerate(zip(pm4py_log, diagnostics)):
+        for i, (trace, diag) in enumerate(zip(pm4py_log, diagnostics, strict=False)):
             if not diag.get("trace_is_fit", True):
                 case_id = trace.attributes.get("concept:name", f"trace_{i}")
 
@@ -269,6 +272,7 @@ class ConformanceService:
         """
         # Use fast path: event_log_loader instead of ORM iteration
         from src.services.event_log_loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
 
         net, im, fm = self._get_petri_net(model)
@@ -280,7 +284,7 @@ class ConformanceService:
         total_fitness = 0.0
         fitting_count = 0
 
-        for i, (trace, alignment) in enumerate(zip(pm4py_log, alignments)):
+        for i, (trace, alignment) in enumerate(zip(pm4py_log, alignments, strict=False)):
             if i >= max_cases:
                 break
 
@@ -371,28 +375,33 @@ class ConformanceService:
         """
         # Use fast path: event_log_loader instead of ORM iteration
         from src.services.event_log_loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
-        
+
         # Discover DECLARE model if not provided
         if declare_model is None:
             declare_model = pm4py.discover_declare(pm4py_log)
-        
+
         # Check conformance
         conformance = pm4py.conformance_declare(pm4py_log, declare_model)
-        
+
         # Aggregate results
         total_traces = len(conformance)
         conforming_traces = sum(1 for c in conformance if c.get("is_conformant", False))
-        
+
         # Extract constraint violations
         violations = []
         for i, trace_conf in enumerate(conformance[:50]):  # Limit to 50 traces
             if not trace_conf.get("is_conformant", True):
-                violations.append({
-                    "trace_index": i,
-                    "violated_constraints": list(trace_conf.get("violated_constraints", []))[:5],
-                })
-        
+                violations.append(
+                    {
+                        "trace_index": i,
+                        "violated_constraints": list(trace_conf.get("violated_constraints", []))[
+                            :5
+                        ],
+                    }
+                )
+
         return {
             "method": "declare",
             "total_traces": total_traces,
@@ -423,29 +432,32 @@ class ConformanceService:
         """
         # Use fast path: event_log_loader instead of ORM iteration
         from src.services.event_log_loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
-        
+
         # Discover log skeleton if not provided
         if log_skeleton is None:
             log_skeleton = pm4py.discover_log_skeleton(pm4py_log, noise_threshold=noise_threshold)
-        
+
         # Check conformance
         conformance = pm4py.conformance_log_skeleton(pm4py_log, log_skeleton)
-        
+
         # Analyze results
         total_traces = len(conformance)
         deviations = []
         conforming_count = 0
-        
+
         for i, (is_fit, details) in enumerate(conformance):
             if is_fit:
                 conforming_count += 1
             elif i < 50:  # Limit deviation details
-                deviations.append({
-                    "trace_index": i,
-                    "deviation_details": str(details)[:200] if details else None,
-                })
-        
+                deviations.append(
+                    {
+                        "trace_index": i,
+                        "deviation_details": str(details)[:200] if details else None,
+                    }
+                )
+
         return {
             "method": "log_skeleton",
             "total_traces": total_traces,
@@ -476,43 +488,44 @@ class ConformanceService:
         """
         # Use fast path: event_log_loader instead of ORM iteration
         from src.services.event_log_loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
-        
+
         # Discover temporal profile if not provided
         if temporal_profile is None:
             temporal_profile = pm4py.discover_temporal_profile(pm4py_log)
-        
+
         # Check conformance
-        conformance = pm4py.conformance_temporal_profile(
-            pm4py_log, 
-            temporal_profile,
-            zeta=zeta
-        )
-        
+        conformance = pm4py.conformance_temporal_profile(pm4py_log, temporal_profile, zeta=zeta)
+
         # Collect anomalies
         anomalies = []
         traces_with_anomalies = 0
-        
+
         for i, trace_anomalies in enumerate(conformance):
             if trace_anomalies:  # Has anomalies
                 traces_with_anomalies += 1
                 if i < 50:  # Limit output
                     for anomaly in trace_anomalies[:3]:  # Max 3 per trace
-                        anomalies.append({
-                            "trace_index": i,
-                            "activity_pair": anomaly[0] if len(anomaly) > 0 else None,
-                            "expected_avg": anomaly[1] if len(anomaly) > 1 else None,
-                            "expected_std": anomaly[2] if len(anomaly) > 2 else None,
-                            "actual_duration": anomaly[3] if len(anomaly) > 3 else None,
-                        })
-        
+                        anomalies.append(
+                            {
+                                "trace_index": i,
+                                "activity_pair": anomaly[0] if len(anomaly) > 0 else None,
+                                "expected_avg": anomaly[1] if len(anomaly) > 1 else None,
+                                "expected_std": anomaly[2] if len(anomaly) > 2 else None,
+                                "actual_duration": anomaly[3] if len(anomaly) > 3 else None,
+                            }
+                        )
+
         total_traces = len(conformance)
-        
+
         return {
             "method": "temporal_profile",
             "total_traces": total_traces,
             "traces_with_anomalies": traces_with_anomalies,
-            "conformance_ratio": 1 - (traces_with_anomalies / total_traces) if total_traces > 0 else 1,
+            "conformance_ratio": 1 - (traces_with_anomalies / total_traces)
+            if total_traces > 0
+            else 1,
             "zeta_threshold": zeta,
             "anomalies": anomalies[:100],  # Cap anomalies
             "is_conformant": traces_with_anomalies == 0,
@@ -528,21 +541,23 @@ class ConformanceService:
     ) -> dict[str, Any]:
         """
         Check if a Petri net is sound (proper completion, no deadlocks).
-        
-        A sound workflow net guarantees that every started case can 
+
+        A sound workflow net guarantees that every started case can
         complete properly.
-        
+
         Returns:
             Dictionary with soundness verdict and diagnostics
         """
         net, im, fm = self._get_petri_net(model)
-        
+
         try:
             is_sound = pm4py.check_soundness(net, im, fm)
-            
+
             return {
                 "is_sound": is_sound[0] if isinstance(is_sound, tuple) else is_sound,
-                "diagnostics": is_sound[1] if isinstance(is_sound, tuple) and len(is_sound) > 1 else None,
+                "diagnostics": is_sound[1]
+                if isinstance(is_sound, tuple) and len(is_sound) > 1
+                else None,
             }
         except Exception as e:
             return {
@@ -566,10 +581,11 @@ class ConformanceService:
         """
         # Use fast path: event_log_loader instead of ORM iteration
         from src.services.event_log_loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
 
         net, im, fm = self._get_petri_net(model)
-        
+
         try:
             emd = pm4py.compute_emd(pm4py_log, net, im, fm)
             return {
@@ -589,37 +605,31 @@ class ConformanceService:
     ) -> dict[str, Any]:
         """
         Calculate behavioral and structural similarity between two models.
-        
+
         Returns:
             Dictionary with similarity scores
         """
         net1, im1, fm1 = self._get_petri_net(model1)
         net2, im2, fm2 = self._get_petri_net(model2)
-        
+
         result = {}
-        
+
         # Structural similarity (based on edit distance)
         try:
-            structural_sim = pm4py.structural_similarity(
-                (net1, im1, fm1),
-                (net2, im2, fm2)
-            )
+            structural_sim = pm4py.structural_similarity((net1, im1, fm1), (net2, im2, fm2))
             result["structural_similarity"] = structural_sim
         except Exception as e:
             result["structural_similarity"] = None
             result["structural_error"] = str(e)
-        
+
         # Behavioral similarity (based on language)
         try:
-            behavioral_sim = pm4py.behavioral_similarity(
-                (net1, im1, fm1),
-                (net2, im2, fm2)
-            )
+            behavioral_sim = pm4py.behavioral_similarity((net1, im1, fm1), (net2, im2, fm2))
             result["behavioral_similarity"] = behavioral_sim
         except Exception as e:
             result["behavioral_similarity"] = None
             result["behavioral_error"] = str(e)
-        
+
         return result
 
     def _token_replay(
@@ -661,13 +671,14 @@ class ConformanceService:
         fm: Marking,
     ) -> dict[str, Any]:
         """Perform alignment-based conformance checking.
-        
+
         Now includes explicit algorithm tracking to address silent fallback anti-pattern.
         Returns algorithm_used and fallback_reason fields.
         """
         from src.core.logging_config import get_logger
+
         logger = get_logger(__name__)
-        
+
         try:
             fitness_result = pm4py.fitness_alignments(log, net, im, fm)
             precision = pm4py.precision_alignments(log, net, im, fm)
@@ -693,7 +704,7 @@ class ConformanceService:
                 fallback_to="token_replay",
                 reason=fallback_reason,
             )
-            
+
             # Fall back to token replay, but explicitly track it
             result = self._token_replay(log, net, im, fm)
             result["method"] = "alignment"  # What was requested
@@ -710,12 +721,12 @@ class ConformanceService:
 
         if model.model_format == ModelFormat.PETRI_NET.value:
             return model_data
-        elif model.model_format == ModelFormat.PROCESS_TREE.value:
+        if (
+            model.model_format == ModelFormat.PROCESS_TREE.value
+            or model.model_format == ModelFormat.BPMN.value
+        ):
             return pm4py.convert_to_petri_net(model_data)
-        elif model.model_format == ModelFormat.BPMN.value:
-            return pm4py.convert_to_petri_net(model_data)
-        else:
-            raise ValueError(f"Cannot convert {model.model_format} to Petri net")
+        raise ValueError(f"Cannot convert {model.model_format} to Petri net")
 
 
 # Singleton instance

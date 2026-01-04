@@ -1,4 +1,3 @@
-import React from 'react';
 import { Card, Typography, Space, Button, Tag, Tooltip } from 'antd';
 import {
   FileTextOutlined,

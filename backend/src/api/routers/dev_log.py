@@ -41,12 +41,12 @@ async def receive_log(entry: LogEntry) -> dict[str, str]:
     # BUG-037 FIX: Disable in production to prevent log-bombing DoS
     if not settings.debug:
         raise HTTPException(status_code=404, detail="Not found")
-    
+
     # BUG-037 FIX: Validate message size to prevent memory attacks
     msg_str = str(entry.message)
     if len(msg_str) > MAX_MESSAGE_SIZE:
         raise HTTPException(status_code=413, detail="Log message too large")
-    
+
     # Ensure log directory exists
     LOG_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -74,11 +74,11 @@ async def get_logs(lines: int = 100) -> dict[str, Any]:
     # BUG-037 FIX: Disable in production
     if not settings.debug:
         raise HTTPException(status_code=404, detail="Not found")
-    
+
     if not LOG_FILE.exists():
         return {"lines": [], "total": 0}
 
-    with open(LOG_FILE, "r", encoding="utf-8") as f:
+    with open(LOG_FILE, encoding="utf-8") as f:
         all_lines = f.readlines()
 
     return {
@@ -93,8 +93,7 @@ async def clear_logs() -> dict[str, str]:
     # BUG-037 FIX: Disable in production
     if not settings.debug:
         raise HTTPException(status_code=404, detail="Not found")
-    
+
     if LOG_FILE.exists():
         LOG_FILE.unlink()
     return {"status": "cleared"}
-

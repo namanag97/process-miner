@@ -8,7 +8,7 @@ Performance improvement:
   - New: SQL → Arrow → DataFrame → PM4Py (1-2 copies, 10x faster)
 """
 
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 import pm4py
@@ -30,11 +30,11 @@ def _get_duckdb():
     if _duckdb is None:
         try:
             import duckdb
+
             _duckdb = duckdb
         except ImportError:
             raise ImportError(
-                "DuckDB is required for high-performance loading. "
-                "Install with: pip install duckdb"
+                "DuckDB is required for high-performance loading. Install with: pip install duckdb"
             )
     return _duckdb
 
@@ -42,7 +42,7 @@ def _get_duckdb():
 class EventLogLoader:
     """
     High-performance event log loading for PM4py.
-    
+
     Uses DuckDB to query the SQLite database directly and return
     pandas DataFrames in PM4py format, bypassing slow ORM iteration.
     """
@@ -98,44 +98,45 @@ class EventLogLoader:
         logger.info("dataset_loader_started", dataset_id=dataset_id, max_events=max_events)
 
         conn = self._get_connection()
-        
+
         try:
             # BUG-050 FIX: Add LIMIT clause when max_events > 0
             limit_clause = f"LIMIT {max_events}" if max_events > 0 else ""
-            
+
             # Query SQLite through DuckDB
             # BUG-032 FIX: Use parameterized query to prevent SQL injection
             query = f"""
-                SELECT 
+                SELECT
                     pc.case_id AS "case:concept:name",
                     pe.activity AS "concept:name",
                     pe.timestamp AS "time:timestamp",
                     pe.resource AS "org:resource"
                 FROM db.process_events pe
-                INNER JOIN db.process_cases pc 
+                INNER JOIN db.process_cases pc
                     ON pe.case_ref_id = pc.id
                 WHERE pc.dataset_id = ?
                 ORDER BY pc.case_id, pe.timestamp
                 {limit_clause}
             """
-            
+
             # Execute and get Arrow table (zero-copy)
             arrow_result = conn.execute(query, [dataset_id]).arrow()
-            
+
             # Handle newer DuckDB/PyArrow where arrow() returns a RecordBatchReader
             import pyarrow as pa
+
             if isinstance(arrow_result, pa.RecordBatchReader):
                 arrow_table = arrow_result.read_all()
             else:
                 arrow_table = arrow_result
-            
+
             # Convert to pandas DataFrame
             df = arrow_table.to_pandas()
-            
+
             if df.empty:
                 logger.warning("dataset_loader_empty", dataset_id=dataset_id)
                 return self._empty_dataframe()
-            
+
             # BUG-050: Warn if data was truncated
             if max_events > 0 and len(df) >= max_events:
                 logger.warning(
@@ -144,11 +145,11 @@ class EventLogLoader:
                     loaded_events=len(df),
                     limit=max_events,
                 )
-            
+
             # Ensure timestamp is datetime
             if "time:timestamp" in df.columns:
                 df["time:timestamp"] = pd.to_datetime(df["time:timestamp"])
-            
+
             # Format for PM4py
             df = pm4py.format_dataframe(
                 df,
@@ -156,16 +157,16 @@ class EventLogLoader:
                 activity_key="concept:name",
                 timestamp_key="time:timestamp",
             )
-            
+
             logger.info(
                 "dataset_loader_completed",
                 dataset_id=dataset_id,
                 total_events=len(df),
                 total_cases=df["case:concept:name"].nunique(),
             )
-            
+
             return df
-            
+
         finally:
             conn.close()
 
@@ -202,18 +203,19 @@ class EventLogLoader:
             Dictionary with statistics
         """
         conn = self._get_connection()
-        
+
         try:
             # BUG-032 FIX: Use parameterized query
-            stats = conn.execute("""
+            stats = conn.execute(
+                """
                 WITH events AS (
-                    SELECT 
+                    SELECT
                         pc.case_id,
                         pe.activity,
                         pe.timestamp,
                         pe.resource
                     FROM db.process_events pe
-                    INNER JOIN db.process_cases pc 
+                    INNER JOIN db.process_cases pc
                         ON pe.case_ref_id = pc.id
                     WHERE pc.dataset_id = ?
                 )
@@ -226,8 +228,10 @@ class EventLogLoader:
                     MAX(timestamp) as end_time,
                     LIST(DISTINCT activity ORDER BY activity) as activities
                 FROM events
-            """, [dataset_id]).fetchone()
-            
+            """,
+                [dataset_id],
+            ).fetchone()
+
             return {
                 "total_events": stats[0],
                 "total_cases": stats[1],
@@ -237,7 +241,7 @@ class EventLogLoader:
                 "end_time": stats[5].isoformat() if stats[5] else None,
                 "activities": list(stats[6]) if stats[6] else [],
             }
-            
+
         finally:
             conn.close()
 
@@ -254,17 +258,18 @@ class EventLogLoader:
             Tuple of (start_activities, end_activities) dictionaries
         """
         conn = self._get_connection()
-        
+
         try:
             # Start activities - BUG-032 FIX: parameterized query
-            start_result = conn.execute("""
+            start_result = conn.execute(
+                """
                 WITH first_events AS (
-                    SELECT 
+                    SELECT
                         pc.case_id,
                         pe.activity,
                         ROW_NUMBER() OVER (PARTITION BY pc.case_id ORDER BY pe.timestamp) as rn
                     FROM db.process_events pe
-                    INNER JOIN db.process_cases pc 
+                    INNER JOIN db.process_cases pc
                         ON pe.case_ref_id = pc.id
                     WHERE pc.dataset_id = ?
                 )
@@ -273,17 +278,20 @@ class EventLogLoader:
                 WHERE rn = 1
                 GROUP BY activity
                 ORDER BY freq DESC
-            """, [dataset_id]).fetchall()
-            
+            """,
+                [dataset_id],
+            ).fetchall()
+
             # End activities - BUG-032 FIX: parameterized query
-            end_result = conn.execute("""
+            end_result = conn.execute(
+                """
                 WITH last_events AS (
-                    SELECT 
+                    SELECT
                         pc.case_id,
                         pe.activity,
                         ROW_NUMBER() OVER (PARTITION BY pc.case_id ORDER BY pe.timestamp DESC) as rn
                     FROM db.process_events pe
-                    INNER JOIN db.process_cases pc 
+                    INNER JOIN db.process_cases pc
                         ON pe.case_ref_id = pc.id
                     WHERE pc.dataset_id = ?
                 )
@@ -292,13 +300,15 @@ class EventLogLoader:
                 WHERE rn = 1
                 GROUP BY activity
                 ORDER BY freq DESC
-            """, [dataset_id]).fetchall()
-            
+            """,
+                [dataset_id],
+            ).fetchall()
+
             start_activities = {row[0]: row[1] for row in start_result}
             end_activities = {row[0]: row[1] for row in end_result}
-            
+
             return start_activities, end_activities
-            
+
         finally:
             conn.close()
 
@@ -319,7 +329,8 @@ class EventLogLoader:
 
         try:
             # DFG edges - BUG-032 FIX: parameterized query
-            dfg_result = conn.execute("""
+            dfg_result = conn.execute(
+                """
                 WITH ordered_events AS (
                     SELECT
                         pc.case_id,
@@ -339,7 +350,9 @@ class EventLogLoader:
                 WHERE next_activity IS NOT NULL
                 GROUP BY activity, next_activity
                 ORDER BY freq DESC
-            """, [dataset_id]).fetchall()
+            """,
+                [dataset_id],
+            ).fetchall()
 
             dfg = {(row[0], row[1]): row[2] for row in dfg_result}
 
@@ -354,7 +367,7 @@ class EventLogLoader:
     def load_variants(
         self,
         dataset_id: str,
-        top_k: Optional[int] = None,
+        top_k: int | None = None,
     ) -> list[dict[str, Any]]:
         """
         Get process variants using SQL aggregation.
@@ -369,24 +382,24 @@ class EventLogLoader:
             List of variant dictionaries with trace, count, and percentage
         """
         conn = self._get_connection()
-        
+
         try:
             # BUG-032 FIX: parameterized query (limit_clause handled separately as it's an int)
             limit_clause = f"LIMIT {int(top_k)}" if top_k else ""
-            
+
             # Note: limit_clause is safe as we cast top_k to int above
             query = f"""
                 WITH case_variants AS (
-                    SELECT 
+                    SELECT
                         pc.case_id,
                         STRING_AGG(pe.activity, ' -> ' ORDER BY pe.timestamp) as variant
                     FROM db.process_events pe
-                    INNER JOIN db.process_cases pc 
+                    INNER JOIN db.process_cases pc
                         ON pe.case_ref_id = pc.id
                     WHERE pc.dataset_id = ?
                     GROUP BY pc.case_id
                 )
-                SELECT 
+                SELECT
                     variant,
                     COUNT(*) as case_count,
                     ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) as frequency_percent
@@ -396,7 +409,7 @@ class EventLogLoader:
                 {limit_clause}
             """
             variants = conn.execute(query, [dataset_id]).fetchall()
-            
+
             return [
                 {
                     "variant_key": f"v{i}",
@@ -407,18 +420,20 @@ class EventLogLoader:
                 }
                 for i, row in enumerate(variants)
             ]
-            
+
         finally:
             conn.close()
 
     def _empty_dataframe(self) -> pd.DataFrame:
         """Return empty DataFrame with correct columns."""
-        return pd.DataFrame(columns=[
-            "case:concept:name",
-            "concept:name", 
-            "time:timestamp",
-            "org:resource",
-        ])
+        return pd.DataFrame(
+            columns=[
+                "case:concept:name",
+                "concept:name",
+                "time:timestamp",
+                "org:resource",
+            ]
+        )
 
 
 # Singleton instance

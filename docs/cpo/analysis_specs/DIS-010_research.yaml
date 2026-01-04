@@ -1,0 +1,6 @@
+feature_id: "DIS-010"
+research_findings:
+  libraries:
+    python: ["pm4py"]
+  recommendations:
+    must_have: ["Edge thickness by frequency", "Node/Edge count labels"]

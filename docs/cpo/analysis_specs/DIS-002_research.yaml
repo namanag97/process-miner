@@ -1,0 +1,9 @@
+feature_id: "DIS-002"
+research_findings:
+  libraries:
+    python: ["pm4py.objects.log.util.dataframe_utils"]
+    frontend: ["react-hook-form", "ant-design Select"]
+  competitors:
+    celonis: "Auto-detect columns, allows mapping to Case ID, Activity, Timestamp, Resource."
+  recommendations:
+    must_have: ["Auto-detection", "Mandatory field validation", "Type casting preview"]

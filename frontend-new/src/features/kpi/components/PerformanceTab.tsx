@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Row, Col, Card, Typography, Progress, List, Statistic } from 'antd';
 import { ClockCircleOutlined, ThunderboltOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import {
@@ -12,7 +12,7 @@ import {
   useThroughput,
 } from '@lumina/design-system';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 interface PerformanceTabProps {
   logId: string;

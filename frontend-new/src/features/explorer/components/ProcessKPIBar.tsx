@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import { Card, Tag, Tooltip, Space } from 'antd';
+import { Card, Tag, Tooltip, Skeleton } from 'antd';
 import {
   FileOutlined,
   BranchesOutlined,
@@ -179,10 +179,26 @@ export function ProcessKPIBar({
   loading = false,
   compact = false,
 }: ProcessKPIBarProps) {
+  // Show skeleton loader while loading
+  if (loading) {
+    return (
+      <div
+        style={{
+          padding: compact ? '8px 16px' : '12px 24px',
+          backgroundColor: tokens.colors.neutral[50],
+          borderBottom: `1px solid ${tokens.colors.neutral[200]}`,
+        }}
+      >
+        <Skeleton.Input active block style={{ height: compact ? 48 : 64 }} />
+      </div>
+    );
+  }
+
+  // Defensive defaults for all KPI values
   const {
-    totalCases,
-    uniqueVariants,
-    uniqueActivities,
+    totalCases = 0,
+    uniqueVariants = 0,
+    uniqueActivities = 0,
     avgThroughputTime,
     happyPathPercent,
     reworkRate,

@@ -103,3 +103,12 @@ backend/data/logs/
 *.tmp
 *.temp
 .cache/
+
+# ========================
+# Workspace Organization
+# ========================
+# Old reports archived (2026-01-04 cleanup)
+docs/archive/
+
+# Product folder (research, vibe-kanban projects)
+Product/

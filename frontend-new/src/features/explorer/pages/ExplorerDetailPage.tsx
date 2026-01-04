@@ -11,18 +11,23 @@
  * - Path highlighting from variant selection
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button, Tabs, Spin, Space, Tooltip, Breadcrumb, Drawer, Alert, Tag, Dropdown } from 'antd';
+import { Button, Tabs, Spin, Space, Tooltip, Breadcrumb, Drawer, Alert, Tag, Dropdown, Empty, Result, Typography } from 'antd';
 import {
   ArrowLeftOutlined,
   DownloadOutlined,
   FilterOutlined,
   ExpandOutlined,
   CompressOutlined,
+  ShareAltOutlined,
+  PlusOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons';
-import { tokens, toast, logAction } from '@lumina/design-system';
+import { tokens, toast, logAction, logError, ErrorBoundary } from '@lumina/design-system';
 import { createLogger } from '../../../utils/logger';
+
+const { Text } = Typography;
 
 // Import components
 import { ProcessCanvas } from '../components/ProcessCanvas';
@@ -31,8 +36,11 @@ import { VariantPanel } from '../components/VariantPanel';
 import { ActivityDetailsPanel } from '../components/ActivityDetailsPanel';
 import { EdgeDetailsPanel } from '../components/EdgeDetailsPanel';
 import { FilterPanel } from '../components/FilterPanel';
+import { CaseCoverageGauge } from '../components/CaseCoverageGauge';
+import { ActivitiesPanel } from '../components/ActivitiesPanel';
+import type { ActivityItem } from '../components/ActivitiesPanel';
 
-// Import hooks
+// Import hooks - using individual hooks until unified endpoint is verified
 import { useDFG, useVariants, useActivities, useLogDetail } from '../hooks';
 
 // Import types
@@ -48,24 +56,41 @@ import type {
 } from '../types';
 import { hasReworkInVariant } from '../types';
 
+// Import mock data and fallback utilities
+import {
+  mockOrderToCashDFG,
+  mockOrderToCashVariants,
+  mockOrderToCashActivities,
+  mockOrderToCashLogInfo,
+} from '../mocks/orderToCash';
+import {
+  useFallbackData,
+  extractErrorMessages,
+  getFallbackStatus,
+} from '../utils/fallbackData';
+
 const log = createLogger('ExplorerDetailPage');
 
 export function ExplorerDetailPage() {
-  const { logId, projectId } = useParams<{ logId: string; projectId: string }>();
+  // IMPORTANT: Route uses :datasetId (standard naming)
+  // Alias as logId for backwards compatibility with hooks
+  const { datasetId, projectId } = useParams<{ datasetId: string; projectId: string }>();
+  const logId = datasetId; // Alias for hooks that still use logId
   const navigate = useNavigate();
 
   // Navigate back to project
   const getBackPath = () => `/workspace/${projectId}`;
 
   // UI State
+  const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
-  const [rightPanelTab, setRightPanelTab] = useState('variants');
+  const [rightPanelTab, setRightPanelTab] = useState('filter');
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 
   // Log page mount
   React.useEffect(() => {
-    logAction('ExplorerDetailPage', 'page_mounted', { logId, projectId });
-  }, [logId, projectId]);
+    logAction('ExplorerDetailPage', 'page_mounted', { datasetId, projectId });
+  }, [datasetId, projectId]);
 
   // Selection State
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -102,12 +127,47 @@ export function ExplorerDetailPage() {
   const loading = logLoading || dfgLoading || variantsLoading || activitiesLoading;
   const error = dfgError || variantsError || activitiesError;
 
+  // Apply fallbacks - Re-enabled for graceful degradation when backend is unavailable
+  const logInfoWithFallback = useFallbackData(
+    logInfo,
+    null,
+    mockOrderToCashLogInfo,
+    { source: 'ExplorerDetailPage', hookType: 'useLogDetail', logId: logId || '', disableFallback: false }
+  );
+
+  const dfgDataWithFallback = useFallbackData(
+    dfgData,
+    dfgError,
+    mockOrderToCashDFG,
+    { source: 'ExplorerDetailPage', hookType: 'useDFG', logId: logId || '', endpoint: '/api/visualization/dfg', disableFallback: false }
+  );
+
+  const variantsWithFallback = useFallbackData(
+    variants,
+    variantsError,
+    mockOrderToCashVariants,
+    { source: 'ExplorerDetailPage', hookType: 'useVariants', logId: logId || '', endpoint: '/api/datasets/variants', disableFallback: false }
+  );
+
+  const activitiesWithFallback = useFallbackData(
+    activities,
+    activitiesError,
+    mockOrderToCashActivities,
+    { source: 'ExplorerDetailPage', hookType: 'useActivities', logId: logId || '', endpoint: '/api/discovery/activities', disableFallback: false }
+  );
+
+  // Determine if we're using fallback data
+  const usingFallbackData = getFallbackStatus(dfgError).usingFallback ||
+    getFallbackStatus(variantsError).usingFallback ||
+    getFallbackStatus(activitiesError).usingFallback;
+
   log.debug('Rendering ExplorerDetailPage', {
     logId,
     selectedNodeId,
     selectedEdgeId,
     selectedVariantKey,
     loading,
+    usingFallbackData,
   });
 
   // =============================================================================
@@ -116,49 +176,49 @@ export function ExplorerDetailPage() {
 
   // Transform DFG nodes for ProcessCanvas
   const dfgNodes = useMemo((): DFGNodeData[] => {
-    if (!dfgData?.nodes || !Array.isArray(dfgData.nodes)) {
+    if (!dfgDataWithFallback?.nodes || !Array.isArray(dfgDataWithFallback.nodes)) {
       return [];
     }
 
-    const activityList = Array.isArray(activities) ? activities : [];
+    const activityList = Array.isArray(activitiesWithFallback) ? activitiesWithFallback : [];
     const activityMap = new Map(activityList.map((a) => [a.name, a]));
 
-    return dfgData.nodes.map((node) => {
+    return dfgDataWithFallback.nodes.map((node) => {
       const activityDetail = activityMap.get(node.label);
       return {
         id: node.id,
         label: node.label,
-        frequency: node.frequency,
-        isStart: node.isStart,
-        isEnd: node.isEnd,
+        frequency: node.frequency ?? 0,
+        isStart: node.isStart ?? false,
+        isEnd: node.isEnd ?? false,
         avgDuration: activityDetail?.avgDuration ?? undefined,
         minDuration: activityDetail?.minDuration ?? undefined,
         maxDuration: activityDetail?.maxDuration ?? undefined,
       };
     });
-  }, [dfgData, activities]);
+  }, [dfgDataWithFallback, activitiesWithFallback]);
 
   // Transform DFG edges for ProcessCanvas
   const dfgEdges = useMemo((): DFGEdgeData[] => {
-    if (!dfgData?.edges || !Array.isArray(dfgData.edges)) {
+    if (!dfgDataWithFallback?.edges || !Array.isArray(dfgDataWithFallback.edges)) {
       return [];
     }
 
-    return dfgData.edges.map((edge) => ({
+    return dfgDataWithFallback.edges.map((edge) => ({
       source: edge.source,
       target: edge.target,
-      frequency: edge.frequency,
+      frequency: edge.frequency ?? 0,
       performance: edge.avgDuration,
     }));
-  }, [dfgData]);
+  }, [dfgDataWithFallback]);
 
   // Transform variants for VariantPanel
   const processedVariants = useMemo((): ProcessedVariant[] => {
-    if (!variants || !Array.isArray(variants)) {
+    if (!variantsWithFallback || !Array.isArray(variantsWithFallback)) {
       return [];
     }
 
-    const sortedVariants = [...variants].sort((a, b) =>
+    const sortedVariants = [...variantsWithFallback].sort((a, b) =>
       (b.frequencyPercent ?? 0) - (a.frequencyPercent ?? 0)
     );
 
@@ -173,7 +233,7 @@ export function ExplorerDetailPage() {
       complexityScore: v.complexityScore,
       hasRework: hasReworkInVariant(Array.isArray(v.activities) ? v.activities : []),
     }));
-  }, [variants]);
+  }, [variantsWithFallback]);
 
   // Calculate KPIs
   const kpis = useMemo((): ProcessKPIs => {
@@ -207,7 +267,7 @@ export function ExplorerDetailPage() {
 
   // Build filter options
   const filterOptions = useMemo((): FilterOptions => {
-    const activityList = Array.isArray(activities) ? activities : [];
+    const activityList = Array.isArray(activitiesWithFallback) ? activitiesWithFallback : [];
     const activityNames = activityList.map((a) => a.name);
     const allResources = new Set<string>();
     activityList.forEach((a) => {
@@ -230,13 +290,13 @@ export function ExplorerDetailPage() {
       timeRange: { start: '', end: '' },
       caseDuration: { min: minDuration, max: maxDuration, mean: meanDuration },
     };
-  }, [activities, processedVariants]);
+  }, [activitiesWithFallback, processedVariants]);
 
   // Get activity detail for selected node
   const selectedActivity = useMemo((): ActivityData | null => {
-    if (!selectedNodeId || !Array.isArray(activities)) return null;
+    if (!selectedNodeId || !Array.isArray(activitiesWithFallback)) return null;
 
-    const activity = activities.find(
+    const activity = activitiesWithFallback.find(
       (a) => a.id === selectedNodeId || a.name === selectedNodeId
     );
     if (!activity) return null;
@@ -276,6 +336,18 @@ export function ExplorerDetailPage() {
     const variant = processedVariants.find((v) => v.key === selectedVariantKey);
     return variant?.activities ?? [];
   }, [selectedVariantKey, processedVariants]);
+
+  // Transform activities for ActivitiesPanel
+  const activitiesPanelData: ActivityItem[] = useMemo(() => {
+    if (!Array.isArray(activitiesWithFallback)) return [];
+    return activitiesWithFallback.map((a) => ({
+      id: a.id || a.name,
+      name: a.name,
+      frequency: a.frequency ?? 0,
+      casePercent: a.frequencyPercent ?? 0,
+      avgDuration: a.avgDuration,
+    }));
+  }, [activitiesWithFallback]);
 
   // =============================================================================
   // HANDLERS
@@ -317,9 +389,9 @@ export function ExplorerDetailPage() {
 
   const handleFilterWithActivity = useCallback(
     (activityId: string) => {
-      if (!Array.isArray(activities)) return;
+      if (!Array.isArray(activitiesWithFallback)) return;
 
-      const activity = activities.find(
+      const activity = activitiesWithFallback.find(
         (a) => a.id === activityId || a.name === activityId
       );
       if (activity) {
@@ -333,14 +405,14 @@ export function ExplorerDetailPage() {
         toast.success(`Filtering cases with "${activity.name}"`);
       }
     },
-    [activities]
+    [activitiesWithFallback]
   );
 
   const handleFilterWithoutActivity = useCallback(
     (activityId: string) => {
-      if (!Array.isArray(activities)) return;
+      if (!Array.isArray(activitiesWithFallback)) return;
 
-      const activity = activities.find(
+      const activity = activitiesWithFallback.find(
         (a) => a.id === activityId || a.name === activityId
       );
       if (activity) {
@@ -354,7 +426,7 @@ export function ExplorerDetailPage() {
         toast.success(`Filtering cases without "${activity.name}"`);
       }
     },
-    [activities]
+    [activitiesWithFallback]
   );
 
   const handleApplyFilter = useCallback((filter: AppliedFilter) => {
@@ -390,7 +462,7 @@ export function ExplorerDetailPage() {
           quality: 1,
         }).then((dataUrl: string) => {
           const link = document.createElement('a');
-          link.download = `${logInfo?.name ?? 'process'}-dfg.png`;
+          link.download = `${logInfoWithFallback?.name ?? 'process'}-dfg.png`;
           link.href = dataUrl;
           link.click();
           toast.success('Process map exported as PNG');
@@ -402,7 +474,7 @@ export function ExplorerDetailPage() {
     }).catch(() => {
       toast.info('Image export not available. Use CSV export to download process data.');
     });
-  }, [logInfo]);
+  }, [logInfoWithFallback]);
 
   const handleExportCSV = useCallback(() => {
     log.info('Exporting CSV');
@@ -449,11 +521,11 @@ export function ExplorerDetailPage() {
     const blob = new Blob([fullCSV], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `${logInfo?.name ?? 'process'}-data.csv`;
+    link.download = `${logInfoWithFallback?.name ?? 'process'}-data.csv`;
     link.click();
     URL.revokeObjectURL(link.href);
     toast.success('Process data exported as CSV');
-  }, [dfgNodes, dfgEdges, processedVariants, logInfo]);
+  }, [dfgNodes, dfgEdges, processedVariants, logInfoWithFallback]);
 
   const exportMenuItems = [
     {
@@ -476,15 +548,50 @@ export function ExplorerDetailPage() {
 
   const tabItems = [
     {
+      key: 'filter',
+      label: 'Filter',
+      children: (
+        <div style={{ padding: tokens.spacing[3], display: 'flex', flexDirection: 'column', gap: tokens.spacing[4] }}>
+          <CaseCoverageGauge
+            percent={100 - (appliedFilters.length * 10)} /* placeholder calculation */
+            visibleCases={kpis.totalCases}
+            totalCases={kpis.totalCases}
+            size={90}
+          />
+          <div style={{ flex: 1 }}>
+            <FilterPanel
+              filterOptions={filterOptions}
+              appliedFilters={appliedFilters}
+              onApplyFilter={handleApplyFilter}
+              onRemoveFilter={handleRemoveFilter}
+              onClearAllFilters={handleClearAllFilters}
+            />
+          </div>
+        </div>
+      ),
+    },
+    {
       key: 'variants',
       label: 'Variants',
       children: (
-        <VariantPanel
-          variants={processedVariants}
-          selectedVariantKey={selectedVariantKey}
-          onSelectVariant={handleSelectVariant}
-          onFilterToVariant={handleFilterToVariant}
-        />
+        <ErrorBoundary
+          fallback={
+            <Empty
+              description="Variant panel failed to load. Check DevConsole for details."
+              style={{ padding: 40 }}
+            />
+          }
+          onError={(error) => {
+            logError('VariantPanel', error, { logId: logId || '', componentCrash: true });
+          }}
+        >
+          <VariantPanel
+            variants={processedVariants}
+            selectedVariantKey={selectedVariantKey}
+            onSelectVariant={handleSelectVariant}
+            onFilterToVariant={handleFilterToVariant}
+          />
+        </ErrorBoundary>
       ),
     },
     {
@@ -535,7 +642,7 @@ export function ExplorerDetailPage() {
 
   // Dataset status validation - check if ready for analysis BEFORE checking DFG errors
   // This prevents showing DFG errors for datasets that haven't been analyzed yet
-  const datasetStatus = (logInfo as any)?.status;
+  const datasetStatus = logInfo?.status;
 
   // If we have no logInfo or status, something is wrong
   if (!logInfo) {
@@ -614,72 +721,8 @@ export function ExplorerDetailPage() {
     );
   }
 
-  // Now check for DFG/variants/activities errors (only for READY datasets)
-  if (error) {
-    const errorMessages = [
-      dfgError && `DFG: ${(dfgError as Error).message}`,
-      variantsError && `Variants: ${(variantsError as Error).message}`,
-      activitiesError && `Activities: ${(activitiesError as Error).message}`,
-    ].filter(Boolean).join(' | ');
-
-    const is404 = errorMessages.toLowerCase().includes('not found') ||
-      errorMessages.includes('404');
-    const isNetworkError = errorMessages.toLowerCase().includes('network') ||
-      errorMessages.toLowerCase().includes('unable to reach') ||
-      errorMessages.toLowerCase().includes('failed to fetch');
-
-    if (is404) {
-      return (
-        <div style={{ padding: 24 }}>
-          <Alert
-            message="Event Log Not Found"
-            description="This event log may have been deleted or does not exist."
-            type="warning"
-            showIcon
-            action={
-              <Space direction="vertical">
-                <Button type="primary" onClick={() => navigate(getBackPath())}>
-                  Go Back
-                </Button>
-              </Space>
-            }
-          />
-        </div>
-      );
-    }
-
-    if (isNetworkError) {
-      return (
-        <div style={{ padding: 24 }}>
-          <Alert
-            message="Server Unavailable"
-            description="Unable to connect to the server. Please check that the backend is running and try again."
-            type="error"
-            showIcon
-            action={
-              <Button onClick={() => window.location.reload()}>
-                Retry
-              </Button>
-            }
-          />
-        </div>
-      );
-    }
-
-    return (
-      <div style={{ padding: 24 }}>
-        <Alert
-          message="Failed to load process map"
-          description={errorMessages}
-          type="error"
-          showIcon
-          action={
-            <Button onClick={() => navigate(getBackPath())}>Go Back</Button>
-          }
-        />
-      </div>
-    );
-  }
+  // No longer blocking entire page on errors - we use fallback data instead
+  // Error banner will be shown inline below
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', margin: -24 }}>
@@ -709,14 +752,26 @@ export function ExplorerDetailPage() {
             items={[
               { title: 'Projects', onClick: () => navigate('/workspace') },
               { title: 'Project', onClick: () => navigate(`/workspace/${projectId}`) },
-              { title: logInfo?.name ?? 'Loading...' },
+              { title: logInfoWithFallback?.name ?? 'Loading...' },
               { title: 'Explorer' },
             ]}
           />
         </Space>
 
         {/* Right: Actions */}
-        <Space>
+        <Space size="small">
+          <Tooltip title="Share exploration">
+            <Button
+              type="text"
+              icon={<ShareAltOutlined />}
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.href);
+                toast.success('Link copied to clipboard');
+              }}
+            >
+              Share
+            </Button>
+          </Tooltip>
           <Tooltip title="Filters">
             <Button
               icon={<FilterOutlined />}
@@ -731,6 +786,26 @@ export function ExplorerDetailPage() {
               Export
             </Button>
           </Dropdown>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              logAction('ExplorerDetailPage', 'create_exploration_clicked', { logId });
+              toast.info('New exploration feature coming soon!');
+            }}
+          >
+            Create Exploration
+          </Button>
+          <Tooltip title="Help & Documentation">
+            <Button
+              type="text"
+              icon={<QuestionCircleOutlined />}
+              onClick={() => {
+                logAction('ExplorerDetailPage', 'help_clicked', { logId });
+                toast.info('Documentation coming soon!');
+              }}
+            />
+          </Tooltip>
           <Tooltip title={rightPanelOpen ? 'Collapse panel' : 'Expand panel'}>
             <Button
               type="text"
@@ -740,6 +815,33 @@ export function ExplorerDetailPage() {
           </Tooltip>
         </Space>
       </div>
+
+      {/* Error Banner - show when using fallback data */}
+      {usingFallbackData && (
+        <Alert
+          type="error"
+          message="Backend Error - Using Mock Data"
+          description={
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Text strong>Technical Details:</Text>
+              <Text>{extractErrorMessages([dfgError, variantsError, activitiesError])}</Text>
+              <Text type="secondary">
+                A mock Order-to-Cash process is displayed below for demonstration purposes.
+                All functionality is available but data is not real.
+              </Text>
+            </Space>
+          }
+          action={
+            <Button onClick={() => window.location.reload()}>
+              Retry Connection
+            </Button>
+          }
+          showIcon
+          closable={false}
+          banner
+          style={{ borderRadius: 0 }}
+        />
+      )}
 
       {/* KPI Bar */}
       {!loading && <ProcessKPIBar kpis={kpis} compact />}
@@ -778,6 +880,28 @@ export function ExplorerDetailPage() {
 
       {/* Main Content */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {/* Left Panel - Activities */}
+        {leftPanelOpen && (
+          <div
+            style={{
+              width: 260,
+              backgroundColor: tokens.colors.neutral[0],
+              borderRight: `1px solid ${tokens.colors.neutral[200]}`,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+            <ActivitiesPanel
+              activities={activitiesPanelData}
+              selectedActivityId={selectedNodeId}
+              onActivityClick={handleNodeClick}
+              onFilterWithActivity={handleFilterWithActivity}
+              totalActivities={dfgNodes.length}
+            />
+          </div>
+        )}
+
         {/* Canvas Area */}
         <div
           style={{
@@ -798,15 +922,33 @@ export function ExplorerDetailPage() {
               <Spin size="large" />
             </div>
           ) : (
-            <ProcessCanvas
-              dfgNodes={dfgNodes}
-              dfgEdges={dfgEdges}
-              selectedNodeId={selectedNodeId}
-              selectedEdgeId={selectedEdgeId}
-              highlightedPath={highlightedPath}
-              onNodeClick={handleNodeClick}
-              onEdgeClick={handleEdgeClick}
-            />
+            <ErrorBoundary
+              fallback={
+                <Result
+                  status="error"
+                  title="Graph Rendering Failed"
+                  subTitle="The process map could not be rendered. Detailed error logged to DevConsole."
+                  extra={
+                    <Button type="primary" onClick={() => window.location.reload()}>
+                      Reload Page
+                    </Button>
+                  }
+                />
+              }
+              onError={(error) => {
+                logError('ProcessCanvas', error, { logId: logId || '', componentCrash: true });
+              }}
+            >
+              <ProcessCanvas
+                dfgNodes={dfgNodes}
+                dfgEdges={dfgEdges}
+                selectedNodeId={selectedNodeId}
+                selectedEdgeId={selectedEdgeId}
+                highlightedPath={highlightedPath}
+                onNodeClick={handleNodeClick}
+                onEdgeClick={handleEdgeClick}
+              />
+            </ErrorBoundary>
           )}
         </div>
 

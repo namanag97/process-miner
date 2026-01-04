@@ -10,7 +10,6 @@ After: DuckDB parses once → Arrow table → database (zero re-parsing)
 import json
 import time
 from datetime import datetime
-from typing import Any
 
 import pandas as pd
 import pyarrow as pa
@@ -56,7 +55,7 @@ class DatasetWriter:
         # Handle newer DuckDB/PyArrow where arrow() returns a RecordBatchReader
         if isinstance(arrow_table, pa.RecordBatchReader):
             arrow_table = arrow_table.read_all()
-            
+
         logger.info(
             "write_from_arrow_start",
             dataset_id=dataset.id,
@@ -73,10 +72,10 @@ class DatasetWriter:
             df = batch.to_pandas()
 
             # Group by case_id to create ProcessCase objects
-            for case_id, case_df in df.groupby('case_id'):
+            for case_id, case_df in df.groupby("case_id"):
                 # Calculate case metadata
-                timestamps = pd.to_datetime(case_df['timestamp'])
-                activity_sequence = case_df['activity'].tolist()
+                timestamps = pd.to_datetime(case_df["timestamp"])
+                activity_sequence = case_df["activity"].tolist()
                 variant_key = " -> ".join(activity_sequence)
 
                 case = ProcessCase(
@@ -93,9 +92,9 @@ class DatasetWriter:
                 events = [
                     ProcessEvent(
                         case_ref_id=case.id,
-                        activity=row['activity'],
-                        timestamp=pd.to_datetime(row['timestamp']).to_pydatetime(),
-                        resource=row.get('resource') if pd.notna(row.get('resource')) else None,
+                        activity=row["activity"],
+                        timestamp=pd.to_datetime(row["timestamp"]).to_pydatetime(),
+                        resource=row.get("resource") if pd.notna(row.get("resource")) else None,
                         attributes_json=None,  # Arrow table has no extra attributes
                     )
                     for _, row in case_df.iterrows()

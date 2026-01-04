@@ -3,7 +3,7 @@
  * Uses d3-scale for performance-based coloring
  */
 
-import { scaleLinear, scaleSequential, scaleQuantize } from 'd3-scale';
+import { scaleLinear, scaleSequential } from 'd3-scale';
 import { interpolateRgb, interpolateRgbBasis } from 'd3-interpolate';
 
 // =============================================================================

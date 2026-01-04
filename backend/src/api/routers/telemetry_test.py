@@ -1,8 +1,9 @@
 """Telemetry Test Router - Verify traces are working."""
 
 from fastapi import APIRouter
-from src.infrastructure.tracing import create_span
+
 from src.core.logging_config import get_logger
+from src.infrastructure.tracing import create_span
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/test-telemetry", tags=["Test"])
@@ -21,5 +22,5 @@ async def test_trace():
 
     return {
         "status": "ok",
-        "message": "Trace generated! Check DevConsole for: 🌐 GET /api/v1/test-telemetry/trace and ⚙️ test_operation"
+        "message": "Trace generated! Check DevConsole for: 🌐 GET /api/v1/test-telemetry/trace and ⚙️ test_operation",
     }

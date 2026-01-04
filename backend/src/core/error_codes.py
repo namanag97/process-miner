@@ -9,16 +9,16 @@ from enum import Enum
 
 class ErrorCode(str, Enum):
     """Typed error codes for API responses.
-    
+
     Format: ERR_{CATEGORY}_{NUMBER}
     Categories:
     - 1xx: Validation errors
-    - 2xx: Resource errors  
+    - 2xx: Resource errors
     - 3xx: Processing errors
     - 4xx: External service errors
     - 5xx: System errors
     """
-    
+
     # ==========================================================================
     # Validation Errors (1xx)
     # ==========================================================================
@@ -33,7 +33,7 @@ class ErrorCode(str, Enum):
     MALFORMED_CSV = "ERR_108"
     MALFORMED_XES = "ERR_109"
     MALFORMED_OCEL = "ERR_110"
-    
+
     # ==========================================================================
     # Resource Errors (2xx)
     # ==========================================================================
@@ -47,7 +47,7 @@ class ErrorCode(str, Enum):
     RESOURCE_CONFLICT = "ERR_211"
     CONCURRENCY_CONFLICT = "ERR_212"
     STALE_RESOURCE = "ERR_213"
-    
+
     # ==========================================================================
     # Processing Errors (3xx)
     # ==========================================================================
@@ -63,7 +63,7 @@ class ErrorCode(str, Enum):
     PROCESSING_TIMEOUT = "ERR_310"
     OPERATION_CANCELLED = "ERR_311"
     INSUFFICIENT_DATA = "ERR_312"
-    
+
     # ==========================================================================
     # External Service Errors (4xx)
     # ==========================================================================
@@ -76,7 +76,7 @@ class ErrorCode(str, Enum):
     REDIS_UNAVAILABLE = "ERR_406"
     SERVICE_UNAVAILABLE = "ERR_410"
     CONNECTION_TIMEOUT = "ERR_411"
-    
+
     # ==========================================================================
     # System Errors (5xx)
     # ==========================================================================
@@ -144,9 +144,12 @@ ERROR_METADATA: dict[ErrorCode, dict] = {
 
 def get_error_metadata(code: ErrorCode) -> dict:
     """Get metadata for an error code, with sensible defaults."""
-    return ERROR_METADATA.get(code, {
-        "title": code.name.replace("_", " ").title(),
-        "description": f"Error code: {code.value}",
-        "http_status": 500,
-        "retryable": False,
-    })
+    return ERROR_METADATA.get(
+        code,
+        {
+            "title": code.name.replace("_", " ").title(),
+            "description": f"Error code: {code.value}",
+            "http_status": 500,
+            "retryable": False,
+        },
+    )

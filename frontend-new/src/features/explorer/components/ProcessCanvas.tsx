@@ -10,7 +10,7 @@
  * - MiniMap and zoom controls
  */
 
-import React, { useCallback, useMemo, useEffect, useState } from 'react';
+import React, { useCallback, useMemo, useEffect, useState, memo } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -19,26 +19,22 @@ import ReactFlow, {
   MiniMap,
   useNodesState,
   useEdgesState,
-  Position,
   MarkerType,
   BackgroundVariant,
-  Panel,
   useReactFlow,
   ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Button, Segmented, Tooltip, Space, Switch, Slider } from 'antd';
+import { Segmented, Tooltip, Space, Switch, Slider, Empty } from 'antd';
 import {
-  AimOutlined,
   ColumnHeightOutlined,
   ColumnWidthOutlined,
   ThunderboltOutlined,
   ClockCircleOutlined,
   PlayCircleOutlined,
   PauseCircleOutlined,
-  FullscreenOutlined,
 } from '@ant-design/icons';
-import { tokens } from '@lumina/design-system';
+import { tokens, logError } from '@lumina/design-system';
 import { createLogger } from '../../../utils/logger';
 
 // Import utilities and custom nodes
@@ -79,9 +75,10 @@ export interface ProcessCanvasProps {
 // NODE TYPES REGISTRATION
 // =============================================================================
 
+// Memoize nodeTypes outside component to prevent re-renders (React Flow best practice)
 const nodeTypes = {
   processNode: ProcessNode,
-};
+} as const;
 
 // ============================================
 // INNER CANVAS
@@ -98,7 +95,7 @@ interface InnerCanvasProps extends ProcessCanvasProps {
   complexityThreshold: number;
 }
 
-function InnerCanvas({
+const InnerCanvas = memo(function InnerCanvas({
   dfgNodes,
   dfgEdges,
   selectedNodeId,
@@ -113,9 +110,29 @@ function InnerCanvas({
 }: InnerCanvasProps) {
   const { fitView } = useReactFlow();
 
+  // Guard against empty or invalid data
+  if (!dfgNodes || dfgNodes.length === 0) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          padding: 40,
+        }}
+      >
+        <Empty
+          description="No process map data available"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        />
+      </div>
+    );
+  }
+
   // Calculate frequency/duration statistics
   const stats = useMemo(() => {
-    const frequencies = dfgNodes.map((n) => n.frequency);
+    const frequencies = dfgNodes.map((n) => n.frequency ?? 0);
     const durations = dfgEdges
       .map((e) => e.performance)
       .filter((d): d is number => d !== undefined && d > 0);
@@ -182,7 +199,7 @@ function InnerCanvas({
   const processedEdges = useMemo(() => {
     const showPerformance = metricMode === 'performance';
 
-    return filteredEdges.map((edge, index): Edge => {
+    return filteredEdges.map((edge, _index): Edge => {
       const edgeId = `e-${edge.source}-${edge.target}`;
       const isSelected = edgeId === selectedEdgeId;
       const isHighlighted =
@@ -248,25 +265,50 @@ function InnerCanvas({
     });
   }, [filteredEdges, selectedEdgeId, highlightedPath, metricMode, showAnimation, stats]);
 
-  // Apply dagre layout
+  // Apply dagre layout with error handling
   const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo(() => {
-    return applyDagreLayout(processedNodes, processedEdges, {
-      direction: layoutDirection,
-      nodeWidth: 180,
-      nodeHeight: 80,
-      rankSep: 100,
-      nodeSep: 50,
-    });
+    try {
+      return applyDagreLayout(processedNodes, processedEdges, {
+        direction: layoutDirection,
+        nodeWidth: 180,
+        nodeHeight: 80,
+        rankSep: 100,
+        nodeSep: 50,
+      });
+    } catch (error) {
+      // Log layout error to DevConsole
+      logError('ProcessCanvas', error as Error, {
+        context: 'dagre_layout_failed',
+        nodeCount: processedNodes.length,
+        edgeCount: processedEdges.length,
+        layoutDirection,
+      });
+
+      // Return simple fallback layout (nodes in a column, edges as-is)
+      log.warn('Dagre layout failed, using fallback layout', { error });
+      return {
+        nodes: processedNodes.map((node, idx) => ({
+          ...node,
+          position: { x: 200, y: idx * 100 },
+        })),
+        edges: processedEdges,
+      };
+    }
   }, [processedNodes, processedEdges, layoutDirection]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
 
-  // Update when layout changes
+  // Update when layout changes - wrapped in setTimeout to prevent ResizeObserver loop
   useEffect(() => {
-    setNodes(layoutedNodes);
-    setEdges(layoutedEdges);
-    setTimeout(() => fitView({ padding: 0.15, duration: 300 }), 50);
+    // Use setTimeout to defer layout updates and prevent ResizeObserver loop errors
+    const timeoutId = setTimeout(() => {
+      setNodes(layoutedNodes);
+      setEdges(layoutedEdges);
+      // Delay fitView slightly more to ensure DOM is ready
+      setTimeout(() => fitView({ padding: 0.15, duration: 300 }), 100);
+    }, 0);
+    return () => clearTimeout(timeoutId);
   }, [layoutedNodes, layoutedEdges, setNodes, setEdges, fitView]);
 
   // Handlers
@@ -286,11 +328,28 @@ function InnerCanvas({
     [onEdgeClick]
   );
 
+  // Wrap onNodesChange in setTimeout to prevent ResizeObserver loop
+  const handleNodesChange = useCallback(
+    (changes: Parameters<typeof onNodesChange>[0]) => {
+      // Defer state update to prevent ResizeObserver loop
+      setTimeout(() => onNodesChange(changes), 0);
+    },
+    [onNodesChange]
+  );
+
+  // Memoize defaultEdgeOptions to prevent re-renders
+  const defaultEdgeOptions = useMemo(
+    () => ({
+      type: 'smoothstep' as const,
+    }),
+    []
+  );
+
   return (
     <ReactFlow
       nodes={nodes}
       edges={edges}
-      onNodesChange={onNodesChange}
+      onNodesChange={handleNodesChange}
       onEdgesChange={onEdgesChange}
       onNodeClick={handleNodeClick}
       onEdgeClick={handleEdgeClick}
@@ -301,9 +360,7 @@ function InnerCanvas({
       maxZoom={2}
       attributionPosition="bottom-left"
       proOptions={{ hideAttribution: true }}
-      defaultEdgeOptions={{
-        type: 'smoothstep',
-      }}
+      defaultEdgeOptions={defaultEdgeOptions}
     >
       <Controls
         position="bottom-left"
@@ -343,7 +400,10 @@ function InnerCanvas({
       />
     </ReactFlow>
   );
-}
+});
+
+// Display name for debugging
+InnerCanvas.displayName = 'InnerCanvas';
 
 // =============================================================================
 // MAIN COMPONENT WITH CONTROLS

@@ -48,7 +48,7 @@ async def train_predictor(
     request: TrainPredictorRequest,
     db: AsyncSession = Depends(get_db),
     async_mode: bool = True,
-    user_id: str = None,  # BUG-046: Optional user_id for job ownership
+    user_id: str | None = None,  # BUG-046: Optional user_id for job ownership
 ) -> dict[str, Any]:
     """Train a prediction model for an event log.
 
@@ -108,55 +108,54 @@ async def train_predictor(
             "status": "pending",
             "message": "Training started asynchronously. Use /jobs/{job_id} to check status.",
         }
-    else:
-        # Train synchronously (original behavior)
-        pm4py_log = filtering_service.to_pm4py_log(event_log)
+    # Train synchronously (original behavior)
+    pm4py_log = filtering_service.to_pm4py_log(event_log)
 
-        if request.target_type == "next_activity":
-            model_bytes, metrics = prediction_service.train_next_activity_model(
-                pm4py_log, request.algorithm
-            )
-        elif request.target_type == "remaining_time":
-            model_bytes, metrics = prediction_service.train_remaining_time_model(
-                pm4py_log, request.algorithm
-            )
-        else:
-            raise HTTPException(
-                status_code=400, detail=f"Unsupported target type: {request.target_type}"
-            )
-
-        activities = prediction_service.get_activities_from_log(pm4py_log)
-        metrics["activities"] = activities
-
-        prediction_model = PredictionModel(
-            dataset_id=log_id,  # BUG-001 FIX
-            target_type=request.target_type,
-            algorithm=request.algorithm,
-            model_binary=model_bytes,
-            metrics_json=json.dumps(metrics),
+    if request.target_type == "next_activity":
+        model_bytes, metrics = prediction_service.train_next_activity_model(
+            pm4py_log, request.algorithm
         )
-        db.add(prediction_model)
-        await db.commit()
+    elif request.target_type == "remaining_time":
+        model_bytes, metrics = prediction_service.train_remaining_time_model(
+            pm4py_log, request.algorithm
+        )
+    else:
+        raise HTTPException(
+            status_code=400, detail=f"Unsupported target type: {request.target_type}"
+        )
 
-        logger.info("predictor_trained", predictor_id=prediction_model.id, metrics=metrics)
+    activities = prediction_service.get_activities_from_log(pm4py_log)
+    metrics["activities"] = activities
 
-        return {
-            "id": prediction_model.id,
-            "log_id": log_id,
-            "target_type": request.target_type,
-            "algorithm": request.algorithm,
-            "metrics": metrics,
-            "trained_at": prediction_model.trained_at.isoformat()
-            if prediction_model.trained_at
-            else None,
-        }
+    prediction_model = PredictionModel(
+        dataset_id=log_id,  # BUG-001 FIX
+        target_type=request.target_type,
+        algorithm=request.algorithm,
+        model_binary=model_bytes,
+        metrics_json=json.dumps(metrics),
+    )
+    db.add(prediction_model)
+    await db.commit()
+
+    logger.info("predictor_trained", predictor_id=prediction_model.id, metrics=metrics)
+
+    return {
+        "id": prediction_model.id,
+        "log_id": log_id,
+        "target_type": request.target_type,
+        "algorithm": request.algorithm,
+        "metrics": metrics,
+        "trained_at": prediction_model.trained_at.isoformat()
+        if prediction_model.trained_at
+        else None,
+    }
 
 
 @router.get("/jobs/{job_id}")
 async def get_job_status(
     job_id: str,
     db: AsyncSession = Depends(get_db),
-    user_id: str = None,  # BUG-046: Optional user_id for ownership validation
+    user_id: str | None = None,  # BUG-046: Optional user_id for ownership validation
 ) -> dict[str, Any]:
     """Get status of an async training job.
 
@@ -275,7 +274,7 @@ async def predict(
             confidence=prediction_result["confidence"],
             alternatives=prediction_result.get("alternatives"),
         )
-    elif predictor.target_type == "remaining_time":
+    if predictor.target_type == "remaining_time":
         prediction_result = prediction_service.predict_remaining_time(
             predictor.model_binary, request.case_prefix, activities
         )
@@ -285,10 +284,7 @@ async def predict(
             prediction=prediction_result["prediction_seconds"],
             confidence=prediction_result["confidence"],
         )
-    else:
-        raise HTTPException(
-            status_code=400, detail=f"Unsupported target type: {predictor.target_type}"
-        )
+    raise HTTPException(status_code=400, detail=f"Unsupported target type: {predictor.target_type}")
 
 
 @router.post("/predictors/{predictor_id}/predict-batch", response_model=BatchPredictionResponse)

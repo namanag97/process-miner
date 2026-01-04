@@ -68,7 +68,10 @@ class TestAlgorithmTracking:
         # If fallback occurred, fallback_reason should be populated
         if data["algorithm_used"] != data["method"]:
             assert data["fallback_reason"] is not None, "Fallback occurred but no reason provided"
-            assert "failed" in data["fallback_reason"].lower() or "timeout" in data["fallback_reason"].lower()
+            assert (
+                "failed" in data["fallback_reason"].lower()
+                or "timeout" in data["fallback_reason"].lower()
+            )
 
     @pytest.mark.asyncio
     async def test_conformance_response_schema(
@@ -88,8 +91,15 @@ class TestAlgorithmTracking:
 
         # Verify all expected fields from ConformanceResponse schema
         required_fields = {
-            "id", "log_id", "model_id", "fitness", "method",
-            "algorithm_used", "is_conformant", "fitting_traces", "total_traces"
+            "id",
+            "log_id",
+            "model_id",
+            "fitness",
+            "method",
+            "algorithm_used",
+            "is_conformant",
+            "fitting_traces",
+            "total_traces",
         }
 
         for field in required_fields:
@@ -143,8 +153,7 @@ class TestAlgorithmTracking:
 
         # List results
         list_response = await client.get(
-            "/api/v1/conformance/results",
-            params={"log_id": uploaded_insurance_log_id}
+            "/api/v1/conformance/results", params={"log_id": uploaded_insurance_log_id}
         )
         assert list_response.status_code == 200
         data = list_response.json()

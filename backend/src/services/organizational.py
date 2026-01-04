@@ -247,7 +247,7 @@ class OrganizationalService:
         """Compute working together network manually."""
         working_together = defaultdict(int)
         for trace in pm4py_log:
-            resources = set(e.get("org:resource") for e in trace if e.get("org:resource"))
+            resources = {e.get("org:resource") for e in trace if e.get("org:resource")}
             for r1 in resources:
                 for r2 in resources:
                     if r1 < r2:

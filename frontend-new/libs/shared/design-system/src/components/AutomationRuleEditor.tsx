@@ -26,10 +26,8 @@ import {
   Row,
   Col,
   Divider,
-  Tag,
   Alert,
   Steps,
-  Tooltip,
 } from 'antd';
 import {
   PlusOutlined,
@@ -44,10 +42,10 @@ import {
   CheckCircleOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons';
-import { SeverityBadge, type SeverityLevel } from './StatusBadge';
+import { type SeverityLevel } from './StatusBadge';
 import { tokens } from '../theme';
 
-const { Text, Title, Paragraph } = Typography;
+const { Text, Paragraph } = Typography;
 const { Option } = Select;
 
 // ============================================
@@ -197,7 +195,7 @@ export function AutomationRuleEditor({
   availableFields = DEFAULT_FIELDS,
   loading = false,
 }: AutomationRuleEditorProps) {
-  const [form] = Form.useForm();
+
   const [currentStep, setCurrentStep] = useState(0);
   const [ruleState, setRuleState] = useState<AutomationRule>(rule || DEFAULT_RULE);
 
@@ -440,7 +438,7 @@ export function AutomationRuleEditor({
             />
           ) : (
             <Space direction="vertical" style={{ width: '100%' }}>
-              {ruleState.conditions.map((condition, index) => (
+              {ruleState.conditions.map((condition, _index) => (
                 <Card key={condition.id} size="small">
                   <Row gutter={12} align="middle">
                     <Col flex="1">
@@ -523,7 +521,7 @@ export function AutomationRuleEditor({
             />
           ) : (
             <Space direction="vertical" style={{ width: '100%' }}>
-              {ruleState.actions.map((action, index) => {
+              {ruleState.actions.map((action, _index) => {
                 const actionOption = ACTION_OPTIONS.find((a) => a.value === action.type);
                 return (
                   <Card key={action.id} size="small">

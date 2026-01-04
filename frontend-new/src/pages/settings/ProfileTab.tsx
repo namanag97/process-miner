@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Form, Input, Button, Avatar, Space, Typography, message } from 'antd';
 import { UserOutlined, CameraOutlined } from '@ant-design/icons';
 import { tokens, toast } from '@lumina/design-system';
@@ -45,10 +45,10 @@ export function ProfileTab() {
   const handleSave = async () => {
     setIsSaving(true);
     log.info('Saving profile changes', form.getFieldsValue());
-    
+
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 500));
-    
+
     toast.success('Profile updated successfully');
     setIsDirty(false);
     setIsSaving(false);

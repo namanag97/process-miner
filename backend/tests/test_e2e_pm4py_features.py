@@ -20,7 +20,6 @@ Run: pytest tests/test_e2e_pm4py_features.py -v
 import pytest
 from httpx import AsyncClient
 
-
 # =============================================================================
 # TEST DATA FIXTURES
 # =============================================================================
@@ -65,19 +64,56 @@ def e2e_process_csv() -> bytes:
 def e2e_ocel_json() -> bytes:
     """Sample OCEL 2.0 JSON for object-centric tests."""
     import json
+
     ocel_data = {
         "ocel:global-event": {"ocel:ordering": "timestamp"},
         "ocel:global-object": {"ocel:type": ["order", "item"]},
         "ocel:events": {
-            "e1": {"ocel:activity": "place order", "ocel:timestamp": "2023-01-01T09:00:00Z", "ocel:omap": ["o1", "i1", "i2"]},
-            "e2": {"ocel:activity": "pick item", "ocel:timestamp": "2023-01-01T10:00:00Z", "ocel:omap": ["i1"]},
-            "e3": {"ocel:activity": "pick item", "ocel:timestamp": "2023-01-01T10:15:00Z", "ocel:omap": ["i2"]},
-            "e4": {"ocel:activity": "pack order", "ocel:timestamp": "2023-01-01T11:00:00Z", "ocel:omap": ["o1", "i1", "i2"]},
-            "e5": {"ocel:activity": "ship order", "ocel:timestamp": "2023-01-01T12:00:00Z", "ocel:omap": ["o1"]},
-            "e6": {"ocel:activity": "place order", "ocel:timestamp": "2023-01-01T09:30:00Z", "ocel:omap": ["o2", "i3"]},
-            "e7": {"ocel:activity": "pick item", "ocel:timestamp": "2023-01-01T10:30:00Z", "ocel:omap": ["i3"]},
-            "e8": {"ocel:activity": "pack order", "ocel:timestamp": "2023-01-01T11:30:00Z", "ocel:omap": ["o2", "i3"]},
-            "e9": {"ocel:activity": "ship order", "ocel:timestamp": "2023-01-01T13:00:00Z", "ocel:omap": ["o2"]},
+            "e1": {
+                "ocel:activity": "place order",
+                "ocel:timestamp": "2023-01-01T09:00:00Z",
+                "ocel:omap": ["o1", "i1", "i2"],
+            },
+            "e2": {
+                "ocel:activity": "pick item",
+                "ocel:timestamp": "2023-01-01T10:00:00Z",
+                "ocel:omap": ["i1"],
+            },
+            "e3": {
+                "ocel:activity": "pick item",
+                "ocel:timestamp": "2023-01-01T10:15:00Z",
+                "ocel:omap": ["i2"],
+            },
+            "e4": {
+                "ocel:activity": "pack order",
+                "ocel:timestamp": "2023-01-01T11:00:00Z",
+                "ocel:omap": ["o1", "i1", "i2"],
+            },
+            "e5": {
+                "ocel:activity": "ship order",
+                "ocel:timestamp": "2023-01-01T12:00:00Z",
+                "ocel:omap": ["o1"],
+            },
+            "e6": {
+                "ocel:activity": "place order",
+                "ocel:timestamp": "2023-01-01T09:30:00Z",
+                "ocel:omap": ["o2", "i3"],
+            },
+            "e7": {
+                "ocel:activity": "pick item",
+                "ocel:timestamp": "2023-01-01T10:30:00Z",
+                "ocel:omap": ["i3"],
+            },
+            "e8": {
+                "ocel:activity": "pack order",
+                "ocel:timestamp": "2023-01-01T11:30:00Z",
+                "ocel:omap": ["o2", "i3"],
+            },
+            "e9": {
+                "ocel:activity": "ship order",
+                "ocel:timestamp": "2023-01-01T13:00:00Z",
+                "ocel:omap": ["o2"],
+            },
         },
         "ocel:objects": {
             "o1": {"ocel:type": "order"},
@@ -85,7 +121,7 @@ def e2e_ocel_json() -> bytes:
             "i1": {"ocel:type": "item"},
             "i2": {"ocel:type": "item"},
             "i3": {"ocel:type": "item"},
-        }
+        },
     }
     return json.dumps(ocel_data).encode()
 
@@ -178,10 +214,7 @@ class TestE2EUploadFlow:
         variants = response.json()
 
         # Should have multiple variants
-        if isinstance(variants, dict):
-            variant_list = variants.get("variants", [])
-        else:
-            variant_list = variants
+        variant_list = variants.get("variants", []) if isinstance(variants, dict) else variants
 
         assert len(variant_list) >= 1
         # Case counts should sum to 5
@@ -453,11 +486,7 @@ class TestE2EFilteringFlow:
         """
         response = await client.post(
             f"/api/v1/filtering/logs/{e2e_log_id}/filter",
-            json={
-                "filters": [
-                    {"type": "variants_top_k", "params": {"k": 2}}
-                ]
-            },
+            json={"filters": [{"type": "variants_top_k", "params": {"k": 2}}]},
         )
         assert response.status_code == 200
 
@@ -469,7 +498,10 @@ class TestE2EFilteringFlow:
             f"/api/v1/filtering/logs/{e2e_log_id}/filter",
             json={
                 "filters": [
-                    {"type": "activities", "params": {"activities": ["Approve Application"], "mode": "keep"}}
+                    {
+                        "type": "activities",
+                        "params": {"activities": ["Approve Application"], "mode": "keep"},
+                    }
                 ]
             },
         )
@@ -481,11 +513,7 @@ class TestE2EFilteringFlow:
         """
         response = await client.post(
             f"/api/v1/filtering/logs/{e2e_log_id}/filter",
-            json={
-                "filters": [
-                    {"type": "case_size", "params": {"min_size": 5}}
-                ]
-            },
+            json={"filters": [{"type": "case_size", "params": {"min_size": 5}}]},
         )
         assert response.status_code == 200
 
@@ -526,11 +554,18 @@ class TestE2EOCPMFlow:
         """
         # First upload
         import json
+
         ocel_data = {
             "ocel:global-event": {"ocel:ordering": "timestamp"},
             "ocel:global-object": {"ocel:type": ["order", "item"]},
-            "ocel:events": {"e1": {"ocel:activity": "test", "ocel:timestamp": "2023-01-01T09:00:00Z", "ocel:omap": ["o1"]}},
-            "ocel:objects": {"o1": {"ocel:type": "order"}}
+            "ocel:events": {
+                "e1": {
+                    "ocel:activity": "test",
+                    "ocel:timestamp": "2023-01-01T09:00:00Z",
+                    "ocel:omap": ["o1"],
+                }
+            },
+            "ocel:objects": {"o1": {"ocel:type": "order"}},
         }
         response = await client.post(
             "/api/v1/ocpm/",
@@ -674,9 +709,7 @@ class TestE2ESimulationFlow:
             "/api/v1/simulation/scenario",
             json={
                 "log_id": e2e_log_id,
-                "modifications": [
-                    {"type": "reduce_duration", "factor": 0.8}
-                ]
+                "modifications": [{"type": "reduce_duration", "factor": 0.8}],
             },
         )
         assert response.status_code == 200
@@ -718,9 +751,7 @@ class TestE2EFeatureSummary:
             response = await client.get(endpoint)
             assert response.status_code == 200, f"{category} API not accessible at {endpoint}"
 
-    async def test_complete_happy_path(
-        self, client: AsyncClient, e2e_process_csv: bytes
-    ):
+    async def test_complete_happy_path(self, client: AsyncClient, e2e_process_csv: bytes):
         """
         Complete E2E happy path: Upload → Discover → Analyze → Conform.
 
@@ -768,7 +799,7 @@ class TestE2EFeatureSummary:
         response = await client.get(f"/api/v1/organizational/logs/{log_id}/handover")
         assert response.status_code == 200
 
-        print(f"✅ Complete E2E happy path passed!")
+        print("✅ Complete E2E happy path passed!")
         print(f"   Log: {log_id}")
         print(f"   Model: {model_id}")
         print(f"   Fitness: {fitness}")

@@ -4,16 +4,14 @@ Endpoints returning structured data for React visualization libraries.
 """
 
 import time
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Response
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
 from src.api.dependencies import DBSession
 from src.core.enums import ModelFormat
 from src.core.logging_config import get_logger
-from src.models.orm import Dataset, ProcessCase, ProcessModel
+from src.models.orm import Dataset, ProcessModel
 from src.models.schemas import (
     ActivityDetailResponse,
     DFGEdge,
@@ -69,6 +67,16 @@ async def get_dfg(
     if not event_log:
         logger.warning("log_not_found", log_id=log_id)
         raise HTTPException(status_code=404, detail=f"Event log not found: {log_id}")
+
+    # FIX: Validate dataset is ready for visualization
+    from src.models.orm import DatasetStatus
+
+    if event_log.status != DatasetStatus.READY.value:
+        logger.warning("dataset_not_ready", log_id=log_id, status=event_log.status)
+        raise HTTPException(
+            status_code=409,
+            detail=f"Dataset not ready (status: {event_log.status}). Complete ingestion first.",
+        )
 
     # Get DFG data (mining_service uses efficient DuckDB path internally)
     if include_performance:
@@ -167,8 +175,8 @@ async def get_petri_net(
             )
         )
 
-    initial_marking = [str(p.name) for p in im.keys()] if im else []
-    final_marking = [str(p.name) for p in fm.keys()] if fm else []
+    initial_marking = [str(p.name) for p in im] if im else []
+    final_marking = [str(p.name) for p in fm] if fm else []
 
     return PetriNetResponse(
         places=places,
@@ -211,7 +219,7 @@ async def get_model_svg(
     try:
         svg_bytes = mining_service.visualize_model(model_data, model_format)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Visualization failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Visualization failed: {e!s}")
 
     return Response(
         content=svg_bytes,
@@ -243,12 +251,10 @@ async def get_dfg_svg(
         # BUG-060 FIX: Use mining_service.get_dfg_data which uses DuckDB
         dfg_data = mining_service.get_dfg_data(event_log)
         svg_bytes = mining_service.visualize_dfg(
-            dfg_data["dfg"], 
-            dfg_data["start_activities"], 
-            dfg_data["end_activities"]
+            dfg_data["dfg"], dfg_data["start_activities"], dfg_data["end_activities"]
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Visualization failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Visualization failed: {e!s}")
 
     return Response(
         content=svg_bytes,
@@ -323,7 +329,7 @@ async def get_explorer_data(
     start_time = time.perf_counter()
 
     # BUG-060 FIX: Remove eager loading of cases/events (Severe OOM risk)
-    # mining_service methods below (get_dfg_data, get_variants_fast, etc.) 
+    # mining_service methods below (get_dfg_data, get_variants_fast, etc.)
     # all leverage DuckDB for vectorized/streaming calculation.
     query = select(Dataset).where(Dataset.id == log_id)
     result = await db.execute(query)
@@ -332,6 +338,16 @@ async def get_explorer_data(
     if not event_log:
         logger.warning("log_not_found", log_id=log_id)
         raise HTTPException(status_code=404, detail=f"Event log not found: {log_id}")
+
+    # FIX: Validate dataset is ready for visualization
+    from src.models.orm import DatasetStatus
+
+    if event_log.status != DatasetStatus.READY.value:
+        logger.warning("dataset_not_ready", log_id=log_id, status=event_log.status)
+        raise HTTPException(
+            status_code=409,
+            detail=f"Dataset not ready (status: {event_log.status}). Complete ingestion first.",
+        )
 
     # Get DFG data
     if include_performance:
@@ -349,15 +365,15 @@ async def get_explorer_data(
 
     # BUG-060 FIX: Use vectorized variant computation (DuckDB) instead of ORM loop
     variants_data = mining_service.get_variants_fast(log_id, top_n=top_variants)
-    
+
     variants = []
     for v in variants_data.get("top_variants", []):
         variant_key = v["variant_key"]
-        
+
         # Build response with optional complexity
-        complexity_score: Optional[float] = None
-        rework_count: Optional[int] = None
-        unique_activity_count: Optional[int] = None
+        complexity_score: float | None = None
+        rework_count: int | None = None
+        unique_activity_count: int | None = None
 
         if include_complexity:
             complexity = mining_service.calculate_variant_complexity(variant_key)
@@ -365,16 +381,18 @@ async def get_explorer_data(
             rework_count = complexity.get("rework_count")
             unique_activity_count = complexity.get("unique_activity_count")
 
-        variants.append(VariantResponse(
-            variant_key=variant_key,
-            activity_trace=variant_key,
-            case_count=v["case_count"],
-            frequency_percent=v["frequency_percent"],
-            avg_duration_seconds=v.get("avg_duration_seconds"),
-            complexity_score=complexity_score,
-            rework_count=rework_count,
-            unique_activity_count=unique_activity_count,
-        ))
+        variants.append(
+            VariantResponse(
+                variant_key=variant_key,
+                activity_trace=variant_key,
+                case_count=v["case_count"],
+                frequency_percent=v["frequency_percent"],
+                avg_duration_seconds=v.get("avg_duration_seconds"),
+                complexity_score=complexity_score,
+                rework_count=rework_count,
+                unique_activity_count=unique_activity_count,
+            )
+        )
 
     # Get activities
     activities_data = mining_service.get_activity_statistics(event_log)
@@ -389,10 +407,7 @@ async def get_explorer_data(
 
     date_range = None
     if case_stats.get("start_time"):
-        date_range = {
-            "start": case_stats["start_time"], 
-            "end": case_stats["end_time"]
-        }
+        date_range = {"start": case_stats["start_time"], "end": case_stats["end_time"]}
 
     activities_list = json.loads(event_log.activities_json) if event_log.activities_json else []
     statistics = StatisticsResponse(

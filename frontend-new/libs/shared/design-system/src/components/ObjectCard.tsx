@@ -17,8 +17,8 @@
  *   onClick={() => navigate(`/logs/${id}`)}
  * />
  */
-import React, { useState } from 'react';
-import { Card, Typography, Space, Tooltip } from 'antd';
+import { useState } from 'react';
+import { Card, Typography, Tooltip } from 'antd';
 import {
   FolderOutlined,
   FileTextOutlined,
@@ -27,7 +27,6 @@ import {
   ApiOutlined,
   BellOutlined,
   InboxOutlined,
-  MoreOutlined,
 } from '@ant-design/icons';
 import { StatusBadge, type ObjectStatus } from './StatusBadge';
 import { tokens } from '../theme';
@@ -163,10 +162,10 @@ export function ObjectCard({
     ? typeof timestamp === 'string'
       ? timestamp
       : timestamp.toLocaleDateString(undefined, {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        })
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })
     : null;
 
   return (
@@ -352,7 +351,7 @@ export interface ObjectCardGridProps {
 
 export function ObjectCardGrid({
   children,
-  columns = 3,
+  _columns = 3,
   gap = tokens.spacing[4],
 }: ObjectCardGridProps) {
   return (

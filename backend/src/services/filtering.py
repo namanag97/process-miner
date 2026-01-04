@@ -4,15 +4,12 @@ Provides comprehensive event log filtering capabilities using PM4Py's filtering 
 Supports time-based, variant-based, activity-based, and performance-based filtering.
 """
 
-import json
 import time
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 import pm4py
-from pm4py.objects.log.obj import Event as PM4PyEvent
 from pm4py.objects.log.obj import EventLog as PM4PyLog
-from pm4py.objects.log.obj import Trace
 
 from src.core.logging_config import get_logger
 from src.models.orm import Dataset
@@ -33,16 +30,16 @@ class FilterType:
     START_ACTIVITIES = "start_activities"
     END_ACTIVITIES = "end_activities"
     ATTRIBUTE_VALUES = "attribute_values"
-    
+
     # Advanced filters (Phase 4 PM4py integration)
-    DIRECTLY_FOLLOWS = "directly_follows"          # Keep cases with A directly before B
-    EVENTUALLY_FOLLOWS = "eventually_follows"      # Keep cases with A eventually before B
-    BETWEEN = "between"                            # Extract sub-cases between two activities
-    FOUR_EYES = "four_eyes"                        # Governance: different resources for A and B
-    REWORK = "rework"                              # Cases with activity repetition
-    PREFIXES = "prefixes"                          # Extract case prefixes
-    SUFFIXES = "suffixes"                          # Extract case suffixes
-    PATH_PERFORMANCE = "path_performance"          # Filter by path duration
+    DIRECTLY_FOLLOWS = "directly_follows"  # Keep cases with A directly before B
+    EVENTUALLY_FOLLOWS = "eventually_follows"  # Keep cases with A eventually before B
+    BETWEEN = "between"  # Extract sub-cases between two activities
+    FOUR_EYES = "four_eyes"  # Governance: different resources for A and B
+    REWORK = "rework"  # Cases with activity repetition
+    PREFIXES = "prefixes"  # Extract case prefixes
+    SUFFIXES = "suffixes"  # Extract case suffixes
+    PATH_PERFORMANCE = "path_performance"  # Filter by path duration
 
 
 class FilteringService:
@@ -287,8 +284,8 @@ class FilteringService:
     def filter_case_performance(
         self,
         pm4py_log: PM4PyLog,
-        min_duration: Optional[float] = None,
-        max_duration: Optional[float] = None,
+        min_duration: float | None = None,
+        max_duration: float | None = None,
     ) -> PM4PyLog:
         """
         Filter cases by duration (in seconds).
@@ -327,7 +324,7 @@ class FilteringService:
         self,
         pm4py_log: PM4PyLog,
         min_size: int = 1,
-        max_size: Optional[int] = None,
+        max_size: int | None = None,
     ) -> PM4PyLog:
         """
         Filter cases by number of events.
@@ -426,13 +423,13 @@ class FilteringService:
     ) -> PM4PyLog:
         """
         Filter cases where activity A directly precedes activity B.
-        
+
         Args:
             pm4py_log: PM4Py event log
             activity_a: First activity
             activity_b: Second activity (must directly follow A)
             retain: If True, keep matching cases; if False, exclude
-            
+
         Returns:
             Filtered PM4Py log
         """
@@ -467,13 +464,13 @@ class FilteringService:
     ) -> PM4PyLog:
         """
         Filter cases where activity A eventually precedes activity B.
-        
+
         Args:
             pm4py_log: PM4Py event log
             activity_a: First activity
             activity_b: Second activity (must eventually follow A)
             retain: If True, keep matching cases; if False, exclude
-            
+
         Returns:
             Filtered PM4Py log
         """
@@ -507,14 +504,14 @@ class FilteringService:
     ) -> PM4PyLog:
         """
         Extract sub-cases between two activities.
-        
+
         Creates new traces containing only events between A and B (inclusive).
-        
+
         Args:
             pm4py_log: PM4Py event log
             activity_a: Start activity
             activity_b: End activity
-            
+
         Returns:
             Log with sub-traces between A and B
         """
@@ -544,14 +541,14 @@ class FilteringService:
     ) -> PM4PyLog:
         """
         Filter cases where activities A and B are done by different resources.
-        
+
         Governance filter for separation of duties compliance.
-        
+
         Args:
             pm4py_log: PM4Py event log
             activity_a: First activity
             activity_b: Second activity
-            
+
         Returns:
             Cases where A and B have different resources
         """
@@ -581,12 +578,12 @@ class FilteringService:
     ) -> PM4PyLog:
         """
         Filter cases with activity rework (repeated execution).
-        
+
         Args:
             pm4py_log: PM4Py event log
             activity: Activity to check for repetition
             min_occurrences: Minimum number of occurrences to consider rework
-            
+
         Returns:
             Cases where activity appears multiple times
         """
@@ -624,11 +621,11 @@ class FilteringService:
     ) -> PM4PyLog:
         """
         Extract prefix of each case up to specified length.
-        
+
         Args:
             pm4py_log: PM4Py event log
             length: Maximum prefix length
-            
+
         Returns:
             Log with truncated traces (prefixes only)
         """
@@ -656,11 +653,11 @@ class FilteringService:
     ) -> PM4PyLog:
         """
         Extract suffix of each case (last N events).
-        
+
         Args:
             pm4py_log: PM4Py event log
             length: Maximum suffix length
-            
+
         Returns:
             Log with truncated traces (suffixes only)
         """
@@ -685,18 +682,18 @@ class FilteringService:
         self,
         pm4py_log: PM4PyLog,
         path: list[str],
-        min_duration: Optional[float] = None,
-        max_duration: Optional[float] = None,
+        min_duration: float | None = None,
+        max_duration: float | None = None,
     ) -> PM4PyLog:
         """
         Filter cases by performance (duration) along a specific path.
-        
+
         Args:
             pm4py_log: PM4Py event log
             path: Activity sequence to measure
             min_duration: Minimum path duration in seconds
             max_duration: Maximum path duration in seconds
-            
+
         Returns:
             Cases where path duration is within bounds
         """
@@ -786,49 +783,49 @@ class FilteringService:
             end_time = datetime.fromisoformat(params["end_time"])
             return self.filter_time_range(pm4py_log, start_time, end_time)
 
-        elif filter_type == FilterType.VARIANTS_TOP_K:
+        if filter_type == FilterType.VARIANTS_TOP_K:
             return self.filter_variants_top_k(pm4py_log, k=params.get("k", 10))
 
-        elif filter_type == FilterType.VARIANTS_COVERAGE:
+        if filter_type == FilterType.VARIANTS_COVERAGE:
             return self.filter_variants_coverage(
                 pm4py_log,
                 min_coverage_percentage=params.get("coverage", 0.8),
             )
 
-        elif filter_type == FilterType.ACTIVITIES:
+        if filter_type == FilterType.ACTIVITIES:
             return self.filter_activities(
                 pm4py_log,
                 activities=params["activities"],
                 mode=params.get("mode", "keep"),
             )
 
-        elif filter_type == FilterType.CASE_PERFORMANCE:
+        if filter_type == FilterType.CASE_PERFORMANCE:
             return self.filter_case_performance(
                 pm4py_log,
                 min_duration=params.get("min_duration"),
                 max_duration=params.get("max_duration"),
             )
 
-        elif filter_type == FilterType.CASE_SIZE:
+        if filter_type == FilterType.CASE_SIZE:
             return self.filter_case_size(
                 pm4py_log,
                 min_size=params.get("min_size", 1),
                 max_size=params.get("max_size"),
             )
 
-        elif filter_type == FilterType.START_ACTIVITIES:
+        if filter_type == FilterType.START_ACTIVITIES:
             return self.filter_start_activities(
                 pm4py_log,
                 activities=params["activities"],
             )
 
-        elif filter_type == FilterType.END_ACTIVITIES:
+        if filter_type == FilterType.END_ACTIVITIES:
             return self.filter_end_activities(
                 pm4py_log,
                 activities=params["activities"],
             )
 
-        elif filter_type == FilterType.ATTRIBUTE_VALUES:
+        if filter_type == FilterType.ATTRIBUTE_VALUES:
             return self.filter_attribute_values(
                 pm4py_log,
                 attribute_key=params["attribute"],
@@ -837,8 +834,7 @@ class FilteringService:
                 level=params.get("level", "case"),
             )
 
-        else:
-            raise ValueError(f"Unknown filter type: {filter_type}")
+        raise ValueError(f"Unknown filter type: {filter_type}")
 
     # =========================================================================
     # Statistics & Analysis
@@ -941,8 +937,8 @@ class FilteringService:
         )
 
         return {
-            "activities": sorted(list(activities)),
-            "resources": sorted(list(resources)) if resources else [],
+            "activities": sorted(activities),
+            "resources": sorted(resources) if resources else [],
             "start_activities": dict(start_activities),
             "end_activities": dict(end_activities),
             "total_variants": len(variants),
@@ -1018,6 +1014,7 @@ class FilteringService:
         due to lazy="raise" on Dataset.cases relationship.
         """
         import warnings
+
         warnings.warn(
             "FilteringService.to_pm4py_log() is deprecated. "
             "Use event_log_loader.load_as_pm4py_log(log_id) instead.",
@@ -1027,6 +1024,7 @@ class FilteringService:
 
         # Use fast path instead of ORM iteration
         from src.services.event_log_loader import event_log_loader
+
         return event_log_loader.load_as_pm4py_log(event_log.id)
 
 

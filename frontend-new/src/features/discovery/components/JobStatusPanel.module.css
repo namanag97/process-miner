@@ -1,0 +1,160 @@
+/**
+ * JobStatusPanel Styles
+ */
+
+.container {
+    padding: 1rem;
+    background: var(--color-surface, #1e1e2e);
+    border-radius: 8px;
+    border: 1px solid var(--color-border, #333);
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.statusIcon {
+    font-size: 1.25rem;
+}
+
+.statusText {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.pollingIndicator {
+    width: 8px;
+    height: 8px;
+    background: var(--color-primary, #6366f1);
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+    margin-left: auto;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 0.4;
+        transform: scale(0.8);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.progressContainer {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.progressBar {
+    flex: 1;
+    height: 8px;
+    background: var(--color-surface-secondary, #252535);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progressFill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.progressText {
+    font-size: 0.75rem;
+    color: var(--color-text-secondary, #888);
+    min-width: 36px;
+    text-align: right;
+}
+
+.stage {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary, #888);
+    margin-bottom: 0.5rem;
+}
+
+.errorMessage {
+    padding: 0.5rem;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid var(--color-error, #ef4444);
+    border-radius: 4px;
+    color: var(--color-error, #ef4444);
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+}
+
+.cancelButton {
+    margin-top: 0.75rem;
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: 1px solid var(--color-border, #444);
+    border-radius: 6px;
+    color: var(--color-text-secondary, #999);
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+.cancelButton:hover {
+    background: var(--color-surface-hover, #2a2a3e);
+    border-color: var(--color-error, #ef4444);
+    color: var(--color-error, #ef4444);
+}
+
+.completedInfo {
+    padding: 0.5rem;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid var(--color-success, #10b981);
+    border-radius: 4px;
+    color: var(--color-success, #10b981);
+    font-size: 0.8rem;
+}
+
+.completedInfo code {
+    font-family: monospace;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0.125rem 0.25rem;
+    border-radius: 2px;
+}
+
+.loading {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--color-text-secondary, #888);
+}
+
+.spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--color-border, #444);
+    border-top-color: var(--color-primary, #6366f1);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.error {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--color-error, #ef4444);
+}
+
+.errorIcon {
+    font-size: 1rem;
+}

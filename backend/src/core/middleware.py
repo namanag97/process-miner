@@ -2,7 +2,7 @@
 
 import time
 import uuid
-from typing import Callable
+from collections.abc import Callable
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -43,16 +43,19 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         )
 
         # Filter: Don't log observability endpoints to avoid feedback loop
-        should_log_to_devconsole = not request.url.path.startswith((
-            "/api/v1/dev/log",        # DevConsole log ingestion
-            "/metrics",                # Prometheus metrics
-            "/health",                 # Health checks
-        ))
+        should_log_to_devconsole = not request.url.path.startswith(
+            (
+                "/api/v1/dev/log",  # DevConsole log ingestion
+                "/metrics",  # Prometheus metrics
+                "/health",  # Health checks
+            )
+        )
 
         # Stream to frontend DevConsole (dev mode only)
         if should_log_to_devconsole:
             try:
                 from src.api.routers.dev_logs_stream import log_api_request
+
                 log_api_request(request.method, request.url.path, request_id)
             except ImportError:
                 pass
@@ -74,6 +77,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             if should_log_to_devconsole:
                 try:
                     from src.api.routers.dev_logs_stream import log_api_response
+
                     log_api_response(
                         request.method,
                         request.url.path,
@@ -97,10 +101,11 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 error_type=type(e).__name__,
                 duration_ms=round(duration_ms, 2),
             )
-            
+
             # Stream error to frontend DevConsole
             try:
                 from src.api.routers.dev_logs_stream import log_error
+
                 log_error(
                     request.url.path,
                     str(e),
@@ -108,7 +113,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 )
             except ImportError:
                 pass
-            
+
             raise
 
         finally:

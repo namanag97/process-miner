@@ -26,15 +26,11 @@ import {
   Empty,
   Tooltip,
   Modal,
-  Input,
-  Select,
-  Divider,
   Tag,
 } from 'antd';
 import {
   PlusOutlined,
   DeleteOutlined,
-  DragOutlined,
   SettingOutlined,
   SaveOutlined,
   EyeOutlined,
@@ -244,7 +240,7 @@ export function DashboardBuilder({
       const newItems = [...layout.items];
       const item = newItems[index];
       const widget = widgetMap.get(item.widgetId);
-      
+
       if (direction === 'grow') {
         const maxW = widget?.maxSize?.w || columns;
         const maxH = widget?.maxSize?.h || 4;
@@ -256,14 +252,14 @@ export function DashboardBuilder({
         item.w = Math.max(item.w - 1, minW);
         item.h = Math.max(item.h - 1, minH);
       }
-      
+
       onLayoutChange({ ...layout, items: newItems });
     },
     [layout, onLayoutChange, widgetMap, columns]
   );
 
   // Default widget renderer
-  const defaultRenderWidget = (widget: WidgetConfig, settings?: Record<string, any>) => (
+  const defaultRenderWidget = (widget: WidgetConfig, _settings?: Record<string, any>) => (
     <div
       style={{
         height: '100%',

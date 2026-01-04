@@ -334,6 +334,10 @@ function LogEntryRow({ entry, showImportance }: { entry: LogEntry; showImportanc
   const isStuck = entry.isPending && entry.pendingSince &&
     (new Date().getTime() - entry.pendingSince.getTime()) > 5000;
 
+  // Check if request is slow (for visual indicators)
+  const isSlow = entry.duration && entry.duration > 1000;
+  const isModeratelySlow = entry.duration && entry.duration > 500 && entry.duration <= 1000;
+
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
     const logText = JSON.stringify({
@@ -354,9 +358,14 @@ function LogEntryRow({ entry, showImportance }: { entry: LogEntry; showImportanc
         padding: '8px 12px',
         borderBottom: '1px solid #f0f0f0',
         cursor: entry.data ? 'pointer' : 'default',
-        background: expanded ? '#fafafa' : entry.importance >= 4 ? '#fff7e6' : 'white',
+        background: expanded ? '#fafafa' :
+          isSlow ? '#fff1f0' :
+          isModeratelySlow ? '#fff7e6' :
+          entry.importance >= 4 ? '#fff7e6' : 'white',
         borderLeft: entry.importance === 5 ? '3px solid #ff4d4f' :
-          entry.importance === 4 ? '3px solid #fa8c16' : 'none',
+          entry.importance === 4 ? '3px solid #fa8c16' :
+          isSlow ? '3px solid #ff4d4f' :
+          isModeratelySlow ? '3px solid #fa8c16' : 'none',
       }}
       onClick={() => entry.data && setExpanded(!expanded)}
     >
@@ -372,6 +381,13 @@ function LogEntryRow({ entry, showImportance }: { entry: LogEntry; showImportanc
           <Tooltip title={isStuck ? 'Request stuck!' : 'Pending...'}>
             <Tag color={isStuck ? 'red' : 'processing'} icon={isStuck ? <ExclamationCircleOutlined /> : <Spin size="small" />}>
               {isStuck ? 'STUCK' : 'PENDING'}
+            </Tag>
+          </Tooltip>
+        )}
+        {isSlow && (
+          <Tooltip title="Slow request (>1s) - consider optimization">
+            <Tag color="red" icon={<ClockCircleOutlined />}>
+              SLOW
             </Tag>
           </Tooltip>
         )}
@@ -705,6 +721,30 @@ export function DevConsole() {
     r => r.pendingSince && (new Date().getTime() - r.pendingSince.getTime()) > 5000
   ).length;
 
+  // Helper: Detect polling/high-frequency endpoints
+  const isPollingEndpoint = useCallback((source: string): boolean => {
+    const pollingPatterns = [
+      '/jobs/',
+      '/status',
+      '/health',
+      '/heartbeat',
+      '/metrics',
+      '/stream',
+    ];
+    return pollingPatterns.some(p => source.toLowerCase().includes(p.toLowerCase()));
+  }, []);
+
+  // Helper: Extract request/response bodies from log data
+  const extractBodies = useCallback((log: LogEntry) => {
+    const result: { requestBody?: unknown; responseBody?: unknown } = {};
+    if (log.data && typeof log.data === 'object') {
+      const data = log.data as Record<string, unknown>;
+      if ('requestBody' in data) result.requestBody = data.requestBody;
+      if ('responseBody' in data) result.responseBody = data.responseBody;
+    }
+    return result;
+  }, []);
+
   const handleExport = useCallback((options: ExportOptions) => {
     const now = new Date();
 
@@ -726,13 +766,18 @@ export function DevConsole() {
 
     // Compress repetitive logs
     let compressedLogs: unknown[] = [];
+    const consolidationPatterns: { pattern: string; count: number; sample: string }[] = [];
+
     if (options.compressRepetitive) {
       const grouped = new Map<string, LogEntry[]>();
       const singles: LogEntry[] = [];
 
       exportLogs.forEach(log => {
-        // Group noise logs
-        if (log.importance === 1) {
+        // Group noise logs AND polling endpoints
+        const isRepetitive = log.importance === 1 ||
+          (log.level === 'api-res' && isPollingEndpoint(log.source));
+
+        if (isRepetitive) {
           const key = `${log.level}:${log.source}`;
           grouped.set(key, [...(grouped.get(key) || []), log]);
         } else {
@@ -740,9 +785,14 @@ export function DevConsole() {
         }
       });
 
-      // Add collapsed noise logs
+      // Add collapsed repetitive logs
       grouped.forEach((items, key) => {
         if (items.length > 3) {
+          consolidationPatterns.push({
+            pattern: key,
+            count: items.length,
+            sample: items[0].message,
+          });
           compressedLogs.push({
             _collapsed: true,
             count: items.length,
@@ -762,28 +812,36 @@ export function DevConsole() {
         }
       });
 
-      // Add individual logs
-      compressedLogs.push(...singles.map(log => ({
-        timestamp: log.timestamp.toISOString(),
-        level: log.level,
-        source: log.source,
-        message: log.message,
-        data: log.data,
-        duration: log.duration,
-        status: log.status,
-        importance: log.importance,
-      })));
-    } else {
-      compressedLogs = exportLogs.map(log => ({
-        timestamp: log.timestamp.toISOString(),
-        level: log.level,
-        source: log.source,
-        message: log.message,
-        data: log.data,
-        duration: log.duration,
-        status: log.status,
-        importance: log.importance,
+      // Add individual logs with extracted bodies
+      compressedLogs.push(...singles.map(log => {
+        const bodies = extractBodies(log);
+        return {
+          timestamp: log.timestamp.toISOString(),
+          level: log.level,
+          source: log.source,
+          message: log.message,
+          data: log.data,
+          ...bodies,
+          duration: log.duration,
+          status: log.status,
+          importance: log.importance,
+        };
       }));
+    } else {
+      compressedLogs = exportLogs.map(log => {
+        const bodies = extractBodies(log);
+        return {
+          timestamp: log.timestamp.toISOString(),
+          level: log.level,
+          source: log.source,
+          message: log.message,
+          data: log.data,
+          ...bodies,
+          duration: log.duration,
+          status: log.status,
+          importance: log.importance,
+        };
+      });
     }
 
     // Build flow timeline
@@ -815,6 +873,13 @@ export function DevConsole() {
       exported_logs: compressedLogs.length,
       compression_ratio: logs.length > 0 ?
         Math.round((1 - compressedLogs.length / logs.length) * 100) + '%' : '0%',
+      ...(consolidationPatterns.length > 0 && {
+        consolidation_summary: {
+          total_before: exportLogs.length,
+          total_after: compressedLogs.length,
+          collapsed_patterns: consolidationPatterns,
+        },
+      }),
       stats: {
         errors: exportLogs.filter(l => l.level === 'error').length,
         slow_requests: exportLogs.filter(l => l.duration && l.duration > 1000).length,
@@ -846,7 +911,7 @@ export function DevConsole() {
     a.click();
     URL.revokeObjectURL(url);
     setShowExportModal(false);
-  }, [logs]);
+  }, [logs, isPollingEndpoint, extractBodies]);
 
   // Don't render in production
   if (process.env.NODE_ENV !== 'development') {

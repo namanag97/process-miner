@@ -159,8 +159,8 @@ export function detectOptimalDirection(
   });
 
   // Count nodes with no incoming edges (start nodes)
-  const startNodes = nodes.filter((n) => (inDegree.get(n.id) || 0) === 0);
-  const endNodes = nodes.filter((n) => (outDegree.get(n.id) || 0) === 0);
+  const _startNodes = nodes.filter((n) => (inDegree.get(n.id) || 0) === 0);
+  const _endNodes = nodes.filter((n) => (outDegree.get(n.id) || 0) === 0);
 
   // If there are more start/end nodes than the graph is wide, use TB
   // Otherwise use LR (typical process flow)

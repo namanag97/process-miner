@@ -14,7 +14,7 @@ Usage:
 import asyncio
 import time
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Response
 from pydantic import BaseModel, Field
@@ -32,23 +32,27 @@ router = APIRouter(prefix="/health", tags=["Health"])
 # Response Models
 # =============================================================================
 
+
 class HealthStatus(BaseModel):
     """Basic health status response."""
+
     status: str = Field(..., examples=["healthy", "degraded", "unhealthy"])
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
 class ComponentHealth(BaseModel):
     """Health status for a single component."""
+
     name: str
     status: str  # healthy, degraded, unhealthy
-    latency_ms: Optional[float] = None
-    message: Optional[str] = None
-    details: Optional[dict[str, Any]] = None
+    latency_ms: float | None = None
+    message: str | None = None
+    details: dict[str, Any] | None = None
 
 
 class DetailedHealthResponse(BaseModel):
     """Detailed health response with component breakdown."""
+
     status: str
     version: str
     uptime_seconds: float
@@ -60,7 +64,7 @@ class DetailedHealthResponse(BaseModel):
 # Startup Time Tracking
 # =============================================================================
 
-_startup_time: Optional[float] = None
+_startup_time: float | None = None
 _startup_complete: bool = False
 
 
@@ -83,17 +87,19 @@ def get_uptime() -> float:
 # Health Check Functions
 # =============================================================================
 
+
 async def check_database() -> ComponentHealth:
     """Check database connectivity."""
     from sqlalchemy import text
+
     from src.models.database import async_engine
-    
+
     start = time.perf_counter()
     try:
         # Simple connectivity check
         async with async_engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-        
+
         latency = (time.perf_counter() - start) * 1000
         return ComponentHealth(
             name="database",
@@ -114,12 +120,12 @@ async def check_cache() -> ComponentHealth:
     """Check cache connectivity."""
     try:
         from src.infrastructure.cache import cache_service
-        
+
         start = time.perf_counter()
         # Try to get a non-existent key (should return None quickly)
         cache_service.get("__health_check__")
         latency = (time.perf_counter() - start) * 1000
-        
+
         return ComponentHealth(
             name="cache",
             status="healthy",
@@ -139,9 +145,10 @@ async def check_pm4py() -> ComponentHealth:
     start = time.perf_counter()
     try:
         import pm4py
+
         version = pm4py.__version__
         latency = (time.perf_counter() - start) * 1000
-        
+
         return ComponentHealth(
             name="pm4py",
             status="healthy",
@@ -160,10 +167,10 @@ async def check_circuit_breakers() -> ComponentHealth:
     """Check circuit breaker states."""
     try:
         from src.infrastructure.circuit_breaker import get_all_circuit_statuses
-        
+
         statuses = get_all_circuit_statuses()
         open_circuits = [s for s in statuses if s["state"] == "open"]
-        
+
         if open_circuits:
             return ComponentHealth(
                 name="circuit_breakers",
@@ -171,13 +178,13 @@ async def check_circuit_breakers() -> ComponentHealth:
                 message=f"{len(open_circuits)} circuit(s) open",
                 details={"circuits": statuses},
             )
-        
+
         return ComponentHealth(
             name="circuit_breakers",
             status="healthy",
             details={"circuits": statuses},
         )
-    except Exception as e:
+    except Exception:
         return ComponentHealth(
             name="circuit_breakers",
             status="healthy",  # If not configured, that's fine
@@ -188,19 +195,19 @@ async def check_circuit_breakers() -> ComponentHealth:
 async def check_disk_space() -> ComponentHealth:
     """Check available disk space."""
     import shutil
-    
+
     try:
         usage = shutil.disk_usage(settings.upload_dir)
-        free_gb = usage.free / (1024 ** 3)
-        total_gb = usage.total / (1024 ** 3)
+        free_gb = usage.free / (1024**3)
+        total_gb = usage.total / (1024**3)
         used_percent = (usage.used / usage.total) * 100
-        
+
         status = "healthy"
         if used_percent > 90:
             status = "unhealthy"
         elif used_percent > 80:
             status = "degraded"
-        
+
         return ComponentHealth(
             name="disk",
             status=status,
@@ -222,10 +229,11 @@ async def check_disk_space() -> ComponentHealth:
 # Endpoints
 # =============================================================================
 
+
 @router.get("/live", response_model=HealthStatus)
 async def liveness_probe() -> HealthStatus:
     """Kubernetes liveness probe.
-    
+
     Returns 200 if the process is alive and responding.
     Used by Kubernetes to restart unhealthy pods.
     """
@@ -235,37 +243,37 @@ async def liveness_probe() -> HealthStatus:
 @router.get("/ready", response_model=HealthStatus)
 async def readiness_probe(response: Response) -> HealthStatus:
     """Kubernetes readiness probe.
-    
+
     Returns 200 if the service can handle traffic.
     Checks critical dependencies (database).
     """
     db_health = await check_database()
-    
+
     if db_health.status == "unhealthy":
         response.status_code = 503
         return HealthStatus(status="unhealthy")
-    
+
     return HealthStatus(status="healthy")
 
 
 @router.get("/startup", response_model=HealthStatus)
 async def startup_probe(response: Response) -> HealthStatus:
     """Kubernetes startup probe.
-    
+
     Returns 200 once the application has completed initialization.
     Used to prevent premature health checks during slow startups.
     """
     if not _startup_complete:
         response.status_code = 503
         return HealthStatus(status="starting")
-    
+
     return HealthStatus(status="healthy")
 
 
 @router.get("/detailed", response_model=DetailedHealthResponse)
 async def detailed_health() -> DetailedHealthResponse:
     """Detailed health status for monitoring dashboards.
-    
+
     Returns comprehensive status of all components with timing info.
     """
     # Run all health checks concurrently
@@ -276,7 +284,7 @@ async def detailed_health() -> DetailedHealthResponse:
         check_circuit_breakers(),
         check_disk_space(),
     )
-    
+
     # Determine overall status
     statuses = [c.status for c in components]
     if "unhealthy" in statuses:
@@ -285,7 +293,7 @@ async def detailed_health() -> DetailedHealthResponse:
         overall = "degraded"
     else:
         overall = "healthy"
-    
+
     return DetailedHealthResponse(
         status=overall,
         version=settings.app_version,
@@ -298,7 +306,7 @@ async def detailed_health() -> DetailedHealthResponse:
 @router.get("", response_model=HealthStatus)
 async def health_check() -> HealthStatus:
     """Basic health check endpoint.
-    
+
     Quick check that the service is responding.
     Use /health/detailed for component-level status.
     """

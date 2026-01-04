@@ -10,7 +10,7 @@ Usage:
     @retry(max_attempts=3, backoff=ExponentialBackoff())
     async def call_external_service():
         return await http_client.get("/api/data")
-    
+
     # Or with custom configuration
     @retry(
         max_attempts=5,
@@ -25,8 +25,9 @@ import asyncio
 import functools
 import random
 import time
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Any, Callable, Optional, Sequence, Type, TypeVar, Union
+from typing import Any, TypeVar
 
 from src.core.logging_config import get_logger
 
@@ -38,7 +39,7 @@ T = TypeVar("T")
 @dataclass
 class BackoffStrategy:
     """Base class for backoff strategies."""
-    
+
     def get_delay(self, attempt: int) -> float:
         """Calculate delay for the given attempt number (0-indexed)."""
         raise NotImplementedError
@@ -47,9 +48,9 @@ class BackoffStrategy:
 @dataclass
 class ExponentialBackoff(BackoffStrategy):
     """Exponential backoff with optional jitter.
-    
+
     Delay = min(max_delay, base * (multiplier ** attempt)) + jitter
-    
+
     Attributes:
         base: Base delay in seconds
         multiplier: Exponential multiplier (default 2)
@@ -57,47 +58,47 @@ class ExponentialBackoff(BackoffStrategy):
         jitter: Whether to add random jitter (recommended for avoiding thundering herd)
         jitter_range: Range of jitter as fraction of delay (0.0 to 1.0)
     """
-    
+
     base: float = 1.0
     multiplier: float = 2.0
     max_delay: float = 60.0
     jitter: bool = True
     jitter_range: float = 0.25
-    
+
     def get_delay(self, attempt: int) -> float:
         """Calculate exponential delay with optional jitter."""
-        delay = min(self.max_delay, self.base * (self.multiplier ** attempt))
-        
+        delay = min(self.max_delay, self.base * (self.multiplier**attempt))
+
         if self.jitter:
             jitter_amount = delay * self.jitter_range
             delay += random.uniform(-jitter_amount, jitter_amount)
             delay = max(0, delay)  # Ensure non-negative
-        
+
         return delay
 
 
 @dataclass
 class LinearBackoff(BackoffStrategy):
     """Linear backoff strategy.
-    
+
     Delay = min(max_delay, base + (increment * attempt))
     """
-    
+
     base: float = 1.0
     increment: float = 1.0
     max_delay: float = 30.0
-    
+
     def get_delay(self, attempt: int) -> float:
         """Calculate linear delay."""
         return min(self.max_delay, self.base + (self.increment * attempt))
 
 
-@dataclass  
+@dataclass
 class ConstantBackoff(BackoffStrategy):
     """Constant delay between retries."""
-    
+
     delay: float = 1.0
-    
+
     def get_delay(self, attempt: int) -> float:
         """Return constant delay."""
         return self.delay
@@ -106,13 +107,13 @@ class ConstantBackoff(BackoffStrategy):
 @dataclass
 class RetryConfig:
     """Configuration for retry behavior."""
-    
+
     max_attempts: int = 3
     backoff: BackoffStrategy = None  # type: ignore
-    retry_on: Sequence[Type[Exception]] = ()
-    retry_if: Optional[Callable[[Exception], bool]] = None
-    on_retry: Optional[Callable[[Exception, int, float], None]] = None
-    
+    retry_on: Sequence[type[Exception]] = ()
+    retry_if: Callable[[Exception], bool] | None = None
+    on_retry: Callable[[Exception, int, float], None] | None = None
+
     def __post_init__(self):
         if self.backoff is None:
             self.backoff = ExponentialBackoff()
@@ -122,23 +123,23 @@ class RetryConfig:
 
 def retry(
     max_attempts: int = 3,
-    backoff: Optional[BackoffStrategy] = None,
-    retry_on: Sequence[Type[Exception]] = (),
-    retry_if: Optional[Callable[[Exception], bool]] = None,
-    on_retry: Optional[Callable[[Exception, int, float], None]] = None,
+    backoff: BackoffStrategy | None = None,
+    retry_on: Sequence[type[Exception]] = (),
+    retry_if: Callable[[Exception], bool] | None = None,
+    on_retry: Callable[[Exception, int, float], None] | None = None,
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Decorator that adds retry logic to a function.
-    
+
     Args:
         max_attempts: Maximum number of attempts (including initial)
         backoff: Backoff strategy for delays between retries
         retry_on: Exception types to retry on (default: all exceptions)
         retry_if: Custom predicate to determine if should retry
         on_retry: Callback called before each retry with (exception, attempt, delay)
-    
+
     Returns:
         Decorated function with retry logic
-        
+
     Example:
         @retry(max_attempts=3, backoff=ExponentialBackoff())
         async def fetch_data():
@@ -151,66 +152,66 @@ def retry(
         retry_if=retry_if,
         on_retry=on_retry,
     )
-    
+
     def decorator(fn: Callable[..., T]) -> Callable[..., T]:
         @functools.wraps(fn)
         def sync_wrapper(*args: Any, **kwargs: Any) -> T:
-            last_exception: Optional[Exception] = None
-            
+            last_exception: Exception | None = None
+
             for attempt in range(config.max_attempts):
                 try:
                     return fn(*args, **kwargs)
                 except Exception as e:
                     last_exception = e
-                    
+
                     if not _should_retry(e, config):
                         raise
-                    
+
                     if attempt < config.max_attempts - 1:
                         delay = config.backoff.get_delay(attempt)
                         _log_retry(fn.__name__, e, attempt + 1, config.max_attempts, delay)
-                        
+
                         if config.on_retry:
                             config.on_retry(e, attempt + 1, delay)
-                        
+
                         time.sleep(delay)
                     else:
                         raise
-            
+
             # Should never reach here, but for type safety
             raise last_exception  # type: ignore
-        
+
         @functools.wraps(fn)
         async def async_wrapper(*args: Any, **kwargs: Any) -> T:
-            last_exception: Optional[Exception] = None
-            
+            last_exception: Exception | None = None
+
             for attempt in range(config.max_attempts):
                 try:
                     return await fn(*args, **kwargs)
                 except Exception as e:
                     last_exception = e
-                    
+
                     if not _should_retry(e, config):
                         raise
-                    
+
                     if attempt < config.max_attempts - 1:
                         delay = config.backoff.get_delay(attempt)
                         _log_retry(fn.__name__, e, attempt + 1, config.max_attempts, delay)
-                        
+
                         if config.on_retry:
                             config.on_retry(e, attempt + 1, delay)
-                        
+
                         await asyncio.sleep(delay)
                     else:
                         raise
-            
+
             # Should never reach here, but for type safety
             raise last_exception  # type: ignore
-        
+
         if asyncio.iscoroutinefunction(fn):
             return async_wrapper
         return sync_wrapper
-    
+
     return decorator
 
 
@@ -219,7 +220,7 @@ def _should_retry(exception: Exception, config: RetryConfig) -> bool:
     # Check custom predicate first
     if config.retry_if is not None:
         return config.retry_if(exception)
-    
+
     # Check exception type
     return isinstance(exception, tuple(config.retry_on))
 
@@ -247,9 +248,10 @@ def _log_retry(
 # Pre-configured Retry Policies
 # =============================================================================
 
+
 def retry_pm4py() -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Retry policy for PM4Py operations.
-    
+
     - 3 attempts
     - Exponential backoff: 1s, 2s, 4s
     - Retries on any exception
@@ -262,8 +264,8 @@ def retry_pm4py() -> Callable[[Callable[..., T]], Callable[..., T]]:
 
 def retry_database() -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Retry policy for database operations.
-    
-    - 3 attempts  
+
+    - 3 attempts
     - Quick retries: 0.5s, 1s, 2s
     """
     return retry(
@@ -274,7 +276,7 @@ def retry_database() -> Callable[[Callable[..., T]], Callable[..., T]]:
 
 def retry_external_api() -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Retry policy for external API calls.
-    
+
     - 5 attempts with longer backoff
     - Exponential backoff: 1s, 2s, 4s, 8s, 16s (capped at 30s)
     """
@@ -286,7 +288,7 @@ def retry_external_api() -> Callable[[Callable[..., T]], Callable[..., T]]:
 
 def retry_file_operation() -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Retry policy for file operations.
-    
+
     - 3 attempts with short delays
     - Handles transient file system errors
     """

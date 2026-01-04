@@ -7,8 +7,9 @@ Tests the flow:
 """
 
 import json
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
 
 from src.models.orm import Dataset, DatasetStatus, UploadedFile
 

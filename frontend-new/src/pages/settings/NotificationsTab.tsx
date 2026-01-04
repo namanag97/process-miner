@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Switch, Button, Space, Divider, Typography } from 'antd';
 import { tokens, toast } from '@lumina/design-system';
 import { createLogger } from '../../utils/logger';
@@ -88,7 +88,7 @@ export function NotificationsTab() {
     // Save to localStorage
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     setSavedSettings(settings);
-    
+
     toast.success('Notification settings saved');
     setIsDirty(false);
     setIsSaving(false);

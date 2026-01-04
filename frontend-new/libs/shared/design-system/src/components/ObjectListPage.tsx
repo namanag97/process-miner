@@ -16,8 +16,8 @@
  * />
  */
 
-import React, { useState } from 'react';
-import { Space, Input, Segmented, Empty } from 'antd';
+import { useState, useMemo } from 'react';
+import { Input, Segmented, Empty } from 'antd';
 import { SearchOutlined, AppstoreOutlined, TableOutlined } from '@ant-design/icons';
 import { PageHeader } from './PageHeader';
 import { LoadingState } from './LoadingState';
@@ -39,7 +39,7 @@ export interface ObjectListPageProps<T> {
   breadcrumb?: Array<{ label: string; href?: string }>;
   /** Actions to show in page header */
   actions?: React.ReactNode;
-  
+
   /** Object type (for defaults) */
   type: string;
   /** Hook for fetching data */
@@ -53,12 +53,12 @@ export interface ObjectListPageProps<T> {
   hookOptions?: any;
   /** Property to use for search filtering */
   searchKey?: keyof T;
-  
+
   /** Custom render function for list items (Grid view) */
   renderItem: (item: T, index: number) => React.ReactNode;
   /** Layout type: 'grid' or 'table' */
   defaultLayout?: 'grid' | 'table';
-  
+
   /** Empty state overrides */
   emptyState?: {
     title?: string;
@@ -93,7 +93,7 @@ export function ObjectListPage<T>({
   const items = data?.items || [];
 
   // Client-side filtering if searchKey is provided
-  const filteredItems = React.useMemo(() => {
+  const filteredItems = useMemo(() => {
     if (!searchTerm || !searchKey) return items;
     const lower = searchTerm.toLowerCase();
     return items.filter((item) => {
@@ -146,7 +146,7 @@ export function ObjectListPage<T>({
   return (
     <div className="animate-fade-in">
       <PageHeader title={title} description={description} breadcrumb={breadcrumb} actions={actions} />
-      
+
       <div style={{ padding: `0 ${tokens.spacing[6]}px ${tokens.spacing[6]}px` }}>
         {/* Controls Bar */}
         <div
@@ -165,7 +165,7 @@ export function ObjectListPage<T>({
             style={{ maxWidth: 300 }}
             allowClear
           />
-          
+
           <Segmented
             options={[
               { value: 'grid', icon: <AppstoreOutlined /> },

@@ -9,8 +9,9 @@ Provides caching for:
 
 import hashlib
 import pickle
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, Optional
+from typing import Any
 
 import redis
 import structlog
@@ -26,7 +27,7 @@ class CacheService:
 
     def __init__(self):
         """Initialize Redis connection."""
-        self.redis_client: Optional[redis.Redis] = None
+        self.redis_client: redis.Redis | None = None
         self.enabled = settings.cache_enabled
 
         if self.enabled:
@@ -73,7 +74,7 @@ class CacheService:
 
         return f"{prefix}:{key_hash}"
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """Get value from cache.
 
         Args:
@@ -92,6 +93,7 @@ class CacheService:
                 # BUG-028 FIX: Use safe_loads instead of pickle.loads
                 # Cache data comes from Redis which could be tampered with
                 from src.core.safe_unpickler import safe_loads
+
                 return safe_loads(cached)
             logger.debug("cache_miss", key=key)
             return None
@@ -195,7 +197,7 @@ cache_service = CacheService()
 def cache_result(
     prefix: str,
     ttl: int = 3600,
-    key_func: Optional[Callable] = None,
+    key_func: Callable | None = None,
 ):
     """Decorator to cache function results in Redis.
 

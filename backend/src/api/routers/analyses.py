@@ -4,8 +4,6 @@ Endpoints for managing saved analyses (discovery, conformance, variants, etc.).
 """
 
 import json
-from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, select
@@ -13,7 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from src.api.dependencies import DBSession
 from src.core.logging_config import get_logger
-from src.models.orm import Analysis, AnalysisStatus, AnalysisType, Dataset, ProcessModel
+from src.models.orm import Analysis, AnalysisStatus, Dataset
 from src.models.schemas import (
     AnalysisCreateRequest,
     AnalysisDetailResponse,
@@ -23,7 +21,6 @@ from src.models.schemas import (
     StatisticsResponse,
     VariantResponse,
 )
-from src.services.mining import mining_service
 from src.services.analysis_registry import analysis_registry
 
 logger = get_logger(__name__)
@@ -99,7 +96,7 @@ async def create_analysis(
 ) -> AnalysisResponse:
     """
     Create a new analysis for an event log.
-    
+
     The analysis will be queued for processing and status updated when complete.
     """
     logger.info(
@@ -157,7 +154,7 @@ async def create_analysis(
 @router.get("", response_model=AnalysisListResponse)
 async def list_analyses(
     db: DBSession,
-    log_id: Optional[str] = Query(None, description="Filter by event log ID"),
+    log_id: str | None = Query(None, description="Filter by event log ID"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ) -> AnalysisListResponse:

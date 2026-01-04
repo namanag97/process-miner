@@ -20,24 +20,18 @@ import {
   Button,
   Space,
   Typography,
-  Tag,
-  Badge,
   Switch,
   Tooltip,
   Empty,
   Modal,
   Divider,
-  List,
 } from 'antd';
 import {
   ApiOutlined,
   SlackOutlined,
   MailOutlined,
-  GithubOutlined,
   LinkOutlined,
   SettingOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
   SyncOutlined,
   PlusOutlined,
   DisconnectOutlined,
@@ -48,7 +42,7 @@ import {
 import { StatusBadge, type ObjectStatus } from './StatusBadge';
 import { tokens } from '../theme';
 
-const { Text, Title, Paragraph } = Typography;
+const { Text, Title } = Typography;
 
 // ============================================
 // Types
@@ -214,7 +208,7 @@ function formatLastSync(date: Date | undefined): string {
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
-  
+
   if (diffMins < 1) return 'Just now';
   if (diffMins < 60) return `${diffMins}m ago`;
   if (diffHours < 24) return `${diffHours}h ago`;
@@ -248,13 +242,12 @@ function IntegrationCard({
     <Card
       className="card-hover-lift"
       style={{
-        borderLeft: `4px solid ${
-          hasError
-            ? tokens.colors.error[500]
-            : isConnected
+        borderLeft: `4px solid ${hasError
+          ? tokens.colors.error[500]
+          : isConnected
             ? tokens.colors.success[500]
             : tokens.colors.neutral[300]
-        }`,
+          }`,
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -356,7 +349,6 @@ export function IntegrationPanel({
   onConfigure,
   onToggleEnabled,
   onSync,
-  loading = false,
   showAvailable = true,
 }: IntegrationPanelProps) {
   const [connectModalOpen, setConnectModalOpen] = useState(false);

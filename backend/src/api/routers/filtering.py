@@ -106,7 +106,7 @@ async def apply_filters(
         total_cases=len(filtered_pm4py),
         total_events=sum(len(trace) for trace in filtered_pm4py),
         total_activities=len(activities),
-        activities_json=json.dumps(sorted(list(activities))),
+        activities_json=json.dumps(sorted(activities)),
         source_log_id=log_id,
         filter_config_json=json.dumps(filters_config),
         is_filtered=True,

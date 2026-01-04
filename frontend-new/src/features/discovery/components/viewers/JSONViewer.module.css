@@ -1,0 +1,106 @@
+/**
+ * JSONViewer Styles
+ */
+
+.container {
+    padding: 1rem;
+    background: var(--color-surface, #1e1e2e);
+    border-radius: 8px;
+    height: 100%;
+    overflow: auto;
+}
+
+.title {
+    margin: 0 0 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-primary, #e0e0e0);
+}
+
+.json {
+    margin: 0;
+    padding: 1rem;
+    background: var(--color-surface-secondary, #252535);
+    border-radius: 6px;
+    font-family: 'Fira Code', 'Monaco', monospace;
+    font-size: 0.75rem;
+    color: var(--color-text-secondary, #a0a0a0);
+    overflow: auto;
+    max-height: 500px;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.tableWrapper {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.table th,
+.table td {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border, #333);
+}
+
+.table th {
+    background: var(--color-surface-secondary, #252535);
+    color: var(--color-text-secondary, #888);
+    font-weight: 600;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.table td {
+    color: var(--color-text-primary, #e0e0e0);
+}
+
+.table tr:hover td {
+    background: var(--color-surface-hover, #2a2a3e);
+}
+
+.constraintList {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.constraintGroup {
+    padding: 0.75rem;
+    background: var(--color-surface-secondary, #252535);
+    border-radius: 6px;
+}
+
+.templateName {
+    margin: 0 0 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-primary, #6366f1);
+}
+
+.constraints {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+}
+
+.constraintBadge {
+    padding: 0.25rem 0.5rem;
+    background: var(--color-surface, #1e1e2e);
+    border: 1px solid var(--color-border, #333);
+    border-radius: 4px;
+    font-size: 0.7rem;
+    color: var(--color-text-secondary, #888);
+}
+
+.empty {
+    padding: 2rem;
+    text-align: center;
+    color: var(--color-text-tertiary, #666);
+}

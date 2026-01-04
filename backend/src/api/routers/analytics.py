@@ -6,7 +6,7 @@ cycle times, throughput metrics, and performance dashboards.
 
 from typing import cast
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

@@ -1,5 +1,15 @@
 """Data models - ORM and Pydantic schemas."""
 
+# OCEL 2.0 Models
+from src.models.ocel2 import (
+    E2ORelation,
+    O2ORelation,
+    ObjectAttributeChange,
+    OCEL2Event,
+    OCEL2EventType,
+    OCEL2Object,
+    OCEL2ObjectType,
+)
 from src.models.orm import (
     Base,
     ConformanceResult,
@@ -16,39 +26,28 @@ from src.models.orm import (
     WorkspaceMember,
 )
 
-# OCEL 2.0 Models
-from src.models.ocel2 import (
-    OCEL2EventType,
-    OCEL2ObjectType,
-    OCEL2Event,
-    OCEL2Object,
-    E2ORelation,
-    O2ORelation,
-    ObjectAttributeChange,
-)
-
 __all__ = [
-    # Enterprise hierarchy models
-    "Organization",
-    "Workspace",
-    "User",
-    "WorkspaceMember",
     # Core models
     "Base",
-    "Project",
+    "ConformanceResult",
     "Dataset",
+    "E2ORelation",
+    "O2ORelation",
+    "OCEL2Event",
+    # OCEL 2.0 models
+    "OCEL2EventType",
+    "OCEL2Object",
+    "OCEL2ObjectType",
+    "ObjectAttributeChange",
+    # Enterprise hierarchy models
+    "Organization",
     "ProcessCase",
     "ProcessEvent",
     "ProcessModel",
-    "ConformanceResult",
+    "Project",
+    "User",
     "Workflow",
     "WorkflowRun",
-    # OCEL 2.0 models
-    "OCEL2EventType",
-    "OCEL2ObjectType",
-    "OCEL2Event",
-    "OCEL2Object",
-    "E2ORelation",
-    "O2ORelation",
-    "ObjectAttributeChange",
+    "Workspace",
+    "WorkspaceMember",
 ]

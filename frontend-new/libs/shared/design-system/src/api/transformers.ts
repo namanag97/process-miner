@@ -16,7 +16,6 @@ import type {
   BottleneckResponse,
   OCELLogResponse,
   OCELStatisticsResponse,
-  OCDFGResponse,
 } from './types';
 
 // ============================================
@@ -33,6 +32,7 @@ export interface EventLog {
   activities: string[];
   createdAt: string;
   sourceFile?: string;
+  status?: string; // Dataset status: 'unstructured' | 'ready' | 'analyzing' | 'error'
   statistics?: Record<string, unknown>;
   updatedAt?: string;
 }
@@ -183,6 +183,7 @@ export function transformProcess(be: ProcessResponse): EventLog {
     activities: be.activities,
     createdAt: be.created_at,
     sourceFile: be.source_file,
+    status: be.status,
   };
 }
 

@@ -23,6 +23,7 @@ import {
   CheckCircleOutlined,
 } from '@ant-design/icons';
 import { tokens, logAction } from '@lumina/design-system';
+import { devLog } from '../../../components/DevConsole';
 import { FeaturePage, PageSection } from '../../../core/components/FeaturePage';
 import { useProjectDetail, useDeleteProject } from '../hooks';
 import { DataSourcesList } from '../components/DataSourcesList';
@@ -80,16 +81,41 @@ export function ProjectDetailPage() {
     setSelectedAnalysis(null);
   }, [projectId]);
 
-  // Simple upload - opens modal instead of navigating to wizard
+  // Navigate to full-page upload wizard (Celonis-style)
   const handleUpload = () => {
     logAction('ProjectDetailPage', 'upload_clicked', { projectId });
-    setUploadModalOpen(true);
+    devLog.action('ProjectDetailPage', 'Navigating to upload wizard', { projectId });
+    navigate(`/workspace/${projectId}/upload`);
   };
 
-  // Analyze a dataset - opens column mapping modal
+  // Analyze or resume wizard based on dataset status
   const handleAnalyze = (dataset: DataSourceInfo) => {
-    logAction('ProjectDetailPage', 'analyze_clicked', { projectId, datasetId: dataset.id });
-    setAnalyzeDataset(dataset);
+    logAction('ProjectDetailPage', 'analyze_clicked', { projectId, datasetId: dataset.id, status: dataset.status });
+    devLog.info('ProjectDetailPage', `Analyze clicked: ${dataset.name}`, { status: dataset.status });
+
+    // Route based on dataset status
+    const status = dataset.status?.toLowerCase();
+
+    if (status === 'unstructured' || status === 'awaiting_mapping') {
+      // Not yet mapped - open wizard at the right step
+      devLog.action('ProjectDetailPage', 'Routing to wizard (unmapped dataset)', { datasetId: dataset.id });
+      navigate(`/workspace/${projectId}/upload?datasetId=${dataset.id}`);
+    } else if (status === 'ingesting' || status === 'analyzing') {
+      // Processing in progress - show progress in wizard
+      devLog.action('ProjectDetailPage', 'Routing to wizard (processing)', { datasetId: dataset.id });
+      navigate(`/workspace/${projectId}/upload?datasetId=${dataset.id}`);
+    } else if (status === 'ready') {
+      // Ready - go to questions page
+      devLog.action('ProjectDetailPage', 'Routing to questions (ready dataset)', { datasetId: dataset.id });
+      navigate(`/workspace/${projectId}/data/${dataset.id}/questions`);
+    } else if (status === 'error') {
+      // Error - open wizard to retry
+      devLog.action('ProjectDetailPage', 'Routing to wizard (error retry)', { datasetId: dataset.id });
+      navigate(`/workspace/${projectId}/upload?datasetId=${dataset.id}`);
+    } else {
+      // Fallback: open analyze modal for legacy datasets
+      setAnalyzeDataset(dataset);
+    }
   };
 
   const handleConnectDatabase = () => {

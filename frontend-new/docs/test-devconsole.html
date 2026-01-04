@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DevConsole Test</title>
+</head>
+<body>
+    <h1>DevConsole Integration Test</h1>
+    <button onclick="testLogs()">Test Logging</button>
+    <button onclick="testAPI()">Test API Call</button>
+    <div id="output"></div>
+
+    <script>
+        const output = document.getElementById('output');
+
+        function log(msg) {
+            output.innerHTML += '<p>' + msg + '</p>';
+            console.log(msg);
+        }
+
+        function testLogs() {
+            log('Testing DevConsole callback registration...');
+
+            // Check if callback is registered
+            if (typeof window.devConsoleCallback !== 'undefined') {
+                log('✓ DevConsole callback is registered');
+            } else {
+                log('✗ DevConsole callback NOT registered');
+            }
+
+            // Try to call devLog from DevConsole
+            if (typeof window.devLog !== 'undefined') {
+                log('✓ devLog is available');
+                try {
+                    window.devLog.info('TEST', 'Manual test log');
+                    log('✓ devLog.info() called successfully');
+                } catch (e) {
+                    log('✗ devLog.info() failed: ' + e.message);
+                }
+            } else {
+                log('✗ devLog NOT available');
+            }
+        }
+
+        function testAPI() {
+            log('Testing API logging with instrumentedFetch...');
+
+            fetch('/api/v1/health')
+                .then(r => {
+                    log('API call completed: ' + r.status);
+                    return r.json();
+                })
+                .then(data => {
+                    log('Response data: ' + JSON.stringify(data));
+                })
+                .catch(e => {
+                    log('API call failed: ' + e.message);
+                });
+        }
+
+        // Auto-test on load
+        setTimeout(testLogs, 1000);
+    </script>
+</body>
+</html>

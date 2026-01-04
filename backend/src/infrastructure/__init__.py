@@ -3,4 +3,4 @@
 from src.infrastructure.cache import cache_service
 from src.infrastructure.tasks import celery_app
 
-__all__ = ["celery_app", "cache_service"]
+__all__ = ["cache_service", "celery_app"]

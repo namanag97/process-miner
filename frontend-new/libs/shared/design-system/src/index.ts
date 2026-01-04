@@ -83,6 +83,8 @@ export {
   flushDevLogs,
   registerDevConsoleCallback,
 } from './utils/devLogger';
+export { instrumentedFetch, createInstrumentedFetch } from './utils/instrumentedFetch';
+export { useInstrumentedNavigate } from './utils/useInstrumentedNavigate';
 
 // Context
 export { SDKProvider, useSDK, queryClient } from './context/SDKContext';

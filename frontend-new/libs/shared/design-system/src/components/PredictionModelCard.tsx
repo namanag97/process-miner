@@ -12,7 +12,6 @@
  * />
  */
 
-import React from 'react';
 import {
   Card,
   Space,
@@ -20,11 +19,9 @@ import {
   Progress,
   Tag,
   Button,
-  Tooltip,
   Divider,
   Row,
   Col,
-  Statistic,
 } from 'antd';
 import {
   RobotOutlined,
@@ -46,7 +43,7 @@ const { Text, Title } = Typography;
 // Types
 // ============================================
 
-export type ModelType = 
+export type ModelType =
   | 'next_activity'
   | 'remaining_time'
   | 'outcome'
@@ -244,7 +241,7 @@ export function PredictionModelCard({
                     percent={Math.round(model.f1Score * 100)}
                     size={60}
                     strokeColor={tokens.colors.info[500]}
-                    format={(percent) => (
+                    format={(_percent) => (
                       <span style={{ fontSize: tokens.fontSize.sm, fontWeight: tokens.fontWeight.semibold }}>
                         {(model.f1Score! * 100).toFixed(0)}%
                       </span>

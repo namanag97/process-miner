@@ -1,0 +1,6 @@
+feature_id: "DIS-003"
+research_findings:
+  libraries:
+    python: ["pm4py.statistics.attributes.get_attribute_values"]
+  recommendations:
+    must_have: ["Missing values check", "Incorrect timestamp formats", "Empty case IDs"]

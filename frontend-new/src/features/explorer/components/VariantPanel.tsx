@@ -21,7 +21,6 @@ import {
   Tooltip,
   Input,
   Select,
-  Segmented,
   Badge,
   Empty,
 } from 'antd';
@@ -74,8 +73,10 @@ interface MiniProcessPathProps {
 }
 
 function MiniProcessPath({ activities, maxVisible = 4, highlighted }: MiniProcessPathProps) {
-  const visibleActivities = activities.slice(0, maxVisible);
-  const remaining = activities.length - maxVisible;
+  // Defensive null-check for activities
+  const safeActivities = Array.isArray(activities) ? activities : [];
+  const visibleActivities = safeActivities.slice(0, maxVisible);
+  const remaining = safeActivities.length - maxVisible;
 
   return (
     <div
@@ -152,6 +153,23 @@ function VariantCard({
   onFilter,
   onToggleCompare,
 }: VariantCardProps) {
+  // Guard against malformed variant data
+  if (!variant || !variant.key) {
+    return (
+      <List.Item style={{ padding: tokens.spacing[3] }}>
+        <Empty description="Invalid variant data" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+      </List.Item>
+    );
+  }
+
+  // Defensive defaults for all potentially undefined properties
+  const frequencyPercent = variant.frequencyPercent ?? 0;
+  const caseCount = variant.caseCount ?? 0;
+  const activities = Array.isArray(variant.activities) ? variant.activities : [];
+  const avgDurationSeconds = variant.avgDurationSeconds ?? 0;
+  const isHappyPath = variant.isHappyPath ?? false;
+  const hasRework = variant.hasRework ?? false;
+
   return (
     <List.Item
       onClick={isCompareMode ? onToggleCompare : onSelect}
@@ -161,13 +179,13 @@ function VariantCard({
         backgroundColor: isSelected
           ? tokens.colors.primary[50]
           : isComparing
-          ? tokens.colors.warning[50]
-          : undefined,
+            ? tokens.colors.warning[50]
+            : undefined,
         borderLeft: isSelected
           ? `3px solid ${tokens.colors.primary[500]}`
           : isComparing
-          ? `3px solid ${tokens.colors.warning[500]}`
-          : '3px solid transparent',
+            ? `3px solid ${tokens.colors.warning[500]}`
+            : '3px solid transparent',
         transition: 'all 150ms ease',
       }}
     >
@@ -183,20 +201,20 @@ function VariantCard({
                   index === 0
                     ? tokens.colors.warning[500]
                     : index < 3
-                    ? tokens.colors.neutral[400]
-                    : tokens.colors.neutral[300],
+                      ? tokens.colors.neutral[400]
+                      : tokens.colors.neutral[300],
               }}
             />
 
             {/* Happy Path */}
-            {variant.isHappyPath && (
+            {isHappyPath && (
               <Tooltip title="Happy Path - Most common variant">
                 <CheckCircleFilled style={{ color: COLORS.performance.good, fontSize: 14 }} />
               </Tooltip>
             )}
 
             {/* Rework Warning */}
-            {variant.hasRework && (
+            {hasRework && (
               <Tooltip title="Contains rework loops">
                 <ExclamationCircleFilled
                   style={{ color: COLORS.performance.moderate, fontSize: 14 }}
@@ -206,36 +224,36 @@ function VariantCard({
 
             {/* Case Count */}
             <Text strong style={{ fontSize: 13 }}>
-              {formatNumber(variant.caseCount)} cases
+              {formatNumber(caseCount)} cases
             </Text>
           </Space>
 
           {/* Frequency Tag */}
           <Tag
-            color={variant.frequencyPercent > 50 ? 'blue' : variant.frequencyPercent > 10 ? 'default' : 'default'}
+            color={frequencyPercent > 50 ? 'blue' : frequencyPercent > 10 ? 'default' : 'default'}
             style={{ marginRight: 0 }}
           >
-            {variant.frequencyPercent.toFixed(1)}%
+            {frequencyPercent.toFixed(1)}%
           </Tag>
         </div>
 
         {/* Frequency Bar */}
         <Progress
-          percent={variant.frequencyPercent}
+          percent={frequencyPercent}
           showInfo={false}
           size="small"
           strokeColor={
-            variant.isHappyPath
+            isHappyPath
               ? COLORS.performance.good
               : isSelected
-              ? tokens.colors.primary[500]
-              : tokens.colors.neutral[400]
+                ? tokens.colors.primary[500]
+                : tokens.colors.neutral[400]
           }
           trailColor={tokens.colors.neutral[200]}
         />
 
         {/* Mini Process Path */}
-        <MiniProcessPath activities={variant.activities} highlighted={isSelected} />
+        <MiniProcessPath activities={activities} highlighted={isSelected} />
 
         {/* Metrics Row */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -244,7 +262,7 @@ function VariantCard({
             <Tooltip title="Average duration">
               <Space size={4} style={{ fontSize: 11, color: tokens.colors.neutral[500] }}>
                 <ClockCircleOutlined />
-                <span>{formatDuration(variant.avgDurationSeconds)}</span>
+                <span>{formatDuration(avgDurationSeconds)}</span>
               </Space>
             </Tooltip>
 
@@ -252,7 +270,7 @@ function VariantCard({
             <Tooltip title="Number of activities">
               <Space size={4} style={{ fontSize: 11, color: tokens.colors.neutral[500] }}>
                 <BranchesOutlined />
-                <span>{variant.activities.length}</span>
+                <span>{activities.length}</span>
               </Space>
             </Tooltip>
 
@@ -261,7 +279,7 @@ function VariantCard({
               <Tooltip title="Complexity score">
                 <Space size={4} style={{ fontSize: 11, color: tokens.colors.neutral[500] }}>
                   <ThunderboltOutlined />
-                  <span>{variant.complexityScore.toFixed(1)}</span>
+                  <span>{(variant.complexityScore ?? 0).toFixed(1)}</span>
                 </Space>
               </Tooltip>
             )}

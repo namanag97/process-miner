@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Tabs, Card, Row, Col, Button, Typography, Space, Alert, Input, message, Divider, Collapse, Select, Descriptions, Table, Progress, Tag, Switch } from 'antd';
 import {
   FolderOutlined,
@@ -65,7 +65,7 @@ export function TestBenchPage() {
         setLogIdInput(res.items[0].id);
       }
     }).catch(() => { /* Ignore initial load errors */ });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Only run on mount
   }, []);
 
   // Helper to run API tests

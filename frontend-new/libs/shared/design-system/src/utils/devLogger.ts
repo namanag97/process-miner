@@ -109,8 +109,8 @@ export function logRequest(method: string, path: string, payload?: unknown): voi
   const sanitized = payload ? truncate(JSON.stringify(payload)) : undefined;
   devLog('API-REQ', `${method} ${path}`, sanitized ?? 'no-body');
 
-  // Emit to DevConsole
-  devConsoleCallback?.('api-req', `${method} ${path}`, 'Request sent', payload);
+  // Emit to DevConsole with full payload (not truncated)
+  devConsoleCallback?.('api-req', `${method} ${path}`, 'Request sent', { requestBody: payload });
 }
 
 /**
@@ -119,8 +119,8 @@ export function logRequest(method: string, path: string, payload?: unknown): voi
 export function logResponse(method: string, path: string, status: number, duration: number, body?: unknown): void {
   devLog('API-RES', `${method} ${path}`, { status, ms: Math.round(duration), body: body ? truncate(JSON.stringify(body)) : undefined });
 
-  // Emit to DevConsole
-  devConsoleCallback?.('api-res', `${method} ${path}`, `${status} (${Math.round(duration)}ms)`, body, { duration: Math.round(duration), status });
+  // Emit to DevConsole with full response body (not truncated)
+  devConsoleCallback?.('api-res', `${method} ${path}`, `${status} (${Math.round(duration)}ms)`, { responseBody: body }, { duration: Math.round(duration), status });
 }
 
 /**

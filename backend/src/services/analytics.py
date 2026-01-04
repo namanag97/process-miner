@@ -237,7 +237,7 @@ class AnalyticsService:
             avg_duration = sum(durations) / len(durations) if durations else 0.0
 
             # Get sample case IDs (up to 5)
-            example_case_ids = list(set(c for c, _ in occurrences))[:5]
+            example_case_ids = list({c for c, _ in occurrences})[:5]
 
             chains.append(
                 {

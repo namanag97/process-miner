@@ -1,0 +1,36 @@
+feature_id: "DIS-014"
+research_findings:
+  libraries:
+    python:
+      - name: "pm4py"
+        use_case: "Serializing discovery objects (DFGs, Petri Nets) into bytes for database storage."
+      - name: "orjson"
+        use_case: "High-performance JSON serialization for large discovery state objects."
+    frontend:
+      - name: "react-flow"
+        use_case: "Using `toObject()` to capture node positions, edges, and viewport state."
+      - name: "zustand"
+        use_case: "Managing and persisting global discovery state across browser sessions."
+  competitors:
+    celonis:
+      approach: "Analysis versioning within Studio. Each version is a timestamped snapshot of assets."
+      features: ["Draft vs Published states", "Audit trails for revisions", "Rollback capabilities"]
+    signavio:
+      approach: "Investigations as persistent units of work. Captures widgets, filters, and findings."
+      features: ["Insights collection", "Persistent chapters within investigations"]
+  ux_patterns:
+    - pattern: "Investigation Save / Publish"
+      application: "Allowing users to save work in progress as a 'Draft' or publish it as a fixed 'Insight' for others."
+    - pattern: "Discovery History"
+      application: "A timeline or sidebar showing previous discovery runs with their parameters to allow quick re-runs."
+    - pattern: "Auto-Save"
+      application: "Periodically persisting the React Flow state to prevent data loss during long analysis sessions."
+  optimizations:
+    - technique: "JSONB Storage"
+      benefit: "Store discovery parameters and layout in a JSONB column in PostgreSQL to allow querying by specific attributes (e.g., find all sessions using 'Heuristic Miner')."
+    - technique: "Lazy Loading of Large Logs"
+      benefit: "Save references to the event log in the session state rather than the log itself to keep session snapshots small."
+  recommendations:
+    must_have: ["Save session (JSON)", "Restore algorithm and parameters", "Restore UI layout (Zoom/Pan/Nodes)", "Versioning/Drafts"]
+    nice_to_have: ["Auto-save", "Collaborative editing (lock/unlock)", "Tagging/Categorization of sessions"]
+    avoid: ["Don't use Pickle for database storage unless internal and secured; it poses a security risk", "Avoid saving the entire event log in the session object; use a foreign key instead"]

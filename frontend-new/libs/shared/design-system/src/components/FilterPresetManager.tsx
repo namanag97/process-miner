@@ -16,7 +16,7 @@
  * />
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   Button,
   Dropdown,
@@ -38,7 +38,6 @@ import {
   DeleteOutlined,
   StarOutlined,
   StarFilled,
-  PlusOutlined,
 } from '@ant-design/icons';
 import { tokens } from '../theme';
 
@@ -100,14 +99,12 @@ export function FilterPresetManager({
   onSavePreset,
   onDeletePreset,
   onSetDefault,
-  availableFilters = [],
   showSavePreset = true,
   compact = false,
 }: FilterPresetManagerProps) {
   const [savePopoverOpen, setSavePopoverOpen] = useState(false);
   const [presetName, setPresetName] = useState('');
 
-  const activeFilterCount = filters.length;
   const defaultPreset = presets.find((p) => p.isDefault);
 
   // Remove a single filter
@@ -117,11 +114,6 @@ export function FilterPresetManager({
     },
     [filters, onChange]
   );
-
-  // Clear all filters
-  const handleClearAll = useCallback(() => {
-    onChange([]);
-  }, [onChange]);
 
   // Apply a preset
   const handleApplyPreset = useCallback(
@@ -163,42 +155,42 @@ export function FilterPresetManager({
   const presetMenuItems = useMemo(() => [
     ...(presets.length > 0
       ? presets.map((preset) => ({
-          key: preset.id,
-          label: (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minWidth: 180 }}>
-              <span>
-                {preset.isDefault && <StarFilled style={{ color: tokens.colors.warning[500], marginRight: 6 }} />}
-                {preset.name}
-              </span>
-              <Space size={4}>
-                {onSetDefault && !preset.isDefault && (
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<StarOutlined />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSetDefault(preset.id);
-                    }}
-                  />
-                )}
-                {onDeletePreset && (
-                  <Button
-                    type="text"
-                    size="small"
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeletePreset(preset.id);
-                    }}
-                  />
-                )}
-              </Space>
-            </div>
-          ),
-          onClick: () => handleApplyPreset(preset),
-        }))
+        key: preset.id,
+        label: (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minWidth: 180 }}>
+            <span>
+              {preset.isDefault && <StarFilled style={{ color: tokens.colors.warning[500], marginRight: 6 }} />}
+              {preset.name}
+            </span>
+            <Space size={4}>
+              {onSetDefault && !preset.isDefault && (
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<StarOutlined />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSetDefault(preset.id);
+                  }}
+                />
+              )}
+              {onDeletePreset && (
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeletePreset(preset.id);
+                  }}
+                />
+              )}
+            </Space>
+          </div>
+        ),
+        onClick: () => handleApplyPreset(preset),
+      }))
       : [{ key: 'empty', label: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No saved presets" />, disabled: true }]),
   ], [presets, onSetDefault, onDeletePreset, handleApplyPreset]);
 

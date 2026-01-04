@@ -14,22 +14,29 @@ Features:
 - Efficient binary search for log retrieval
 """
 
-import asyncio
 import json
-import psutil
 import time
 from collections import deque
-from dataclasses import dataclass, field
+from collections.abc import AsyncGenerator
 from datetime import datetime
-from enum import Enum
-from typing import Any, AsyncGenerator, Deque, Dict, List, Optional, Set
 
-from fastapi import APIRouter, Request, Query
+import psutil
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
 
 from src.core.config import get_settings
 from src.core.logging_config import get_logger
+from src.infrastructure.devconsole_types import (
+    DevLogEntry,
+    HeartbeatMessage,
+    LogLevel,
+    SystemMetrics,
+    TraceSpan,
+    log_trace_span,
+)
+from src.infrastructure.devconsole_types import (
+    create_log_entry as _create_log_entry,
+)
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -42,78 +49,22 @@ _max_requests_per_window = 100
 _client_request_counts: dict = {}  # client_ip -> (count, window_start)
 
 
-# =============================================================================
-# Enhanced Log Types
-# =============================================================================
-
-class LogLevel(str, Enum):
-    INFO = "info"
-    API_REQ = "api-req"
-    API_RES = "api-res"
-    ERROR = "error"
-    ACTION = "action"
-    STATE = "state"
-    METRIC = "metric"
-    PERF = "perf"
-    CIRCUIT = "circuit"
-
-
-class DevLogEntry(BaseModel):
-    """Enhanced log entry with rich metadata."""
-    id: str
-    timestamp: str
-    level: str
-    source: str
-    message: str
-    data: Optional[Dict[str, Any]] = None
-    duration: Optional[int] = None  # ms
-    status: Optional[int] = None
-    request_id: Optional[str] = None
-    trace_id: Optional[str] = None
-    span_id: Optional[str] = None
-    parent_span_id: Optional[str] = None
-    tags: List[str] = Field(default_factory=list)
-
-    # Performance breakdown (for API responses)
-    timing: Optional[Dict[str, float]] = None  # db_ms, pm4py_ms, serialize_ms
-
-
-class TraceSpan(BaseModel):
-    """OpenTelemetry trace span for DevConsole visualization."""
-    trace_id: str
-    span_id: str
-    parent_span_id: Optional[str] = None
-    name: str
-    kind: str  # INTERNAL, SERVER, CLIENT, PRODUCER, CONSUMER
-    start_time: str  # ISO timestamp
-    end_time: str  # ISO timestamp
-    duration_ms: float
-    status: str  # OK, ERROR, UNSET
-    attributes: Dict[str, Any] = Field(default_factory=dict)
-    events: List[Dict[str, Any]] = Field(default_factory=list)
-    links: List[Dict[str, Any]] = Field(default_factory=list)
-
-
-class SystemMetrics(BaseModel):
-    """Real-time system metrics snapshot."""
-    timestamp: str
-    cpu_percent: float
-    memory_percent: float
-    memory_mb: float
-    active_requests: int
-    requests_per_second: float
-    avg_response_time_ms: float
-    error_rate_percent: float
-    circuit_breakers: Dict[str, str]  # name -> state
-
-
-class HeartbeatMessage(BaseModel):
-    """Periodic heartbeat with system state."""
-    type: str = "heartbeat"
-    timestamp: str
-    metrics: SystemMetrics
-    recent_errors: int
-    slow_requests: int
+# Re-export for backward compatibility
+__all__ = [
+    "DevLogEntry",
+    "HeartbeatMessage",
+    "LogLevel",
+    "SystemMetrics",
+    "TraceSpan",
+    "_create_log_entry",
+    "log_api_request",
+    "log_api_response",
+    "log_circuit_breaker",
+    "log_error",
+    "log_perf_warning",
+    "log_pm4py_operation",
+    "log_trace_span",
+]
 
 
 # =============================================================================
@@ -121,73 +72,23 @@ class HeartbeatMessage(BaseModel):
 # =============================================================================
 
 # Metrics tracking (kept local per worker)
-_request_times: Deque[float] = deque(maxlen=100)  # Last 100 request times
-_request_timestamps: Deque[float] = deque(maxlen=100)  # When requests happened
+_request_times: deque[float] = deque(maxlen=100)  # Last 100 request times
+_request_timestamps: deque[float] = deque(maxlen=100)  # When requests happened
 _error_count = 0
 _slow_request_count = 0
 _active_requests = 0
-_log_id_counter = 0
-
-
-def _create_log_entry(
-    level: LogLevel,
-    source: str,
-    message: str,
-    data: Optional[Dict] = None,
-    duration: Optional[int] = None,
-    status: Optional[int] = None,
-    request_id: Optional[str] = None,
-    tags: Optional[List[str]] = None,
-    timing: Optional[Dict[str, float]] = None,
-) -> DevLogEntry:
-    """Create an enhanced log entry and publish to Redis."""
-    global _log_id_counter
-    _log_id_counter += 1
-
-    entry = DevLogEntry(
-        id=f"be-{_log_id_counter}",
-        timestamp=datetime.utcnow().isoformat() + "Z",
-        level=level.value,
-        source=source,
-        message=message,
-        data=data,
-        duration=duration,
-        status=status,
-        request_id=request_id,
-        tags=tags or [],
-        timing=timing,
-    )
-
-    # Add to local buffer (synchronous, always works)
-    from src.infrastructure.log_broker import log_broker
-    log_broker._local_buffer.append(entry.model_dump())
-
-    # Publish to Redis (broadcast to all workers) if event loop is available
-    # This enables cross-worker visibility in multi-worker deployments
-    try:
-        loop = asyncio.get_running_loop()
-        # Schedule publish as background task (don't await)
-        loop.create_task(log_broker.publish_log(entry.model_dump()))
-    except RuntimeError:
-        # No event loop - this is fine, logs are in local buffer
-        # They'll be visible to clients connected to THIS worker
-        pass
-    except Exception:
-        # Don't let logging errors break the application
-        pass
-
-    return entry
 
 
 # =============================================================================
 # Rich Logging Functions
 # =============================================================================
 
+
 def log_api_request(
     method: str,
     path: str,
-    request_id: Optional[str] = None,
-    body_size: Optional[int] = None,
+    request_id: str | None = None,
+    body_size: int | None = None,
 ) -> None:
     """Log incoming API request with context."""
     global _active_requests
@@ -201,23 +102,29 @@ def log_api_request(
     tags = ["api", method.lower()]
 
     # User-initiated actions (likely what caused issues)
-    if any(pattern in path for pattern in [
-        "/datasets/upload",
-        "/datasets/detect-columns",
-        "/datasets/",  # GET dataset, analyze, etc.
-        "/discovery/discover",
-        "/visualization/",
-        "/conformance/",
-        "/analytics/",
-    ]):
+    if any(
+        pattern in path
+        for pattern in [
+            "/datasets/upload",
+            "/datasets/detect-columns",
+            "/datasets/",  # GET dataset, analyze, etc.
+            "/discovery/discover",
+            "/visualization/",
+            "/conformance/",
+            "/analytics/",
+        ]
+    ):
         tags.append("user-action")
 
     # Background/polling requests
-    elif any(pattern in path for pattern in [
-        "/stream",
-        "/recent",
-        "/poll",
-    ]):
+    elif any(
+        pattern in path
+        for pattern in [
+            "/stream",
+            "/recent",
+            "/poll",
+        ]
+    ):
         tags.append("background")
 
     _create_log_entry(
@@ -231,27 +138,27 @@ def log_api_request(
 
 
 def log_api_response(
-    method: str, 
-    path: str, 
-    status: int, 
+    method: str,
+    path: str,
+    status: int,
     duration_ms: int,
-    request_id: Optional[str] = None,
-    response_size: Optional[int] = None,
-    timing: Optional[Dict[str, float]] = None,
+    request_id: str | None = None,
+    response_size: int | None = None,
+    timing: dict[str, float] | None = None,
 ) -> None:
     """Log API response with timing breakdown."""
     global _active_requests, _error_count, _slow_request_count
     _active_requests = max(0, _active_requests - 1)
-    
+
     # Track metrics
     _request_times.append(duration_ms)
     _request_timestamps.append(time.time())
-    
+
     if status >= 400:
         _error_count += 1
     if duration_ms > 1000:
         _slow_request_count += 1
-    
+
     # Build message with status emoji
     status_emoji = "✓" if status < 400 else "✗" if status < 500 else "⚠"
     message = f"← {status_emoji} {status}"
@@ -269,15 +176,18 @@ def log_api_response(
     # Classify request type (same logic as request)
     tags = ["api", method.lower(), speed_tag, f"status-{status // 100}xx"]
 
-    if any(pattern in path for pattern in [
-        "/datasets/upload",
-        "/datasets/detect-columns",
-        "/datasets/",
-        "/discovery/discover",
-        "/visualization/",
-        "/conformance/",
-        "/analytics/",
-    ]):
+    if any(
+        pattern in path
+        for pattern in [
+            "/datasets/upload",
+            "/datasets/detect-columns",
+            "/datasets/",
+            "/discovery/discover",
+            "/visualization/",
+            "/conformance/",
+            "/analytics/",
+        ]
+    ):
         tags.append("user-action")
     elif any(pattern in path for pattern in ["/stream", "/recent", "/poll"]):
         tags.append("background")
@@ -310,16 +220,16 @@ def log_api_response(
 
 
 def log_error(
-    source: str, 
-    message: str, 
-    error_code: Optional[str] = None, 
-    details: Optional[Dict] = None,
-    stack_trace: Optional[str] = None,
+    source: str,
+    message: str,
+    error_code: str | None = None,
+    details: dict | None = None,
+    stack_trace: str | None = None,
 ) -> None:
     """Log error with full context."""
     global _error_count
     _error_count += 1
-    
+
     data = {}
     if error_code:
         data["error_code"] = error_code
@@ -327,7 +237,7 @@ def log_error(
         data.update(details)
     if stack_trace:
         data["stack"] = stack_trace[:500]  # Truncate for transport
-    
+
     _create_log_entry(
         level=LogLevel.ERROR,
         source=f"BE {source}",
@@ -338,16 +248,16 @@ def log_error(
 
 
 def log_pm4py_operation(
-    operation: str, 
-    miner_type: str, 
-    duration_ms: int, 
+    operation: str,
+    miner_type: str,
+    duration_ms: int,
     status: str,
-    events_processed: Optional[int] = None,
-    result_summary: Optional[Dict] = None,
+    events_processed: int | None = None,
+    result_summary: dict | None = None,
 ) -> None:
     """Log PM4Py operation with performance data."""
     emoji = "✓" if status == "success" else "✗"
-    
+
     data = {
         "operation": operation,
         "miner_type": miner_type,
@@ -357,7 +267,7 @@ def log_pm4py_operation(
         data["events_processed"] = events_processed
     if result_summary:
         data["result"] = result_summary
-    
+
     _create_log_entry(
         level=LogLevel.ACTION,
         source=f"BE PM4Py/{miner_type}",
@@ -369,10 +279,10 @@ def log_pm4py_operation(
 
 
 def log_circuit_breaker(
-    circuit: str, 
-    from_state: str, 
+    circuit: str,
+    from_state: str,
     to_state: str,
-    failure_count: Optional[int] = None,
+    failure_count: int | None = None,
 ) -> None:
     """Log circuit breaker state change with visual indicator."""
     state_emoji = {
@@ -380,7 +290,7 @@ def log_circuit_breaker(
         "open": "🔴",
         "half_open": "🟡",
     }
-    
+
     _create_log_entry(
         level=LogLevel.CIRCUIT,
         source=f"BE Circuit:{circuit}",
@@ -399,12 +309,12 @@ def log_perf_warning(
     operation: str,
     duration_ms: int,
     threshold_ms: int,
-    details: Optional[Dict] = None,
+    details: dict | None = None,
 ) -> None:
     """Log performance warning."""
     _create_log_entry(
         level=LogLevel.PERF,
-        source=f"BE Perf",
+        source="BE Perf",
         message=f"⚡ Slow: {operation} ({duration_ms}ms > {threshold_ms}ms)",
         duration=duration_ms,
         data={
@@ -416,63 +326,39 @@ def log_perf_warning(
     )
 
 
-def log_trace_span(span: TraceSpan) -> None:
-    """Log OpenTelemetry span to DevConsole for trace visualization."""
-    try:
-        from src.infrastructure.log_broker import log_broker
-        import asyncio
-
-        # Get or create event loop
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            # No event loop running, skip (shouldn't happen in FastAPI)
-            print(f"[log_trace_span] No event loop, skipping span: {span.name}")
-            return
-
-        # Publish span directly to Redis (for trace visualization)
-        asyncio.create_task(
-            log_broker.publish_log({
-                "type": "trace_span",
-                "span": span.model_dump(),
-            })
-        )
-        print(f"[log_trace_span] Published span: {span.name}")  # DEBUG
-    except Exception as e:
-        # Don't let logging errors break the application
-        print(f"[log_trace_span] Error: {e}")  # DEBUG
-        import traceback
-        traceback.print_exc()
+# Note: log_trace_span is imported from src.infrastructure.devconsole_types and re-exported
 
 
 # =============================================================================
 # System Metrics Collection
 # =============================================================================
 
+
 def _get_system_metrics() -> SystemMetrics:
     """Collect current system metrics."""
     now = time.time()
-    
+
     # Calculate RPS (requests in last 10 seconds)
     recent_requests = sum(1 for t in _request_timestamps if now - t < 10)
     rps = recent_requests / 10.0
-    
+
     # Average response time
     avg_response = sum(_request_times) / len(_request_times) if _request_times else 0
-    
+
     # Error rate (last 100 requests)
     total_recent = len(_request_times)
     error_rate = (_error_count / total_recent * 100) if total_recent > 0 else 0
-    
+
     # Get circuit breaker states
     circuit_states = {}
     try:
         from src.infrastructure.circuit_breaker import get_all_circuit_statuses
+
         for status in get_all_circuit_statuses():
             circuit_states[status["name"]] = status["state"]
     except ImportError:
         pass
-    
+
     return SystemMetrics(
         timestamp=datetime.utcnow().isoformat() + "Z",
         cpu_percent=psutil.cpu_percent(),
@@ -490,9 +376,12 @@ def _get_system_metrics() -> SystemMetrics:
 # SSE Streaming with Heartbeat
 # =============================================================================
 
-async def _stream_logs(request: Request, include_recent: bool = True, user_id: str = None) -> AsyncGenerator[str, None]:
+
+async def _stream_logs(
+    request: Request, include_recent: bool = True, user_id: str | None = None
+) -> AsyncGenerator[str, None]:
     """Generate SSE events with logs and periodic heartbeats using Redis pubsub.
-    
+
     Args:
         request: FastAPI request for disconnect detection
         include_recent: Include recent logs from buffer
@@ -517,7 +406,9 @@ async def _stream_logs(request: Request, include_recent: bool = True, user_id: s
         last_heartbeat = time.time()
 
         # BUG-034 FIX: Subscribe with user_id filtering
-        async for event_type, data in log_broker.subscribe_logs(include_recent=include_recent, user_id=user_id):
+        async for event_type, data in log_broker.subscribe_logs(
+            include_recent=include_recent, user_id=user_id
+        ):
             # Check if client disconnected
             if await request.is_disconnected():
                 break
@@ -554,17 +445,17 @@ async def stream_logs(
     user_id: str = Query(None, description="Optional user ID for tenant filtering (BUG-034)"),
 ):
     """Stream backend observability to frontend DevConsole via SSE.
-    
+
     Returns:
     - `data:` events for log entries
     - `event: heartbeat` for system metrics every 5s
-    
+
     BUG-034 FIX: Pass user_id to filter logs by tenant.
     Connect with: `new EventSource('/api/v1/dev/logs/stream?user_id=xxx')`
     """
     if not settings.debug:
         return {"error": "Dev logs only available in debug mode"}
-    
+
     return StreamingResponse(
         _stream_logs(request, include_recent, user_id=user_id),
         media_type="text/event-stream",
@@ -581,27 +472,28 @@ async def get_current_metrics():
     """Get current system metrics snapshot."""
     if not settings.debug:
         return {"error": "Dev logs only available in debug mode"}
-    
+
     return _get_system_metrics().model_dump()
 
 
 @router.get("/recent")
 async def get_recent_logs(
     limit: int = Query(50, ge=1, le=200),
-    level: Optional[str] = Query(None, description="Filter by level"),
-    tag: Optional[str] = Query(None, description="Filter by tag"),
+    level: str | None = Query(None, description="Filter by level"),
+    tag: str | None = Query(None, description="Filter by tag"),
 ):
     """Get recent logs with optional filtering."""
     if not settings.debug:
         return {"error": "Dev logs only available in debug mode"}
 
     from src.infrastructure.log_broker import log_broker
+
     logs = log_broker.get_recent_logs(limit=limit)
 
     if level:
-        logs = [l for l in logs if l.get("level") == level]
+        logs = [log_entry for log_entry in logs if log_entry.get("level") == level]
     if tag:
-        logs = [l for l in logs if tag in l.get("tags", [])]
+        logs = [log_entry for log_entry in logs if tag in log_entry.get("tags", [])]
 
     return logs
 
@@ -615,6 +507,7 @@ async def clear_logs():
         return {"error": "Dev logs only available in debug mode"}
 
     from src.infrastructure.log_broker import log_broker
+
     log_broker._local_buffer.clear()
     _request_times.clear()
     _request_timestamps.clear()

@@ -12,12 +12,11 @@ import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from pm4py.objects.log.importer.xes import importer as xes_importer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.config import get_settings
 from src.core.exceptions import ValidationError
 from src.core.logging_config import get_logger
 from src.models.orm import Dataset, DatasetStatus, ProcessCase, ProcessEvent, UploadedFile
@@ -36,13 +35,13 @@ class IngestionService:
         session: AsyncSession,
         file_content: bytes,
         filename: str,
-        name: Optional[str] = None,
+        name: str | None = None,
         case_id_col: str = "case_id",
         activity_col: str = "activity",
         timestamp_col: str = "timestamp",
-        resource_col: Optional[str] = None,
+        resource_col: str | None = None,
         delimiter: str = ",",
-        precomputed_stats: Optional[dict[str, Any]] = None,
+        precomputed_stats: dict[str, Any] | None = None,
     ) -> Dataset:
         """
         Ingest a CSV file as an event log.
@@ -81,7 +80,7 @@ class IngestionService:
         session: AsyncSession,
         file_content: bytes,
         filename: str,
-        name: Optional[str] = None,
+        name: str | None = None,
     ) -> Dataset:
         """
         Ingest an XES file as an event log.
@@ -109,12 +108,12 @@ class IngestionService:
         session: AsyncSession,
         file_content: bytes,
         filename: str,
-        name: Optional[str] = None,
-        case_id_col: Optional[str] = None,
-        activity_col: Optional[str] = None,
-        timestamp_col: Optional[str] = None,
-        resource_col: Optional[str] = None,
-        precomputed_stats: Optional[dict[str, Any]] = None,
+        name: str | None = None,
+        case_id_col: str | None = None,
+        activity_col: str | None = None,
+        timestamp_col: str | None = None,
+        resource_col: str | None = None,
+        precomputed_stats: dict[str, Any] | None = None,
     ) -> Dataset:
         """
         Ingest a file, auto-detecting format.
@@ -135,7 +134,7 @@ class IngestionService:
                 duration_ms=round(duration_ms, 2),
             )
             return result
-        elif extension in [".csv", ".txt"]:
+        if extension in [".csv", ".txt"]:
             # Auto-detect columns if not provided
             if not all([case_id_col, activity_col, timestamp_col]):
                 detection = self.detect_columns(file_content)
@@ -190,17 +189,16 @@ class IngestionService:
                 duration_ms=round(duration_ms, 2),
             )
             return result
-        else:
-            logger.warning("unsupported_file_format", extension=extension)
-            raise ValidationError(f"Unsupported file format: {extension}")
+        logger.warning("unsupported_file_format", extension=extension)
+        raise ValidationError(f"Unsupported file format: {extension}")
 
     async def store_only(
         self,
         session: AsyncSession,
         file_content: bytes,
         filename: str,
-        name: Optional[str] = None,
-        project_id: Optional[str] = None,
+        name: str | None = None,
+        project_id: str | None = None,
     ) -> Dataset:
         """
         Store file without parsing (Phase 1 of deferred ingestion).
@@ -212,6 +210,7 @@ class IngestionService:
             Dataset with status=UNSTRUCTURED
         """
         import hashlib
+
         from src.services.storage import storage_service
 
         logger.info("store_only_started", filename=filename, name=name)
@@ -235,9 +234,7 @@ class IngestionService:
         await session.flush()
 
         # Store raw file
-        storage_path = await storage_service.store_dataset_file(
-            file_content, dataset.id, filename
-        )
+        storage_path = await storage_service.store_dataset_file(file_content, dataset.id, filename)
 
         # Create UploadedFile record
         uploaded_file = UploadedFile(
@@ -363,7 +360,7 @@ class IngestionService:
         source_file: str,
         source_format: str,
         events_data: list[dict[str, Any]],
-        precomputed_stats: Optional[dict[str, Any]] = None,
+        precomputed_stats: dict[str, Any] | None = None,
     ) -> Dataset:
         """Create Dataset with cases and events from parsed data."""
 
@@ -376,7 +373,7 @@ class IngestionService:
             cases_dict[case_id].append(event)
 
         # Collect unique activities
-        activities = sorted(set(e["activity"] for e in events_data))
+        activities = sorted({e["activity"] for e in events_data})
 
         # Create dataset with READY status (data fully parsed)
         dataset = Dataset(
@@ -399,7 +396,6 @@ class IngestionService:
             # Sort by timestamp
             case_events.sort(key=lambda e: e["timestamp"])
 
-
             # Create variant key (activity sequence)
             variant_key = " -> ".join(e["activity"] for e in case_events)
 
@@ -418,7 +414,6 @@ class IngestionService:
             await session.flush()
 
             for event_data in case_events:
-
                 # Extract attributes (non-standard fields)
                 attributes = {
                     k: v
@@ -446,7 +441,7 @@ class IngestionService:
         case_id_col: str,
         activity_col: str,
         timestamp_col: str,
-        resource_col: Optional[str],
+        resource_col: str | None,
         delimiter: str,
     ) -> list[dict[str, Any]]:
         """Parse CSV content into event data."""
@@ -563,16 +558,17 @@ class IngestionService:
         content: bytes,
         filename: str,
         dataset_id: str,
-        mime_type: str = None,
+        mime_type: str | None = None,
     ) -> str:
         """Store uploaded file and create UploadedFile record."""
-        from src.services.storage import storage_service
-        from src.models.orm import UploadedFile
         import hashlib
-        
+
+        from src.models.orm import UploadedFile
+        from src.services.storage import storage_service
+
         # Store to filesystem/S3
         storage_path = await storage_service.store_dataset_file(content, dataset_id, filename)
-        
+
         # Create DB record
         uploaded_file = UploadedFile(
             dataset_id=dataset_id,
@@ -583,11 +579,9 @@ class IngestionService:
             checksum=hashlib.sha256(content).hexdigest(),
         )
         session.add(uploaded_file)
-        
+
         return storage_path
 
 
 # Singleton instance
 ingestion_service = IngestionService()
-
-

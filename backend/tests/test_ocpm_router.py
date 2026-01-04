@@ -349,7 +349,7 @@ class TestRawOCELExtraction:
         # Verify events structure
         events = parsed_ocel["ocel:events"]
         assert len(events) == 11
-        for event_id, event_data in events.items():
+        for _event_id, event_data in events.items():
             assert "ocel:activity" in event_data
             assert "ocel:timestamp" in event_data
             assert "ocel:omap" in event_data
@@ -357,7 +357,7 @@ class TestRawOCELExtraction:
         # Verify objects structure
         objects = parsed_ocel["ocel:objects"]
         assert len(objects) == 7  # 2 orders + 3 items + 2 packages
-        for obj_id, obj_data in objects.items():
+        for _obj_id, obj_data in objects.items():
             assert "ocel:type" in obj_data
 
 

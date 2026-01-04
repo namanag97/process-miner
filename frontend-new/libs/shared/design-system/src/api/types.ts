@@ -60,6 +60,7 @@ export interface ProcessResponse {
   activities: string[];
   created_at: string;
   source_file?: string;
+  status?: string; // Dataset status: 'unstructured' | 'ready' | 'analyzing' | 'error'
 }
 
 export interface ProcessDetailResponse extends ProcessResponse {
@@ -121,6 +122,18 @@ export interface DFGResponse {
   start_activities: Record<string, number>;
   end_activities: Record<string, number>;
   total_frequency: number;
+}
+
+/**
+ * Unified response for Process Explorer page
+ * Combines DFG, variants, activities, and statistics in a single response
+ */
+export interface ProcessExplorerDataResponse {
+  log_id: string;
+  dfg: DFGResponse;
+  variants: VariantResponse[];
+  activities: ActivityDetailResponse[];
+  statistics: StatisticsResponse;
 }
 
 // ============================================

@@ -3,11 +3,7 @@
 import pytest
 from httpx import AsyncClient
 
-
 """API integration tests."""
-
-import pytest
-from httpx import AsyncClient
 
 
 class TestHealthEndpoints:
@@ -32,7 +28,7 @@ class TestHealthEndpoints:
         assert data["status"] in ["healthy", "degraded", "unhealthy"]
         assert "uptime_seconds" in data
         assert "components" in data
-        
+
         # Verify component presence
         components = {c["name"] for c in data["components"]}
         assert "database" in components
@@ -69,7 +65,7 @@ class TestAuthEndpoints:
         response = await client.post(
             "/api/v1/auth/login", json={"email": "user@example.com", "password": "test"}
         )
-        # Note: This might still fail if auth is real-only. 
+        # Note: This might still fail if auth is real-only.
         # But we assert structure if 200
         if response.status_code == 200:
             data = response.json()
@@ -139,10 +135,10 @@ class TestWorkflowEndpoints:
     async def test_list_workflows(self, client: AsyncClient):
         """Test listing available workflows."""
         # Endpoint in router might be /workflows (derived) or /pipelines
-        # Looking at main.py: workflows_router. 
+        # Looking at main.py: workflows_router.
         # Usually /workflows
-        response = await client.get("/api/v1/workflows/") 
-        
+        response = await client.get("/api/v1/workflows/")
+
         # If empty
         if response.status_code == 200:
             data = response.json()
@@ -160,4 +156,3 @@ class TestAnalyticsEndpoints:
         fake_id = str(uuid.uuid4())
         response = await client.get(f"/api/v1/analytics/dashboard/{fake_id}")
         assert response.status_code == 404
-

@@ -4,13 +4,14 @@ Exports OpenTelemetry spans to the DevConsole real-time stream for
 in-browser trace visualization during development.
 """
 
-from typing import Sequence
+from collections.abc import Sequence
 from datetime import datetime
 
 try:
     from opentelemetry.sdk.trace import ReadableSpan
     from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
     from opentelemetry.trace import SpanKind, StatusCode
+
     OTEL_AVAILABLE = True
 except ImportError:
     OTEL_AVAILABLE = False
@@ -31,10 +32,8 @@ class DevConsoleSpanExporter(SpanExporter):
         if self._shutdown:
             return SpanExportResult.FAILURE
 
-        print(f"[DevConsoleExporter] Exporting {len(spans)} spans")  # DEBUG
-
         try:
-            from src.api.routers.dev_logs_stream import log_trace_span, TraceSpan
+            from src.infrastructure.devconsole_types import TraceSpan, log_trace_span
 
             for span in spans:
                 # Convert span kind
@@ -84,8 +83,11 @@ class DevConsoleSpanExporter(SpanExporter):
                     for event in span.events:
                         event_data = {
                             "name": event.name,
-                            "timestamp": datetime.utcfromtimestamp(event.timestamp / 1e9).isoformat() + "Z",
-                            "attributes": {k: v for k, v in (event.attributes or {}).items()},
+                            "timestamp": datetime.utcfromtimestamp(
+                                event.timestamp / 1e9
+                            ).isoformat()
+                            + "Z",
+                            "attributes": dict((event.attributes or {}).items()),
                         }
                         events.append(event_data)
 
@@ -97,7 +99,7 @@ class DevConsoleSpanExporter(SpanExporter):
                         link_data = {
                             "trace_id": format(link_context.trace_id, "032x"),
                             "span_id": format(link_context.span_id, "016x"),
-                            "attributes": {k: v for k, v in (link.attributes or {}).items()},
+                            "attributes": dict((link.attributes or {}).items()),
                         }
                         links.append(link_data)
 
@@ -118,16 +120,14 @@ class DevConsoleSpanExporter(SpanExporter):
                 )
 
                 # Send to DevConsole
-                print(f"[DevConsoleExporter] Logging span: {trace_span.name}")  # DEBUG
                 log_trace_span(trace_span)
 
-            print(f"[DevConsoleExporter] Export complete")  # DEBUG
             return SpanExportResult.SUCCESS
 
-        except Exception as e:
+        except Exception:
             # Don't fail the application if DevConsole export fails
-            print(f"[DevConsoleExporter] Export failed: {e}")  # DEBUG
             import traceback
+
             traceback.print_exc()
             return SpanExportResult.FAILURE
 

@@ -5,7 +5,6 @@ Endpoints for checking conformance between event logs and process models.
 
 import json
 import time
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
@@ -40,6 +39,7 @@ router = APIRouter(prefix="/conformance", tags=["Conformance"])
 async def check_conformance(
     request: ConformanceCheckRequest,
     session: AsyncSession = Depends(get_session),
+    auto_discover: bool = Query(False, description="Auto-discover model if model_id not provided"),
 ):
     """
     Check conformance between an event log and a process model.
@@ -47,6 +47,10 @@ async def check_conformance(
     Supports two methods:
     - `token_replay`: Fast, token-based replay (default)
     - `alignment`: More accurate, alignment-based (slower)
+
+    Job-Centric Architecture Enhancement:
+    - If `auto_discover=True` and no model_id, first runs discovery then conformance
+    - Returns 202 with chained job IDs for async processing
 
     Returns fitness, precision, and conformance status.
     """
@@ -65,6 +69,16 @@ async def check_conformance(
     if not event_log:
         logger.warning("log_not_found", log_id=request.log_id)
         raise HTTPException(status_code=404, detail="Event log not found")
+
+    # FIX: Validate dataset is ready for conformance checking
+    from src.models.orm import DatasetStatus
+
+    if event_log.status != DatasetStatus.READY.value:
+        logger.warning("dataset_not_ready", log_id=request.log_id, status=event_log.status)
+        raise HTTPException(
+            status_code=409,
+            detail=f"Dataset not ready (status: {event_log.status}). Complete ingestion first.",
+        )
 
     # Get the process model
     model_result = await session.execute(
@@ -145,14 +159,14 @@ async def check_conformance(
         )
         raise HTTPException(
             status_code=500,
-            detail=f"Conformance check failed: {str(e)}",
+            detail=f"Conformance check failed: {e!s}",
         )
 
 
 @router.get("/results", response_model=ConformanceListResponse)
 async def list_conformance_results(
-    log_id: Optional[str] = Query(None, description="Filter by event log ID"),
-    model_id: Optional[str] = Query(None, description="Filter by model ID"),
+    log_id: str | None = Query(None, description="Filter by event log ID"),
+    model_id: str | None = Query(None, description="Filter by model ID"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
@@ -313,7 +327,7 @@ async def get_conformance_diagnostics(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to get diagnostics: {str(e)}",
+            detail=f"Failed to get diagnostics: {e!s}",
         )
 
 
@@ -365,7 +379,7 @@ async def get_deviations(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to detect deviations: {str(e)}",
+            detail=f"Failed to detect deviations: {e!s}",
         )
 
 
@@ -449,7 +463,7 @@ async def get_alignment_diagnostics(
         )
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to get alignment diagnostics: {str(e)}",
+            detail=f"Failed to get alignment diagnostics: {e!s}",
         )
 
 
@@ -482,14 +496,14 @@ async def get_quality_metrics(
 ):
     """
     Get full quality metrics for a log-model pair.
-    
+
     Returns all 4 quality dimensions from PM4py:
     - **Fitness**: How well the log fits the model (0-1)
     - **Precision**: How much the model allows for behavior not observed in log (0-1)
     - **Generalization**: How well the model generalizes beyond observed behavior (0-1)
     - **Simplicity**: How simple/understandable the model is (0-1)
     - **F-score**: Harmonic mean of fitness and precision
-    
+
     All metrics are higher-is-better.
     """
     logger.info(
@@ -556,6 +570,5 @@ async def get_quality_metrics(
         )
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to get quality metrics: {str(e)}",
+            detail=f"Failed to get quality metrics: {e!s}",
         )
-

@@ -27,7 +27,6 @@ import {
   Typography,
   Result,
   Spin,
-  Alert,
   Row,
   Col,
   Divider,
@@ -37,14 +36,12 @@ import {
   ApiOutlined,
   FileTextOutlined,
   CloudOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
   LoadingOutlined,
   SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { tokens } from '../theme';
 
-const { Title, Text, Paragraph } = Typography;
+const { Text } = Typography;
 
 // ============================================
 // Types

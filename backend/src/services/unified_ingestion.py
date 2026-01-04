@@ -8,7 +8,7 @@ services, leading to inconsistent column detection and parsing.
 """
 
 import os
-from typing import Any, Optional
+from typing import Any
 
 from src.core.logging_config import get_logger
 from src.services.duckdb_ingestion import duckdb_ingestion_service
@@ -56,17 +56,16 @@ class UnifiedIngestionService:
                 "sample_rows": [],  # DuckDB doesn't return sample rows yet
                 "row_count": result["row_count"],
             }
-        else:
-            # Use PM4Py for XES and other formats
-            result = self.pm4py_service.detect_columns(file_content)
+        # Use PM4Py for XES and other formats
+        result = self.pm4py_service.detect_columns(file_content)
 
-            # Ensure suggestions use snake_case
-            return {
-                "columns": result.get("columns", []),
-                "suggestions": self._standardize_suggestions(result.get("suggestions", {})),
-                "sample_rows": result.get("sample_rows", []),
-                "row_count": result.get("row_count", 0),
-            }
+        # Ensure suggestions use snake_case
+        return {
+            "columns": result.get("columns", []),
+            "suggestions": self._standardize_suggestions(result.get("suggestions", {})),
+            "sample_rows": result.get("sample_rows", []),
+            "row_count": result.get("row_count", 0),
+        }
 
     def parse(
         self,
@@ -75,7 +74,7 @@ class UnifiedIngestionService:
         case_id_col: str,
         activity_col: str,
         timestamp_col: str,
-        resource_col: Optional[str] = None,
+        resource_col: str | None = None,
     ) -> dict[str, Any]:
         """Parse a file and return structured event log data.
 
@@ -112,35 +111,34 @@ class UnifiedIngestionService:
                 timestamp_col=timestamp_col,
                 resource_col=resource_col,
             )
-        else:
-            # Use PM4Py for XES (standard library)
-            # Parse using PM4Py service and return standardized format
-            events_data = self.pm4py_service._parse_xes(file_content)
-            
-            # Compute statistics manually from events
-            cases = {}
-            activities = set()
-            for event in events_data:
-                case_id = event.get("case_id")
-                if case_id not in cases:
-                    cases[case_id] = {"events": [], "start_time": None, "end_time": None}
-                cases[case_id]["events"].append(event)
-                activities.add(event.get("activity"))
-            
-            # Build statistics
-            statistics = {
-                "total_cases": len(cases),
-                "total_events": len(events_data),
-                "total_activities": len(activities),
-                "activities": list(activities),
-            }
-            
-            return {
-                "statistics": statistics,
-                "events_data": events_data,  # Raw events for DB insert
-                "cases_arrow": None,  # XES doesn't use Arrow path
-                "events_arrow": None,
-            }
+        # Use PM4Py for XES (standard library)
+        # Parse using PM4Py service and return standardized format
+        events_data = self.pm4py_service._parse_xes(file_content)
+
+        # Compute statistics manually from events
+        cases = {}
+        activities = set()
+        for event in events_data:
+            case_id = event.get("case_id")
+            if case_id not in cases:
+                cases[case_id] = {"events": [], "start_time": None, "end_time": None}
+            cases[case_id]["events"].append(event)
+            activities.add(event.get("activity"))
+
+        # Build statistics
+        statistics = {
+            "total_cases": len(cases),
+            "total_events": len(events_data),
+            "total_activities": len(activities),
+            "activities": list(activities),
+        }
+
+        return {
+            "statistics": statistics,
+            "events_data": events_data,  # Raw events for DB insert
+            "cases_arrow": None,  # XES doesn't use Arrow path
+            "events_arrow": None,
+        }
 
     def _standardize_suggestions(self, suggestions: dict[str, Any]) -> dict[str, Any]:
         """Standardize suggestion keys to use snake_case.
@@ -162,15 +160,12 @@ class UnifiedIngestionService:
             "caseIdColumn": "case_id_column",
             "case_id": "case_id_column",
             "case_id_column": "case_id_column",
-
             "activity": "activity_column",
             "activityColumn": "activity_column",
             "activity_column": "activity_column",
-
             "timestamp": "timestamp_column",
             "timestampColumn": "timestamp_column",
             "timestamp_column": "timestamp_column",
-
             "resource": "resource_column",
             "resourceColumn": "resource_column",
             "resource_column": "resource_column",

@@ -4,7 +4,7 @@ Clean, React-optimized response shapes.
 """
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -44,7 +44,7 @@ class OrganizationResponse(BaseModel):
     slug: str
     plan: str
     created_at: datetime
-    updated_at: Optional[datetime]
+    updated_at: datetime | None
 
     class Config:
         from_attributes = True
@@ -54,14 +54,14 @@ class WorkspaceCreateRequest(BaseModel):
     """Request to create a workspace."""
 
     name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = Field(None, max_length=2000)
+    description: str | None = Field(None, max_length=2000)
 
 
 class WorkspaceUpdateRequest(BaseModel):
     """Request to update a workspace."""
 
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = None
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = None
 
 
 class WorkspaceResponse(BaseModel):
@@ -70,9 +70,9 @@ class WorkspaceResponse(BaseModel):
     id: str
     org_id: str
     name: str
-    description: Optional[str]
+    description: str | None
     created_at: datetime
-    updated_at: Optional[datetime]
+    updated_at: datetime | None
 
     class Config:
         from_attributes = True
@@ -95,10 +95,10 @@ class UserResponse(BaseModel):
 
     id: str
     email: str
-    name: Optional[str]
+    name: str | None
     role: str
     created_at: datetime
-    last_login_at: Optional[datetime]
+    last_login_at: datetime | None
 
     class Config:
         from_attributes = True
@@ -112,7 +112,7 @@ class WorkspaceMemberResponse(BaseModel):
     user_id: str
     role: str
     joined_at: datetime
-    user: Optional[UserResponse] = None
+    user: UserResponse | None = None
 
     class Config:
         from_attributes = True
@@ -122,9 +122,9 @@ class CurrentUserResponse(BaseModel):
     """Current user context response (for auth/me endpoint)."""
 
     user: UserResponse
-    organization: Optional[OrganizationResponse] = None
+    organization: OrganizationResponse | None = None
     workspaces: list[WorkspaceResponse] = []
-    current_workspace_id: Optional[str] = None
+    current_workspace_id: str | None = None
 
 
 # =============================================================================
@@ -136,16 +136,16 @@ class ProjectCreateRequest(BaseModel):
     """Request to create a project."""
 
     name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = Field(None, max_length=2000)
+    description: str | None = Field(None, max_length=2000)
     tags: list[str] = Field(default_factory=list)
 
 
 class ProjectUpdateRequest(BaseModel):
     """Request to update a project."""
 
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = None
-    tags: Optional[list[str]] = None
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = None
+    tags: list[str] | None = None
 
 
 class ProjectResponse(BaseModel):
@@ -153,12 +153,12 @@ class ProjectResponse(BaseModel):
 
     id: str
     name: str
-    description: Optional[str]
+    description: str | None
     tags: list[str]
     total_files: int
     total_analyses: int
     created_at: datetime
-    updated_at: Optional[datetime]
+    updated_at: datetime | None
 
     class Config:
         from_attributes = True
@@ -187,7 +187,7 @@ class ColumnMapping(BaseModel):
     case_id: str = Field(..., description="Column name for case ID")
     activity: str = Field(..., description="Column name for activity")
     timestamp: str = Field(..., description="Column name for timestamp")
-    resource: Optional[str] = Field(None, description="Column name for resource")
+    resource: str | None = Field(None, description="Column name for resource")
 
 
 class IngestRequest(BaseModel):
@@ -196,17 +196,17 @@ class IngestRequest(BaseModel):
     case_id_column: str = Field(..., description="Column name for case ID")
     activity_column: str = Field(..., description="Column name for activity")
     timestamp_column: str = Field(..., description="Column name for timestamp")
-    resource_column: Optional[str] = Field(None, description="Column name for resource")
+    resource_column: str | None = Field(None, description="Column name for resource")
 
 
 class DatasetUploadRequest(BaseModel):
     """Request for file upload with column mapping."""
 
-    name: Optional[str] = None
-    case_id_column: Optional[str] = None
-    activity_column: Optional[str] = None
-    timestamp_column: Optional[str] = None
-    resource_column: Optional[str] = None
+    name: str | None = None
+    case_id_column: str | None = None
+    activity_column: str | None = None
+    timestamp_column: str | None = None
+    resource_column: str | None = None
 
 
 class DatasetResponse(BaseModel):
@@ -220,7 +220,7 @@ class DatasetResponse(BaseModel):
     total_activities: int
     activities: list[str]
     created_at: datetime
-    source_file: Optional[str] = None  # FE expects this for display
+    source_file: str | None = None  # FE expects this for display
     status: str = "ready"  # Dataset lifecycle: unstructured, analyzing, ready, error
 
     class Config:
@@ -236,9 +236,9 @@ class DatasetListResponse(PaginatedResponse):
 class DatasetDetailResponse(DatasetResponse):
     """Detailed dataset response with statistics."""
 
-    source_file: Optional[str]
-    statistics: Optional[dict[str, Any]]
-    updated_at: Optional[datetime]
+    source_file: str | None
+    statistics: dict[str, Any] | None
+    updated_at: datetime | None
 
 
 class CaseResponse(BaseModel):
@@ -246,10 +246,10 @@ class CaseResponse(BaseModel):
 
     case_id: str
     event_count: int
-    variant: Optional[str]
-    start_time: Optional[datetime]
-    end_time: Optional[datetime]
-    duration_seconds: Optional[float]
+    variant: str | None
+    start_time: datetime | None
+    end_time: datetime | None
+    duration_seconds: float | None
 
 
 class CaseListResponse(PaginatedResponse):
@@ -264,8 +264,8 @@ class EventResponse(BaseModel):
     id: str
     activity: str
     timestamp: datetime
-    resource: Optional[str]
-    attributes: Optional[dict[str, Any]]
+    resource: str | None
+    attributes: dict[str, Any] | None
 
 
 class VariantResponse(BaseModel):
@@ -276,11 +276,11 @@ class VariantResponse(BaseModel):
     activities: list[str]  # Pre-parsed array: ["A", "B", "C"] (for FE consumption)
     case_count: int
     frequency_percent: float
-    avg_duration_seconds: Optional[float] = None
+    avg_duration_seconds: float | None = None
     # Complexity metrics (optional, populated when requested)
-    complexity_score: Optional[float] = None
-    rework_count: Optional[int] = None
-    unique_activity_count: Optional[int] = None
+    complexity_score: float | None = None
+    rework_count: int | None = None
+    unique_activity_count: int | None = None
 
 
 class ActivityDetailResponse(BaseModel):
@@ -289,12 +289,12 @@ class ActivityDetailResponse(BaseModel):
     activity: str
     frequency: int
     frequency_percent: float
-    avg_duration_seconds: Optional[float] = None
-    min_duration_seconds: Optional[float] = None
-    max_duration_seconds: Optional[float] = None
+    avg_duration_seconds: float | None = None
+    min_duration_seconds: float | None = None
+    max_duration_seconds: float | None = None
     is_start_activity: bool = False
     is_end_activity: bool = False
-    position_avg: Optional[float] = None  # Average position in trace (0=first, 1=last)
+    position_avg: float | None = None  # Average position in trace (0=first, 1=last)
     resources: list[str] = []  # Resources that perform this activity
 
 
@@ -308,19 +308,70 @@ class StatisticsResponse(BaseModel):
     activities: list[str]
     start_activities: dict[str, int]
     end_activities: dict[str, int]
-    avg_case_duration_seconds: Optional[float]
-    min_case_duration_seconds: Optional[float]
-    max_case_duration_seconds: Optional[float]
-    date_range: Optional[dict[str, datetime]]
+    avg_case_duration_seconds: float | None
+    min_case_duration_seconds: float | None
+    max_case_duration_seconds: float | None
+    date_range: dict[str, datetime] | None
 
 
 class ColumnDetectionResponse(BaseModel):
     """Column detection result."""
 
     columns: list[str]
-    suggestions: dict[str, Optional[str]]
+    suggestions: dict[str, str | None]
     sample_rows: list[dict[str, Any]]
     row_count: int
+
+
+class ColumnTypeInfo(BaseModel):
+    """Column type information for data preview."""
+
+    name: str
+    detected_type: str  # STRING, INTEGER, DECIMAL, DATETIME, BOOLEAN
+    sample_values: list[Any] = []
+    null_count: int = 0
+    date_format: str | None = None  # For DATETIME columns
+
+
+class DataPreviewResponse(BaseModel):
+    """Data preview for upload wizard Configure step."""
+
+    dataset_id: str
+    filename: str
+    columns: list[ColumnTypeInfo]
+    rows: list[dict[str, Any]]  # Preview rows (first 10-20)
+    total_rows: int
+    has_header: bool = True
+    field_separator: str = ","
+    encoding: str = "utf-8"
+
+
+class SheetInfo(BaseModel):
+    """Sheet information for Excel files."""
+
+    name: str
+    index: int
+    row_count: int
+    column_count: int
+
+
+class SheetsResponse(BaseModel):
+    """Available sheets in an Excel file."""
+
+    dataset_id: str
+    filename: str
+    sheets: list[SheetInfo]
+
+
+class ParseConfigRequest(BaseModel):
+    """Request to apply parsing configuration."""
+
+    has_header: bool = True
+    field_separator: str = ","
+    decimal_separator: str = "."
+    thousand_separator: str = ","
+    sheet_name: str | None = None  # For Excel files
+    encoding: str = "utf-8"
 
 
 # =============================================================================
@@ -342,7 +393,7 @@ class DiscoverRequest(BaseModel):
 
     log_id: str
     miner_type: MinerType = MinerType.INDUCTIVE
-    model_name: Optional[str] = None
+    model_name: str | None = None
 
 
 class ModelResponse(BaseModel):
@@ -352,9 +403,9 @@ class ModelResponse(BaseModel):
     name: str
     miner_type: str
     model_format: str
-    log_id: Optional[str]
-    fitness: Optional[float]
-    precision: Optional[float]
+    log_id: str | None
+    fitness: float | None
+    precision: float | None
     created_at: datetime
 
     class Config:
@@ -390,9 +441,9 @@ class DFGEdge(BaseModel):
     frequency: int
     probability: float
     # Performance metrics (optional, populated when include_performance=true)
-    avg_duration_seconds: Optional[float] = None
-    min_duration_seconds: Optional[float] = None
-    max_duration_seconds: Optional[float] = None
+    avg_duration_seconds: float | None = None
+    min_duration_seconds: float | None = None
+    max_duration_seconds: float | None = None
 
 
 class DFGResponse(BaseModel):
@@ -431,7 +482,7 @@ class PetriNetTransition(BaseModel):
 
     id: str
     name: str
-    label: Optional[str]
+    label: str | None
 
 
 class PetriNetArc(BaseModel):
@@ -472,12 +523,12 @@ class ConformanceResponse(BaseModel):
     log_id: str
     model_id: str
     fitness: float
-    precision: Optional[float]
-    generalization: Optional[float] = None  # FE expects this metric
-    simplicity: Optional[float] = None  # FE expects this metric
+    precision: float | None
+    generalization: float | None = None  # FE expects this metric
+    simplicity: float | None = None  # FE expects this metric
     method: str  # What method was requested
     algorithm_used: str  # What algorithm actually ran (may differ if fallback)
-    fallback_reason: Optional[str] = None  # Reason for fallback if different from method
+    fallback_reason: str | None = None  # Reason for fallback if different from method
     is_conformant: bool  # fitness >= 0.8
     fitting_traces: int
     total_traces: int
@@ -493,7 +544,7 @@ class DeviationDetail(BaseModel):
     case_id: str
     activity: str
     violation_type: str  # 'missing_activity' | 'wrong_order' | 'extra_activity'
-    expected_after: Optional[str] = None
+    expected_after: str | None = None
     frequency: int = 1
     impact: str = "medium"  # 'low' | 'medium' | 'high'
 
@@ -502,24 +553,24 @@ class DiagnosticsResponse(BaseModel):
     """Detailed conformance diagnostics."""
 
     fitness: float
-    precision: Optional[float]
-    generalization: Optional[float] = None
-    simplicity: Optional[float] = None
-    f_score: Optional[float] = None  # Harmonic mean of fitness & precision
+    precision: float | None
+    generalization: float | None = None
+    simplicity: float | None = None
+    f_score: float | None = None  # Harmonic mean of fitness & precision
     total_traces: int
     fitting_traces: int
     non_fitting_traces: int
     fitness_ratio: float
-    average_alignment_cost: Optional[float] = None
-    deviations: Optional[list[DeviationDetail]] = None  # Structured deviations
+    average_alignment_cost: float | None = None
+    deviations: list[DeviationDetail] | None = None  # Structured deviations
 
 
 class QualityMetricsResponse(BaseModel):
     """Full quality metrics for a process model.
-    
+
     Contains all 4 quality dimensions from PM4py:
     - Fitness: How well the log fits the model
-    - Precision: How much the model allows for behavior not in the log  
+    - Precision: How much the model allows for behavior not in the log
     - Generalization: How well the model generalizes beyond observed behavior
     - Simplicity: How simple/understandable the model is
     """
@@ -527,10 +578,10 @@ class QualityMetricsResponse(BaseModel):
     log_id: str
     model_id: str
     fitness: float
-    precision: Optional[float] = None
-    generalization: Optional[float] = None
-    simplicity: Optional[float] = None
-    f_score: Optional[float] = None  # Harmonic mean of fitness & precision
+    precision: float | None = None
+    generalization: float | None = None
+    simplicity: float | None = None
+    f_score: float | None = None  # Harmonic mean of fitness & precision
 
 
 # =============================================================================
@@ -551,7 +602,7 @@ class WorkflowCreateRequest(BaseModel):
 
     name: str
     steps: list[WorkflowStep]
-    schedule: Optional[str] = None  # Cron expression
+    schedule: str | None = None  # Cron expression
 
 
 class WorkflowResponse(BaseModel):
@@ -560,7 +611,7 @@ class WorkflowResponse(BaseModel):
     id: str
     name: str
     steps: list[WorkflowStep]
-    schedule: Optional[str]
+    schedule: str | None
     is_active: bool
     created_at: datetime
 
@@ -571,7 +622,7 @@ class WorkflowResponse(BaseModel):
 class WorkflowRunRequest(BaseModel):
     """Request to run a workflow."""
 
-    log_id: Optional[str] = None
+    log_id: str | None = None
     params: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -580,11 +631,11 @@ class WorkflowRunResponse(BaseModel):
 
     id: str
     workflow_id: str
-    log_id: Optional[str]
+    log_id: str | None
     status: str
-    started_at: Optional[datetime]
-    completed_at: Optional[datetime]
-    error: Optional[str]
+    started_at: datetime | None
+    completed_at: datetime | None
+    error: str | None
 
     class Config:
         from_attributes = True
@@ -611,7 +662,7 @@ class ErrorResponse(BaseModel):
     title: str
     status: int
     detail: str
-    instance: Optional[str] = None
+    instance: str | None = None
 
 
 # =============================================================================
@@ -622,7 +673,7 @@ class ErrorResponse(BaseModel):
 class OCELUploadRequest(BaseModel):
     """Request for OCEL file upload."""
 
-    name: Optional[str] = None
+    name: str | None = None
 
 
 class OCELLogResponse(BaseModel):
@@ -630,7 +681,7 @@ class OCELLogResponse(BaseModel):
 
     id: str
     name: str
-    source_file: Optional[str]
+    source_file: str | None
     source_format: str
     total_events: int
     total_objects: int
@@ -675,7 +726,7 @@ class DiscoverOCPNRequest(BaseModel):
     """Request to discover Object-Centric Petri Net."""
 
     log_id: str
-    model_name: Optional[str] = None
+    model_name: str | None = None
 
 
 class OCPetriNetResponse(BaseModel):
@@ -775,7 +826,7 @@ class DeviationResponse(BaseModel):
     """Conformance deviation detail."""
 
     case_id: str
-    activity: Optional[str]
+    activity: str | None
     deviation_type: str
     details: str
 
@@ -783,8 +834,8 @@ class DeviationResponse(BaseModel):
 class AlignmentMove(BaseModel):
     """Single move in an alignment sequence."""
 
-    log_move: Optional[str] = None
-    model_move: Optional[str] = None
+    log_move: str | None = None
+    model_move: str | None = None
     move_type: str  # 'sync', 'log_only', 'model_only'
 
 
@@ -824,7 +875,7 @@ class FilterConfig(BaseModel):
 class FilterRequest(BaseModel):
     """Request to apply filters to an event log."""
 
-    name: Optional[str] = Field(None, description="Name for the filtered log")
+    name: str | None = Field(None, description="Name for the filtered log")
     filters: list[FilterConfig] = Field(..., description="List of filters to apply")
     save_result: bool = Field(default=True, description="Whether to save the filtered log")
 
@@ -871,7 +922,7 @@ class FilteredLogResponse(BaseModel):
     total_events: int
     total_cases: int
     total_activities: int
-    statistics: Optional[FilterStatistics]
+    statistics: FilterStatistics | None
     created_at: datetime
 
     class Config:
@@ -895,7 +946,7 @@ class FilterOptionsResponse(BaseModel):
     start_activities: dict[str, int]
     end_activities: dict[str, int]
     total_variants: int
-    time_range: dict[str, Optional[str]]
+    time_range: dict[str, str | None]
     case_size_range: dict[str, float]
 
 
@@ -975,7 +1026,7 @@ class ReworkChainListResponse(BaseModel):
     log_id: str
     chains: list[ReworkChain]
     total_chains: int
-    most_problematic_activity: Optional[str] = None
+    most_problematic_activity: str | None = None
     cases_with_chains: int = 0
     chains_percentage: float = 0.0
 
@@ -1054,7 +1105,7 @@ class NetworkEdge(BaseModel):
     source: str
     target: str
     weight: float
-    label: Optional[str] = None
+    label: str | None = None
 
 
 class SocialNetworkResponse(BaseModel):
@@ -1082,8 +1133,8 @@ class ResourceProfileResponse(BaseModel):
     total_events: int
     activities: dict[str, int]
     avg_processing_time_seconds: float
-    first_activity: Optional[datetime]
-    last_activity: Optional[datetime]
+    first_activity: datetime | None
+    last_activity: datetime | None
 
 
 class ResourceWorkloadResponse(BaseModel):
@@ -1110,7 +1161,7 @@ class TrainPredictorRequest(BaseModel):
         default="random_forest",
         description="ML algorithm: 'random_forest', 'xgboost', 'gradient_boosting'",
     )
-    outcome_attribute: Optional[str] = Field(
+    outcome_attribute: str | None = Field(
         None,
         description="Attribute to predict for outcome models",
     )
@@ -1142,7 +1193,7 @@ class PredictionRequest(BaseModel):
     """Request for a single prediction."""
 
     case_prefix: list[str] = Field(..., description="Activity sequence so far")
-    case_attributes: Optional[dict[str, Any]] = None
+    case_attributes: dict[str, Any] | None = None
 
 
 class PredictionResponse(BaseModel):
@@ -1151,8 +1202,8 @@ class PredictionResponse(BaseModel):
     predictor_id: str
     case_prefix: list[str]
     prediction: Any
-    confidence: Optional[float]
-    alternatives: Optional[list[dict[str, Any]]] = None
+    confidence: float | None
+    alternatives: list[dict[str, Any]] | None = None
 
 
 class BatchPredictionRequest(BaseModel):
@@ -1175,8 +1226,8 @@ class JobStatusResponse(BaseModel):
     job_type: str
     status: str
     progress: int
-    result: Optional[dict[str, Any]] = None
-    error: Optional[str] = None
+    result: dict[str, Any] | None = None
+    error: str | None = None
     created_at: datetime
 
     class Config:
@@ -1231,7 +1282,9 @@ class AnalysisCreateRequest(BaseModel):
     """Request to create a new analysis."""
 
     name: str = Field(..., min_length=1, max_length=255)
-    analysis_type: str = Field(..., description="Type: discovery, conformance, variants, bottleneck")
+    analysis_type: str = Field(
+        ..., description="Type: discovery, conformance, variants, bottleneck"
+    )
     config: dict[str, Any] = Field(default_factory=dict, description="Analysis configuration")
 
 
@@ -1243,12 +1296,12 @@ class AnalysisResponse(BaseModel):
     name: str
     analysis_type: str
     status: str
-    config: Optional[dict[str, Any]] = None
-    result_summary: Optional[dict[str, Any]] = None
-    model_id: Optional[str] = None
+    config: dict[str, Any] | None = None
+    result_summary: dict[str, Any] | None = None
+    model_id: str | None = None
     created_at: datetime
-    completed_at: Optional[datetime] = None
-    error_message: Optional[str] = None
+    completed_at: datetime | None = None
+    error_message: str | None = None
 
     class Config:
         from_attributes = True
@@ -1263,9 +1316,9 @@ class AnalysisListResponse(PaginatedResponse):
 class AnalysisDetailResponse(AnalysisResponse):
     """Detailed analysis with full results."""
 
-    dfg: Optional[DFGResponse] = None
-    variants: Optional[list[VariantResponse]] = None
-    statistics: Optional[StatisticsResponse] = None
+    dfg: DFGResponse | None = None
+    variants: list[VariantResponse] | None = None
+    statistics: StatisticsResponse | None = None
 
 
 class UploadedFileResponse(BaseModel):
@@ -1274,9 +1327,9 @@ class UploadedFileResponse(BaseModel):
     id: str
     filename: str
     storage_path: str
-    size_bytes: Optional[int] = None
-    mime_type: Optional[str] = None
-    checksum: Optional[str] = None
+    size_bytes: int | None = None
+    mime_type: str | None = None
+    checksum: str | None = None
     created_at: datetime
 
     class Config:

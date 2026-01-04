@@ -1,0 +1,10 @@
+feature_id: "DIS-001"
+research_findings:
+  libraries:
+    python: ["pm4py", "pandas"]
+    frontend: ["ant-design"]
+  competitors:
+    celonis: "Direct file upload with size limit up to 1GB. Supports CSV, XLSX, XES."
+    signavio: "Integration with multiple ERPs, supports XES and CSV."
+  recommendations:
+    must_have: ["Support XES/CSV", "File size validation", "Streaming upload for large files"]

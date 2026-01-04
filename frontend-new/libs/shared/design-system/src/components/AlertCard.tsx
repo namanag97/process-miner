@@ -19,7 +19,6 @@ import {
   Typography,
   Tag,
   Button,
-  Tooltip,
   Badge,
 } from 'antd';
 import {
@@ -27,7 +26,6 @@ import {
   WarningOutlined,
   ExclamationCircleOutlined,
   InfoCircleOutlined,
-  CheckCircleOutlined,
   ClockCircleOutlined,
   EyeOutlined,
   CloseOutlined,

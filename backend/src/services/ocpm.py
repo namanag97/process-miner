@@ -14,17 +14,18 @@ Provides OCEL 2.0 support for Object-Centric Process Mining including:
 import os
 import pickle
 import tempfile
-from typing import Any, Optional
+from typing import Any
 
 import pm4py
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.models.ocel2 import (
-    OCEL2EventType,
-    OCEL2ObjectType,
-    OCEL2Event,
-    OCEL2Object,
     E2ORelation,
     O2ORelation,
+    OCEL2Event,
+    OCEL2EventType,
+    OCEL2Object,
+    OCEL2ObjectType,
 )
 
 
@@ -73,7 +74,7 @@ class OCPMService:
         """
         if source_format == "sqlite":
             return ".sqlite"
-        elif source_format == "xmlocel":
+        if source_format == "xmlocel":
             return ".xmlocel"
         return ".jsonocel"
 
@@ -235,6 +236,7 @@ class OCPMService:
             Object-Centric Petri Net
         """
         from src.core.safe_unpickler import safe_loads
+
         # BUG-028 FIX: Use safe_loads instead of pickle.loads
         return safe_loads(data)
 
@@ -353,14 +355,10 @@ class OCPMService:
     # Object Graphs (Phase 3 PM4py Integration)
     # =========================================================================
 
-    def discover_object_graph(
-        self, 
-        ocel, 
-        graph_type: str = "object_interaction"
-    ) -> dict[str, Any]:
+    def discover_object_graph(self, ocel, graph_type: str = "object_interaction") -> dict[str, Any]:
         """
         Discover object relationships graph of specified type.
-        
+
         Args:
             ocel: PM4Py OCEL object
             graph_type: One of:
@@ -369,26 +367,28 @@ class OCPMService:
                 - 'object_inheritance': Type hierarchy relationships
                 - 'object_cobirth': Objects created in same event
                 - 'object_codeath': Objects terminated in same event
-                
+
         Returns:
             Object graph as dictionary with nodes and edges
         """
         try:
             graph = pm4py.discover_objects_graph(ocel, graph_type=graph_type)
-            
+
             # Convert to frontend-friendly format
             nodes = set()
             edges = []
-            
+
             for (src, tgt), data in graph.items():
                 nodes.add(src)
                 nodes.add(tgt)
-                edges.append({
-                    "source": src,
-                    "target": tgt,
-                    "weight": data if isinstance(data, (int, float)) else 1,
-                })
-            
+                edges.append(
+                    {
+                        "source": src,
+                        "target": tgt,
+                        "weight": data if isinstance(data, (int, float)) else 1,
+                    }
+                )
+
             return {
                 "graph_type": graph_type,
                 "nodes": [{"id": n} for n in nodes],
@@ -402,22 +402,22 @@ class OCPMService:
     def get_all_object_graphs(self, ocel) -> dict[str, Any]:
         """
         Get all available object graph types.
-        
+
         Returns:
             Dictionary with all graph types and their data
         """
         graph_types = [
             "object_interaction",
-            "object_descendants", 
+            "object_descendants",
             "object_inheritance",
             "object_cobirth",
             "object_codeath",
         ]
-        
+
         result = {}
         for gt in graph_types:
             result[gt] = self.discover_object_graph(ocel, gt)
-        
+
         return result
 
     # =========================================================================
@@ -427,12 +427,12 @@ class OCPMService:
     def enrich_ocel_o2o(self, ocel):
         """
         Enrich OCEL with object-to-object relationships.
-        
+
         Adds o2o relationships based on event participation patterns.
-        
+
         Args:
             ocel: PM4Py OCEL object
-            
+
         Returns:
             Enriched OCEL object
         """
@@ -441,12 +441,12 @@ class OCPMService:
     def enrich_ocel_e2o_lifecycle(self, ocel):
         """
         Enrich OCEL with event-to-object lifecycle information.
-        
+
         Adds lifecycle qualifiers (create, use, terminate) to e2o relationships.
-        
+
         Args:
             ocel: PM4Py OCEL object
-            
+
         Returns:
             Enriched OCEL object
         """
@@ -456,47 +456,36 @@ class OCPMService:
     # OCEL Sampling & Clustering (Phase 3 PM4py Integration)
     # =========================================================================
 
-    def sample_ocel_objects(
-        self, 
-        ocel, 
-        num_objects: int = 100,
-        object_type: str | None = None
-    ):
+    def sample_ocel_objects(self, ocel, num_objects: int = 100, object_type: str | None = None):
         """
         Sample OCEL by selecting a subset of objects.
-        
+
         Useful for processing large OCELs incrementally.
-        
+
         Args:
             ocel: PM4Py OCEL object
             num_objects: Number of objects to sample
             object_type: Optional object type to filter by
-            
+
         Returns:
             Sampled OCEL object
         """
         if object_type:
             return pm4py.sample_ocel_objects(
-                ocel, 
-                num_entities=num_objects,
-                object_type=object_type
+                ocel, num_entities=num_objects, object_type=object_type
             )
         return pm4py.sample_ocel_objects(ocel, num_entities=num_objects)
 
-    def sample_ocel_connected_components(
-        self, 
-        ocel, 
-        max_components: int = 10
-    ):
+    def sample_ocel_connected_components(self, ocel, max_components: int = 10):
         """
         Sample OCEL by selecting connected components.
-        
+
         Preserves complete object interactions within components.
-        
+
         Args:
             ocel: PM4Py OCEL object
             max_components: Maximum number of connected components
-            
+
         Returns:
             Sampled OCEL object
         """
@@ -505,12 +494,12 @@ class OCPMService:
     def cluster_equivalent_ocel(self, ocel) -> dict[str, Any]:
         """
         Cluster OCEL events by equivalent object sets.
-        
+
         Groups events that involve the same set of objects.
-        
+
         Args:
             ocel: PM4Py OCEL object
-            
+
         Returns:
             Clustering result with cluster assignments
         """
@@ -530,10 +519,10 @@ class OCPMService:
     def drop_duplicates(self, ocel):
         """
         Remove duplicate events from OCEL.
-        
+
         Args:
             ocel: PM4Py OCEL object
-            
+
         Returns:
             OCEL with duplicates removed
         """
@@ -542,12 +531,12 @@ class OCPMService:
     def merge_duplicates(self, ocel):
         """
         Merge duplicate events in OCEL.
-        
+
         Combines duplicate events while preserving object relationships.
-        
+
         Args:
             ocel: PM4Py OCEL object
-            
+
         Returns:
             OCEL with duplicates merged
         """
@@ -556,12 +545,12 @@ class OCPMService:
     def get_temporal_summary(self, ocel) -> dict[str, Any]:
         """
         Get temporal summary of OCEL.
-        
+
         Returns time-based statistics about events and objects.
-        
+
         Args:
             ocel: PM4Py OCEL object
-            
+
         Returns:
             Temporal summary dictionary
         """
@@ -574,18 +563,18 @@ class OCPMService:
     def get_objects_summary(self, ocel) -> dict[str, Any]:
         """
         Get detailed summary of objects in OCEL.
-        
+
         Args:
             ocel: PM4Py OCEL object
-            
+
         Returns:
             Objects summary with counts and attributes
         """
         try:
             summary = pm4py.ocel_objects_summary(ocel)
             # Convert to serializable format
-            if hasattr(summary, 'to_dict'):
-                return summary.to_dict('records')
+            if hasattr(summary, "to_dict"):
+                return summary.to_dict("records")
             return dict(summary) if summary else {}
         except Exception as e:
             return {"error": str(e)}
@@ -593,28 +582,27 @@ class OCPMService:
     def get_interactions_summary(self, ocel) -> dict[str, Any]:
         """
         Get summary of object interactions in OCEL.
-        
+
         Shows how different object types interact with each other.
-        
+
         Args:
             ocel: PM4Py OCEL object
-            
+
         Returns:
             Interactions summary
         """
         try:
             summary = pm4py.ocel_objects_interactions_summary(ocel)
-            # Convert to serializable format  
-            if hasattr(summary, 'to_dict'):
-                return summary.to_dict('records')
+            # Convert to serializable format
+            if hasattr(summary, "to_dict"):
+                return summary.to_dict("records")
             return dict(summary) if summary else {}
         except Exception as e:
             return {"error": str(e)}
 
-
-    async def persist_ocel_2_0(self, session: AsyncSession, ocel, source_log_id: Optional[str] = None):
+    async def persist_ocel_2_0(self, session: AsyncSession, ocel, source_log_id: str | None = None):
         """Persist OCEL 2.0 data into the relational OCEL2 tables.
-        
+
         This enables deep object-centric queries without re-parsing the blob.
         """
         # 1. Create Event Types
@@ -624,7 +612,7 @@ class OCPMService:
             et = OCEL2EventType(name=act)
             session.add(et)
             event_types[act] = et
-        
+
         # 2. Create Object Types
         object_types = {}
         ot_names = self.get_object_types(ocel)
@@ -632,9 +620,9 @@ class OCPMService:
             obj_type = OCEL2ObjectType(name=ot)
             session.add(obj_type)
             object_types[ot] = obj_type
-            
-        await session.flush() # Get IDs
-        
+
+        await session.flush()  # Get IDs
+
         # 3. Create Objects
         objects = {}
         for ot in ot_names:
@@ -643,67 +631,63 @@ class OCPMService:
                 obj = OCEL2Object(
                     object_type_id=object_types[ot].id,
                     object_id=oid,
-                    attributes={} # Could be populated from ocel.objects
+                    attributes={},  # Could be populated from ocel.objects
                 )
                 session.add(obj)
                 objects[oid] = obj
-                
+
         await session.flush()
-        
+
         # 4. Create Events and E2O Relations
         events_df = ocel.events
         for _, row in events_df.iterrows():
             activity = row["ocel:activity"]
             timestamp = row["ocel:timestamp"]
-            event_id = row["ocel:eid"]
-            
+            row["ocel:eid"]
+
             event = OCEL2Event(
                 event_type_id=event_types[activity].id,
                 activity=activity,
                 timestamp=timestamp,
                 source_log_id=source_log_id,
-                attributes={} # Could be populated from other cols
+                attributes={},  # Could be populated from other cols
             )
             session.add(event)
-            
+
             # Relationships
             # In OCEL 2.0/PM4Py, related objects are in columns prefixed with ocel:type:
             for col in events_df.columns:
                 if col.startswith("ocel:type:"):
-                    ot_name = col.replace("ocel:type:", "")
+                    col.replace("ocel:type:", "")
                     related_val = row[col]
                     if related_val and isinstance(related_val, (list, set)):
                         for r_oid in related_val:
                             if r_oid in objects:
                                 rel = E2ORelation(
-                                    event=event,
-                                    object=objects[r_oid],
-                                    qualifier="involved"
+                                    event=event, object=objects[r_oid], qualifier="involved"
                                 )
                                 session.add(rel)
                     elif related_val and isinstance(related_val, str):
                         if related_val in objects:
-                             rel = E2ORelation(
-                                event=event,
-                                object=objects[related_val],
-                                qualifier="involved"
+                            rel = E2ORelation(
+                                event=event, object=objects[related_val], qualifier="involved"
                             )
-                             session.add(rel)
+                            session.add(rel)
 
         # 5. O2O Relations
         try:
             o2o = pm4py.ocel_o2o_graph(ocel)
-            for (src_oid, tgt_oid), freq in o2o.items():
+            for (src_oid, tgt_oid), _freq in o2o.items():
                 if src_oid in objects and tgt_oid in objects:
                     rel = O2ORelation(
                         source_object_id=objects[src_oid].id,
                         target_object_id=objects[tgt_oid].id,
-                        qualifier="related"
+                        qualifier="related",
                     )
                     session.add(rel)
         except Exception:
-            pass # O2O might not be available
-            
+            pass  # O2O might not be available
+
         await session.commit()
 
 

@@ -8,14 +8,14 @@ Enterprise-grade exception hierarchy with:
 """
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from src.core.error_codes import ErrorCode, get_error_metadata
 
 
 class AppException(Exception):
     """Base application exception with enterprise features.
-    
+
     Attributes:
         message: Human-readable error message
         error_code: Typed error code from catalog
@@ -30,10 +30,10 @@ class AppException(Exception):
         self,
         message: str,
         error_code: ErrorCode = ErrorCode.INTERNAL_ERROR,
-        status_code: Optional[int] = None,
-        details: Optional[dict[str, Any]] = None,
-        correlation_id: Optional[str] = None,
-        retry_after: Optional[int] = None,
+        status_code: int | None = None,
+        details: dict[str, Any] | None = None,
+        correlation_id: str | None = None,
+        retry_after: int | None = None,
     ):
         self.message = message
         self.error_code = error_code
@@ -41,13 +41,13 @@ class AppException(Exception):
         self.correlation_id = correlation_id
         self.retry_after = retry_after
         self.timestamp = datetime.utcnow()
-        
+
         # Use metadata-defined status code if not explicitly provided
         metadata = get_error_metadata(error_code)
         self.status_code = status_code or metadata.get("http_status", 500)
-        
+
         super().__init__(message)
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to RFC 7807 Problem Details format."""
         result = {
@@ -59,13 +59,13 @@ class AppException(Exception):
             "timestamp": self.timestamp.isoformat(),
             **self.details,
         }
-        
+
         if self.correlation_id:
             result["correlation_id"] = self.correlation_id
-        
+
         if self.retry_after:
             result["retry_after"] = self.retry_after
-            
+
         return result
 
 
@@ -73,13 +73,14 @@ class AppException(Exception):
 # Validation Errors (422)
 # =============================================================================
 
+
 class ValidationError(AppException):
     """Validation failed."""
 
     def __init__(
-        self, 
-        message: str, 
-        field: Optional[str] = None,
+        self,
+        message: str,
+        field: str | None = None,
         error_code: ErrorCode = ErrorCode.VALIDATION_FAILED,
         **kwargs,
     ):
@@ -95,8 +96,8 @@ class ValidationError(AppException):
 
 class InvalidInputError(ValidationError):
     """Invalid input data."""
-    
-    def __init__(self, message: str, field: Optional[str] = None, **kwargs):
+
+    def __init__(self, message: str, field: str | None = None, **kwargs):
         super().__init__(
             message=message,
             field=field,
@@ -107,12 +108,12 @@ class InvalidInputError(ValidationError):
 
 class InvalidFileError(ValidationError):
     """Invalid file upload."""
-    
+
     def __init__(
-        self, 
-        message: str, 
-        filename: Optional[str] = None,
-        expected_types: Optional[list[str]] = None,
+        self,
+        message: str,
+        filename: str | None = None,
+        expected_types: list[str] | None = None,
         **kwargs,
     ):
         details = {}
@@ -120,7 +121,7 @@ class InvalidFileError(ValidationError):
             details["filename"] = filename
         if expected_types:
             details["expected_types"] = expected_types
-            
+
         super().__init__(
             message=message,
             error_code=ErrorCode.INVALID_FILE_TYPE,
@@ -133,12 +134,13 @@ class InvalidFileError(ValidationError):
 # Resource Errors (404, 409)
 # =============================================================================
 
+
 class NotFoundError(AppException):
     """Resource not found."""
 
     def __init__(
-        self, 
-        resource: str, 
+        self,
+        resource: str,
         resource_id: str,
         error_code: ErrorCode = ErrorCode.RESOURCE_NOT_FOUND,
         **kwargs,
@@ -154,7 +156,7 @@ class NotFoundError(AppException):
 
 class ProjectNotFoundError(NotFoundError):
     """Project not found."""
-    
+
     def __init__(self, project_id: str, **kwargs):
         super().__init__(
             resource="Project",
@@ -166,7 +168,7 @@ class ProjectNotFoundError(NotFoundError):
 
 class ProcessNotFoundError(NotFoundError):
     """Process (event log) not found."""
-    
+
     def __init__(self, process_id: str, **kwargs):
         super().__init__(
             resource="Process",
@@ -178,7 +180,7 @@ class ProcessNotFoundError(NotFoundError):
 
 class ModelNotFoundError(NotFoundError):
     """Process model not found."""
-    
+
     def __init__(self, model_id: str, **kwargs):
         super().__init__(
             resource="Model",
@@ -190,9 +192,9 @@ class ModelNotFoundError(NotFoundError):
 
 class ConflictError(AppException):
     """Resource conflict (e.g., duplicate, concurrent modification)."""
-    
+
     def __init__(
-        self, 
+        self,
         message: str,
         error_code: ErrorCode = ErrorCode.RESOURCE_CONFLICT,
         **kwargs,
@@ -207,18 +209,18 @@ class ConflictError(AppException):
 
 class ConcurrencyError(ConflictError):
     """Concurrent modification detected."""
-    
+
     def __init__(
-        self, 
+        self,
         resource: str,
         resource_id: str,
-        current_version: Optional[str] = None,
+        current_version: str | None = None,
         **kwargs,
     ):
         details = {"resource": resource, "id": resource_id}
         if current_version:
             details["current_version"] = current_version
-            
+
         super().__init__(
             message=f"{resource} was modified by another request",
             error_code=ErrorCode.CONCURRENCY_CONFLICT,
@@ -231,14 +233,15 @@ class ConcurrencyError(ConflictError):
 # Processing Errors (500, 504)
 # =============================================================================
 
+
 class ProcessingError(AppException):
     """Processing failed."""
 
     def __init__(
-        self, 
-        message: str, 
+        self,
+        message: str,
         error_code: ErrorCode = ErrorCode.PROCESSING_FAILED,
-        details: Optional[dict] = None,
+        details: dict | None = None,
         **kwargs,
     ):
         super().__init__(
@@ -252,8 +255,8 @@ class ProcessingError(AppException):
 
 class DiscoveryError(ProcessingError):
     """Process discovery failed."""
-    
-    def __init__(self, message: str, miner_type: Optional[str] = None, **kwargs):
+
+    def __init__(self, message: str, miner_type: str | None = None, **kwargs):
         details = {}
         if miner_type:
             details["miner_type"] = miner_type
@@ -267,8 +270,8 @@ class DiscoveryError(ProcessingError):
 
 class ConformanceError(ProcessingError):
     """Conformance checking failed."""
-    
-    def __init__(self, message: str, method: Optional[str] = None, **kwargs):
+
+    def __init__(self, message: str, method: str | None = None, **kwargs):
         details = {}
         if method:
             details["method"] = method
@@ -282,12 +285,12 @@ class ConformanceError(ProcessingError):
 
 class IngestionError(ProcessingError):
     """Data ingestion failed."""
-    
+
     def __init__(
-        self, 
-        message: str, 
-        filename: Optional[str] = None,
-        line_number: Optional[int] = None,
+        self,
+        message: str,
+        filename: str | None = None,
+        line_number: int | None = None,
         **kwargs,
     ):
         details = {}
@@ -305,12 +308,12 @@ class IngestionError(ProcessingError):
 
 class TimeoutError(ProcessingError):
     """Operation timed out."""
-    
+
     def __init__(
-        self, 
+        self,
         message: str = "Operation timed out",
-        operation: Optional[str] = None,
-        timeout_seconds: Optional[float] = None,
+        operation: str | None = None,
+        timeout_seconds: float | None = None,
         **kwargs,
     ):
         details = {}
@@ -329,12 +332,12 @@ class TimeoutError(ProcessingError):
 
 class InsufficientDataError(ProcessingError):
     """Not enough data for the requested operation."""
-    
+
     def __init__(
-        self, 
+        self,
         message: str,
-        required: Optional[int] = None,
-        actual: Optional[int] = None,
+        required: int | None = None,
+        actual: int | None = None,
         **kwargs,
     ):
         details = {}
@@ -354,15 +357,16 @@ class InsufficientDataError(ProcessingError):
 # External Service Errors (502, 503)
 # =============================================================================
 
+
 class ExternalServiceError(AppException):
     """External service failed."""
-    
+
     def __init__(
-        self, 
+        self,
         message: str,
         service: str,
         error_code: ErrorCode = ErrorCode.EXTERNAL_SERVICE_ERROR,
-        retry_after: Optional[int] = None,
+        retry_after: int | None = None,
         **kwargs,
     ):
         super().__init__(
@@ -377,12 +381,12 @@ class ExternalServiceError(AppException):
 
 class PM4PyError(ExternalServiceError):
     """PM4Py operation failed."""
-    
+
     def __init__(
-        self, 
+        self,
         message: str,
-        operation: Optional[str] = None,
-        original_error: Optional[str] = None,
+        operation: str | None = None,
+        original_error: str | None = None,
         **kwargs,
     ):
         super().__init__(
@@ -399,7 +403,7 @@ class PM4PyError(ExternalServiceError):
 
 class DatabaseError(ExternalServiceError):
     """Database operation failed."""
-    
+
     def __init__(self, message: str, **kwargs):
         super().__init__(
             message=message,
@@ -411,9 +415,9 @@ class DatabaseError(ExternalServiceError):
 
 class ServiceUnavailableError(ExternalServiceError):
     """Required service is unavailable."""
-    
+
     def __init__(
-        self, 
+        self,
         service: str,
         retry_after: int = 30,
         **kwargs,
@@ -432,14 +436,15 @@ class ServiceUnavailableError(ExternalServiceError):
 # Rate Limiting (429)
 # =============================================================================
 
+
 class RateLimitError(AppException):
     """Rate limit exceeded."""
-    
+
     def __init__(
-        self, 
+        self,
         message: str = "Rate limit exceeded",
-        limit: Optional[int] = None,
-        window_seconds: Optional[int] = None,
+        limit: int | None = None,
+        window_seconds: int | None = None,
         retry_after: int = 60,
         **kwargs,
     ):
@@ -448,7 +453,7 @@ class RateLimitError(AppException):
             details["limit"] = limit
         if window_seconds:
             details["window_seconds"] = window_seconds
-            
+
         super().__init__(
             message=message,
             error_code=ErrorCode.RATE_LIMIT_EXCEEDED,

@@ -10,12 +10,10 @@ Key features:
 - Memory-efficient streaming for large files
 """
 
-import io
 import os
 import re
 import tempfile
-from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from src.core.logging_config import get_logger
 
@@ -26,49 +24,49 @@ _duckdb = None
 
 # BUG-056 FIX: Strict column name validation pattern
 # Only allow alphanumeric, underscores, colons (for PM4Py standard names like "case:concept:name")
-VALID_COLUMN_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_:.\-\s]*$')
+VALID_COLUMN_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_:.\-\s]*$")
 MAX_COLUMN_LENGTH = 128
 
 
 def _sanitize_column_name(col: str, param_name: str = "column") -> str:
     """Validate and sanitize column name to prevent SQL injection.
-    
+
     BUG-056 FIX: Prevents SQL injection via malicious column names.
-    
+
     Args:
         col: Column name to validate
         param_name: Parameter name for error message
-        
+
     Returns:
         The validated column name
-        
+
     Raises:
         ValueError: If column name is invalid
     """
     if not col:
         raise ValueError(f"Empty {param_name} name")
-    
+
     if len(col) > MAX_COLUMN_LENGTH:
         raise ValueError(f"{param_name} name too long: {len(col)} > {MAX_COLUMN_LENGTH}")
-    
+
     if not VALID_COLUMN_PATTERN.match(col):
         raise ValueError(
             f"Invalid {param_name} name '{col}'. "
             f"Only alphanumeric characters, underscores, colons, dots, and hyphens are allowed."
         )
-    
+
     return col
 
 
 def _sanitize_delimiter(delim: str) -> str:
     """Validate delimiter to prevent SQL injection.
-    
+
     Args:
         delim: Delimiter character
-        
+
     Returns:
         Validated delimiter
-        
+
     Raises:
         ValueError: If delimiter is invalid
     """
@@ -85,11 +83,11 @@ def _get_duckdb():
     if _duckdb is None:
         try:
             import duckdb
+
             _duckdb = duckdb
         except ImportError:
             raise ImportError(
-                "DuckDB is required for vectorized ingestion. "
-                "Install with: pip install duckdb"
+                "DuckDB is required for vectorized ingestion. Install with: pip install duckdb"
             )
     return _duckdb
 
@@ -100,6 +98,7 @@ class DuckDBIngestionService:
     def _get_manager(self):
         """Get the DuckDB manager instance."""
         from src.infrastructure.duckdb import duckdb_manager
+
         return duckdb_manager
 
     def parse_csv_fast(
@@ -108,7 +107,7 @@ class DuckDBIngestionService:
         case_id_col: str = "case_id",
         activity_col: str = "activity",
         timestamp_col: str = "timestamp",
-        resource_col: Optional[str] = None,
+        resource_col: str | None = None,
         delimiter: str = ",",
     ) -> dict[str, Any]:
         """
@@ -124,15 +123,15 @@ class DuckDBIngestionService:
         if resource_col:
             resource_col = _sanitize_column_name(resource_col, "resource_column")
         delimiter = _sanitize_delimiter(delimiter)
-        
+
         duckdb_manager = self._get_manager()
-        
+
         logger.info("duckdb_parse_started", size_bytes=len(file_content))
-        
+
         temp_path = None
         conn = None
         try:
-            with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as f:
+            with tempfile.NamedTemporaryFile(mode="wb", suffix=".csv", delete=False) as f:
                 f.write(file_content)
                 temp_path = f.name
 
@@ -175,6 +174,7 @@ class DuckDBIngestionService:
             """).arrow()
 
             import pyarrow as pa
+
             if isinstance(arrow_table, pa.RecordBatchReader):
                 arrow_table = arrow_table.read_all()
 
@@ -220,32 +220,31 @@ class DuckDBIngestionService:
             # Clean up temp file
             if temp_path and os.path.exists(temp_path):
                 os.unlink(temp_path)
-    
+
     def arrow_to_pm4py(self, arrow_table) -> Any:
         """
         Convert Arrow table to PM4Py EventLog.
-        
+
         Uses direct pandas conversion for zero-copy performance.
         """
-        import pm4py
         from pm4py.objects.conversion.log import converter
-        
+
         # Arrow -> Pandas (zero-copy where possible)
         df = arrow_table.to_pandas()
-        
+
         # Rename to PM4Py standard columns
-        df = df.rename(columns={
-            "case_id": "case:concept:name",
-            "activity": "concept:name",
-            "timestamp": "time:timestamp",
-            "resource": "org:resource",
-        })
-        
+        df = df.rename(
+            columns={
+                "case_id": "case:concept:name",
+                "activity": "concept:name",
+                "timestamp": "time:timestamp",
+                "resource": "org:resource",
+            }
+        )
+
         # Convert to EventLog
-        log = converter.apply(df, variant=converter.Variants.TO_EVENT_LOG)
-        
-        return log
-    
+        return converter.apply(df, variant=converter.Variants.TO_EVENT_LOG)
+
     def detect_columns_fast(
         self,
         file_content: bytes,
@@ -264,13 +263,13 @@ class DuckDBIngestionService:
         try:
             conn = duckdb.connect(":memory:")
 
-            with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as f:
+            with tempfile.NamedTemporaryFile(mode="wb", suffix=".csv", delete=False) as f:
                 f.write(file_content)
                 temp_path = f.name
 
             # BUG-056b FIX: Sanitize delimiter to prevent injection
             safe_delimiter = _sanitize_delimiter(delimiter)
-            
+
             # Get schema from DuckDB's auto-detection using safe file path and delimiter
             # Note: temp_path is controlled, not user input
             schema_info = conn.execute(f"""
@@ -296,7 +295,9 @@ class DuckDBIngestionService:
                 # Heuristic detection based on column name and type
                 name_lower = col_name.lower()
 
-                if any(x in name_lower for x in ["case", "trace"]) or (name_lower == "id" and ("BIGINT" in col_type or "VARCHAR" in col_type)):
+                if any(x in name_lower for x in ["case", "trace"]) or (
+                    name_lower == "id" and ("BIGINT" in col_type or "VARCHAR" in col_type)
+                ):
                     col_info["suggested_role"] = "case_id"
                     if not suggestions["case_id_column"]:
                         suggestions["case_id_column"] = col_name
@@ -306,12 +307,17 @@ class DuckDBIngestionService:
                     if not suggestions["activity_column"]:
                         suggestions["activity_column"] = col_name
 
-                elif any(x in name_lower for x in ["time", "date", "stamp"]) or "TIMESTAMP" in col_type:
+                elif (
+                    any(x in name_lower for x in ["time", "date", "stamp"])
+                    or "TIMESTAMP" in col_type
+                ):
                     col_info["suggested_role"] = "timestamp"
                     if not suggestions["timestamp_column"]:
                         suggestions["timestamp_column"] = col_name
 
-                elif any(x in name_lower for x in ["resource", "user", "actor", "agent", "employee"]):
+                elif any(
+                    x in name_lower for x in ["resource", "user", "actor", "agent", "employee"]
+                ):
                     col_info["suggested_role"] = "resource"
                     if not suggestions["resource_column"]:
                         suggestions["resource_column"] = col_name
@@ -335,7 +341,7 @@ class DuckDBIngestionService:
                 conn.close()
             if temp_path and os.path.exists(temp_path):
                 os.unlink(temp_path)
-    
+
     def get_variants_fast(self, file_content: bytes, mapping: dict) -> list[dict]:
         """
         Extract process variants using DuckDB aggregation.
@@ -349,15 +355,15 @@ class DuckDBIngestionService:
         try:
             conn = duckdb.connect(":memory:")
 
-            with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as f:
+            with tempfile.NamedTemporaryFile(mode="wb", suffix=".csv", delete=False) as f:
                 f.write(file_content)
                 temp_path = f.name
 
             # BUG-056b FIX: Sanitize column names from mapping
-            case_col = _sanitize_column_name(mapping['case_id'], 'case_id')
-            activity_col = _sanitize_column_name(mapping['activity'], 'activity')
-            timestamp_col = _sanitize_column_name(mapping['timestamp'], 'timestamp')
-            
+            case_col = _sanitize_column_name(mapping["case_id"], "case_id")
+            activity_col = _sanitize_column_name(mapping["activity"], "activity")
+            timestamp_col = _sanitize_column_name(mapping["timestamp"], "timestamp")
+
             # Compute variants with case counts using sanitized column names
             variants = conn.execute(f"""
                 WITH case_variants AS (

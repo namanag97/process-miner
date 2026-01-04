@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Form, Select, Switch, Button, Space, Divider, Typography } from 'antd';
 import { tokens, toast } from '@lumina/design-system';
 import { createLogger } from '../../utils/logger';
@@ -92,7 +92,7 @@ export function PreferencesTab() {
     // Save to localStorage
     localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
     setSavedPreferences(values);
-    
+
     toast.success('Preferences saved successfully');
     setIsDirty(false);
     setIsSaving(false);

@@ -1,0 +1,7 @@
+feature_id: "DIS-013"
+research_findings:
+  libraries:
+    python: ["pm4py.write_bpmn"]
+    frontend: ["html-to-image"]
+  recommendations:
+    must_have: ["BPMN 2.0", "PNG/SVG", "PDF"]

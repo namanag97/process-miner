@@ -11,7 +11,7 @@
  * />
  */
 
-import React, { memo, useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import {
   Card,
   List,
@@ -35,7 +35,7 @@ import {
 } from '@ant-design/icons';
 import { tokens } from '../theme';
 
-const { Text, Title, Paragraph } = Typography;
+const { Text } = Typography;
 
 // ============================================
 // Types
@@ -116,11 +116,11 @@ export const BottleneckPanel = memo(function BottleneckPanel({
   // Summary stats
   const summary = useMemo(() => {
     if (bottlenecks.length === 0) return null;
-    
+
     const totalWaitTime = bottlenecks.reduce((sum, b) => sum + b.averageWaitTime * b.caseCount, 0);
     const totalCases = bottlenecks.reduce((sum, b) => sum + b.caseCount, 0);
     const criticalCount = bottlenecks.filter((b) => b.impactScore >= 80).length;
-    
+
     return {
       totalWaitTime,
       avgWaitTime: totalCases > 0 ? totalWaitTime / totalCases : 0,
@@ -247,7 +247,7 @@ export const BottleneckPanel = memo(function BottleneckPanel({
                       <Text type="secondary">Max: {formatDuration(item.maxWaitTime)}</Text>
                       <Text type="secondary">{item.caseCount.toLocaleString()} cases</Text>
                     </Space>
-                    
+
                     {item.previousActivity && (
                       <div>
                         <Text type="secondary" style={{ fontSize: tokens.fontSize.xs }}>

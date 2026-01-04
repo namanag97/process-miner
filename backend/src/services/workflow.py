@@ -61,17 +61,16 @@ class WorkflowService:
         # This is a simplified execution - in production would call actual services
         if step_type == "discover":
             return {"status": "completed", "model_id": context.get("model_id")}
-        elif step_type == "conformance":
+        if step_type == "conformance":
             return {"status": "completed", "fitness": 0.95}
-        elif step_type == "variants":
+        if step_type == "variants":
             return {"status": "completed", "variant_count": 10}
-        elif step_type == "statistics":
+        if step_type == "statistics":
             return {"status": "completed"}
-        elif step_type == "recommendation":
+        if step_type == "recommendation":
             # This would call recommendation_service.generate_recommendations in production
             return {"status": "completed", "generated_count": 1}
-        else:
-            return {"status": "skipped", "reason": f"Unknown step type: {step_type}"}
+        return {"status": "skipped", "reason": f"Unknown step type: {step_type}"}
 
     def validate_workflow(self, steps: list[dict]) -> tuple[bool, str]:
         """Validate workflow definition."""

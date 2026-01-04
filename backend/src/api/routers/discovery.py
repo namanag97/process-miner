@@ -4,11 +4,9 @@ Endpoints for running mining algorithms and managing discovered models.
 """
 
 import time
-from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from sqlalchemy import func, select
-from sqlalchemy.orm import selectinload
 
 from src.api.dependencies import DBSession
 from src.core.enums import MinerType
@@ -19,7 +17,7 @@ from src.core.exceptions import (
     ProcessNotFoundError,
 )
 from src.core.logging_config import get_logger
-from src.models.orm import Dataset, ProcessCase, ProcessModel
+from src.models.orm import Dataset, ProcessModel
 from src.models.schemas import (
     DiscoverRequest,
     MinerInfo,
@@ -65,11 +63,11 @@ async def discover_model(
 
     BUG-019 FIX: Heavy mining is now offloaded to Celery by default.
     Set async_mode=False for synchronous execution (not recommended for large logs).
-    
+
     Args:
         request: Discovery request with log_id, miner_type, model_name
         async_mode: If True (default), runs in background and returns job_id
-    
+
     Returns:
         - If async_mode=True: {"job_id": "...", "status": "pending"}
         - If async_mode=False: ModelResponse with discovered model
@@ -91,6 +89,24 @@ async def discover_model(
         logger.warning("log_not_found", log_id=request.log_id)
         raise ProcessNotFoundError(request.log_id)
 
+    # FIX: Validate dataset is ready for discovery (has completed ingestion)
+    from src.models.orm import DatasetStatus
+
+    if event_log.status != DatasetStatus.READY.value:
+        logger.warning("dataset_not_ready", log_id=request.log_id, status=event_log.status)
+        raise InvalidInputError(
+            f"Dataset is not ready for discovery (status: {event_log.status}). "
+            f"Please complete ingestion first via POST /datasets/{request.log_id}/ingest.",
+            field="log_id",
+        )
+
+    if event_log.total_events == 0:
+        logger.warning("dataset_empty", log_id=request.log_id)
+        raise InvalidInputError(
+            "Dataset has no events. Cannot discover a process model.",
+            field="log_id",
+        )
+
     # Validate miner type
     try:
         miner_type = MinerType(request.miner_type)
@@ -104,39 +120,57 @@ async def discover_model(
 
     # BUG-019 FIX: Async mode - offload to Celery
     if async_mode:
-        from src.infrastructure.tasks import perform_discovery_task
-        from src.models.orm import AsyncJob
         import json
 
+        from src.core.enums import EntityType, JobStatus, JobType
+        from src.infrastructure.tasks import perform_discovery_task
+        from src.models.orm import AsyncJob
+
+        # Create AsyncJob record first with job-centric fields
+        async_job = AsyncJob(
+            user_id="system",  # Default system owner for now (auth bypass in effect)
+            job_type=JobType.DISCOVERY.value,
+            status=JobStatus.QUEUED.value,
+            entity_type=EntityType.MODEL.value,
+            # entity_id will be set when model is created
+            parameters_json=json.dumps(
+                {
+                    "log_id": request.log_id,
+                    "miner_type": miner_type.value,
+                    "model_name": request.model_name,
+                }
+            ),
+        )
+        db.add(async_job)
+        await db.flush()
+
+        # Queue Celery task
         task = perform_discovery_task.delay(
             log_id=request.log_id,
             miner_type=miner_type.value,
             model_name=request.model_name,
         )
 
-        # Create AsyncJob record
-        # BUG-062 FIX: Track user_id for security
-        # BUG-019/046: Ensure ownership is tracked
-        async_job = AsyncJob(
-            task_id=task.id,
-            user_id="system",  # Default system owner for now (auth bypass in effect)
-            job_type="process_discovery",
-            status="pending",
-            parameters_json=json.dumps({
-                "log_id": request.log_id,
-                "miner_type": miner_type.value,
-                "model_name": request.model_name,
-            }),
-        )
-        db.add(async_job)
+        # Link task_id to job
+        async_job.task_id = task.id
         await db.commit()
 
-        logger.info("async_discovery_started", job_id=task.id, log_id=request.log_id)
-        return {
-            "job_id": task.id,
-            "status": "pending",
-            "message": "Discovery started. Use /predictions/jobs/{job_id} to check status.",
-        }
+        logger.info(
+            "async_discovery_started", job_id=async_job.id, task_id=task.id, log_id=request.log_id
+        )
+
+        # Return 202 Accepted with job_id
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(
+            status_code=202,
+            content={
+                "job_id": async_job.id,
+                "task_id": task.id,
+                "status": "queued",
+                "message": "Discovery started. Use /api/v1/jobs/{job_id} to check status.",
+            },
+        )
 
     # Sync mode (legacy, not recommended for large logs)
     start_time = time.perf_counter()
@@ -145,7 +179,7 @@ async def discover_model(
         model_data, model_format = mining_service.discover(event_log, miner_type)
     except Exception as e:
         logger.error("discovery_failed", log_id=request.log_id, error=str(e), exc_info=True)
-        raise DiscoveryError(f"Discovery failed: {str(e)}", miner_type=miner_type.value)
+        raise DiscoveryError(f"Discovery failed: {e!s}", miner_type=miner_type.value)
 
     # Create model name
     model_name = request.model_name or f"{event_log.name}_{miner_type.value}"
@@ -223,7 +257,7 @@ async def list_models(
     db: DBSession,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    log_id: Optional[str] = Query(None),
+    log_id: str | None = Query(None),
 ):
     """
     List discovered process models.

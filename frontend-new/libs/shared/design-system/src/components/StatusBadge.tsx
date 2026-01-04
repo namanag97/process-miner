@@ -9,7 +9,6 @@
  * <StatusBadge status="completed" size="small" />
  * <StatusBadge status="failed" pulse />
  */
-import React from 'react';
 import { Tag, Tooltip } from 'antd';
 import {
   ClockCircleOutlined,
@@ -19,7 +18,6 @@ import {
   ExclamationCircleOutlined,
   InboxOutlined,
   FileTextOutlined,
-  PauseCircleOutlined,
 } from '@ant-design/icons';
 import { tokens } from '../theme';
 
@@ -305,24 +303,24 @@ export function getStatusFromState(state: string): ObjectStatus {
     'ERROR': 'failed',
     'ARCHIVED': 'archived',
     'DELETED': 'archived',
-    
+
     // Process Model states
     'QUEUED': 'pending',
     'DISCOVERING': 'running',
     'STALE': 'stale',
-    
+
     // Prediction Model states
     'TRAINING': 'running',
     'TRAINED': 'completed',
     'DEPLOYED': 'active',
     'RETIRED': 'archived',
-    
+
     // Connection states
     'TESTING': 'running',
     'CONNECTED': 'active',
     'FAILED': 'failed',
     'SYNCING': 'running',
-    
+
     // Generic states
     'ACTIVE': 'active',
     'INACTIVE': 'archived',

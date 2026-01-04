@@ -1,0 +1,6 @@
+feature_id: "DIS-006"
+research_findings:
+  libraries:
+    python: ["pm4py.discovery"]
+  recommendations:
+    must_have: ["Noise threshold", "Dependency threshold", "Parallelism support"]
