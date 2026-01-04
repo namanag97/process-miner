@@ -80,17 +80,7 @@ async def list_workflows(
     result = await session.execute(select(Workflow).order_by(Workflow.created_at.desc()))
     workflows = result.scalars().all()
 
-    return [
-        WorkflowResponse(
-            id=w.id,
-            name=w.name,
-            steps=json.loads(w.steps_json),
-            schedule=w.schedule,
-            is_active=w.is_active,
-            created_at=w.created_at,
-        )
-        for w in workflows
-    ]
+    return [WorkflowResponse.model_validate(w) for w in workflows]
 
 
 @router.get("/{workflow_id}", response_model=WorkflowResponse)
@@ -105,14 +95,7 @@ async def get_workflow(
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
-    return WorkflowResponse(
-        id=workflow.id,
-        name=workflow.name,
-        steps=json.loads(workflow.steps_json),
-        schedule=workflow.schedule,
-        is_active=workflow.is_active,
-        created_at=workflow.created_at,
-    )
+    return WorkflowResponse.model_validate(workflow)
 
 
 @router.delete("/{workflow_id}")

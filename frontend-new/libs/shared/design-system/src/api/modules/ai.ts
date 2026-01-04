@@ -15,7 +15,7 @@ export interface Predictor {
 }
 
 export interface AIModule {
-  listPredictors: () => Promise<Predictor[]>;
+  listPredictors: (logId: string) => Promise<Predictor[]>;
   getInsights: (logId: string) => Promise<{ predictions: unknown[]; insights: unknown[] }>;
   getPredictorDetail: (id: string) => Promise<Predictor>;
 }
@@ -33,8 +33,8 @@ function transformPredictor(be: PredictorResponse): Predictor {
 
 export function createAIModule(client: ApiClient): AIModule {
   return {
-    async listPredictors() {
-      const response = await client.get<PredictorResponse[]>('/predictions/predictors');
+    async listPredictors(logId: string) {
+      const response = await client.get<PredictorResponse[]>(`/predictions/logs/${logId}/predictors`);
       return response.map(transformPredictor);
     },
 

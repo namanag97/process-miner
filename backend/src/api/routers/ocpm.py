@@ -213,23 +213,8 @@ async def list_ocel_logs(
     result = await session.execute(select(OCELLog).order_by(OCELLog.created_at.desc()))
     logs = result.scalars().all()
 
-    response_logs = []
-    for log in logs:
-        metadata = json.loads(log.metadata_json) if log.metadata_json else {}
-        response_logs.append(
-            OCELLogResponse(
-                id=log.id,
-                name=log.name,
-                source_file=log.source_file,
-                source_format=log.source_format,
-                total_events=log.total_events,
-                total_objects=log.total_objects,
-                total_object_types=log.total_object_types,
-                object_types=list(metadata.get("objects_per_type", {}).keys()),
-                activities=metadata.get("activities", []),
-                created_at=log.created_at,
-            )
-        )
+    # Use model_validate() - the schema's model_validator handles metadata_json parsing
+    response_logs = [OCELLogResponse.model_validate(log) for log in logs]
 
     return OCELLogListResponse(logs=response_logs, total=len(response_logs))
 
@@ -250,20 +235,8 @@ async def get_ocel_log(
     if not log:
         raise HTTPException(status_code=404, detail="OCEL log not found")
 
-    metadata = json.loads(log.metadata_json) if log.metadata_json else {}
-
-    return OCELLogResponse(
-        id=log.id,
-        name=log.name,
-        source_file=log.source_file,
-        source_format=log.source_format,
-        total_events=log.total_events,
-        total_objects=log.total_objects,
-        total_object_types=log.total_object_types,
-        object_types=list(metadata.get("objects_per_type", {}).keys()),
-        activities=metadata.get("activities", []),
-        created_at=log.created_at,
-    )
+    # Use model_validate() - the schema's model_validator handles metadata_json parsing
+    return OCELLogResponse.model_validate(log)
 
 
 @router.delete("/logs/{log_id}")
@@ -480,16 +453,8 @@ async def list_oc_petri_nets(
     result = await session.execute(select(OCPetriNet).order_by(OCPetriNet.created_at.desc()))
     models = result.scalars().all()
 
-    return [
-        OCPetriNetResponse(
-            id=m.id,
-            log_id=m.log_id,
-            name=m.name,
-            object_types=json.loads(m.object_types_json) if m.object_types_json else [],
-            created_at=m.created_at,
-        )
-        for m in models
-    ]
+    # Use model_validate() - the schema's model_validator handles object_types_json
+    return [OCPetriNetResponse.model_validate(m) for m in models]
 
 
 @router.get("/models/{model_id}", response_model=OCPetriNetResponse)
@@ -506,13 +471,8 @@ async def get_oc_petri_net(
     if not model:
         raise HTTPException(status_code=404, detail="OC-PN model not found")
 
-    return OCPetriNetResponse(
-        id=model.id,
-        log_id=model.log_id,
-        name=model.name,
-        object_types=json.loads(model.object_types_json) if model.object_types_json else [],
-        created_at=model.created_at,
-    )
+    # Use model_validate() - the schema's model_validator handles object_types_json
+    return OCPetriNetResponse.model_validate(model)
 
 
 @router.delete("/models/{model_id}")

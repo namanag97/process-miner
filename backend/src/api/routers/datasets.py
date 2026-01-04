@@ -1005,20 +1005,7 @@ async def list_datasets(
 
     items = []
     for log in logs:
-        activities = json.loads(log.activities_json) if log.activities_json else []
-        items.append(
-            DatasetResponse(
-                id=log.id,
-                name=log.name,
-                source_format=log.source_format,
-                total_events=log.total_events,
-                total_cases=log.total_cases,
-                total_activities=log.total_activities,
-                activities=activities,
-                created_at=log.created_at,
-                status=log.status,
-            )
-        )
+        items.append(DatasetResponse.model_validate(log))
 
     return DatasetListResponse(
         items=items,

@@ -41,24 +41,8 @@ def _workspace_to_response(workspace: Workspace) -> WorkspaceResponse:
 
 
 def _project_to_response(project: Project) -> ProjectResponse:
-    """Convert Project ORM to ProjectResponse."""
-    tags = []
-    if project.tags_json:
-        try:
-            tags = json.loads(project.tags_json)
-        except json.JSONDecodeError:
-            tags = []
-
-    return ProjectResponse(
-        id=project.id,
-        name=project.name,
-        description=project.description,
-        tags=tags,
-        total_files=project.total_files,
-        total_analyses=project.total_analyses,
-        created_at=project.created_at,
-        updated_at=project.updated_at,
-    )
+    """Convert Project ORM to ProjectResponse using Pydantic model_validate."""
+    return ProjectResponse.model_validate(project)
 
 
 # =============================================================================

@@ -200,19 +200,7 @@ async def list_predictors(log_id: str, db: AsyncSession = Depends(get_db)) -> Pr
     result = await db.execute(query)
     predictors = result.scalars().all()
 
-    items = []
-    for p in predictors:
-        metrics = json.loads(p.metrics_json) if p.metrics_json else {}
-        items.append(
-            PredictorResponse(
-                id=p.id,
-                log_id=p.dataset_id,
-                target_type=p.target_type,
-                algorithm=p.algorithm,
-                metrics=metrics,
-                trained_at=p.trained_at,
-            )
-        )
+    items = [PredictorResponse.model_validate(p) for p in predictors]
 
     return PredictorListResponse(log_id=log_id, predictors=items, total=len(items))
 
@@ -229,16 +217,7 @@ async def get_predictor(predictor_id: str, db: AsyncSession = Depends(get_db)) -
     if not predictor:
         raise HTTPException(status_code=404, detail=f"Predictor {predictor_id} not found")
 
-    metrics = json.loads(predictor.metrics_json) if predictor.metrics_json else {}
-
-    return PredictorResponse(
-        id=predictor.id,
-        log_id=predictor.dataset_id,
-        target_type=predictor.target_type,
-        algorithm=predictor.algorithm,
-        metrics=metrics,
-        trained_at=predictor.trained_at,
-    )
+    return PredictorResponse.model_validate(predictor)
 
 
 @router.post("/predictors/{predictor_id}/predict", response_model=PredictionResponse)

@@ -6,12 +6,12 @@
  */
 
 import type {
-  DFGResponse,
+  DFGData,
   DFGNode,
   DFGEdge,
   Variant,
   ActivityDetail,
-} from '../types';
+} from '@lumina/design-system';
 
 // ============================================
 // DFG Mock Data
@@ -22,78 +22,78 @@ const mockDFGNodes: DFGNode[] = [
     id: 'receive-order',
     label: 'Receive Order',
     frequency: 1000,
-    isStart: true,
-    isEnd: false,
+    isStartActivity: true,
+    isEndActivity: false,
   },
   {
     id: 'check-inventory',
     label: 'Check Inventory',
     frequency: 850,
-    isStart: false,
-    isEnd: false,
+    isStartActivity: false,
+    isEndActivity: false,
   },
   {
     id: 'request-restock',
     label: 'Request Restock',
     frequency: 150,
-    isStart: false,
-    isEnd: false,
+    isStartActivity: false,
+    isEndActivity: false,
   },
   {
     id: 'pick-items',
     label: 'Pick Items',
     frequency: 980,
-    isStart: false,
-    isEnd: false,
+    isStartActivity: false,
+    isEndActivity: false,
   },
   {
     id: 'pack-order',
     label: 'Pack Order',
     frequency: 970,
-    isStart: false,
-    isEnd: false,
+    isStartActivity: false,
+    isEndActivity: false,
   },
   {
     id: 'generate-invoice',
     label: 'Generate Invoice',
     frequency: 960,
-    isStart: false,
-    isEnd: false,
+    isStartActivity: false,
+    isEndActivity: false,
   },
   {
     id: 'ship-order',
     label: 'Ship Order',
     frequency: 950,
-    isStart: false,
-    isEnd: false,
+    isStartActivity: false,
+    isEndActivity: false,
   },
   {
     id: 'deliver-order',
     label: 'Deliver Order',
     frequency: 920,
-    isStart: false,
-    isEnd: false,
+    isStartActivity: false,
+    isEndActivity: false,
   },
   {
     id: 'close-order',
     label: 'Close Order',
     frequency: 900,
-    isStart: false,
-    isEnd: true,
+    isStartActivity: false,
+    isEndActivity: true,
   },
   {
     id: 'process-return',
     label: 'Process Return',
     frequency: 50,
-    isStart: false,
-    isEnd: false,
+    isStartActivity: false,
+    isEndActivity: false,
   },
   {
     id: 'issue-refund',
     label: 'Issue Refund',
     frequency: 45,
-    isStart: false,
-    isEnd: true,
+    isStartActivity: false,
+    isEndActivity: true,
   },
 ];
 
@@ -187,14 +187,24 @@ const mockDFGEdges: DFGEdge[] = [
   },
 ];
 
-export const mockOrderToCashDFG: DFGResponse = {
+export const mockOrderToCashDFG: DFGData = {
   nodes: mockDFGNodes,
-  edges: mockDFGEdges,
-  stats: {
-    totalCases: 1000,
-    totalActivities: mockDFGNodes.length,
-    totalTransitions: mockDFGEdges.length,
+  edges: mockDFGEdges.map((edge, index) => ({
+    id: `edge-${edge.source}-${edge.target}-${index}`,
+    source: edge.source,
+    target: edge.target,
+    frequency: edge.frequency,
+    probability: edge.probability || 0,
+    avgDuration: edge.avgDuration,
+  })),
+  startActivities: {
+    'receive-order': 1000,
   },
+  endActivities: {
+    'close-order': 900,
+    'issue-refund': 45,
+  },
+  totalFrequency: mockDFGEdges.reduce((sum, edge) => sum + edge.frequency, 0),
 };
 
 // ============================================
@@ -205,6 +215,7 @@ export const mockOrderToCashVariants: Variant[] = [
   // Happy path (60%)
   {
     key: 'variant-1-happy-path',
+    activityTrace: 'Receive Order → Check Inventory → Pick Items → Pack Order → Generate Invoice → Ship Order → Deliver Order → Close Order',
     activities: [
       'Receive Order',
       'Check Inventory',
@@ -224,6 +235,7 @@ export const mockOrderToCashVariants: Variant[] = [
   // Rush order - skip inventory check (15%)
   {
     key: 'variant-2-rush-order',
+    activityTrace: 'Receive Order → Pick Items → Pack Order → Generate Invoice → Ship Order → Deliver Order → Close Order',
     activities: [
       'Receive Order',
       'Pick Items',
@@ -242,6 +254,7 @@ export const mockOrderToCashVariants: Variant[] = [
   // Backorder with restock (10%)
   {
     key: 'variant-3-backorder',
+    activityTrace: 'Receive Order → Check Inventory → Request Restock → Check Inventory → Pick Items → Pack Order → Generate Invoice → Ship Order → Deliver Order → Close Order',
     activities: [
       'Receive Order',
       'Check Inventory',
@@ -263,6 +276,7 @@ export const mockOrderToCashVariants: Variant[] = [
   // Multiple restocks (5%)
   {
     key: 'variant-4-multiple-restocks',
+    activityTrace: 'Receive Order → Check Inventory → Request Restock → Check Inventory → Request Restock → Check Inventory → Pick Items → Pack Order → Generate Invoice → Ship Order → Deliver Order → Close Order',
     activities: [
       'Receive Order',
       'Check Inventory',
@@ -286,6 +300,7 @@ export const mockOrderToCashVariants: Variant[] = [
   // Packing rework (5%)
   {
     key: 'variant-5-packing-rework',
+    activityTrace: 'Receive Order → Check Inventory → Pick Items → Pack Order → Pick Items → Pack Order → Generate Invoice → Ship Order → Deliver Order → Close Order',
     activities: [
       'Receive Order',
       'Check Inventory',
@@ -307,6 +322,7 @@ export const mockOrderToCashVariants: Variant[] = [
   // Return and refund (4%)
   {
     key: 'variant-6-return-refund',
+    activityTrace: 'Receive Order → Check Inventory → Pick Items → Pack Order → Generate Invoice → Ship Order → Deliver Order → Process Return → Issue Refund',
     activities: [
       'Receive Order',
       'Check Inventory',
@@ -327,6 +343,7 @@ export const mockOrderToCashVariants: Variant[] = [
   // Cancelled before delivery (1%)
   {
     key: 'variant-7-partial',
+    activityTrace: 'Receive Order → Check Inventory → Pick Items → Pack Order → Generate Invoice → Ship Order → Close Order',
     activities: [
       'Receive Order',
       'Check Inventory',
@@ -356,8 +373,8 @@ export const mockOrderToCashActivities: ActivityDetail[] = [
     avgDuration: 600,
     minDuration: 120,
     maxDuration: 1800,
-    isStart: true,
-    isEnd: false,
+    isStartActivity: true,
+    isEndActivity: false,
     resources: ['Order System', 'Customer Portal', 'Sales Team'],
   },
   {
@@ -368,8 +385,8 @@ export const mockOrderToCashActivities: ActivityDetail[] = [
     avgDuration: 1800,
     minDuration: 600,
     maxDuration: 3600,
-    isStart: false,
-    isEnd: false,
+    isStartActivity: false,
+    isEndActivity: false,
     resources: ['Warehouse System', 'Inventory Manager'],
   },
   {
@@ -380,8 +397,8 @@ export const mockOrderToCashActivities: ActivityDetail[] = [
     avgDuration: 172800,
     minDuration: 86400,
     maxDuration: 259200,
-    isStart: false,
-    isEnd: false,
+    isStartActivity: false,
+    isEndActivity: false,
     resources: ['Procurement Team', 'Supplier System'],
   },
   {
@@ -392,8 +409,8 @@ export const mockOrderToCashActivities: ActivityDetail[] = [
     avgDuration: 2400,
     minDuration: 900,
     maxDuration: 5400,
-    isStart: false,
-    isEnd: false,
+    isStartActivity: false,
+    isEndActivity: false,
     resources: ['Warehouse Staff', 'Picking System', 'Forklift Operators'],
   },
   {
@@ -404,8 +421,8 @@ export const mockOrderToCashActivities: ActivityDetail[] = [
     avgDuration: 1200,
     minDuration: 600,
     maxDuration: 2400,
-    isStart: false,
-    isEnd: false,
+    isStartActivity: false,
+    isEndActivity: false,
     resources: ['Packing Station', 'Warehouse Staff'],
   },
   {
@@ -416,8 +433,8 @@ export const mockOrderToCashActivities: ActivityDetail[] = [
     avgDuration: 600,
     minDuration: 300,
     maxDuration: 1200,
-    isStart: false,
-    isEnd: false,
+    isStartActivity: false,
+    isEndActivity: false,
     resources: ['Billing System', 'Finance Team'],
   },
   {
@@ -428,8 +445,8 @@ export const mockOrderToCashActivities: ActivityDetail[] = [
     avgDuration: 7200,
     minDuration: 3600,
     maxDuration: 14400,
-    isStart: false,
-    isEnd: false,
+    isStartActivity: false,
+    isEndActivity: false,
     resources: ['Shipping Carrier', 'Logistics Coordinator', 'Delivery System'],
   },
   {
@@ -440,8 +457,8 @@ export const mockOrderToCashActivities: ActivityDetail[] = [
     avgDuration: 86400,
     minDuration: 43200,
     maxDuration: 172800,
-    isStart: false,
-    isEnd: false,
+    isStartActivity: false,
+    isEndActivity: false,
     resources: ['Delivery Driver', 'Delivery System'],
   },
   {
@@ -452,8 +469,8 @@ export const mockOrderToCashActivities: ActivityDetail[] = [
     avgDuration: 1800,
     minDuration: 600,
     maxDuration: 3600,
-    isStart: false,
-    isEnd: true,
+    isStartActivity: false,
+    isEndActivity: true,
     resources: ['Order System', 'Customer Service'],
   },
   {
@@ -464,8 +481,8 @@ export const mockOrderToCashActivities: ActivityDetail[] = [
     avgDuration: 7200,
     minDuration: 3600,
     maxDuration: 14400,
-    isStart: false,
-    isEnd: false,
+    isStartActivity: false,
+    isEndActivity: false,
     resources: ['Returns Department', 'Customer Service', 'Warehouse Staff'],
   },
   {
@@ -476,8 +493,8 @@ export const mockOrderToCashActivities: ActivityDetail[] = [
     avgDuration: 3600,
     minDuration: 1800,
     maxDuration: 7200,
-    isStart: false,
-    isEnd: true,
+    isStartActivity: false,
+    isEndActivity: true,
     resources: ['Finance Team', 'Payment System'],
   },
 ];
@@ -489,12 +506,24 @@ export const mockOrderToCashActivities: ActivityDetail[] = [
 export const mockOrderToCashLogInfo = {
   id: 'mock-order-to-cash-log',
   name: 'Order-to-Cash Process (Mock Data)',
-  description: 'Demonstration data showing a typical Order-to-Cash process with variants',
-  status: 'ready' as const,
+  sourceFormat: 'csv',
   totalCases: 1000,
   totalEvents: 9500,
-  startDate: '2024-01-01T00:00:00Z',
-  endDate: '2024-12-31T23:59:59Z',
+  totalActivities: 11,
+  activities: [
+    'Receive Order',
+    'Check Inventory',
+    'Request Restock',
+    'Pick Items',
+    'Pack Order',
+    'Generate Invoice',
+    'Ship Order',
+    'Deliver Order',
+    'Close Order',
+    'Process Return',
+    'Issue Refund',
+  ],
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-12-31T23:59:59Z',
+  status: 'ready' as const,
 };

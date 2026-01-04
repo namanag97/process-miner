@@ -53,34 +53,8 @@ async def get_analysis_metadata() -> dict:
 
 
 def _analysis_to_response(analysis: Analysis) -> AnalysisResponse:
-    """Convert Analysis ORM to AnalysisResponse."""
-    config = None
-    if analysis.config_json:
-        try:
-            config = json.loads(analysis.config_json)
-        except json.JSONDecodeError:
-            config = {}
-
-    result_summary = None
-    if analysis.result_summary_json:
-        try:
-            result_summary = json.loads(analysis.result_summary_json)
-        except json.JSONDecodeError:
-            result_summary = {}
-
-    return AnalysisResponse(
-        id=analysis.id,
-        dataset_id=analysis.dataset_id,  # BUG-001 FIX
-        name=analysis.name,
-        analysis_type=analysis.analysis_type,
-        status=analysis.status,
-        config=config,
-        result_summary=result_summary,
-        model_id=analysis.model_id,
-        created_at=analysis.created_at,
-        completed_at=analysis.completed_at,
-        error_message=analysis.error_message,
-    )
+    """Convert Analysis ORM to AnalysisResponse using Pydantic model_validate."""
+    return AnalysisResponse.model_validate(analysis)
 
 
 # =============================================================================
