@@ -17,6 +17,7 @@ class ErrorCode(str, Enum):
     - 3xx: Processing errors
     - 4xx: External service errors
     - 5xx: System errors
+    - DIS: Discovery-specific errors
     """
 
     # ==========================================================================
@@ -88,6 +89,37 @@ class ErrorCode(str, Enum):
     RATE_LIMIT_EXCEEDED = "ERR_510"
     QUOTA_EXCEEDED = "ERR_511"
 
+    # ==========================================================================
+    # Security Errors (6xx)
+    # ==========================================================================
+    AUTHENTICATION_FAILED = "ERR_600"
+    AUTHORIZATION_FAILED = "ERR_601"
+    TOKEN_EXPIRED = "ERR_602"
+    TOKEN_INVALID = "ERR_603"
+
+
+class DiscoveryErrorCode(str, Enum):
+    """Discovery-specific error codes.
+
+    Used for pre-flight validation and mining operation failures.
+    Format: ERR_DIS_{NUMBER}
+    """
+
+    # Pre-flight validation errors (blocking)
+    EMPTY_EVENT_LOG = "ERR_DIS_001"
+    MISSING_CASE_ID = "ERR_DIS_002"
+    MISSING_ACTIVITY = "ERR_DIS_003"
+    TOO_MANY_ACTIVITIES = "ERR_DIS_004"  # >500 unique activities (warning)
+    MISSING_TIMESTAMPS = "ERR_DIS_005"
+    INVALID_TIMESTAMPS = "ERR_DIS_006"
+
+    # Mining operation errors
+    EXCESSIVE_LOOPS = "ERR_DIS_007"  # >10 self-loops detected
+    DISCONNECTED_GRAPH = "ERR_DIS_008"  # Graph has isolated components
+    MEMORY_EXCEEDED = "ERR_DIS_009"  # Estimated memory >4GB
+    TIMEOUT_EXCEEDED = "ERR_DIS_010"  # Operation took >300s
+    ALGORITHM_FAILURE = "ERR_DIS_011"  # PM4Py internal error
+
 
 # Error code metadata for documentation and client handling
 ERROR_METADATA: dict[ErrorCode, dict] = {
@@ -137,6 +169,18 @@ ERROR_METADATA: dict[ErrorCode, dict] = {
         "title": "Internal Server Error",
         "description": "An unexpected error occurred",
         "http_status": 500,
+        "retryable": False,
+    },
+    ErrorCode.AUTHENTICATION_FAILED: {
+        "title": "Authentication Failed",
+        "description": "Invalid or missing authentication credentials",
+        "http_status": 401,
+        "retryable": False,
+    },
+    ErrorCode.AUTHORIZATION_FAILED: {
+        "title": "Authorization Failed",
+        "description": "Insufficient permissions for this operation",
+        "http_status": 403,
         "retryable": False,
     },
 }

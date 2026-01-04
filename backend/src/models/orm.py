@@ -132,6 +132,7 @@ class User(Base):
     auth_provider: Mapped[str] = mapped_column(String(50), default="local", nullable=False)
     auth_provider_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     role: Mapped[str] = mapped_column(String(50), default="member", nullable=False)
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -243,6 +244,9 @@ class Dataset(Base):
 
     # File metadata
     file_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    storage_key: Mapped[str | None] = mapped_column(
+        String(500), nullable=True, comment="S3 object key for presigned upload flow"
+    )
 
     # Job tracking for job-centric architecture
     validation_job_id: Mapped[str | None] = mapped_column(
@@ -297,6 +301,11 @@ class Dataset(Base):
         back_populates="dataset",
         cascade="all, delete-orphan",
         lazy="select",  # Analyses are typically small
+    )
+    activity_mappings: Mapped[list["ActivityMapping"]] = relationship(
+        back_populates="dataset",
+        cascade="all, delete-orphan",
+        lazy="select",
     )
 
 
@@ -445,12 +454,20 @@ class ProcessModel(Base):
     miner_type: Mapped[str] = mapped_column(String(50), nullable=False)
     model_format: Mapped[str] = mapped_column(String(50), nullable=False)
 
-    # Serialized PM4Py model (pickled) - DEPRECATED: Use standard_content_path instead
+    # Model storage (migrated from pickle to joblib in Phase 5)
+    # Contains actual PM4Py model object (Petri net, DFG, Process tree, etc.)
+    # Used for conformance checking, enhancement, and other algorithmic operations
+    # Format: joblib binary (new models), pickle binary (legacy models - auto-converted on read)
     serialized_model: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
 
-    # Standard format storage (new architecture)
+    # Standard format storage (Phase 1 architecture)
+    # PNML files for Petri nets stored in object storage (S3/MinIO)
     standard_content_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    # Frontend visualization data (JSON format)
     graph_structure_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Model metadata (quality metrics, discovery parameters)
     metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Quality metrics
@@ -635,6 +652,8 @@ class OCELLog(Base):
 
     # BUG-051 FIX: Use deferred() to prevent loading blob on SELECT *
     # Raw OCEL data for re-parsing (enables OC-DFG and other analyses)
+    # Format: Binary OCEL file content (JSON-OCEL, SQLite, or XML-OCEL)
+    # TODO Phase 5.1: Store as compressed JSON-OCEL in object storage instead
     ocel_data: Mapped[bytes | None] = deferred(mapped_column(LargeBinary, nullable=True))
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -685,7 +704,8 @@ class OCPetriNet(Base):
     # Object types this model covers
     object_types_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Serialized OC-PN (pickled)
+    # Serialized Object-Centric Petri Net (migrated from pickle to joblib in Phase 5)
+    # Format: joblib binary (new models), pickle binary (legacy models - auto-converted on read)
     serialized_model: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -750,7 +770,12 @@ class PredictionModel(Base):
     )
     target_type: Mapped[str] = mapped_column(String(50), nullable=False)
     algorithm: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    # ML model storage (migrated from pickle to joblib in Phase 5)
+    # Contains scikit-learn or XGBoost model
+    # Format: joblib binary (new models), pickle binary (legacy models - auto-converted on read)
     model_binary: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+
     metrics_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     trained_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -864,3 +889,97 @@ class AsyncJob(Base):
         foreign_keys=[parent_job_id],
         lazy="selectin",
     )
+
+
+# =============================================================================
+# Hierarchical Mining (Phase 10.1)
+# =============================================================================
+
+
+class ActivityMapping(Base):
+    """Activity mapping for hierarchical abstraction."""
+
+    __tablename__ = "activity_mappings"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    dataset_id: Mapped[str] = mapped_column(String(36), ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    level: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0 = base, 1+ = abstraction levels
+
+    # Mapping definition as JSON
+    mapping_rules: Mapped[str] = mapped_column(Text, nullable=False)  # JSON: {"low_level_activity": "high_level_activity"}
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="activity_mappings")
+    hierarchical_models: Mapped[list["HierarchicalProcessModel"]] = relationship(
+        "HierarchicalProcessModel", back_populates="mapping", cascade="all, delete-orphan"
+    )
+
+
+class HierarchicalProcessModel(Base):
+    """Process model at a specific abstraction level."""
+
+    __tablename__ = "hierarchical_process_models"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    mapping_id: Mapped[str] = mapped_column(String(36), ForeignKey("activity_mappings.id", ondelete="CASCADE"), nullable=False)
+    level: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    # Model storage
+    graph_structure_json: Mapped[str] = mapped_column(Text, nullable=False)  # DFG/Petri net JSON
+    pnml_path: Mapped[str | None] = mapped_column(String(500), nullable=True)  # S3 path to PNML
+
+    # Metadata
+    activity_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    edge_count: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    mapping: Mapped["ActivityMapping"] = relationship("ActivityMapping", back_populates="hierarchical_models")
+
+
+# =============================================================================
+# Error Tracking (Phase 8 - Resiliency)
+# =============================================================================
+
+
+class ErrorLog(Base):
+    """Application error tracking for monitoring and debugging.
+
+    Stores unhandled exceptions and errors for:
+    - Production debugging
+    - Error pattern analysis
+    - SLA monitoring
+    - User support
+    """
+
+    __tablename__ = "error_logs"
+
+    # Identity
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    timestamp: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+    # Error details
+    level: Mapped[str] = mapped_column(String(20), nullable=False, index=True)  # ERROR, CRITICAL
+    exception_type: Mapped[str] = mapped_column(String(255), nullable=False)
+    exception_message: Mapped[str] = mapped_column(Text, nullable=False)
+    stack_trace: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Request context
+    request_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    user_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    endpoint: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    method: Mapped[str | None] = mapped_column(String(10), nullable=True)  # GET, POST, etc.
+    context_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # Additional context
+
+    # Resolution tracking
+    resolved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    resolved_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)

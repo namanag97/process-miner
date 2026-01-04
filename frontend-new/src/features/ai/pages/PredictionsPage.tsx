@@ -138,12 +138,12 @@ export function PredictionsPage() {
       ),
     },
     {
-      title: 'Event Log',
-      dataIndex: 'log_id',
-      key: 'logName',
-      render: (logId: string) => {
-        const logName = processes.find(p => p.id === logId)?.name || logId;
-        return <Text type="secondary">{logName}</Text>;
+      title: 'Dataset',
+      dataIndex: 'dataset_id',
+      key: 'datasetName',
+      render: (datasetId: string) => {
+        const datasetName = processes.find(p => p.id === datasetId)?.name || datasetId;
+        return <Text type="secondary">{datasetName}</Text>;
       },
     },
     {

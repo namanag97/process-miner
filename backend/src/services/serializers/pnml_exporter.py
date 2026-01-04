@@ -134,3 +134,37 @@ class PnmlExporter:
         except ET.ParseError as e:
             logger.error("pnml_validation_failed", error=str(e))
             return False
+
+    def import_pnml(self, pnml_xml: str) -> tuple['PetriNet', 'Marking', 'Marking']:
+        """Import Petri net from PNML XML string.
+
+        Args:
+            pnml_xml: PNML XML string
+
+        Returns:
+            Tuple of (net, initial_marking, final_marking)
+        """
+        try:
+            from io import BytesIO
+
+            from pm4py.objects.petri_net.importer import importer as pnml_importer
+
+            # Convert string to bytes
+            pnml_bytes = pnml_xml.encode('utf-8')
+            input_stream = BytesIO(pnml_bytes)
+
+            # Import using PM4Py's PNML importer
+            net, im, fm = pnml_importer.apply(input_stream, variant=pnml_importer.Variants.PNML)
+
+            logger.info(
+                "pnml_import_success",
+                places=len(net.places),
+                transitions=len(net.transitions),
+                arcs=len(net.arcs)
+            )
+
+            return net, im, fm
+
+        except Exception as e:
+            logger.error("pnml_import_failed", error=str(e))
+            raise

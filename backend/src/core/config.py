@@ -55,6 +55,17 @@ class Settings(BaseSettings):
     cache_enabled: bool = True
     cache_default_ttl: int = 3600  # 1 hour
 
+    # Object Storage (S3/MinIO)
+    s3_endpoint_url: str | None = None  # None = AWS S3, set URL for MinIO
+    s3_access_key_id: str = "minioadmin"
+    s3_secret_access_key: str = "minioadmin"
+    s3_region: str = "us-east-1"
+    s3_bucket_raw: str = "pm-raw-dev"
+    s3_bucket_models: str = "pm-models-dev"
+    s3_bucket_cache: str = "pm-cache-dev"
+    s3_presigned_url_expiry: int = 3600  # 1 hour
+    s3_max_file_size_bytes: int = 5 * 1024 * 1024 * 1024  # 5 GB default
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

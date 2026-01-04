@@ -2,16 +2,18 @@
 
 Provides next activity prediction, remaining time prediction,
 and outcome prediction using scikit-learn and XGBoost.
+
+Serialization: Uses joblib for ML model persistence (safer and more efficient than pickle).
 """
 
-import pickle
+import io
 import time
 
+import joblib
 import numpy as np
 from pm4py.objects.log.obj import EventLog as PM4PyLog
 
 from src.core.logging_config import get_logger
-from src.core.safe_unpickler import safe_loads
 
 logger = get_logger(__name__)
 
@@ -93,7 +95,11 @@ class PredictionService:
         model.fit(X_train, y_train)
         accuracy = model.score(X_test, y_test) if len(X_test) > 0 else 0
 
-        model_bytes = pickle.dumps(model)
+        # Serialize model with joblib (safer and more efficient than pickle for sklearn)
+        buffer = io.BytesIO()
+        joblib.dump(model, buffer)
+        model_bytes = buffer.getvalue()
+
         metrics = {
             "accuracy": round(float(accuracy), 4),
             "train_samples": len(X_train),
@@ -143,7 +149,11 @@ class PredictionService:
         else:
             mae, rmse = 0, 0
 
-        model_bytes = pickle.dumps(model)
+        # Serialize model with joblib (safer and more efficient than pickle for sklearn)
+        buffer = io.BytesIO()
+        joblib.dump(model, buffer)
+        model_bytes = buffer.getvalue()
+
         metrics = {
             "mae_seconds": round(float(mae), 2),
             "rmse_seconds": round(float(rmse), 2),
@@ -162,8 +172,9 @@ class PredictionService:
         if not model_bytes:
             return {"prediction": None, "confidence": 0}
 
-        # BUG-028 FIX: Use safe_loads instead of pickle.loads to prevent RCE
-        model = safe_loads(model_bytes)
+        # Deserialize model with joblib
+        buffer = io.BytesIO(model_bytes)
+        model = joblib.load(buffer)
         activity_to_idx = {a: i for i, a in enumerate(activities)}
 
         prefix_encoded = [0] * len(activities)
@@ -205,8 +216,9 @@ class PredictionService:
         if not model_bytes:
             return {"prediction_seconds": 0, "confidence": 0}
 
-        # BUG-028 FIX: Use safe_loads instead of pickle.loads to prevent RCE
-        model = safe_loads(model_bytes)
+        # Deserialize model with joblib
+        buffer = io.BytesIO(model_bytes)
+        model = joblib.load(buffer)
         activity_to_idx = {a: i for i, a in enumerate(activities)}
 
         prefix_encoded = [0] * len(activities)

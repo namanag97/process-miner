@@ -15,7 +15,8 @@ from src.api.routers.predictions import router as predictions_router
 from src.api.routers.projects import router as projects_router
 from src.api.routers.simulation import router as simulation_router
 from src.api.routers.visualization import router as visualization_router
-from src.api.routers.workflows import router as workflows_router
+
+# workflows_router removed - orphaned code with no frontend consumers
 from src.api.routers.workspaces import router as workspaces_router
 
 __all__ = [
@@ -34,6 +35,6 @@ __all__ = [
     "projects_router",
     "simulation_router",
     "visualization_router",
-    "workflows_router",
+
     "workspaces_router",
 ]

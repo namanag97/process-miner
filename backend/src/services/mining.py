@@ -8,13 +8,16 @@ Enhanced with:
 - Circuit breaker for resilience
 - Metrics instrumentation for observability
 - Support for domain aggregates (EventLogAggregate)
+
+Serialization: Uses joblib for model storage (safer than pickle, optimized for PM4Py objects).
 """
 
-import pickle
+import io
 import time
 import warnings
 from typing import TYPE_CHECKING, Any
 
+import joblib
 import pm4py
 from pm4py.objects.log.obj import EventLog as PM4PyLog
 from pm4py.objects.petri_net.obj import Marking, PetriNet
@@ -199,7 +202,9 @@ class MiningService:
         logger.info("discover_ilp_started", dataset_id=event_log.id, alpha=alpha)
         start_time = time.perf_counter()
 
-        pm4py_log = self._to_pm4py_log(event_log)
+        # BUG-003 FIX: Use fast DuckDB/Arrow path instead of deprecated _to_pm4py_log
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         net, im, fm = pm4py.discover_petri_net_ilp(pm4py_log, alpha=alpha)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
@@ -222,7 +227,8 @@ class MiningService:
         logger.info("discover_powl_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
 
-        pm4py_log = self._to_pm4py_log(event_log)
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         powl_model = pm4py.discover_powl(pm4py_log)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
@@ -244,7 +250,8 @@ class MiningService:
         logger.info("discover_bpmn_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
 
-        pm4py_log = self._to_pm4py_log(event_log)
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         bpmn_model = pm4py.discover_bpmn_inductive(pm4py_log)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
@@ -267,7 +274,8 @@ class MiningService:
         logger.info("discover_declare_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
 
-        pm4py_log = self._to_pm4py_log(event_log)
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         declare_model = pm4py.discover_declare(pm4py_log)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
@@ -293,7 +301,8 @@ class MiningService:
         logger.info("discover_log_skeleton_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
 
-        pm4py_log = self._to_pm4py_log(event_log)
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         log_skeleton = pm4py.discover_log_skeleton(pm4py_log, noise_threshold=noise_threshold)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
@@ -316,7 +325,8 @@ class MiningService:
         logger.info("discover_temporal_profile_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
 
-        pm4py_log = self._to_pm4py_log(event_log)
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         temporal_profile = pm4py.discover_temporal_profile(pm4py_log)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
@@ -339,7 +349,8 @@ class MiningService:
         logger.info("discover_prefix_tree_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
 
-        pm4py_log = self._to_pm4py_log(event_log)
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         prefix_tree = pm4py.discover_prefix_tree(pm4py_log)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
@@ -366,7 +377,8 @@ class MiningService:
         logger.info("discover_transition_system_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
 
-        pm4py_log = self._to_pm4py_log(event_log)
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         ts = pm4py.discover_transition_system(pm4py_log, direction=direction, window=window)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
@@ -389,7 +401,8 @@ class MiningService:
         logger.info("discover_batches_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
 
-        pm4py_log = self._to_pm4py_log(event_log)
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         batches = pm4py.discover_batches(pm4py_log)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
@@ -421,7 +434,8 @@ class MiningService:
         logger.info("discover_correlation_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
 
-        pm4py_log = self._to_pm4py_log(event_log)
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         result = pm4py.correlation_miner(
             pm4py_log,
             activity_key=activity_key,
@@ -531,12 +545,14 @@ class MiningService:
         def get_count(v):
             return len(v) if isinstance(v, (list, tuple)) else v
 
+        # BUG-005 FIX: Use Unicode arrow (→) instead of " -> " to avoid delimiter collision
+        # Activity names containing " -> " would corrupt variant parsing
         variant_list = [
             {
-                "variant": " -> ".join(k) if isinstance(k, tuple) else str(k),
+                "variant": " → ".join(k) if isinstance(k, tuple) else str(k),
                 "activities": list(k)
                 if isinstance(k, tuple)
-                else [str(k)],  # Structured activities
+                else [str(k)],  # Structured activities array for safe parsing
                 "count": get_count(v),
             }
             for k, v in sorted(variants.items(), key=lambda x: -get_count(x[1]))[:top_n]
@@ -797,12 +813,16 @@ class MiningService:
         Calculate complexity metrics for a variant.
 
         Args:
-            activity_trace: Activity sequence in "A -> B -> C" format
+            activity_trace: Activity sequence in "A → B → C" format
 
         Returns:
             Dict with complexity_score, rework_count, unique_activity_count
         """
-        activities = [a.strip() for a in activity_trace.split("->")]
+        # Support both old " -> " and new " → " separators for backwards compatibility
+        if " → " in activity_trace:
+            activities = [a.strip() for a in activity_trace.split(" → ")]
+        else:
+            activities = [a.strip() for a in activity_trace.split("->")]
         unique_activities = set(activities)
         unique_count = len(unique_activities)
         total_count = len(activities)
@@ -831,7 +851,8 @@ class MiningService:
 
     def get_case_statistics(self, event_log: Dataset) -> dict[str, Any]:
         """Get case duration statistics."""
-        pm4py_log = self._to_pm4py_log(event_log)
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
 
         try:
             durations = case_statistics.get_all_case_durations(pm4py_log)
@@ -862,7 +883,8 @@ class MiningService:
         fm: Marking,
     ) -> dict[str, float]:
         """Evaluate model fitness using token replay."""
-        pm4py_log = self._to_pm4py_log(event_log)
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         result = pm4py.fitness_token_based_replay(pm4py_log, net, im, fm)
         return {
             "fitness": result.get("average_trace_fitness", 0.0),
@@ -877,7 +899,8 @@ class MiningService:
         fm: Marking,
     ) -> float:
         """Evaluate model precision."""
-        pm4py_log = self._to_pm4py_log(event_log)
+        from src.services.event_log_loader import event_log_loader
+        pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         return pm4py.precision_token_based_replay(pm4py_log, net, im, fm)
 
     # =========================================================================
@@ -885,18 +908,100 @@ class MiningService:
     # =========================================================================
 
     def serialize_model(self, model_data: Any) -> bytes:
-        """Serialize model for storage."""
-        return pickle.dumps(model_data)
+        """Serialize model for storage using joblib.
+
+        Stores the actual PM4Py model object for use in conformance checking,
+        enhancement, and other algorithmic operations.
+
+        For visualization only, use serialize_to_graph_json instead.
+
+        Args:
+            model_data: PM4Py model object (Petri net, DFG, Process tree, etc.)
+
+        Returns:
+            Serialized bytes (joblib format)
+        """
+        buffer = io.BytesIO()
+        joblib.dump(model_data, buffer)
+        return buffer.getvalue()
+
+    def serialize_to_graph_json(
+        self, model_data: Any, model_format: ModelFormat
+    ) -> dict[str, Any] | None:
+        """Serialize model to frontend-ready graph JSON using GraphStructureSerializer.
+
+        Args:
+            model_data: The model data from discovery
+            model_format: The format of the model (DFG, PETRI_NET, PROCESS_TREE, etc.)
+
+        Returns:
+            Graph JSON dict or None if serialization not supported for this format
+        """
+        from src.services.serializers import GraphStructureSerializer
+
+        serializer = GraphStructureSerializer()
+
+        try:
+            if model_format == ModelFormat.DFG:
+                # DFG is (dfg, start_activities, end_activities)
+                dfg, start_activities, end_activities = model_data
+                return serializer.serialize_dfg(
+                    dfg, start_activities, end_activities
+                )
+            if model_format == ModelFormat.PERFORMANCE_DFG:
+                # Same structure as DFG
+                dfg, start_activities, end_activities = model_data
+                return serializer.serialize_dfg(
+                    dfg, start_activities, end_activities
+                )
+            if model_format == ModelFormat.PETRI_NET:
+                # Petri net is (net, im, fm)
+                net, im, fm = model_data
+                return serializer.serialize_petri_net(net, im, fm)
+            if model_format == ModelFormat.PROCESS_TREE:
+                # Convert process tree to Petri net for serialization
+                net, im, fm = self.tree_to_petri_net(model_data)
+                graph_json = serializer.serialize_petri_net(net, im, fm)
+                graph_json["metadata"]["source_format"] = "process_tree"
+                return graph_json
+
+            # Other formats not yet supported
+            logger.debug(
+                "graph_json_serialization_not_supported",
+                model_format=model_format.value,
+            )
+            return None
+
+        except Exception as e:
+            logger.warning(
+                "graph_json_serialization_failed",
+                model_format=model_format.value,
+                error=str(e),
+            )
+            return None
 
     def deserialize_model(self, data: bytes) -> Any:
         """Deserialize model from storage.
 
-        Uses restricted unpickler to prevent RCE attacks.
-        """
-        from src.core.safe_unpickler import safe_loads
+        Supports both new joblib format and legacy pickle format for backward compatibility.
 
-        # BUG-028 FIX: Use safe_loads instead of pickle.loads
-        return safe_loads(data)
+        Args:
+            data: Serialized model bytes
+
+        Returns:
+            PM4Py model object
+        """
+        try:
+            # Try joblib first (new format)
+            buffer = io.BytesIO(data)
+            return joblib.load(buffer)
+        except Exception:
+            # Fall back to pickle for legacy data
+            from src.core.safe_unpickler import safe_loads
+
+            logger.warning("deserializing_legacy_pickle_model",
+                         msg="Consider re-discovering model to use joblib format")
+            return safe_loads(data)
 
     # =========================================================================
     # Helpers

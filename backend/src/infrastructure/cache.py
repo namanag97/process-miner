@@ -5,14 +5,16 @@ Provides caching for:
 - Process discovery results
 - Conformance checking results
 - Organizational mining results
+
+Serialization: Uses msgpack for fast, safe binary serialization (replaces pickle).
 """
 
 import hashlib
-import pickle
 from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
+import msgpack
 import redis
 import structlog
 
@@ -36,7 +38,7 @@ class CacheService:
                     host=settings.redis_host,
                     port=settings.redis_port,
                     db=settings.redis_db,
-                    decode_responses=False,  # Use binary mode for pickle
+                    decode_responses=False,  # Use binary mode for msgpack
                     socket_connect_timeout=5,
                     socket_timeout=5,
                 )
@@ -90,11 +92,8 @@ class CacheService:
             cached = self.redis_client.get(key)
             if cached:
                 logger.debug("cache_hit", key=key)
-                # BUG-028 FIX: Use safe_loads instead of pickle.loads
-                # Cache data comes from Redis which could be tampered with
-                from src.core.safe_unpickler import safe_loads
-
-                return safe_loads(cached)
+                # Deserialize with msgpack (safe, no arbitrary code execution)
+                return msgpack.unpackb(cached, raw=False)
             logger.debug("cache_miss", key=key)
             return None
         except Exception as e:
@@ -121,7 +120,8 @@ class CacheService:
             return False
 
         try:
-            serialized = pickle.dumps(value)
+            # Serialize with msgpack (faster than JSON, safer than pickle)
+            serialized = msgpack.packb(value, use_bin_type=True)
             self.redis_client.setex(key, ttl, serialized)
             logger.debug("cache_set", key=key, ttl=ttl)
             return True

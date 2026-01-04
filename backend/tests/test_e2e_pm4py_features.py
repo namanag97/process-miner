@@ -127,11 +127,12 @@ def e2e_ocel_json() -> bytes:
 
 
 @pytest.fixture
-async def e2e_log_id(client: AsyncClient, e2e_process_csv: bytes) -> str:
+async def e2e_log_id(client: AsyncClient, e2e_process_csv: bytes, default_project: str) -> str:
     """Upload test log and return its ID."""
     response = await client.post(
-        "/api/v1/logs/upload",
+        "/api/v1/datasets/upload",
         files={"file": ("test_e2e.csv", e2e_process_csv, "text/csv")},
+        data={"project_id": default_project},
     )
     assert response.status_code == 200, f"Upload failed: {response.text}"
     return response.json()["id"]
@@ -141,8 +142,8 @@ async def e2e_log_id(client: AsyncClient, e2e_process_csv: bytes) -> str:
 async def e2e_model_id(client: AsyncClient, e2e_log_id: str) -> str:
     """Discover model and return its ID."""
     response = await client.post(
-        "/api/v1/discovery/discover",
-        json={"log_id": e2e_log_id, "miner_type": "inductive", "model_name": "E2E Test Model"},
+        "/api/v1/discovery/discover?async_mode=false",
+        json={"dataset_id": e2e_log_id, "miner_type": "inductive", "model_name": "E2E Test Model"},
     )
     assert response.status_code == 200, f"Discovery failed: {response.text}"
     return response.json().get("id") or response.json().get("model_id")
@@ -156,49 +157,51 @@ async def e2e_model_id(client: AsyncClient, e2e_log_id: str) -> str:
 class TestE2EUploadFlow:
     """E2E tests for the upload and ingestion flow."""
 
-    async def test_upload_csv_complete_flow(self, client: AsyncClient, e2e_process_csv: bytes):
+    async def test_upload_csv_complete_flow(self, client: AsyncClient, e2e_process_csv: bytes, default_project: str):
         """
         User Need: Upload a CSV file and see it processed.
         Flow: Upload CSV → Get log details → Verify statistics
         """
         # Step 1: Upload
         response = await client.post(
-            "/api/v1/logs/upload",
+            "/api/v1/datasets/upload",
             files={"file": ("test.csv", e2e_process_csv, "text/csv")},
+            data={"project_id": default_project},
         )
-        assert response.status_code == 200
+        assert response.status_code == 200, f"Upload failed: {response.text}"
         log_data = response.json()
         log_id = log_data["id"]
 
         # Step 2: Verify log exists
-        response = await client.get(f"/api/v1/processes/{log_id}")
+        response = await client.get(f"/api/v1/datasets/{log_id}")
         assert response.status_code == 200
         details = response.json()
         assert details["id"] == log_id
-        assert details["case_count"] == 5
-        assert details["event_count"] >= 25
+        assert details["total_cases"] == 5
+        assert details["total_events"] >= 25
 
         # Step 3: Get statistics
-        response = await client.get(f"/api/v1/processes/{log_id}/statistics")
+        response = await client.get(f"/api/v1/datasets/{log_id}/statistics")
         assert response.status_code == 200
         stats = response.json()
         assert "activity_count" in stats or "activities" in stats
 
-    async def test_upload_detects_columns(self, client: AsyncClient, e2e_process_csv: bytes):
+    async def test_upload_detects_columns(self, client: AsyncClient, e2e_process_csv: bytes, default_project: str):
         """
         User Need: System should auto-detect case/activity/timestamp columns.
         Flow: Upload → Get columns → Verify detection
         """
         # Upload
         response = await client.post(
-            "/api/v1/logs/upload",
+            "/api/v1/datasets/upload",
             files={"file": ("columns_test.csv", e2e_process_csv, "text/csv")},
+            data={"project_id": default_project},
         )
         assert response.status_code == 200
         log_id = response.json()["id"]
 
         # Check columns
-        response = await client.get(f"/api/v1/processes/{log_id}/columns")
+        response = await client.get(f"/api/v1/datasets/{log_id}/columns")
         if response.status_code == 200:
             columns = response.json()
             # Should have detected case, activity, timestamp
@@ -209,7 +212,7 @@ class TestE2EUploadFlow:
         User Need: After upload, I should see process variants.
         Flow: Get log → Get variants → Verify counts
         """
-        response = await client.get(f"/api/v1/processes/{e2e_log_id}/variants")
+        response = await client.get(f"/api/v1/datasets/{e2e_log_id}/variants")
         assert response.status_code == 200
         variants = response.json()
 
@@ -250,9 +253,9 @@ class TestE2EDiscoveryFlow:
         Flow: Select log → Choose Inductive → Get model
         """
         response = await client.post(
-            "/api/v1/discovery/discover",
+            "/api/v1/discovery/discover?async_mode=false",
             json={
-                "log_id": e2e_log_id,
+                "dataset_id": e2e_log_id,
                 "miner_type": "inductive",
                 "model_name": "Inductive Test Model",
             },
@@ -271,9 +274,9 @@ class TestE2EDiscoveryFlow:
         User Need: Discover using Alpha Miner (classic algorithm).
         """
         response = await client.post(
-            "/api/v1/discovery/discover",
+            "/api/v1/discovery/discover?async_mode=false",
             json={
-                "log_id": e2e_log_id,
+                "dataset_id": e2e_log_id,
                 "miner_type": "alpha",
                 "model_name": "Alpha Test Model",
             },
@@ -287,9 +290,9 @@ class TestE2EDiscoveryFlow:
         User Need: Discover using Heuristics Miner (handles noise).
         """
         response = await client.post(
-            "/api/v1/discovery/discover",
+            "/api/v1/discovery/discover?async_mode=false",
             json={
-                "log_id": e2e_log_id,
+                "dataset_id": e2e_log_id,
                 "miner_type": "heuristics",
                 "model_name": "Heuristics Test Model",
             },
@@ -346,7 +349,7 @@ class TestE2EConformanceFlow:
         response = await client.post(
             "/api/v1/conformance/check",
             json={
-                "log_id": e2e_log_id,
+                "dataset_id": e2e_log_id,
                 "model_id": e2e_model_id,
                 "method": "token_replay",
             },
@@ -367,7 +370,7 @@ class TestE2EConformanceFlow:
         response = await client.post(
             "/api/v1/conformance/check",
             json={
-                "log_id": e2e_log_id,
+                "dataset_id": e2e_log_id,
                 "model_id": e2e_model_id,
                 "method": "alignments",
             },
@@ -708,7 +711,7 @@ class TestE2ESimulationFlow:
         response = await client.post(
             "/api/v1/simulation/scenario",
             json={
-                "log_id": e2e_log_id,
+                "dataset_id": e2e_log_id,
                 "modifications": [{"type": "reduce_duration", "factor": 0.8}],
             },
         )
@@ -722,7 +725,7 @@ class TestE2ESimulationFlow:
         """
         response = await client.post(
             "/api/v1/simulation/capacity",
-            json={"log_id": e2e_log_id, "target_throughput": 10.0},
+            json={"dataset_id": e2e_log_id, "target_throughput": 10.0},
         )
         assert response.status_code == 200
         result = response.json()
@@ -751,7 +754,7 @@ class TestE2EFeatureSummary:
             response = await client.get(endpoint)
             assert response.status_code == 200, f"{category} API not accessible at {endpoint}"
 
-    async def test_complete_happy_path(self, client: AsyncClient, e2e_process_csv: bytes):
+    async def test_complete_happy_path(self, client: AsyncClient, e2e_process_csv: bytes, default_project: str):
         """
         Complete E2E happy path: Upload → Discover → Analyze → Conform.
 
@@ -759,8 +762,9 @@ class TestE2EFeatureSummary:
         """
         # 1. UPLOAD
         response = await client.post(
-            "/api/v1/logs/upload",
+            "/api/v1/datasets/upload",
             files={"file": ("complete_test.csv", e2e_process_csv, "text/csv")},
+            data={"project_id": default_project},
         )
         assert response.status_code == 200
         log_id = response.json()["id"]
@@ -772,8 +776,8 @@ class TestE2EFeatureSummary:
 
         # 3. DISCOVER (Inductive Miner)
         response = await client.post(
-            "/api/v1/discovery/discover",
-            json={"log_id": log_id, "miner_type": "inductive", "model_name": "Happy Path Model"},
+            "/api/v1/discovery/discover?async_mode=false",
+            json={"dataset_id": log_id, "miner_type": "inductive", "model_name": "Happy Path Model"},
         )
         assert response.status_code == 200
         model_id = response.json().get("id") or response.json().get("model_id")
@@ -788,7 +792,7 @@ class TestE2EFeatureSummary:
         # 5. CONFORMANCE
         response = await client.post(
             "/api/v1/conformance/check",
-            json={"log_id": log_id, "model_id": model_id, "method": "token_replay"},
+            json={"dataset_id": log_id, "model_id": model_id, "method": "token_replay"},
         )
         assert response.status_code == 200
         fitness = response.json()["fitness"]

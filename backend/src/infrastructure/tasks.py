@@ -951,9 +951,16 @@ async def perform_discovery_task(
                 meta={"status": "Serializing model", "progress": 70, "stage": "serializing"},
             )
 
-            # Serialize model
+            # Serialize model (legacy pickle for backward compatibility)
             serialized = mining_service.serialize_model(model_data)
             final_name = model_name or f"{dataset.name}_{miner_type}"
+
+            # Generate graph JSON for frontend visualization (new architecture)
+            graph_json = mining_service.serialize_to_graph_json(model_data, model_format)
+            graph_structure_json = None
+            if graph_json:
+                import json
+                graph_structure_json = json.dumps(graph_json)
 
             # Calculate quality metrics if possible
             fitness = None
@@ -982,6 +989,7 @@ async def perform_discovery_task(
                 miner_type=miner_type,
                 model_format=model_format.value,
                 serialized_model=serialized,
+                graph_structure_json=graph_structure_json,  # NEW: Store graph JSON
                 fitness=fitness,
                 precision=precision,
             )
@@ -1184,6 +1192,230 @@ async def perform_conformance_task(
         raise
 
 
+@celery_app.task(bind=True, base=AsyncTask, name="validate_uploaded_file", max_retries=3)
+async def validate_uploaded_file_task(
+    self,
+    dataset_id: str,
+    storage_key: str,
+) -> dict[str, Any]:
+    """Phase 4: Stream-based file validation for presigned uploads.
+
+    Steps:
+    1. Download file from S3 (streamed, memory-efficient)
+    2. Magic byte verification (detect real file type)
+    3. Schema sniffing (parse first 10MB for columns)
+    4. Update dataset status (PENDING → VALIDATING → AWAITING_MAPPING)
+
+    Args:
+        dataset_id: Dataset ID to validate
+        storage_key: S3 object key
+
+    Returns:
+        dict with validation results and detected columns
+
+    Raises:
+        Exception: If validation fails (retries up to 3 times)
+    """
+    logger.info(
+        "validate_uploaded_file_started",
+        dataset_id=dataset_id,
+        storage_key=storage_key,
+        task_id=self.request.id,
+    )
+    start = time.perf_counter()
+
+    try:
+        self.update_state(
+            state="PROGRESS",
+            meta={"status": "Downloading file from storage", "progress": 10},
+        )
+
+        async with AsyncSessionLocal() as db:
+            from src.infrastructure.object_storage import get_storage_client
+            from src.models.orm import Dataset, DatasetStatus
+            from src.services.unified_ingestion import unified_ingestion_service
+
+            # Load dataset
+            result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
+            dataset = result.scalar_one_or_none()
+            if not dataset:
+                raise ValueError(f"Dataset not found: {dataset_id}")
+
+            # Update status to VALIDATING
+            dataset.status = DatasetStatus.VALIDATING.value
+            await db.flush()
+
+            self.update_state(
+                state="PROGRESS",
+                meta={"status": "Downloading file", "progress": 20},
+            )
+
+            # Download file from S3 (streaming to avoid memory exhaustion)
+            storage_client = get_storage_client()
+
+            # Stream first 10MB for validation (don't load entire file)
+            validation_chunk_size = 10 * 1024 * 1024  # 10 MB
+            file_chunks = []
+            total_bytes = 0
+
+            try:
+                for chunk in storage_client.stream_file("raw", storage_key, chunk_size=64 * 1024):
+                    file_chunks.append(chunk)
+                    total_bytes += len(chunk)
+                    if total_bytes >= validation_chunk_size:
+                        break  # Stop after 10MB for validation
+            except Exception as e:
+                logger.error(
+                    "file_download_failed",
+                    error=str(e),
+                    dataset_id=dataset_id,
+                    storage_key=storage_key,
+                )
+                dataset.status = DatasetStatus.ERROR.value
+                dataset.error_message = f"Failed to download file: {e}"
+                await db.commit()
+                raise
+
+            file_content = b"".join(file_chunks)
+
+            self.update_state(
+                state="PROGRESS",
+                meta={"status": "Verifying file signature", "progress": 40},
+            )
+
+            # Step 1: Magic byte verification
+            # Detect actual file type from content (prevent spoofing)
+            file_extension = dataset.source_format.lower()
+
+            if file_extension == "xes":
+                # XES files should start with XML declaration
+                if not file_content.startswith((b"<?xml", b"<log")):
+                    logger.warning(
+                        "file_signature_mismatch",
+                        dataset_id=dataset_id,
+                        expected="XES/XML",
+                        actual="binary",
+                    )
+                    dataset.status = DatasetStatus.ERROR.value
+                    dataset.error_message = "File appears to be invalid XES format (not valid XML)"
+                    await db.commit()
+                    raise ValueError("Invalid XES file signature")
+            elif file_extension == "csv":
+                # CSV should be readable text
+                try:
+                    file_content[:1024].decode("utf-8")
+                except UnicodeDecodeError:
+                    logger.warning(
+                        "file_signature_mismatch",
+                        dataset_id=dataset_id,
+                        expected="CSV/text",
+                        actual="binary",
+                    )
+                    dataset.status = DatasetStatus.ERROR.value
+                    dataset.error_message = "File appears to be invalid CSV format (contains binary data)"
+                    await db.commit()
+                    raise ValueError("Invalid CSV file signature")
+
+            self.update_state(
+                state="PROGRESS",
+                meta={"status": "Detecting columns", "progress": 60},
+            )
+
+            # Step 2: Schema sniffing (detect columns from first chunk)
+            # Use unified_ingestion_service to detect columns
+            try:
+                detection_result = unified_ingestion_service.detect_columns(
+                    file_content,
+                    dataset.source_file or f"upload.{file_extension}",
+                )
+
+                columns = detection_result.get("columns", [])
+                suggestions = detection_result.get("suggestions", {})
+                row_count_sample = detection_result.get("row_count", 0)
+
+                logger.info(
+                    "columns_detected",
+                    dataset_id=dataset_id,
+                    columns_count=len(columns),
+                    sample_rows=row_count_sample,
+                )
+
+            except Exception as e:
+                logger.error(
+                    "column_detection_failed",
+                    error=str(e),
+                    dataset_id=dataset_id,
+                )
+                dataset.status = DatasetStatus.ERROR.value
+                dataset.error_message = f"Failed to detect columns: {e}"
+                await db.commit()
+                raise
+
+            self.update_state(
+                state="PROGRESS",
+                meta={"status": "Updating dataset metadata", "progress": 90},
+            )
+
+            # Step 3: Update dataset with detection results
+            import json
+
+            dataset.detected_columns_json = json.dumps(columns)
+            dataset.column_suggestions_json = json.dumps(suggestions)
+            dataset.status = DatasetStatus.AWAITING_MAPPING.value
+            dataset.error_message = None
+
+            # Get actual file size from S3
+            try:
+                actual_size = storage_client.get_file_size("raw", storage_key)
+                dataset.file_size_bytes = actual_size
+            except Exception:
+                pass  # Not critical if size check fails
+
+            await db.commit()
+
+            duration = (time.perf_counter() - start) * 1000
+            logger.info(
+                "validate_uploaded_file_completed",
+                dataset_id=dataset_id,
+                columns_detected=len(columns),
+                duration_ms=round(duration, 2),
+                task_id=self.request.id,
+            )
+
+            return {
+                "dataset_id": dataset_id,
+                "storage_key": storage_key,
+                "columns": columns,
+                "suggestions": suggestions,
+                "status": "awaiting_mapping",
+                "duration_ms": round(duration, 2),
+            }
+
+    except Exception as e:
+        logger.error(
+            "validate_uploaded_file_failed",
+            error=str(e),
+            dataset_id=dataset_id,
+            storage_key=storage_key,
+            task_id=self.request.id,
+            exc_info=True,
+        )
+
+        # Update dataset status to ERROR
+        async with AsyncSessionLocal() as db:
+            from src.models.orm import Dataset, DatasetStatus
+
+            result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
+            dataset = result.scalar_one_or_none()
+            if dataset:
+                dataset.status = DatasetStatus.ERROR.value
+                dataset.error_message = str(e)
+                await db.commit()
+
+        # Retry up to 3 times with exponential backoff
+        raise self.retry(exc=e, countdown=2**self.request.retries)
+
+
 def get_task_status(task_id: str) -> dict[str, Any]:
     """Get status of a Celery task.
 
@@ -1296,6 +1528,22 @@ def reap_zombie_jobs(self, timeout_minutes: int = 10) -> dict[str, Any]:
                 for dataset in stuck_datasets:
                     dataset.status = DatasetStatus.ERROR.value
                     dataset.error_message = f"Ingestion timed out after {timeout_minutes} minutes"
+                    results["datasets"].append(dataset.id)
+
+                # === 2.5. Phase 4 FIX: Reap zombie Datasets stuck in PENDING ===
+                # Presigned URLs expire after 1 hour, so datasets older than 2 hours are abandoned
+                pending_cutoff = datetime.utcnow() - timedelta(hours=2)
+                pending_result = await db.execute(
+                    select(Dataset).where(
+                        Dataset.status == DatasetStatus.PENDING.value,
+                        Dataset.created_at < pending_cutoff,
+                    )
+                )
+                pending_datasets = pending_result.scalars().all()
+
+                for dataset in pending_datasets:
+                    dataset.status = DatasetStatus.ERROR.value
+                    dataset.error_message = "Upload timed out (presigned URL expired)"
                     results["datasets"].append(dataset.id)
 
                 # === 3. BUG-040 FIX: Reap zombie Analyses stuck in RUNNING ===

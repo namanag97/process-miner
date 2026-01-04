@@ -51,7 +51,7 @@ export function useDiscoveryMutation() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    log_id: request.logId,
+                    dataset_id: request.logId,  // API now uses dataset_id
                     miner_type: request.minerType,
                     model_name: request.modelName || `${request.minerType} Model`,
                     parameters: request.parameters,
@@ -168,7 +168,7 @@ export function useDiscoveredModels(datasetId: string) {
     return useQuery<DiscoveredModel[]>({
         queryKey: discoveryQueryKeys.models(datasetId),
         queryFn: async () => {
-            const response = await fetch(`${API_BASE}/discovery/models?log_id=${datasetId}`);
+            const response = await fetch(`${API_BASE}/discovery/models?dataset_id=${datasetId}`);
             if (!response.ok) throw new Error('Failed to fetch models');
             return response.json();
         },

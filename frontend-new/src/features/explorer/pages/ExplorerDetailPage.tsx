@@ -30,7 +30,8 @@ import { createLogger } from '../../../utils/logger';
 const { Text } = Typography;
 
 // Import components
-import { ProcessCanvas } from '../components/ProcessCanvas';
+import { CytoscapeCanvas } from '../components/CytoscapeCanvas';
+import type { ProcessNode, ProcessEdge } from '../components/CytoscapeCanvas';
 import { ProcessKPIBar } from '../components/ProcessKPIBar';
 import { VariantPanel } from '../components/VariantPanel';
 import { ActivityDetailsPanel } from '../components/ActivityDetailsPanel';
@@ -329,12 +330,8 @@ export function ExplorerDetailPage() {
     };
   }, [selectedEdgeId, dfgEdges]);
 
-  // Get highlighted path from selected variant
-  const highlightedPath = useMemo(() => {
-    if (!selectedVariantKey || !processedVariants.length) return [];
-    const variant = processedVariants.find((v) => v.key === selectedVariantKey);
-    return variant?.activities ?? [];
-  }, [selectedVariantKey, processedVariants]);
+  // Note: Path highlighting removed during CytoscapeCanvas migration
+  // TODO: Re-implement when adding path highlighting feature to CytoscapeCanvas
 
   // Transform activities for ActivitiesPanel
   const activitiesPanelData: ActivityItem[] = useMemo(() => {
@@ -359,12 +356,22 @@ export function ExplorerDetailPage() {
     setRightPanelTab('activity');
   }, []);
 
+  // Handler for CytoscapeCanvas node clicks
+  const handleCytoscapeNodeClick = useCallback((node: ProcessNode) => {
+    handleNodeClick(node.id);
+  }, [handleNodeClick]);
+
   const handleEdgeClick = useCallback((edgeId: string, source: string, target: string) => {
     log.debug('Edge clicked', { edgeId, source, target });
     setSelectedEdgeId((prev) => (prev === edgeId ? null : edgeId));
     setSelectedNodeId(null);
     setRightPanelTab('edge');
   }, []);
+
+  // Handler for CytoscapeCanvas edge clicks
+  const handleCytoscapeEdgeClick = useCallback((edge: ProcessEdge) => {
+    handleEdgeClick(edge.id, edge.source, edge.target);
+  }, [handleEdgeClick]);
 
   const handleSelectVariant = useCallback((variantKey: string | null) => {
     log.debug('Variant selected', { variantKey });
@@ -447,29 +454,46 @@ export function ExplorerDetailPage() {
 
   const handleExportPNG = useCallback(() => {
     log.info('Exporting PNG');
-    const viewport = document.querySelector('.react-flow__viewport') as HTMLElement;
-    if (!viewport) {
+
+    // Find the Cytoscape canvas wrapper
+    const canvasWrapper = document.querySelector('.cytoscape-canvas-wrapper') as HTMLElement;
+    if (!canvasWrapper) {
       toast.error('Unable to export: Canvas not found');
       return;
     }
 
-    import('html-to-image').then(({ toPng }) => {
-      const flowContainer = document.querySelector('.react-flow') as HTMLElement;
-      if (flowContainer) {
-        toPng(flowContainer, {
-          backgroundColor: '#ffffff',
-          quality: 1,
-        }).then((dataUrl: string) => {
-          const link = document.createElement('a');
-          link.download = `${logInfoWithFallback?.name ?? 'process'}-dfg.png`;
-          link.href = dataUrl;
-          link.click();
-          toast.success('Process map exported as PNG');
-        }).catch((err: Error) => {
-          log.error('PNG export failed', err);
-          toast.error('Failed to export PNG');
-        });
+    // Try to find the actual canvas element inside Cytoscape
+    const canvas = canvasWrapper.querySelector('canvas') as HTMLCanvasElement;
+    if (canvas) {
+      // Direct canvas export (faster, better quality)
+      try {
+        const dataUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `${logInfoWithFallback?.name ?? 'process'}-dfg.png`;
+        link.href = dataUrl;
+        link.click();
+        toast.success('Process map exported as PNG');
+        return;
+      } catch (err) {
+        log.warn('Direct canvas export failed, falling back to html-to-image', err);
       }
+    }
+
+    // Fallback to html-to-image for the wrapper
+    import('html-to-image').then(({ toPng }) => {
+      toPng(canvasWrapper, {
+        backgroundColor: '#ffffff',
+        quality: 1,
+      }).then((dataUrl: string) => {
+        const link = document.createElement('a');
+        link.download = `${logInfoWithFallback?.name ?? 'process'}-dfg.png`;
+        link.href = dataUrl;
+        link.click();
+        toast.success('Process map exported as PNG');
+      }).catch((err: Error) => {
+        log.error('PNG export failed', err);
+        toast.error('Failed to export PNG');
+      });
     }).catch(() => {
       toast.info('Image export not available. Use CSV export to download process data.');
     });
@@ -935,17 +959,27 @@ export function ExplorerDetailPage() {
                 />
               }
               onError={(_error) => {
-                logError('ProcessCanvas', { logId: logId || '', componentCrash: true });
+                logError('CytoscapeCanvas', { logId: logId || '', componentCrash: true });
               }}
             >
-              <ProcessCanvas
-                dfgNodes={dfgNodes}
-                dfgEdges={dfgEdges}
-                selectedNodeId={selectedNodeId}
-                selectedEdgeId={selectedEdgeId}
-                highlightedPath={highlightedPath}
-                onNodeClick={handleNodeClick}
-                onEdgeClick={handleEdgeClick}
+              <CytoscapeCanvas
+                data={{
+                  nodes: dfgNodes.map(n => ({
+                    id: n.id,
+                    label: n.label,
+                    frequency: n.frequency,
+                    isStart: n.isStart,
+                    isEnd: n.isEnd,
+                  })),
+                  edges: dfgEdges.map((e, i) => ({
+                    id: `edge-${e.source}-${e.target}-${i}`,
+                    source: e.source,
+                    target: e.target,
+                    frequency: e.frequency,
+                  })),
+                }}
+                onNodeClick={handleCytoscapeNodeClick}
+                onEdgeClick={handleCytoscapeEdgeClick}
               />
             </ErrorBoundary>
           )}

@@ -118,3 +118,6 @@ export const useEventLogsList = createQueryHook<
   },
   staleTime: 2 * 60 * 1000,
 });
+
+// Process Graph Hook for CytoscapeCanvas
+export { useProcessGraph } from './useProcessGraph';

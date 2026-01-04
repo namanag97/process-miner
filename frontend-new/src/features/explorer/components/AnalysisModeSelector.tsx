@@ -143,7 +143,7 @@ export function AnalysisModeSelector({
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        log_id: datasetId,
+                        dataset_id: datasetId,
                         miner_type: minerType,
                         model_name: `${typeInfo?.name || selectedType} Model`,
                     }),
@@ -158,7 +158,7 @@ export function AnalysisModeSelector({
                 onAnalysisStarted?.(result.job_id || result.id);
             } else {
                 // For other analysis types, use the analyses endpoint
-                const response = await fetch(`${apiBaseUrl}/analyses?log_id=${datasetId}`, {
+                const response = await fetch(`${apiBaseUrl}/analyses?dataset_id=${datasetId}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

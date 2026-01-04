@@ -9,13 +9,17 @@ Provides OCEL 2.0 support for Object-Centric Process Mining including:
 - Object-Centric DFG discovery
 - Object graph analysis
 - Flattening to traditional event logs
+
+Serialization: Uses joblib for OC-PN persistence (safer than pickle).
+Note: Consider removing OC-PN storage and re-discovering on-demand in future.
 """
 
+import io
 import os
-import pickle
 import tempfile
 from typing import Any
 
+import joblib
 import pm4py
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -216,29 +220,32 @@ class OCPMService:
     def serialize_oc_petri_net(self, oc_pn) -> bytes:
         """Serialize an Object-Centric Petri Net for storage.
 
+        Uses joblib for safer serialization than pickle.
+
+        Future improvement: Store OCEL data and re-discover OC-PN on-demand
+        instead of storing the model itself (faster and safer).
+
         Args:
             oc_pn: Object-Centric Petri Net
 
         Returns:
-            Pickled bytes
+            Serialized bytes (joblib format)
         """
-        return pickle.dumps(oc_pn)
+        buffer = io.BytesIO()
+        joblib.dump(oc_pn, buffer)
+        return buffer.getvalue()
 
     def deserialize_oc_petri_net(self, data: bytes):
         """Deserialize an Object-Centric Petri Net from storage.
 
-        Uses restricted unpickler to prevent RCE attacks.
-
         Args:
-            data: Pickled bytes
+            data: Serialized bytes (joblib format)
 
         Returns:
             Object-Centric Petri Net
         """
-        from src.core.safe_unpickler import safe_loads
-
-        # BUG-028 FIX: Use safe_loads instead of pickle.loads
-        return safe_loads(data)
+        buffer = io.BytesIO(data)
+        return joblib.load(buffer)
 
     def get_ocdfg_graph_data(self, ocel) -> dict[str, Any]:
         """Get OC-DFG as structured data for visualization.

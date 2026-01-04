@@ -11,10 +11,11 @@ import tempfile
 import time
 
 import aiofiles
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
 from sqlalchemy import func, select
 
-from src.api.dependencies import DBSession
+from src.api.dependencies import CurrentUser, DBSession
+from src.core.config import get_settings
 from src.core.exceptions import (
     InvalidFileError,
     ProcessingError,
@@ -22,6 +23,7 @@ from src.core.exceptions import (
     ValidationError,
 )
 from src.core.logging_config import get_logger
+from src.core.rate_limit import limiter
 from src.models.orm import Dataset, DatasetStatus, ProcessCase, Project
 
 # Repository imports from models layer (infrastructure)
@@ -38,6 +40,8 @@ from src.models.schemas import (
     DatasetResponse,
     IngestRequest,
     JobStatusResponse,
+    PresignedUploadRequest,
+    PresignedUploadResponse,
     SheetInfo,
     SheetsResponse,
     StatisticsResponse,
@@ -49,6 +53,7 @@ from src.services.mining import mining_service
 from src.services.unified_ingestion import unified_ingestion_service
 
 logger = get_logger(__name__)
+settings = get_settings()
 
 # =============================================================================
 # Constants
@@ -209,9 +214,338 @@ async def _stream_upload_to_temp(file: UploadFile) -> tuple[str, int]:
         raise
 
 
+# =============================================================================
+# Presigned Upload (Phase 4: Direct Client-to-S3)
+# =============================================================================
+
+
+@router.post("/upload/presigned", response_model=PresignedUploadResponse)
+@limiter.limit("10/minute")  # Max 10 presigned URLs per minute per IP
+async def get_presigned_upload_url(
+    http_request: Request,
+    request: PresignedUploadRequest,
+    db: DBSession,
+    current_user: CurrentUser,
+) -> PresignedUploadResponse:
+    """Generate presigned URL for direct client-to-S3 upload.
+
+    Phase 4: Data Ingestion Pipeline - Enterprise-grade upload flow:
+    1. Client requests presigned URL with filename and metadata
+    2. Backend generates unique storage key and dataset record
+    3. Client uploads directly to S3 (bypasses backend for large files)
+    4. Client calls POST /datasets/{dataset_id}/trigger-validation to start processing
+
+    Returns presigned PUT URL valid for 1 hour (configurable).
+
+    Args:
+        request: Upload request with filename, content_type, file_size
+        db: Database session
+        current_user: Authenticated user
+
+    Returns:
+        Presigned upload URL and dataset tracking info
+
+    Raises:
+        ValidationError: If validation fails
+        ProcessingError: If storage client fails
+    """
+    import uuid
+    from datetime import datetime
+
+    from src.infrastructure.object_storage import get_storage_client
+    from src.models.schemas import PresignedUploadResponse
+
+    logger.info(
+        "presigned_upload_requested",
+        filename=request.filename,
+        content_type=request.content_type,
+        file_size=request.file_size_bytes,
+        project_id=request.project_id,
+        user_id=current_user.id,
+    )
+
+    # Validate file extension
+    validate_file_upload_extension(request.filename)
+
+    # Validate file size (prevent storage quota attacks)
+    from src.core.config import get_settings
+    settings = get_settings()
+    if request.file_size_bytes and request.file_size_bytes > settings.s3_max_file_size_bytes:
+        raise ValidationError(
+            f"File size ({request.file_size_bytes} bytes) exceeds maximum allowed "
+            f"({settings.s3_max_file_size_bytes} bytes / {settings.s3_max_file_size_bytes // (1024**3)} GB)"
+        )
+
+    # Validate project exists and check permission
+    if request.project_id:
+        from src.core.permissions import Permission
+        from src.services.authorization import require_project_permission
+
+        # Verify user has DATASET_CREATE permission in workspace
+        _, _project = await require_project_permission(
+            db, request.project_id, current_user, Permission.DATASET_CREATE
+        )
+    else:
+        # No project specified - user must provide one for RBAC
+        raise ValidationError("project_id is required for dataset upload")
+
+    # Generate unique storage key with UUID to prevent overwrites
+    # Format: {dataset_id}/{uuid}.{extension}
+    dataset_id = str(uuid.uuid4())
+    file_extension = os.path.splitext(request.filename)[1]
+    file_uuid = str(uuid.uuid4())
+    storage_key = f"{dataset_id}/{file_uuid}{file_extension}"
+
+    # Generate presigned upload URL FIRST (fail fast if S3 unavailable)
+    storage_client = get_storage_client()
+    try:
+        upload_url = storage_client.get_presigned_upload_url(
+            bucket_type="raw",
+            key=storage_key,
+            content_type=request.content_type,
+        )
+    except Exception as e:
+        logger.error(
+            "presigned_url_generation_failed",
+            error=str(e),
+        )
+        raise ProcessingError(f"Failed to generate upload URL: {e}")
+
+    # Create dataset record AFTER successful URL generation (transaction-safe)
+    dataset_name = os.path.splitext(request.filename)[0]
+    dataset = Dataset(
+        id=dataset_id,
+        name=dataset_name,
+        project_id=request.project_id,
+        source_format=file_extension.lstrip(".").upper(),
+        status=DatasetStatus.PENDING.value,  # Waiting for client upload
+        file_size_bytes=request.file_size_bytes,
+        source_file=request.filename,
+        storage_key=storage_key,  # Store for validation trigger
+        created_at=datetime.utcnow(),
+    )
+    db.add(dataset)
+    await db.commit()
+
+    logger.info(
+        "presigned_upload_url_generated",
+        dataset_id=dataset_id,
+        storage_key=storage_key,
+        expires_in=settings.s3_presigned_url_expiry,
+    )
+
+    return PresignedUploadResponse(
+        upload_url=upload_url,
+        storage_key=storage_key,
+        dataset_id=dataset_id,
+        expires_in=settings.s3_presigned_url_expiry,
+    )
+
+
+@router.post("/{dataset_id}/trigger-validation")
+async def trigger_validation(
+    dataset_id: str,
+    db: DBSession,
+    current_user: CurrentUser,
+) -> dict[str, str]:
+    """Trigger validation worker after client completes S3 upload.
+
+    MVP Implementation: Client must call this after uploading to presigned URL.
+
+    Flow:
+    1. Client: POST /datasets/upload/presigned → Get presigned URL
+    2. Client: PUT to presigned URL → Upload file to S3
+    3. Client: POST /datasets/{dataset_id}/trigger-validation → Start processing
+
+    Args:
+        dataset_id: Dataset ID from presigned response
+        db: Database session
+        current_user: Authenticated user
+
+    Returns:
+        Status message with task_id for polling
+
+    Raises:
+        NotFoundError: If dataset doesn't exist
+        ValidationError: If dataset not in PENDING state
+    """
+    from src.core.permissions import Permission
+    from src.infrastructure.tasks import validate_uploaded_file_task
+    from src.services.authorization import require_dataset_permission
+
+    # Check permission (also validates dataset exists)
+    _, dataset = await require_dataset_permission(
+        db, dataset_id, current_user, Permission.DATASET_UPDATE
+    )
+
+    if dataset.status != DatasetStatus.PENDING.value:
+        raise ValidationError(
+            f"Dataset must be in PENDING state. Current state: {dataset.status}"
+        )
+
+    if not dataset.storage_key:
+        raise ValidationError("Dataset missing storage_key. Cannot validate.")
+
+    # Queue validation task
+    task = validate_uploaded_file_task.delay(dataset_id, dataset.storage_key)
+
+    logger.info(
+        "validation_triggered",
+        dataset_id=dataset_id,
+        storage_key=dataset.storage_key,
+        task_id=task.id,
+        user_id=current_user.id,
+    )
+
+    return {
+        "status": "validation_queued",
+        "task_id": task.id,
+        "dataset_id": dataset_id,
+    }
+
+
+@router.post("/webhooks/s3-upload-complete", include_in_schema=False)
+async def handle_s3_upload_notification(
+    http_request: Request,
+    db: DBSession,
+) -> dict[str, str]:
+    """Handle S3 event notification after upload completes.
+
+    Production flow (replaces manual trigger-validation):
+    1. Client: POST /datasets/upload/presigned → Get presigned URL
+    2. Client: PUT to presigned URL → Upload file to S3
+    3. S3: Sends webhook to this endpoint → Automatic validation
+
+    S3 Configuration Required:
+    - Event: s3:ObjectCreated:*
+    - Prefix: datasets/
+    - Destination: https://api.example.com/api/v1/datasets/webhooks/s3-upload-complete
+
+    Args:
+        http_request: FastAPI request (contains S3 event JSON in body)
+        db: Database session
+
+    Returns:
+        Status message
+
+    Raises:
+        ValidationError: If event format is invalid
+        NotFoundError: If dataset doesn't exist
+    """
+
+    from src.infrastructure.tasks import validate_uploaded_file_task
+
+    # Parse S3 event notification
+    try:
+        event = await http_request.json()
+    except Exception as e:
+        logger.error("s3_webhook_parse_failed", error=str(e))
+        raise ValidationError(f"Invalid S3 event format: {e}")
+
+    # S3 events are wrapped in "Records" array
+    if "Records" not in event:
+        raise ValidationError("Missing 'Records' in S3 event")
+
+    records = event["Records"]
+    if not records:
+        raise ValidationError("Empty 'Records' in S3 event")
+
+    processed_keys = set()  # Idempotency: track processed keys
+
+    for record in records:
+        try:
+            # Extract bucket and key from S3 event
+            s3_info = record.get("s3", {})
+            bucket = s3_info.get("bucket", {}).get("name")
+            storage_key = s3_info.get("object", {}).get("key")
+
+            if not bucket or not storage_key:
+                logger.warning("s3_webhook_missing_fields", record=record)
+                continue
+
+            # Idempotency check: skip if already processed in this batch
+            if storage_key in processed_keys:
+                logger.info("s3_webhook_duplicate_skipped", storage_key=storage_key)
+                continue
+
+            processed_keys.add(storage_key)
+
+            # Lookup dataset by storage_key
+            result = await db.execute(
+                select(Dataset).where(Dataset.storage_key == storage_key)
+            )
+            dataset = result.scalar_one_or_none()
+
+            if not dataset:
+                logger.warning(
+                    "s3_webhook_dataset_not_found",
+                    storage_key=storage_key,
+                    bucket=bucket,
+                )
+                continue
+
+            # Only trigger if still in PENDING state
+            if dataset.status != DatasetStatus.PENDING.value:
+                logger.info(
+                    "s3_webhook_dataset_not_pending",
+                    dataset_id=dataset.id,
+                    status=dataset.status,
+                )
+                continue
+
+            # Queue validation task
+            task = validate_uploaded_file_task.delay(dataset.id, storage_key)
+
+            logger.info(
+                "s3_webhook_validation_triggered",
+                dataset_id=dataset.id,
+                storage_key=storage_key,
+                task_id=task.id,
+                bucket=bucket,
+            )
+
+        except Exception as e:
+            logger.error(
+                "s3_webhook_record_processing_failed",
+                error=str(e),
+                record=record,
+                exc_info=True,
+            )
+            # Continue processing other records
+
+    return {
+        "status": "processed",
+        "records_processed": len(processed_keys),
+    }
+
+
+def validate_file_upload_extension(filename: str) -> None:
+    """Validate file extension only (used for presigned uploads).
+
+    Args:
+        filename: The filename to validate
+
+    Raises:
+        InvalidFileError: If file extension is invalid
+    """
+    if not filename:
+        raise InvalidFileError("No filename provided")
+
+    allowed_extensions = {".csv", ".xes"}
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in allowed_extensions:
+        logger.warning("upload_rejected_extension", filename=filename, extension=ext)
+        raise InvalidFileError(
+            f"Invalid file type '{ext}'. Allowed extensions: {', '.join(allowed_extensions)}",
+            filename=filename,
+            expected_types=list(allowed_extensions),
+        )
+
+
 @router.post("/upload", response_model=DatasetResponse)
 async def upload_dataset(
     db: DBSession,
+    user: CurrentUser,
     file: UploadFile = File(...),
     name: str | None = Form(None),
     project_id: str | None = Form(None, description="Project ID to assign dataset to"),
@@ -232,6 +566,8 @@ async def upload_dataset(
     With async_store=true (deferred ingestion):
     - File is stored immediately, Dataset created with status=UNSTRUCTURED
     - Use POST /{dataset_id}/ingest to trigger background parsing with column mapping
+
+    Requires DATASET_CREATE permission in the workspace.
     """
     # Validate file type and extension
     validate_file_upload(file)
@@ -241,15 +577,21 @@ async def upload_dataset(
     if not filename:
         raise InvalidFileError("Filename is required")
 
-    logger.info("upload_started", filename=filename, name=name, project_id=project_id)
+    logger.info("upload_started", filename=filename, name=name, project_id=project_id, user_id=user.id)
     start_time = time.perf_counter()
 
-    # Validate project exists if project_id is provided
+    # Validate project exists and check permission
     if project_id:
-        project_query = select(Project).where(Project.id == project_id)
-        project_result = await db.execute(project_query)
-        if not project_result.scalar_one_or_none():
-            raise ProcessNotFoundError(project_id, resource_name="Project")
+        from src.core.permissions import Permission
+        from src.services.authorization import require_project_permission
+
+        # Verify user has DATASET_CREATE permission in workspace
+        _, _project = await require_project_permission(
+            db, project_id, user, Permission.DATASET_CREATE
+        )
+    else:
+        # No project specified - user must provide one for RBAC
+        raise ValidationError("project_id is required for dataset upload")
 
     # BUG-058 FIX: Stream file to disk in chunks to prevent OOM on large uploads
     import tempfile
@@ -441,12 +783,15 @@ async def upload_dataset(
 
 @router.post("/detect-columns", response_model=ColumnDetectionResponse)
 async def detect_columns(
+    user: CurrentUser,
     file: UploadFile = File(...),
 ):
     """
     Detect column mappings from a CSV file.
 
     Returns suggested mappings for case_id, activity, timestamp, and resource columns.
+
+    Requires DATASET_READ permission (public utility endpoint for authenticated users).
     """
     # Validate file type and extension
     validate_file_upload(file)
@@ -526,6 +871,7 @@ async def ingest_dataset(
     db: DBSession,
     dataset_id: str,
     request: IngestRequest,
+    user: CurrentUser,
 ):
     """
     Trigger background ingestion for an AWAITING_MAPPING dataset.
@@ -536,20 +882,21 @@ async def ingest_dataset(
     background worker parses file and computes variants.
 
     Returns AsyncJob status for progress tracking via GET /jobs/{job_id}.
+
+    Requires DATASET_UPDATE permission in the workspace.
     """
     from src.core.enums import EntityType, JobStatus, JobType
+    from src.core.permissions import Permission
     from src.infrastructure.tasks import ingest_dataset_task
     from src.models.orm import AsyncJob
+    from src.services.authorization import require_dataset_permission
 
-    logger.info("ingest_dataset_started", dataset_id=dataset_id)
+    logger.info("ingest_dataset_started", dataset_id=dataset_id, user_id=user.id)
 
-    # Load dataset
-    query = select(Dataset).where(Dataset.id == dataset_id)
-    result = await db.execute(query)
-    dataset = result.scalar_one_or_none()
-
-    if not dataset:
-        raise ProcessNotFoundError(dataset_id)
+    # Check permission (also validates dataset exists)
+    _, dataset = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_UPDATE
+    )
 
     # Idempotency: reject if already ingesting
     if dataset.status in [DatasetStatus.INGESTING.value, DatasetStatus.ANALYZING.value]:
@@ -626,25 +973,27 @@ async def ingest_dataset(
 async def detect_columns_for_dataset(
     db: DBSession,
     dataset_id: str,
+    user: CurrentUser,
 ):
     """
     Detect column mappings from an already-uploaded UNSTRUCTURED dataset.
 
     Reads the stored file and returns suggested mappings for case_id,
     activity, timestamp, and resource columns.
+
+    Requires DATASET_READ permission in the workspace.
     """
+    from src.core.permissions import Permission
+    from src.services.authorization import require_dataset_permission
     from src.services.storage import storage_service
 
-    logger.info("detect_columns_for_dataset_started", dataset_id=dataset_id)
+    logger.info("detect_columns_for_dataset_started", dataset_id=dataset_id, user_id=user.id)
     start_time = time.perf_counter()
 
-    # Load dataset
-    query = select(Dataset).where(Dataset.id == dataset_id)
-    result = await db.execute(query)
-    dataset = result.scalar_one_or_none()
-
-    if not dataset:
-        raise ProcessNotFoundError(dataset_id)
+    # Check permission (also validates dataset exists)
+    _, dataset = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_READ
+    )
 
     # Only allow for UNSTRUCTURED or ERROR datasets
     if dataset.status not in [DatasetStatus.UNSTRUCTURED.value, DatasetStatus.ERROR.value]:
@@ -695,6 +1044,7 @@ async def detect_columns_for_dataset(
 async def get_data_preview(
     db: DBSession,
     dataset_id: str,
+    user: CurrentUser,
     rows: int = Query(10, ge=1, le=50, description="Number of preview rows"),
 ):
     """
@@ -706,22 +1056,23 @@ async def get_data_preview(
     - Parsing configuration info
 
     Supports navigation away and back - data is preserved in storage.
+
+    Requires DATASET_READ permission in the workspace.
     """
     import csv
     import io
 
+    from src.core.permissions import Permission
+    from src.services.authorization import require_dataset_permission
     from src.services.storage import storage_service
 
-    logger.info("get_data_preview_started", dataset_id=dataset_id, rows=rows)
+    logger.info("get_data_preview_started", dataset_id=dataset_id, rows=rows, user_id=user.id)
     start_time = time.perf_counter()
 
-    # Load dataset
-    query = select(Dataset).where(Dataset.id == dataset_id)
-    result = await db.execute(query)
-    dataset = result.scalar_one_or_none()
-
-    if not dataset:
-        raise ProcessNotFoundError(dataset_id)
+    # Check permission (also validates dataset exists)
+    _, dataset = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_READ
+    )
 
     if not dataset.source_file:
         raise ValidationError(
@@ -875,24 +1226,26 @@ def _detect_date_format(values: list[str]) -> str:
 async def get_sheets(
     db: DBSession,
     dataset_id: str,
+    user: CurrentUser,
 ):
     """
     List available sheets in an Excel file.
 
     For CSV files, returns a single pseudo-sheet.
     Required for upload wizard Step 2 (Select Sheet).
+
+    Requires DATASET_READ permission in the workspace.
     """
+    from src.core.permissions import Permission
+    from src.services.authorization import require_dataset_permission
     from src.services.storage import storage_service
 
-    logger.info("get_sheets_started", dataset_id=dataset_id)
+    logger.info("get_sheets_started", dataset_id=dataset_id, user_id=user.id)
 
-    # Load dataset
-    query = select(Dataset).where(Dataset.id == dataset_id)
-    result = await db.execute(query)
-    dataset = result.scalar_one_or_none()
-
-    if not dataset:
-        raise ProcessNotFoundError(dataset_id)
+    # Check permission (also validates dataset exists)
+    _, dataset = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_READ
+    )
 
     if not dataset.source_file:
         raise ValidationError(
@@ -960,6 +1313,7 @@ async def get_sheets(
 @router.get("", response_model=DatasetListResponse)
 async def list_datasets(
     db: DBSession,
+    user: CurrentUser,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     source_format: str | None = Query(None),
@@ -969,26 +1323,51 @@ async def list_datasets(
     List all uploaded datasets.
 
     Supports pagination and filtering by source format.
+
+    Requires DATASET_READ permission.
+    Automatically filtered by workspace membership (RLS).
     """
+    from src.models.orm import Workspace, WorkspaceMember
+
     logger.debug(
         "list_datasets",
         page=page,
         page_size=page_size,
         source_format=source_format,
         project_id=project_id,
+        user_id=user.id,
     )
 
-    # Build query
-    query = select(Dataset).order_by(Dataset.created_at.desc())
+    # Build query with RLS filtering (user's workspaces only)
+    query = (
+        select(Dataset)
+        .join(Project, Dataset.project_id == Project.id)
+        .join(Workspace, Project.workspace_id == Workspace.id)
+        .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)
+        .filter(WorkspaceMember.user_id == user.id)
+        .order_by(Dataset.created_at.desc())
+    )
 
     if source_format:
         query = query.where(Dataset.source_format == source_format)
 
     if project_id:
+        # Verify user has access to this project
+        from src.core.permissions import Permission
+        from src.services.authorization import require_project_permission
+
+        await require_project_permission(db, project_id, user, Permission.PROJECT_READ)
         query = query.where(Dataset.project_id == project_id)
 
-    # Count total
-    count_query = select(func.count()).select_from(Dataset)
+    # Count total with same RLS filtering
+    count_query = (
+        select(func.count())
+        .select_from(Dataset)
+        .join(Project, Dataset.project_id == Project.id)
+        .join(Workspace, Project.workspace_id == Workspace.id)
+        .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)
+        .filter(WorkspaceMember.user_id == user.id)
+    )
     if source_format:
         count_query = count_query.where(Dataset.source_format == source_format)
     if project_id:
@@ -1020,18 +1399,22 @@ async def list_datasets(
 async def get_dataset(
     db: DBSession,
     dataset_id: str,
+    user: CurrentUser,
 ):
     """
     Get detailed information about an event log.
-    """
-    logger.debug("get_dataset", dataset_id=dataset_id)
-    query = select(Dataset).where(Dataset.id == dataset_id)
-    result = await db.execute(query)
-    dataset = result.scalar_one_or_none()
 
-    if not dataset:
-        logger.warning("process_not_found", dataset_id=dataset_id)
-        raise ProcessNotFoundError(dataset_id)
+    Requires DATASET_READ permission in the workspace.
+    """
+    from src.core.permissions import Permission
+    from src.services.authorization import require_dataset_permission
+
+    logger.debug("get_dataset", dataset_id=dataset_id, user_id=user.id)
+
+    # Check permission (also validates dataset exists)
+    _, dataset = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_READ
+    )
 
     activities = json.loads(dataset.activities_json) if dataset.activities_json else []
     statistics = json.loads(dataset.statistics_json) if dataset.statistics_json else None
@@ -1054,22 +1437,27 @@ async def get_dataset(
 
 @router.delete("/{dataset_id}")
 async def delete_dataset(
-    db: DBSession,
     dataset_id: str,
+    db: DBSession,
+    user: CurrentUser,
 ):
     """
     Delete an event log and all associated data.
 
-    BUG-052 FIX: Also deletes orphaned recommendations.
-    """
-    logger.info("delete_dataset_started", dataset_id=dataset_id)
-    query = select(Dataset).where(Dataset.id == dataset_id)
-    result = await db.execute(query)
-    dataset = result.scalar_one_or_none()
+    Requires DATASET_DELETE permission in the workspace.
 
-    if not dataset:
-        logger.warning("process_not_found", dataset_id=dataset_id)
-        raise ProcessNotFoundError(dataset_id)
+    BUG-052 FIX: Also deletes orphaned recommendations.
+    SECURITY: Added authentication and permission check (Phase 6.2)
+    """
+    from src.core.permissions import Permission
+    from src.services.authorization import require_dataset_permission
+
+    logger.info("delete_dataset_started", dataset_id=dataset_id, user_id=user.id)
+
+    # Check permission (also validates dataset exists and user has access)
+    _, dataset = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_DELETE
+    )
 
     # BUG-052 FIX: Clean up recommendations before deleting dataset
     from sqlalchemy import delete
@@ -1079,8 +1467,8 @@ async def delete_dataset(
     await db.execute(delete(Recommendation).where(Recommendation.dataset_id == dataset_id))
 
     await db.delete(dataset)
-    await db.flush()
-    logger.info("delete_dataset_completed", dataset_id=dataset_id)
+    await db.commit()
+    logger.info("delete_dataset_completed", dataset_id=dataset_id, user_id=user.id)
 
     return {"status": "deleted", "id": dataset_id}
 
@@ -1094,6 +1482,7 @@ async def delete_dataset(
 async def get_statistics(
     db: DBSession,
     dataset_id: str,
+    user: CurrentUser,
 ):
     """
     Get comprehensive statistics for an event log.
@@ -1102,18 +1491,19 @@ async def get_statistics(
 
     PERFORMANCE: Uses SQL aggregations instead of ORM eager loading
     to prevent OOM on large datasets (1M+ events).
+
+    Requires DATASET_READ permission in the workspace.
     """
-    logger.info("get_statistics_started", dataset_id=dataset_id)
+    from src.core.permissions import Permission
+    from src.services.authorization import require_dataset_permission
+
+    logger.info("get_statistics_started", dataset_id=dataset_id, user_id=user.id)
     start_time = time.perf_counter()
 
-    # Load ONLY the dataset metadata (no eager loading of cases/events!)
-    query = select(Dataset).where(Dataset.id == dataset_id)
-    result = await db.execute(query)
-    dataset = result.scalar_one_or_none()
-
-    if not dataset:
-        logger.warning("process_not_found", dataset_id=dataset_id)
-        raise ProcessNotFoundError(dataset_id)
+    # Check permission (also validates dataset exists)
+    _, dataset = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_READ
+    )
 
     activities = json.loads(dataset.activities_json) if dataset.activities_json else []
 
@@ -1189,20 +1579,24 @@ async def get_statistics(
 async def list_cases(
     db: DBSession,
     dataset_id: str,
+    user: CurrentUser,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ):
     """
     List cases in an event log with pagination.
-    """
-    logger.debug("list_cases", dataset_id=dataset_id, page=page, page_size=page_size)
 
-    # Verify log exists
-    log_query = select(Dataset).where(Dataset.id == dataset_id)
-    log_result = await db.execute(log_query)
-    if not log_result.scalar_one_or_none():
-        logger.warning("process_not_found", dataset_id=dataset_id)
-        raise ProcessNotFoundError(dataset_id)
+    Requires DATASET_READ permission in the workspace.
+    """
+    from src.core.permissions import Permission
+    from src.services.authorization import require_dataset_permission
+
+    logger.debug("list_cases", dataset_id=dataset_id, page=page, page_size=page_size, user_id=user.id)
+
+    # Check permission (also validates dataset exists)
+    _, _dataset = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_READ
+    )
 
     # Count total cases
     count_query = (
@@ -1261,6 +1655,7 @@ async def list_cases(
 async def get_variants(
     db: DBSession,
     dataset_id: str,
+    user: CurrentUser,
     top_n: int = Query(20, ge=1, le=100),
     top_k_percent: float | None = Query(
         None, ge=0, le=100, description="Return variants covering top K% of cases"
@@ -1287,24 +1682,26 @@ async def get_variants(
 
     PERFORMANCE: Uses SQL aggregation instead of ORM iteration to avoid loading
     millions of objects into memory.
+
+    Requires DATASET_READ permission in the workspace.
     """
+    from src.core.permissions import Permission
+    from src.services.authorization import require_dataset_permission
+
     logger.info(
         "get_variants_started",
         dataset_id=dataset_id,
         top_n=top_n,
         top_k_percent=top_k_percent,
         include_complexity=include_complexity,
+        user_id=user.id,
     )
     start_time = time.perf_counter()
 
-    # Verify dataset exists (metadata only)
-    query = select(Dataset).where(Dataset.id == dataset_id)
-    result = await db.execute(query)
-    dataset = result.scalar_one_or_none()
-
-    if not dataset:
-        logger.warning("process_not_found", dataset_id=dataset_id)
-        raise ProcessNotFoundError(dataset_id)
+    # Check permission (also validates dataset exists)
+    _,_dataset = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_READ
+    )
 
     # Use SQL aggregation to compute variant statistics
     # This is 100x faster than loading all cases into memory
@@ -1404,6 +1801,7 @@ async def get_variants(
 async def get_activities(
     db: DBSession,
     dataset_id: str,
+    user: CurrentUser,
     sort_by: str | None = Query(
         None,
         description="Sort activities by: 'frequency', 'duration', 'position'. Default: frequency",
@@ -1421,18 +1819,19 @@ async def get_activities(
 
     PERFORMANCE: Uses event_log_loader (DuckDB/Arrow) instead of ORM iteration
     to avoid loading millions of objects into memory.
+
+    Requires DATASET_READ permission in the workspace.
     """
-    logger.info("get_activities_started", dataset_id=dataset_id, sort_by=sort_by)
+    from src.core.permissions import Permission
+    from src.services.authorization import require_dataset_permission
+
+    logger.info("get_activities_started", dataset_id=dataset_id, sort_by=sort_by, user_id=user.id)
     start_time = time.perf_counter()
 
-    # Verify dataset exists (metadata only)
-    query = select(Dataset).where(Dataset.id == dataset_id)
-    result = await db.execute(query)
-    dataset = result.scalar_one_or_none()
-
-    if not dataset:
-        logger.warning("process_not_found", dataset_id=dataset_id)
-        raise ProcessNotFoundError(dataset_id)
+    # Check permission (also validates dataset exists)
+    _, dataset = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_READ
+    )
 
     # Get activity statistics using fast path
     # mining_service.get_activity_statistics already uses event_log_loader internally
@@ -1467,6 +1866,7 @@ async def get_activities(
 async def get_domain_analysis(
     db: DBSession,
     dataset_id: str,
+    user: CurrentUser,
 ):
     """
     Get process analysis using the new rich domain model.
@@ -1478,11 +1878,21 @@ async def get_domain_analysis(
     4. Computed properties on domain entities
 
     Returns aggregate statistics, variant analysis, and PM4Py cache status.
+
+    Requires DATASET_READ permission in the workspace.
     """
     import pm4py
 
-    logger.info("domain_analysis_started", dataset_id=dataset_id)
+    from src.core.permissions import Permission
+    from src.services.authorization import require_dataset_permission
+
+    logger.info("domain_analysis_started", dataset_id=dataset_id, user_id=user.id)
     start_time = time.perf_counter()
+
+    # Check permission first
+    _, _dataset = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_READ
+    )
 
     # 1. Load via repository (eager loading)
     repo = SQLAlchemyDatasetRepository(db)

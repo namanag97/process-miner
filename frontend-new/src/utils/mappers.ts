@@ -133,7 +133,7 @@ export interface FEDFGEdge {
 }
 
 export interface FEDFGResponse {
-  log_id: string;
+  dataset_id: string;
   nodes: FEDFGNode[];
   edges: FEDFGEdge[];
   start_activities: Record<string, number>;
@@ -197,9 +197,9 @@ export function mapProcessToEventLog(be: BEProcessResponse): FEEventLog {
  * Maps BE DFG Response to FE format
  * @param logId - Must be injected from request context
  */
-export function mapDFGResponse(be: BEDFGResponse, logId: string): FEDFGResponse {
+export function mapDFGResponse(be: BEDFGResponse, datasetId: string): FEDFGResponse {
   return {
-    log_id: logId,
+    dataset_id: datasetId,
     nodes: be.nodes.map((node) => ({
       id: node.id,
       label: node.name,

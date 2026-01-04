@@ -58,13 +58,12 @@ export {
 // Component Exports
 // ============================================
 
-export { ProcessCanvas } from './components/ProcessCanvas';
+export { CytoscapeCanvas } from './components/CytoscapeCanvas';
 export { ProcessKPIBar } from './components/ProcessKPIBar';
 export { VariantPanel } from './components/VariantPanel';
 export { ActivityDetailsPanel } from './components/ActivityDetailsPanel';
 export { EdgeDetailsPanel } from './components/EdgeDetailsPanel';
 export { FilterPanel } from './components/FilterPanel';
-export { EnhancedActivityNode } from './components/EnhancedActivityNode';
 
 // ============================================
 // Type Exports
@@ -96,14 +95,6 @@ export { hasReworkInVariant, toProcessedVariant, toActivityData } from './types'
 // ============================================
 // Utility Exports
 // ============================================
-
-export {
-  applyDagreLayout,
-  calculateNodeScale,
-  calculateEdgeWidth,
-  detectOptimalDirection,
-  calculateGraphStats,
-} from './utils/layoutAlgorithms';
 
 export {
   COLORS,

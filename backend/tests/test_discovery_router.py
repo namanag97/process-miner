@@ -38,7 +38,7 @@ class TestModelDiscovery:
         response = await client.post(
             "/api/v1/discovery/discover?async_mode=false",  # BUG-019: Use sync mode for tests
             json={
-                "log_id": uploaded_insurance_log_id,
+                "dataset_id": uploaded_insurance_log_id,
                 "miner_type": "inductive",
                 "model_name": "Test Inductive Model",
             },
@@ -56,7 +56,7 @@ class TestModelDiscovery:
         response = await client.post(
             "/api/v1/discovery/discover?async_mode=false",  # BUG-019: Use sync mode for tests
             json={
-                "log_id": uploaded_insurance_log_id,
+                "dataset_id": uploaded_insurance_log_id,
                 "miner_type": "alpha",
                 "model_name": "Test Alpha Model",
             },
@@ -73,7 +73,7 @@ class TestModelDiscovery:
         response = await client.post(
             "/api/v1/discovery/discover?async_mode=false",  # BUG-019: Use sync mode for tests
             json={
-                "log_id": uploaded_insurance_log_id,
+                "dataset_id": uploaded_insurance_log_id,
                 "miner_type": "heuristics",
                 "model_name": "Test Heuristics Model",
             },
@@ -99,7 +99,7 @@ class TestModelDiscovery:
         response = await client.post(
             "/api/v1/discovery/discover?async_mode=false",
             json={
-                "log_id": uploaded_insurance_log_id,
+                "dataset_id": uploaded_insurance_log_id,
                 "miner_type": "nonexistent_miner",
                 "model_name": "Test",
             },
@@ -114,7 +114,7 @@ class TestModelDiscovery:
         response = await client.post(
             "/api/v1/discovery/discover?async_mode=false",
             json={
-                "log_id": uploaded_insurance_log_id,
+                "dataset_id": uploaded_insurance_log_id,
                 "miner_type": "inductive",
                 "model_name": "Test Fitness",
             },
@@ -153,7 +153,7 @@ class TestModelManagement:
         discover_resp = await client.post(
             "/api/v1/discovery/discover",
             json={
-                "log_id": uploaded_insurance_log_id,
+                "dataset_id": uploaded_insurance_log_id,
                 "miner_type": "inductive",
                 "model_name": "To Delete",
             },

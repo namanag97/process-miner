@@ -140,7 +140,7 @@ class DuckDBIngestionService:
 
             conn = duckdb_manager.get_connection()
             conn.execute(f"""
-                CREATE TABLE events AS
+                CREATE OR REPLACE TEMP TABLE events AS
                 SELECT
                     "{case_id_col}"::VARCHAR as case_id,
                     "{activity_col}"::VARCHAR as activity,
@@ -214,9 +214,6 @@ class DuckDBIngestionService:
                 "cases_arrow": case_stats,
             }
         finally:
-            # Clean up resources
-            if conn:
-                conn.close()
             # Clean up temp file
             if temp_path and os.path.exists(temp_path):
                 os.unlink(temp_path)
@@ -302,7 +299,7 @@ class DuckDBIngestionService:
                     if not suggestions["case_id_column"]:
                         suggestions["case_id_column"] = col_name
 
-                elif any(x in name_lower for x in ["activity", "action", "event", "task"]):
+                elif any(x in name_lower for x in ["activity", "action", "event", "task", "concept"]):
                     col_info["suggested_role"] = "activity"
                     if not suggestions["activity_column"]:
                         suggestions["activity_column"] = col_name

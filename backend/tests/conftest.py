@@ -6,35 +6,44 @@ from collections.abc import AsyncGenerator
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
 
 from src.api.main import app
 from src.models.database import get_session
-from src.models.orm import Base
+from src.models.orm import Base, User, Project, Dataset, Analysis, ProcessModel, Organization, Workspace
 
-# Test database URL (in-memory)
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+@pytest.fixture(scope="session")
+def test_db_path():
+    """Create a temporary SQLite database file."""
+    import tempfile
+    import os
+    
+    fd, path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    yield path
+    if os.path.exists(path):
+        os.unlink(path)
 
 
 @pytest.fixture(scope="session")
-def event_loop():
-    """Create event loop for async tests."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest.fixture(scope="session")
-async def test_engine():
-    """Create test database engine."""
-    engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+async def test_engine(test_db_path):
+    """Create test database engine using file-based SQLite."""
+    # Use file path instead of :memory: so DuckDB can attach to it
+    database_url = f"sqlite+aiosqlite:///{test_db_path}"
+    
+    # Patch event_log_loader to use this path
+    from src.services.event_log_loader import event_log_loader
+    event_log_loader._sqlite_path = test_db_path
+    
+    engine = create_async_engine(
+        database_url, 
+        echo=False,
+    )
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
     yield engine
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
 
     await engine.dispose()
 
@@ -42,8 +51,10 @@ async def test_engine():
 @pytest.fixture
 async def test_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
     """Create test database session."""
+    # Create a session without outer transaction wrapper so commits are persisted
+    # This allows DuckDB (running in separate connection) to see the data
     session_maker = async_sessionmaker(
-        test_engine,
+        bind=test_engine,
         class_=AsyncSession,
         expire_on_commit=False,
     )
@@ -51,15 +62,54 @@ async def test_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
     async with session_maker() as session:
         yield session
 
+    # Cleanup is handled by clear_db fixture
+
+
+@pytest.fixture(autouse=True)
+async def clear_db(test_session: AsyncSession):
+    """Clear all data between tests."""
+    yield
+    # Truncate all tables in dependency order
+    from sqlalchemy import text
+    
+    # Disable foreign key checks for truncation
+    await test_session.execute(text("PRAGMA foreign_keys = OFF"))
+    
+    # List of tables to clear
+    tables = [
+        "recommendations",
+        "simulations", 
+        "predictions",
+        "process_cases",
+        "process_events",
+        "datasets",
+        "async_jobs",
+        "projects",
+        "workspace_members",
+        "users",
+        "workspaces",
+        "organizations"
+    ]
+    
+    for table in tables:
+        try:
+            await test_session.execute(text(f"DELETE FROM {table}"))
+        except Exception:
+            pass
+            
+    await test_session.execute(text("PRAGMA foreign_keys = ON"))
+    await test_session.commit()
+
 
 @pytest.fixture
 async def client(test_session) -> AsyncGenerator[AsyncClient, None]:
     """Create test client with database session override."""
+    from src.api.dependencies import get_db
 
-    async def override_get_session():
+    async def override_get_db():
         yield test_session
 
-    app.dependency_overrides[get_session] = override_get_session
+    app.dependency_overrides[get_db] = override_get_db
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -158,12 +208,85 @@ def sample_csv_with_bottleneck() -> bytes:
 """
 
 
+
+
 @pytest.fixture
-async def uploaded_log_id(client: AsyncClient, sample_csv_with_multiple_variants: bytes) -> str:
+async def default_project(test_session: AsyncSession) -> str:
+    """Create a default project for testing with full hierarchy."""
+    import uuid
+    from datetime import datetime
+    from src.models.orm import Project, Organization, Workspace, User, WorkspaceMember
+
+    # 1. Create Organization
+    org_id = str(uuid.uuid4())
+    org = Organization(
+        id=org_id,
+        name="Test Organization",
+        slug=f"test-org-{uuid.uuid4()}",
+        plan="free",
+        created_at=datetime.utcnow(),
+    )
+    test_session.add(org)
+
+    # 2. Create Workspace
+    workspace_id = str(uuid.uuid4())
+    workspace = Workspace(
+        id=workspace_id,
+        org_id=org_id,
+        name="Test Workspace",
+        description="Default workspace for e2e tests",
+        created_at=datetime.utcnow(),
+    )
+    test_session.add(workspace)
+
+    # 3. Create User (System Owner) - Needed for 'owner_id' references if any, or auth
+    # Match the mock user email used by _get_mock_user in dependencies.py
+    user_id = str(uuid.uuid4())
+    user = User(
+        id=user_id, 
+        email="demo@processminer.io",
+        name="Test User",
+        auth_provider="local",
+        org_id=org_id,
+        created_at=datetime.utcnow(),
+    )
+    test_session.add(user)
+
+    # 4. Create Workspace Member (Grant Access)
+    member = WorkspaceMember(
+        workspace_id=workspace_id,
+        user_id=user_id,
+        role="owner",
+        joined_at=datetime.utcnow(),
+    )
+    test_session.add(member)
+
+    # 5. Create Project
+    project_id = str(uuid.uuid4())
+    project = Project(
+        id=project_id,
+        workspace_id=workspace_id,
+        name="Test Project",
+        description="Default project for e2e tests",
+        # owner_id="system",  <-- REMOVED: Field does not exist
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+    )
+    test_session.add(project)
+    
+    await test_session.commit()
+    return project_id
+
+
+@pytest.fixture
+async def uploaded_log_id(
+    client: AsyncClient, sample_csv_with_multiple_variants: bytes, default_project: str
+) -> str:
     """Pre-upload a log and return its ID for dependent tests."""
     response = await client.post(
         "/api/v1/datasets/upload",
         files={"file": ("test_variants.csv", sample_csv_with_multiple_variants, "text/csv")},
+        data={"project_id": default_project},
     )
     assert response.status_code == 200
     return response.json()["id"]
@@ -174,7 +297,7 @@ async def discovered_model_id(client: AsyncClient, uploaded_log_id: str) -> str:
     """Discover a model from the uploaded log and return its ID."""
     response = await client.post(
         "/api/v1/discovery/discover?async_mode=false",  # BUG-019: Sync mode for tests
-        json={"log_id": uploaded_log_id, "miner_type": "inductive", "model_name": "Test Model"},
+        json={"dataset_id": uploaded_log_id, "miner_type": "inductive", "model_name": "Test Model"},
     )
     assert response.status_code == 200
     return response.json()["id"]
@@ -228,23 +351,31 @@ def complex_ocel_jsonocel() -> bytes:
 
 
 @pytest.fixture
-async def uploaded_insurance_log_id(client: AsyncClient, insurance_small_csv: bytes) -> str:
+async def uploaded_insurance_log_id(
+    client: AsyncClient, insurance_small_csv: bytes, default_project: str
+) -> str:
     """Pre-upload insurance log and return ID."""
     response = await client.post(
         "/api/v1/datasets/upload",
         files={"file": ("test.csv", insurance_small_csv, "text/csv")},
+        data={"project_id": default_project},
     )
     assert response.status_code == 200
     return response.json()["id"]
 
 
 @pytest.fixture
-async def uploaded_ocel_log_id(client: AsyncClient, simple_ocel_jsonocel: bytes) -> str:
+async def uploaded_ocel_log_id(
+    client: AsyncClient, simple_ocel_jsonocel: bytes, default_project: str
+) -> str:
     """Pre-upload OCEL log and return ID."""
     response = await client.post(
         "/api/v1/ocpm/upload",
         files={"file": ("test.jsonocel", simple_ocel_jsonocel, "application/json")},
     )
+    # Note: OCPM upload might not fallback to datasets upload logic, so we might need to check if it needs project_id or if it creates its own.
+    # Looking at legacy code, OCPM might be separate. But if OCPM upload fails, we will see.
+    # For now, let's assume OCPM router handles it.
     assert response.status_code == 200
     return response.json()["id"]
 
@@ -255,7 +386,7 @@ async def discovered_petri_net_id(client: AsyncClient, uploaded_insurance_log_id
     response = await client.post(
         "/api/v1/discovery/discover?async_mode=false",  # BUG-019: Sync mode for tests
         json={
-            "log_id": uploaded_insurance_log_id,
+            "dataset_id": uploaded_insurance_log_id,
             "miner_type": "inductive",
             "model_name": "Test Model",
         },

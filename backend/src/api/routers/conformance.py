@@ -574,3 +574,339 @@ async def get_quality_metrics(
             status_code=500,
             detail=f"Failed to get quality metrics: {e!s}",
         )
+
+
+# =============================================================================
+# Phase 11.1 - Reference Model Import (PNML/BPMN)
+# =============================================================================
+
+
+@router.post("/import-model")
+async def import_reference_model(
+    project_id: str = Query(..., description="Project ID to store the model under"),
+    model_name: str = Query(..., description="Name for the imported model"),
+    model_content: str = Query(..., description="XML content (PNML or BPMN)"),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Import a reference model from PNML or BPMN format.
+
+    Phase 11.1 - Reference Model Management
+
+    Supports:
+    - PNML (Petri Net Markup Language) - direct import
+    - BPMN 2.0 (Business Process Model and Notation) - imported and converted to Petri net
+
+    Use this to upload external reference models for conformance checking.
+
+    Args:
+        project_id: The project to associate the model with
+        model_name: Display name for the model
+        model_content: XML content of the PNML or BPMN file
+
+    Returns:
+        Created process model with ID
+    """
+    from uuid import uuid4
+
+    from src.core.enums import ModelFormat
+    from src.models.orm import ProcessModel, Project
+    from src.services.model_importer import model_importer
+
+    logger.info(
+        "model_import_started",
+        project_id=project_id,
+        model_name=model_name,
+        content_length=len(model_content),
+    )
+    start_time = time.perf_counter()
+
+    # Validate project exists
+    project_result = await session.execute(select(Project).where(Project.id == project_id))
+    project = project_result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    try:
+        # Auto-detect format
+        model_format = model_importer.validate_model_format(model_content)
+        logger.info("model_format_detected", format=model_format.value)
+
+        # Import based on format
+        if model_format == ModelFormat.PETRI_NET:
+            # PNML import
+            net, im, fm = model_importer.import_pnml(model_content)
+        elif model_format == ModelFormat.BPMN:
+            # BPMN import and convert to Petri net
+            net, im, fm = model_importer.import_and_convert_bpmn(model_content)
+        else:
+            raise HTTPException(
+                status_code=400, detail=f"Unsupported format: {model_format.value}"
+            )
+
+        # Serialize the Petri net using joblib
+        serialized_model = model_importer.serialize_petri_net(net, im, fm)
+
+        # Create ProcessModel record
+        model_id = str(uuid4())
+        process_model = ProcessModel(
+            id=model_id,
+            project_id=project_id,
+            name=model_name,
+            model_format=ModelFormat.PETRI_NET.value,  # Always Petri net after conversion
+            serialized_model=serialized_model,
+            metadata_json=json.dumps(
+                {
+                    "imported_from": model_format.value,
+                    "import_method": "reference_model_import",
+                    "places_count": len(net.places),
+                    "transitions_count": len(net.transitions),
+                    "arcs_count": len(net.arcs),
+                }
+            ),
+        )
+
+        session.add(process_model)
+        await session.commit()
+        await session.refresh(process_model)
+
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.info(
+            "model_import_success",
+            model_id=model_id,
+            format=model_format.value,
+            places=len(net.places),
+            transitions=len(net.transitions),
+            duration_ms=round(duration_ms, 2),
+        )
+
+        return {
+            "model_id": model_id,
+            "name": model_name,
+            "format": ModelFormat.PETRI_NET.value,
+            "source_format": model_format.value,
+            "places": len(net.places),
+            "transitions": len(net.transitions),
+            "arcs": len(net.arcs),
+            "created_at": process_model.created_at,
+        }
+
+    except ValidationError as e:
+        logger.warning("model_import_validation_failed", error=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    except Exception as e:
+        logger.error("model_import_failed", error=str(e), exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to import model: {e!s}"
+        ) from e
+
+
+# =============================================================================
+# Phase 11.3 - Root Cause Analysis
+# =============================================================================
+
+
+@router.get("/root-cause/{log_id}/{model_id}")
+async def get_root_cause_analysis(
+    log_id: str,
+    model_id: str,
+    attributes: str = Query(
+        "resource",
+        description="Comma-separated list of attributes to analyze (e.g., 'resource,department')",
+    ),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Get comprehensive root cause analysis for conformance deviations.
+
+    Phase 11.3 - Root Cause Analysis
+
+    Analyzes:
+    - Deviation aggregation by activity (which activities cause most issues)
+    - Deviation aggregation by position (where in the process do issues occur)
+    - Attribute correlation (which resources/departments have more deviations)
+
+    Use this to identify patterns in conformance violations.
+
+    Args:
+        log_id: Event log ID
+        model_id: Process model ID
+        attributes: Comma-separated attributes to analyze (default: "resource")
+
+    Returns:
+        Comprehensive root cause analysis report
+    """
+    from src.services.root_cause_analysis import root_cause_analyzer
+
+    logger.info(
+        "root_cause_analysis_started",
+        log_id=log_id,
+        model_id=model_id,
+        attributes=attributes,
+    )
+    start_time = time.perf_counter()
+
+    # Get event log
+    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
+    event_log = log_result.scalar_one_or_none()
+    if not event_log:
+        raise HTTPException(status_code=404, detail="Event log not found")
+
+    # Get process model
+    model_result = await session.execute(select(ProcessModel).where(ProcessModel.id == model_id))
+    model = model_result.scalar_one_or_none()
+    if not model:
+        raise HTTPException(status_code=404, detail="Process model not found")
+
+    if not model.serialized_model:
+        raise HTTPException(status_code=400, detail="Process model has no serialized data")
+
+    try:
+        # Parse attributes
+        attribute_list = [a.strip() for a in attributes.split(",") if a.strip()]
+
+        # Get comprehensive analysis
+        analysis = root_cause_analyzer.get_comprehensive_root_cause_analysis(
+            event_log, model, attribute_list
+        )
+
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.info(
+            "root_cause_analysis_completed",
+            log_id=log_id,
+            model_id=model_id,
+            duration_ms=round(duration_ms, 2),
+        )
+
+        return analysis
+
+    except Exception as e:
+        logger.error(
+            "root_cause_analysis_failed",
+            log_id=log_id,
+            model_id=model_id,
+            error=str(e),
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500, detail=f"Failed to analyze root causes: {e!s}"
+        ) from e
+
+
+@router.get("/deviations/by-activity/{log_id}/{model_id}")
+async def get_deviations_by_activity(
+    log_id: str,
+    model_id: str,
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Get deviation aggregation by activity.
+
+    Identifies which activities cause the most conformance issues.
+    """
+    from src.services.root_cause_analysis import root_cause_analyzer
+
+    logger.info("deviations_by_activity_started", log_id=log_id, model_id=model_id)
+
+    # Get event log
+    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
+    event_log = log_result.scalar_one_or_none()
+    if not event_log:
+        raise HTTPException(status_code=404, detail="Event log not found")
+
+    # Get process model
+    model_result = await session.execute(select(ProcessModel).where(ProcessModel.id == model_id))
+    model = model_result.scalar_one_or_none()
+    if not model:
+        raise HTTPException(status_code=404, detail="Process model not found")
+
+    try:
+        return root_cause_analyzer.aggregate_deviations_by_activity(event_log, model)
+
+    except Exception as e:
+        logger.error("deviations_by_activity_failed", error=str(e))
+        raise HTTPException(
+            status_code=500, detail=f"Failed to aggregate deviations: {e!s}"
+        ) from e
+
+
+@router.get("/deviations/by-position/{log_id}/{model_id}")
+async def get_deviations_by_position(
+    log_id: str,
+    model_id: str,
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Get deviation aggregation by position in trace.
+
+    Identifies at which point in the process deviations occur most frequently.
+    """
+    from src.services.root_cause_analysis import root_cause_analyzer
+
+    logger.info("deviations_by_position_started", log_id=log_id, model_id=model_id)
+
+    # Get event log
+    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
+    event_log = log_result.scalar_one_or_none()
+    if not event_log:
+        raise HTTPException(status_code=404, detail="Event log not found")
+
+    # Get process model
+    model_result = await session.execute(select(ProcessModel).where(ProcessModel.id == model_id))
+    model = model_result.scalar_one_or_none()
+    if not model:
+        raise HTTPException(status_code=404, detail="Process model not found")
+
+    try:
+        return root_cause_analyzer.aggregate_deviations_by_position(event_log, model)
+
+    except Exception as e:
+        logger.error("deviations_by_position_failed", error=str(e))
+        raise HTTPException(
+            status_code=500, detail=f"Failed to aggregate deviations: {e!s}"
+        ) from e
+
+
+@router.get("/deviations/attribute-correlation/{log_id}/{model_id}")
+async def get_attribute_correlation(
+    log_id: str,
+    model_id: str,
+    attribute: str = Query("resource", description="Attribute to analyze (e.g., resource, department)"),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Analyze correlation between case attributes and conformance deviations.
+
+    Identifies which attribute values (e.g., specific resources or departments)
+    are associated with more conformance violations.
+    """
+    from src.services.root_cause_analysis import root_cause_analyzer
+
+    logger.info(
+        "attribute_correlation_started",
+        log_id=log_id,
+        model_id=model_id,
+        attribute=attribute,
+    )
+
+    # Get event log
+    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
+    event_log = log_result.scalar_one_or_none()
+    if not event_log:
+        raise HTTPException(status_code=404, detail="Event log not found")
+
+    # Get process model
+    model_result = await session.execute(select(ProcessModel).where(ProcessModel.id == model_id))
+    model = model_result.scalar_one_or_none()
+    if not model:
+        raise HTTPException(status_code=404, detail="Process model not found")
+
+    try:
+        return root_cause_analyzer.analyze_attribute_correlation(event_log, model, attribute)
+
+    except Exception as e:
+        logger.error("attribute_correlation_failed", error=str(e), attribute=attribute)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to analyze attribute correlation: {e!s}"
+        ) from e

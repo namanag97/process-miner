@@ -31,9 +31,10 @@ from src.api.routers import (
     projects_router,
     simulation_router,
     visualization_router,
-    workflows_router,
+    # workflows_router removed - orphaned code with no frontend consumers
     workspaces_router,
 )
+from src.api.routers.business_use_cases import router as business_use_cases_router
 from src.api.routers.dev_logs_stream import router as dev_logs_stream_router
 from src.api.routers.health import mark_startup_complete
 from src.api.routers.health import router as health_router
@@ -186,10 +187,6 @@ def create_app() -> FastAPI:
             "description": "Object-Centric Process Mining (OCEL 2.0)",
         },
         {
-            "name": "Workflows",
-            "description": "Automation workflows and pipelines",
-        },
-        {
             "name": "Jobs",
             "description": "Unified async job tracking and progress monitoring",
         },
@@ -244,6 +241,15 @@ JWT-based authentication with optional workspace context.
     # Logging middleware (order matters - performance first, then request logging)
     app.add_middleware(PerformanceLoggingMiddleware, slow_request_threshold_ms=1000)
     app.add_middleware(RequestLoggingMiddleware)
+
+    # Rate limiting (prevents abuse and DDoS)
+    from slowapi import _rate_limit_exceeded_handler
+    from slowapi.errors import RateLimitExceeded
+
+    from src.core.rate_limit import limiter
+
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     # Exception handlers
     @app.exception_handler(AppException)
@@ -370,8 +376,9 @@ JWT-based authentication with optional workspace context.
     app.include_router(discovery_router, prefix=settings.api_prefix)
     app.include_router(visualization_router, prefix=settings.api_prefix)
     app.include_router(conformance_router, prefix=settings.api_prefix)
+    app.include_router(business_use_cases_router, prefix=settings.api_prefix)  # Phase 9
     app.include_router(ocpm_router, prefix=settings.api_prefix)
-    app.include_router(workflows_router, prefix=settings.api_prefix)
+    # workflows_router removed - orphaned code
     app.include_router(filtering_router, prefix=settings.api_prefix)
     app.include_router(analytics_router, prefix=settings.api_prefix)
     app.include_router(organizational_router, prefix=settings.api_prefix)

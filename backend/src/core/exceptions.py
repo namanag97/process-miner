@@ -433,6 +433,55 @@ class ServiceUnavailableError(ExternalServiceError):
 
 
 # =============================================================================
+# Authentication & Authorization (401, 403)
+# =============================================================================
+
+
+class AuthenticationError(AppException):
+    """Authentication failed (invalid or missing credentials)."""
+
+    def __init__(
+        self,
+        message: str = "Authentication required",
+        error_code: ErrorCode = ErrorCode.AUTHENTICATION_FAILED,
+        **kwargs,
+    ):
+        super().__init__(
+            message=message,
+            error_code=error_code,
+            status_code=401,
+            **kwargs,
+        )
+
+
+class AuthorizationError(AppException):
+    """Authorization failed (insufficient permissions)."""
+
+    def __init__(
+        self,
+        message: str = "Insufficient permissions",
+        error_code: ErrorCode = ErrorCode.AUTHORIZATION_FAILED,
+        required_permission: str | None = None,
+        **kwargs,
+    ):
+        details = {}
+        if required_permission:
+            details["required_permission"] = required_permission
+        super().__init__(
+            message=message,
+            error_code=error_code,
+            status_code=403,
+            details=details,
+            **kwargs,
+        )
+
+
+class ForbiddenError(AuthorizationError):
+    """Forbidden action (alias for AuthorizationError)."""
+    pass
+
+
+# =============================================================================
 # Rate Limiting (429)
 # =============================================================================
 

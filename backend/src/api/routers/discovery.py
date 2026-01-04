@@ -8,7 +8,7 @@ import time
 from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 
-from src.api.dependencies import DBSession
+from src.api.dependencies import CurrentUser, DBSession
 from src.core.enums import MinerType
 from src.core.exceptions import (
     DiscoveryError,
@@ -55,6 +55,7 @@ async def list_miners():
 @router.post("/discover")
 async def discover_model(
     db: DBSession,
+    user: CurrentUser,
     request: DiscoverRequest,
     async_mode: bool = True,  # BUG-019 FIX: Default to async to prevent API blocking
 ):
@@ -74,37 +75,37 @@ async def discover_model(
     """
     logger.info(
         "discovery_started",
-        log_id=request.log_id,
+        dataset_id=request.dataset_id,
         miner_type=str(request.miner_type),
         model_name=request.model_name,
         async_mode=async_mode,
     )
 
-    # Verify log exists
-    query = select(Dataset).where(Dataset.id == request.log_id)
+    # Verify dataset exists
+    query = select(Dataset).where(Dataset.id == request.dataset_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
 
     if not event_log:
-        logger.warning("log_not_found", log_id=request.log_id)
-        raise ProcessNotFoundError(request.log_id)
+        logger.warning("dataset_not_found", dataset_id=request.dataset_id)
+        raise ProcessNotFoundError(request.dataset_id)
 
     # FIX: Validate dataset is ready for discovery (has completed ingestion)
     from src.models.orm import DatasetStatus
 
     if event_log.status != DatasetStatus.READY.value:
-        logger.warning("dataset_not_ready", log_id=request.log_id, status=event_log.status)
+        logger.warning("dataset_not_ready", dataset_id=request.dataset_id, status=event_log.status)
         raise InvalidInputError(
             f"Dataset is not ready for discovery (status: {event_log.status}). "
-            f"Please complete ingestion first via POST /datasets/{request.log_id}/ingest.",
-            field="log_id",
+            f"Please complete ingestion first via POST /datasets/{request.dataset_id}/ingest.",
+            field="dataset_id",
         )
 
     if event_log.total_events == 0:
-        logger.warning("dataset_empty", log_id=request.log_id)
+        logger.warning("dataset_empty", dataset_id=request.dataset_id)
         raise InvalidInputError(
             "Dataset has no events. Cannot discover a process model.",
-            field="log_id",
+            field="dataset_id",
         )
 
     # Validate miner type
@@ -128,14 +129,14 @@ async def discover_model(
 
         # Create AsyncJob record first with job-centric fields
         async_job = AsyncJob(
-            user_id="system",  # Default system owner for now (auth bypass in effect)
+            user_id=user.id,  # BUG-002 FIX: Use authenticated user instead of hardcoded "system"
             job_type=JobType.DISCOVERY.value,
             status=JobStatus.QUEUED.value,
             entity_type=EntityType.MODEL.value,
             # entity_id will be set when model is created
             parameters_json=json.dumps(
                 {
-                    "log_id": request.log_id,
+                    "dataset_id": request.dataset_id,
                     "miner_type": miner_type.value,
                     "model_name": request.model_name,
                 }
@@ -144,19 +145,31 @@ async def discover_model(
         db.add(async_job)
         await db.flush()
 
-        # Queue Celery task
-        task = perform_discovery_task.delay(
-            log_id=request.log_id,
-            miner_type=miner_type.value,
-            model_name=request.model_name,
-        )
-
-        # Link task_id to job
-        async_job.task_id = task.id
+        # BUG-006 FIX: Atomicity - commit job record before queuing Celery task
+        # This ensures job exists in DB even if Celery fails
         await db.commit()
 
+        try:
+            # Queue Celery task
+            task = perform_discovery_task.delay(
+                log_id=request.dataset_id,
+                miner_type=miner_type.value,
+                model_name=request.model_name,
+            )
+
+            # Link task_id to job (best effort - job already committed)
+            async_job.task_id = task.id
+            await db.commit()
+        except Exception as e:
+            # If Celery fails, mark job as failed so it doesn't stay QUEUED forever
+            logger.error("celery_task_failed", job_id=async_job.id, error=str(e))
+            async_job.status = JobStatus.FAILED.value
+            async_job.error_message = f"Failed to queue task: {e}"
+            await db.commit()
+            raise DiscoveryError(f"Failed to start discovery task: {e}", miner_type=miner_type.value)
+
         logger.info(
-            "async_discovery_started", job_id=async_job.id, task_id=task.id, log_id=request.log_id
+            "async_discovery_started", job_id=async_job.id, task_id=task.id, dataset_id=request.dataset_id
         )
 
         # Return 202 Accepted with job_id
@@ -178,14 +191,21 @@ async def discover_model(
     try:
         model_data, model_format = mining_service.discover(event_log, miner_type)
     except Exception as e:
-        logger.error("discovery_failed", log_id=request.log_id, error=str(e), exc_info=True)
+        logger.error("discovery_failed", dataset_id=request.dataset_id, error=str(e), exc_info=True)
         raise DiscoveryError(f"Discovery failed: {e!s}", miner_type=miner_type.value)
 
     # Create model name
     model_name = request.model_name or f"{event_log.name}_{miner_type.value}"
 
-    # Serialize model
+    # Serialize model (legacy pickle for backward compatibility)
     serialized = mining_service.serialize_model(model_data)
+
+    # Generate graph JSON for frontend visualization (new architecture)
+    graph_json = mining_service.serialize_to_graph_json(model_data, model_format)
+    graph_structure_json = None
+    if graph_json:
+        import json as json_module
+        graph_structure_json = json_module.dumps(graph_json)
 
     # Calculate quality metrics (fitness/precision) if possible
     fitness = None
@@ -205,7 +225,7 @@ async def discover_model(
         except Exception as e:
             logger.warning(
                 "quality_metrics_failed",
-                log_id=event_log.id,
+                dataset_id=event_log.id,
                 error=str(e),
                 exc_info=True,
             )
@@ -218,6 +238,7 @@ async def discover_model(
         miner_type=miner_type.value,
         model_format=model_format.value,
         serialized_model=serialized,
+        graph_structure_json=graph_structure_json,  # NEW: Store graph JSON
         fitness=fitness,
         precision=precision,
     )
@@ -257,25 +278,23 @@ async def list_models(
     db: DBSession,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    log_id: str | None = Query(None),
+    dataset_id: str | None = Query(None),
 ):
     """
     List discovered process models.
 
-    Supports pagination and filtering by source log.
+    Supports pagination and filtering by source dataset.
     """
-    logger.debug("list_models", page=page, page_size=page_size, log_id=log_id)
+    logger.debug("list_models", page=page, page_size=page_size, dataset_id=dataset_id)
     query = select(ProcessModel).order_by(ProcessModel.created_at.desc())
 
-    if log_id:
-        # BUG-059 FIX: Use dataset_id (ORM field name)
-        query = query.where(ProcessModel.dataset_id == log_id)
+    if dataset_id:
+        query = query.where(ProcessModel.dataset_id == dataset_id)
 
     # Count total
     count_query = select(func.count()).select_from(ProcessModel)
-    if log_id:
-        # BUG-059 FIX
-        count_query = count_query.where(ProcessModel.dataset_id == log_id)
+    if dataset_id:
+        count_query = count_query.where(ProcessModel.dataset_id == dataset_id)
 
     total = await db.scalar(count_query) or 0
 

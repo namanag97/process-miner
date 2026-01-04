@@ -225,6 +225,40 @@ class IngestRequest(BaseModel):
     resource_column: str | None = Field(None, description="Column name for resource")
 
 
+class PresignedUploadRequest(BaseModel):
+    """Request for presigned upload URL generation.
+
+    Client requests a presigned URL, then uploads directly to S3/MinIO.
+    Backend receives upload notification via webhook or polling.
+    """
+
+    filename: str = Field(..., min_length=1, max_length=255, description="Original filename")
+    content_type: str = Field(
+        default="text/csv",
+        description="MIME type (text/csv, application/xml)",
+    )
+    file_size_bytes: int | None = Field(
+        None,
+        ge=1,
+        description="Expected file size in bytes (for validation)",
+    )
+    project_id: str | None = Field(None, description="Optional project association")
+
+
+class PresignedUploadResponse(BaseModel):
+    """Response containing presigned upload URL and tracking info.
+
+    Client should:
+    1. PUT file to upload_url with Content-Type header
+    2. Poll /datasets/{dataset_id} for validation status
+    """
+
+    upload_url: str = Field(..., description="Presigned PUT URL for direct S3 upload")
+    storage_key: str = Field(..., description="S3 object key for tracking")
+    dataset_id: str = Field(..., description="Dataset ID for status polling")
+    expires_in: int = Field(..., description="URL expiration in seconds")
+
+
 class DatasetUploadRequest(BaseModel):
     """Request for file upload with column mapping."""
 
@@ -456,12 +490,9 @@ class MinerInfo(BaseModel):
 class DiscoverRequest(BaseModel):
     """Request to discover a process model."""
 
-    # Accept both 'dataset_id' (preferred) and 'log_id' (legacy) for backward compatibility
-    dataset_id: str = Field(..., alias="log_id", description="Dataset/log ID to mine")
+    dataset_id: str = Field(..., description="Dataset ID to mine")
     miner_type: MinerType = MinerType.INDUCTIVE
     model_name: str | None = None
-
-    model_config = ConfigDict(populate_by_name=True)  # Accept both 'dataset_id' and 'log_id'
 
 
 class ModelResponse(BaseModel):
@@ -529,7 +560,7 @@ class ProcessExplorerDataResponse(BaseModel):
     Combines DFG, variants, activities, and statistics in a single request.
     """
 
-    log_id: str
+    dataset_id: str
     dfg: DFGResponse
     variants: list["VariantResponse"]
     activities: list["ActivityDetailResponse"]
@@ -578,7 +609,7 @@ class PetriNetResponse(BaseModel):
 class ConformanceCheckRequest(BaseModel):
     """Request for conformance checking."""
 
-    log_id: str
+    dataset_id: str
     model_id: str
     method: ConformanceMethod = ConformanceMethod.TOKEN_REPLAY
 
@@ -641,7 +672,7 @@ class QualityMetricsResponse(BaseModel):
     - Simplicity: How simple/understandable the model is
     """
 
-    log_id: str
+    dataset_id: str
     model_id: str
     fitness: float
     precision: float | None = None
@@ -707,7 +738,7 @@ class WorkflowResponse(BaseModel):
 class WorkflowRunRequest(BaseModel):
     """Request to run a workflow."""
 
-    log_id: str | None = None
+    dataset_id: str | None = None
     params: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -832,7 +863,7 @@ class OCELObjectTypeResponse(BaseModel):
 class OCELStatisticsResponse(BaseModel):
     """OCEL statistics response."""
 
-    log_id: str
+    dataset_id: str
     total_events: int
     total_objects: int
     total_object_types: int
@@ -845,7 +876,7 @@ class OCELStatisticsResponse(BaseModel):
 class DiscoverOCPNRequest(BaseModel):
     """Request to discover Object-Centric Petri Net."""
 
-    log_id: str
+    dataset_id: str
     model_name: str | None = None
 
 
@@ -853,7 +884,7 @@ class OCPetriNetResponse(BaseModel):
     """Object-Centric Petri Net response."""
 
     id: str
-    log_id: str = ""
+    dataset_id: str = ""
     name: str
     object_types: list[str] = []
     created_at: datetime
@@ -912,7 +943,7 @@ class OCDFGTypeGraph(BaseModel):
 class OCDFGResponse(BaseModel):
     """Object-Centric DFG response."""
 
-    log_id: str
+    dataset_id: str
     object_types: list[str]
     activities: list[str]
     graphs_by_type: dict[str, OCDFGTypeGraph]
@@ -991,7 +1022,7 @@ class CaseAlignmentResponse(BaseModel):
 class AlignmentDiagnosticsResponse(BaseModel):
     """Response for alignment diagnostics endpoint."""
 
-    log_id: str
+    dataset_id: str
     model_id: str
     total_cases: int
     fitting_cases: int
@@ -1055,7 +1086,7 @@ class FilteredLogResponse(BaseModel):
 
     id: str
     name: str
-    source_log_id: str = ""
+    source_dataset_id: str = ""
     is_filtered: bool = True
     filter_config: list[FilterConfig] = []
     total_events: int
@@ -1086,9 +1117,7 @@ class FilteredLogResponse(BaseModel):
                 if hasattr(data, k)
             }
         if isinstance(data, dict):
-            # Map source_dataset_id to source_log_id
-            if "source_dataset_id" in data and "source_log_id" not in data:
-                data["source_log_id"] = data["source_dataset_id"] or ""
+            # No longer need to map - using source_dataset_id directly
             if data.get("filter_config_json"):
                 try:
                     config_list = json.loads(data["filter_config_json"])
@@ -1111,8 +1140,8 @@ class FilteredLogResponse(BaseModel):
 class FilteredLogListResponse(BaseModel):
     """List of filtered logs derived from a source log."""
 
-    source_log_id: str
-    source_log_name: str
+    source_dataset_id: str
+    source_dataset_name: str
     filtered_logs: list[FilteredLogResponse]
     total: int
 
@@ -1166,7 +1195,7 @@ class BottleneckResponse(BaseModel):
 class BottleneckListResponse(BaseModel):
     """List of detected bottlenecks."""
 
-    log_id: str
+    dataset_id: str
     bottlenecks: list[BottleneckResponse]
     total_bottlenecks: int
 
@@ -1183,7 +1212,7 @@ class ReworkResponse(BaseModel):
 class ReworkListResponse(BaseModel):
     """Rework analysis results."""
 
-    log_id: str
+    dataset_id: str
     rework_activities: list[ReworkResponse]
     total_rework_cases: int
     rework_percentage: float
@@ -1202,7 +1231,7 @@ class ReworkChain(BaseModel):
 class ReworkChainListResponse(BaseModel):
     """Response for rework chain analysis."""
 
-    log_id: str
+    dataset_id: str
     chains: list[ReworkChain]
     total_chains: int
     most_problematic_activity: str | None = None
@@ -1224,7 +1253,7 @@ class ServiceTimeResponse(BaseModel):
 class CycleTimeResponse(BaseModel):
     """Cycle time statistics."""
 
-    log_id: str
+    dataset_id: str
     min_seconds: float
     max_seconds: float
     avg_seconds: float
@@ -1237,7 +1266,7 @@ class CycleTimeResponse(BaseModel):
 class ThroughputResponse(BaseModel):
     """Throughput metrics."""
 
-    log_id: str
+    dataset_id: str
     total_cases: int
     completed_cases: int
     cases_per_day: float
@@ -1257,7 +1286,7 @@ class PatternResponse(BaseModel):
 class PerformanceDashboardResponse(BaseModel):
     """Performance summary dashboard."""
 
-    log_id: str
+    dataset_id: str
     cycle_time: CycleTimeResponse
     throughput: ThroughputResponse
     top_bottlenecks: list[BottleneckResponse]
@@ -1290,7 +1319,7 @@ class NetworkEdge(BaseModel):
 class SocialNetworkResponse(BaseModel):
     """Social network response."""
 
-    log_id: str
+    dataset_id: str
     network_type: str
     nodes: list[NetworkNode]
     edges: list[NetworkEdge]
@@ -1319,7 +1348,7 @@ class ResourceProfileResponse(BaseModel):
 class ResourceWorkloadResponse(BaseModel):
     """Resource workload distribution."""
 
-    log_id: str
+    dataset_id: str
     workload: dict[str, int]
     avg_events_per_resource: float
 
@@ -1350,7 +1379,7 @@ class PredictorResponse(BaseModel):
     """Prediction model response."""
 
     id: str
-    log_id: str = ""
+    dataset_id: str = ""
     target_type: str
     algorithm: str
     metrics: dict[str, Any] = {}
@@ -1359,7 +1388,7 @@ class PredictorResponse(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def parse_json_fields(cls, data: Any) -> Any:
-        """Auto-parse metrics_json and map dataset_id to log_id."""
+        """Auto-parse metrics_json."""
         if hasattr(data, "__dict__"):
             data = {
                 k: getattr(data, k)
@@ -1374,9 +1403,6 @@ class PredictorResponse(BaseModel):
                 if hasattr(data, k)
             }
         if isinstance(data, dict):
-            # Map dataset_id to log_id for API consistency
-            if "dataset_id" in data and "log_id" not in data:
-                data["log_id"] = data["dataset_id"]
             if data.get("metrics_json"):
                 try:
                     data["metrics"] = json.loads(data["metrics_json"])
@@ -1392,7 +1418,7 @@ class PredictorResponse(BaseModel):
 class PredictorListResponse(BaseModel):
     """List of prediction models."""
 
-    log_id: str
+    dataset_id: str
     predictors: list[PredictorResponse]
     total: int
 
@@ -1456,7 +1482,7 @@ class PlayOutResponse(BaseModel):
     """Play-out result."""
 
     model_id: str
-    generated_log_id: str
+    generated_dataset_id: str
     traces_generated: int
     events_generated: int
 
@@ -1473,7 +1499,7 @@ class SimulationRequest(BaseModel):
 class SimulationResponse(BaseModel):
     """Simulation result."""
 
-    log_id: str
+    dataset_id: str
     scenario: str
     original_metrics: dict[str, float]
     simulated_metrics: dict[str, float]

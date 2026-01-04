@@ -9,7 +9,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, select
 
-from src.api.dependencies import DBSession
+from src.api.dependencies import CurrentUser, DBSession
 from src.models.orm import Dataset, Project
 from src.models.schemas import (
     DatasetResponse,
@@ -47,11 +47,25 @@ def _dataset_to_response(dataset: Dataset) -> DatasetResponse:
 async def create_project(
     db: DBSession,
     request: ProjectCreateRequest,
+    user: CurrentUser,
     workspace_id: str | None = Query(None, description="Workspace ID to associate project with"),
 ) -> ProjectResponse:
     """
     Create a new project, optionally within a workspace.
+
+    Requires PROJECT_CREATE permission in the workspace.
     """
+    from src.core.permissions import Permission
+    from src.services.authorization import AuthorizationService
+
+    # Workspace_id is required for RBAC
+    if not workspace_id:
+        raise HTTPException(status_code=400, detail="workspace_id is required")
+
+    # Verify user has PROJECT_CREATE permission in workspace
+    auth_service = AuthorizationService(db)
+    await auth_service.verify_workspace_access(workspace_id, user, Permission.PROJECT_CREATE)
+
     project = Project(
         workspace_id=workspace_id,
         name=request.name,
@@ -71,6 +85,7 @@ async def create_project(
 @router.get("", response_model=ProjectListResponse)
 async def list_projects(
     db: DBSession,
+    user: CurrentUser,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     search: str | None = Query(None, description="Search by project name"),
@@ -78,20 +93,40 @@ async def list_projects(
 ) -> ProjectListResponse:
     """
     List all projects with pagination, optionally filtered by workspace.
-    """
-    # Build base query
-    query = select(Project)
 
-    # Apply workspace filter
+    Requires PROJECT_READ permission.
+    Automatically filtered by workspace membership (RLS).
+    """
+    from src.core.permissions import Permission
+    from src.models.orm import Workspace, WorkspaceMember
+    from src.services.authorization import AuthorizationService
+
+    # Build query with RLS filtering (user's workspaces only)
+    query = (
+        select(Project)
+        .join(Workspace, Project.workspace_id == Workspace.id)
+        .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)
+        .filter(WorkspaceMember.user_id == user.id)
+    )
+
+    # Apply workspace filter (verify access if specified)
     if workspace_id:
+        auth_service = AuthorizationService(db)
+        await auth_service.verify_workspace_access(workspace_id, user, Permission.PROJECT_READ)
         query = query.filter(Project.workspace_id == workspace_id)
 
     # Apply search filter (case-insensitive for all databases)
     if search:
         query = query.filter(func.lower(Project.name).contains(search.lower()))
 
-    # Get total count
-    count_query = select(func.count()).select_from(Project)
+    # Get total count with RLS
+    count_query = (
+        select(func.count())
+        .select_from(Project)
+        .join(Workspace, Project.workspace_id == Workspace.id)
+        .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)
+        .filter(WorkspaceMember.user_id == user.id)
+    )
     if workspace_id:
         count_query = count_query.filter(Project.workspace_id == workspace_id)
     if search:
@@ -119,15 +154,20 @@ async def list_projects(
 async def get_project(
     db: DBSession,
     project_id: str,
+    user: CurrentUser,
 ) -> ProjectDetailResponse:
     """
     Get a project by ID with its datasets.
-    """
-    result = await db.execute(select(Project).filter(Project.id == project_id))
-    project = result.scalar_one_or_none()
 
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    Requires PROJECT_READ permission in the workspace.
+    """
+    from src.core.permissions import Permission
+    from src.services.authorization import require_project_permission
+
+    # Check permission (also validates project exists)
+    _, project = await require_project_permission(
+        db, project_id, user, Permission.PROJECT_READ
+    )
 
     # Get datasets for this project
     datasets_result = await db.execute(select(Dataset).filter(Dataset.project_id == project_id))
@@ -154,15 +194,20 @@ async def update_project(
     db: DBSession,
     project_id: str,
     request: ProjectUpdateRequest,
+    user: CurrentUser,
 ) -> ProjectResponse:
     """
     Update a project.
-    """
-    result = await db.execute(select(Project).filter(Project.id == project_id))
-    project = result.scalar_one_or_none()
 
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    Requires PROJECT_UPDATE permission in the workspace.
+    """
+    from src.core.permissions import Permission
+    from src.services.authorization import require_project_permission
+
+    # Check permission (also validates project exists)
+    _, project = await require_project_permission(
+        db, project_id, user, Permission.PROJECT_UPDATE
+    )
 
     if request.name is not None:
         project.name = request.name
@@ -183,18 +228,23 @@ async def update_project(
 async def delete_project(
     db: DBSession,
     project_id: str,
+    user: CurrentUser,
 ) -> None:
     """
     Delete a project.
 
     Note: Event logs in this project will have their project_id set to NULL
     (they won't be deleted).
-    """
-    result = await db.execute(select(Project).filter(Project.id == project_id))
-    project = result.scalar_one_or_none()
 
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    Requires PROJECT_DELETE permission in the workspace.
+    """
+    from src.core.permissions import Permission
+    from src.services.authorization import require_project_permission
+
+    # Check permission (also validates project exists)
+    _, project = await require_project_permission(
+        db, project_id, user, Permission.PROJECT_DELETE
+    )
 
     # Unlink datasets (they remain, just not in a project)
     from sqlalchemy import update
@@ -217,19 +267,26 @@ async def add_file_to_project(
     db: DBSession,
     project_id: str,
     dataset_id: str,
+    user: CurrentUser,
 ) -> ProjectDetailResponse:
     """
     Add an existing dataset to a project.
-    """
-    result = await db.execute(select(Project).filter(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
 
-    dataset_result = await db.execute(select(Dataset).filter(Dataset.id == dataset_id))
-    dataset = dataset_result.scalar_one_or_none()
-    if not dataset:
-        raise HTTPException(status_code=404, detail="Dataset not found")
+    Requires PROJECT_UPDATE permission in the workspace.
+    """
+    from src.core.permissions import Permission
+    from src.services.authorization import require_dataset_permission, require_project_permission
+
+    # Check permission on project (also validates project exists)
+    _, project = await require_project_permission(
+        db, project_id, user, Permission.PROJECT_UPDATE
+    )
+
+    # Check permission on dataset (user must have access to move it)
+    # Helper already fetches the dataset, so we reuse it
+    _, dataset = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_UPDATE
+    )
 
     dataset.project_id = project_id
 
@@ -250,19 +307,25 @@ async def remove_file_from_project(
     db: DBSession,
     project_id: str,
     dataset_id: str,
+    user: CurrentUser,
 ) -> None:
     """
     Remove a dataset from a project (doesn't delete the dataset).
-    """
-    result = await db.execute(select(Project).filter(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
 
-    dataset_result = await db.execute(select(Dataset).filter(Dataset.id == dataset_id))
-    dataset = dataset_result.scalar_one_or_none()
-    if not dataset:
-        raise HTTPException(status_code=404, detail="Dataset not found")
+    Requires PROJECT_UPDATE permission in the workspace.
+    """
+    from src.core.permissions import Permission
+    from src.services.authorization import require_dataset_permission, require_project_permission
+
+    # Check permission on project (also validates project exists)
+    _, project = await require_project_permission(
+        db, project_id, user, Permission.PROJECT_UPDATE
+    )
+
+    # Check permission on dataset (user must have access to modify it)
+    _, dataset = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_UPDATE
+    )
 
     if dataset.project_id != project_id:
         raise HTTPException(status_code=400, detail="Dataset is not in this project")
