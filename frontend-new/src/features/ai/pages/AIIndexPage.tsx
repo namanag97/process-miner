@@ -1,4 +1,3 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Row, Col, Card, Space, Typography, Statistic } from 'antd';
 import {

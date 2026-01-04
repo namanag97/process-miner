@@ -1,4 +1,3 @@
-import React from 'react';
 import { Row, Col, Card, Table, Tag, Typography, Statistic } from 'antd';
 import { WarningOutlined, SyncOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import {

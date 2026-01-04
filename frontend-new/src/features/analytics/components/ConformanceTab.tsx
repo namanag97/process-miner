@@ -1,4 +1,3 @@
-import React from 'react';
 import { Row, Col, Card, Table, Progress, Typography, Space, Tag, Tooltip, Skeleton, Empty, Button } from 'antd';
 import {
   CheckCircleOutlined,

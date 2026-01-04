@@ -8,7 +8,6 @@
  * - Filter actions
  */
 
-import React from 'react';
 import { Typography, Descriptions, Tag, Button, Space, Divider, Tooltip } from 'antd';
 import {
   FilterOutlined,

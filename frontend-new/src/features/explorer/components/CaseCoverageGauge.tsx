@@ -5,7 +5,6 @@
  * are currently visible based on applied filters.
  */
 
-import React from 'react';
 import { Progress, Typography } from 'antd';
 import { tokens } from '@lumina/design-system';
 

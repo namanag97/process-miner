@@ -2,7 +2,6 @@
  * ActivityDetailsPanel - Activity Details Component
  */
 
-import React from 'react';
 import { Typography, Descriptions, Tag, Button, Space, Divider } from 'antd';
 import { FilterOutlined, CloseOutlined } from '@ant-design/icons';
 import { tokens } from '@lumina/design-system';

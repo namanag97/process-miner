@@ -2,7 +2,6 @@
  * WorkspaceHeader - Header component showing workspace context and breadcrumbs
  */
 
-import React from 'react';
 import { Breadcrumb, Dropdown, Space, Typography, theme } from 'antd';
 import { HomeOutlined, AppstoreOutlined, DownOutlined } from '@ant-design/icons';
 import { Link, useLocation } from 'react-router-dom';

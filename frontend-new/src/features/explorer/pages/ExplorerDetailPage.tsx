@@ -11,7 +11,7 @@
  * - Path highlighting from variant selection
  */
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Tabs, Spin, Space, Tooltip, Breadcrumb, Drawer, Alert, Tag, Dropdown, Empty, Result, Typography } from 'antd';
 import {
@@ -88,7 +88,7 @@ export function ExplorerDetailPage() {
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 
   // Log page mount
-  React.useEffect(() => {
+  useEffect(() => {
     logAction('ExplorerDetailPage', 'page_mounted', { datasetId, projectId });
   }, [datasetId, projectId]);
 

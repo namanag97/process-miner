@@ -1,4 +1,3 @@
-import React from 'react';
 import { Row, Col, Card, Table, Progress, Typography, Space, Tooltip, Skeleton } from 'antd';
 import {
   ClockCircleOutlined,

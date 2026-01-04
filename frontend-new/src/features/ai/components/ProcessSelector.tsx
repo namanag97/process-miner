@@ -1,4 +1,3 @@
-import React from 'react';
 import { Select, Space, Typography, Tag, Skeleton } from 'antd';
 import { DatabaseOutlined } from '@ant-design/icons';
 import { tokens } from '@lumina/design-system';

@@ -4,7 +4,6 @@
  * Displays a centered loading spinner while route components are being loaded.
  * Used as the Suspense fallback for React.lazy routes.
  */
-import React from 'react';
 import { Spin, Typography } from 'antd';
 import { LoadingOutlined } from '@ant-design/icons';
 

@@ -2,7 +2,6 @@
  * ProjectCard - Card component for displaying a project summary
  */
 
-import React from 'react';
 import { Card, Typography, Space, Tag } from 'antd';
 import { FolderOutlined, DatabaseOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';

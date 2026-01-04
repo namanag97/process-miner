@@ -2,7 +2,6 @@
  * CreateProjectModal - Modal for creating a new project
  */
 
-import React from 'react';
 import { Modal, Form, Input, Button } from 'antd';
 import type { FormInstance } from 'antd';
 import { tokens } from '@lumina/design-system';
