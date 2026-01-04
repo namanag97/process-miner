@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { Upload, Card, Typography, Space, Alert, Progress } from 'antd';
 import { InboxOutlined, FileTextOutlined } from '@ant-design/icons';
-import type { UploadProps, UploadFile } from 'antd';
+import type { UploadProps } from 'antd';
 import { tokens } from '@lumina/design-system';
 import { env } from '../../../../config/env';
 

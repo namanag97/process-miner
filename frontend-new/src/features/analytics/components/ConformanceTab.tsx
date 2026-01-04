@@ -58,7 +58,7 @@ export function ConformanceTab({ logId }: ConformanceTabProps) {
 
   // Try to fetch conformance data from the backend
   // Note: This requires a model to be discovered first
-  const { data: conformanceData, isLoading, error } = useQuery({
+  const { data: conformanceData, isLoading } = useQuery({
     queryKey: queryKeys.conformance.check(logId ?? '', undefined),
     queryFn: async () => {
       if (!logId) return null;
@@ -72,7 +72,7 @@ export function ConformanceTab({ logId }: ConformanceTabProps) {
         return result;
       } catch (e) {
         // If conformance check fails (no model), return null and show placeholder
-        log.warn('Conformance check not available', { logId, error: e });
+        log.warn('Conformance check not available', { logId: e });
         return null;
       }
     },

@@ -42,24 +42,6 @@ const { Text } = Typography;
 
 // ============ TYPES ============
 
-type AuditEventType =
-  | 'FILE_UPLOADED'
-  | 'FILE_DELETED'
-  | 'PROCESS_VIEWED'
-  | 'PROCESS_EXPORTED'
-  | 'SETTINGS_UPDATED'
-  | 'USER_LOGIN'
-  | 'USER_LOGOUT'
-  | 'FILTER_APPLIED'
-  | 'ANALYSIS_CREATED'
-  | 'PERMISSIONS_UPDATED'
-  | 'project.created'
-  | 'project.deleted'
-  | 'process.uploaded'
-  | 'process.deleted'
-  | 'explorer.viewed'
-  | 'kpi.viewed';
-
 type UserRole = 'ADMIN' | 'USER' | 'VIEWER';
 
 // ============ CONSTANTS ============
@@ -180,7 +162,7 @@ export function AuditLogsPage() {
   const [retentionPeriod, setRetentionPeriod] = useState('no-deletion');
   const [datePeriod, setDatePeriod] = useState('30');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showIpColumn, setShowIpColumn] = useState(false);
+  const [] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<AuditLogEntry | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 

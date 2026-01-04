@@ -16,7 +16,7 @@ const API_BASE = '/api/v1';
 
 export const discoveryQueryKeys = {
     all: ['discovery'] as const,
-    models: (datasetId: string) => ['discovery', 'models', datasetId] as const,
+    models: (datasetId: string) => ['discovery', 'models'setId] as const,
     model: (modelId: string) => ['discovery', 'model', modelId] as const,
     job: (jobId: string) => ['jobs', jobId] as const,
     metadata: () => ['analyses', 'metadata'] as const,

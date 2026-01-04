@@ -103,7 +103,7 @@ function validateColumn(col: ColumnTypeInfo, rows: Record<string, unknown>[]): C
     return { status, issues, emptyCount, invalidCount };
 }
 
-export function ConfigureStep({ preview, isLoading, onNext, onBack }: ConfigureStepProps) {
+export function ConfigureStep({ preview, onNext, onBack }: ConfigureStepProps) {
     const [hasHeader, setHasHeader] = useState(true);
     const [fieldSeparator, setFieldSeparator] = useState(',');
     const [columnTypes, setColumnTypes] = useState<Record<string, string>>({});

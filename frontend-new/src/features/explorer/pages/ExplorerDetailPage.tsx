@@ -82,7 +82,7 @@ export function ExplorerDetailPage() {
   const getBackPath = () => `/workspace/${projectId}`;
 
   // UI State
-  const [leftPanelOpen, setLeftPanelOpen] = useState(true);
+  const [leftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [rightPanelTab, setRightPanelTab] = useState('filter');
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
@@ -582,7 +582,7 @@ export function ExplorerDetailPage() {
             />
           }
           onError={(error) => {
-            logError('VariantPanel', error, { logId: logId || '', componentCrash: true });
+            logError('VariantPanel', { logId: logId || '', componentCrash: true });
           }}
         >
           <VariantPanel
@@ -936,7 +936,7 @@ export function ExplorerDetailPage() {
                 />
               }
               onError={(error) => {
-                logError('ProcessCanvas', error, { logId: logId || '', componentCrash: true });
+                logError('ProcessCanvas', { logId: logId || '', componentCrash: true });
               }}
             >
               <ProcessCanvas

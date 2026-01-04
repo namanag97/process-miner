@@ -59,7 +59,7 @@ const { Panel } = Collapse;
 function formatLogData(data: unknown): string {
   if (typeof data === 'string') return data;
   try {
-    return JSON.stringify(data, null, 2);
+    return JSON.stringify(null, 2);
   } catch {
     return String(data);
   }
@@ -180,7 +180,7 @@ export function devConsoleLog(
   data?: unknown,
   extra?: { duration?: number; status?: number }
 ) {
-  const importance = calculateImportance(level, source, message, data, extra);
+  const importance = calculateImportance(level, source, message, extra);
   const correlationId = getCurrentCorrelation() || undefined;
 
   // Extract request ID from source or data for correlation
@@ -661,8 +661,8 @@ export function DevConsole() {
 
   // Register callback with design-system devLogger to capture API logs
   useEffect(() => {
-    registerDevConsoleCallback((level, source, message, data, extra) => {
-      devConsoleLog(level as LogLevel, source, message, data, extra);
+    registerDevConsoleCallback((level, source, message, extra) => {
+      devConsoleLog(level as LogLevel, source, message, extra);
     });
     return () => {
       registerDevConsoleCallback(null);

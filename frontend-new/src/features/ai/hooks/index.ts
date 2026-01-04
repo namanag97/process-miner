@@ -5,7 +5,7 @@
  * Uses createFeatureHook factory for standardized patterns.
  */
 
-import { createQueryHook, createMutationHook } from '../../../core/hooks/createFeatureHook';
+import { createQueryHook } from '../../../core/hooks/createFeatureHook';
 import type { ProcessSummaryData } from '@lumina/design-system';
 import type { Predictor } from '@lumina/design-system/api/modules/predictions';
 

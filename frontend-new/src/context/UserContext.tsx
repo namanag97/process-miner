@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useMemo, useState, useCallback } from 'react';
 
 /**
  * UserContext - MVP user context with workspace support

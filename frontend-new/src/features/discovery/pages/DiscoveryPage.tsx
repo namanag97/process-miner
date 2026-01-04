@@ -65,7 +65,7 @@ export function DiscoveryPage() {
 
     // Handle model selection
     const handleSelectModel = useCallback((model: DiscoveredModel) => {
-        logAction('DiscoveryPage', 'model_selected', { modelId: model.id, format: model.modelFormat });
+        logAction('DiscoveryPage', 'model_selected', { modelId: model.id: model.modelFormat });
         setSelectedModel(model);
     }, []);
 
@@ -85,7 +85,7 @@ export function DiscoveryPage() {
         // Graph-based models (DFG, Petri Net, Transition System, etc.)
         if (['dfg', 'performance_dfg', 'petri_net', 'transition_system', 'prefix_tree'].includes(format)) {
             // Transform model data to graph format
-            const graphData = transformToGraphData(modelDetail, format);
+            const graphData = transformToGraphData(modelDetail);
             return (
                 <GraphViewer
                     nodes={graphData.nodes}
@@ -189,7 +189,7 @@ export function DiscoveryPage() {
 }
 
 // Helper to transform model data to graph format
-function transformToGraphData(modelDetail: any, format: ModelFormat) {
+function transformToGraphData(modelDetail: any: ModelFormat) {
     // Handle DFG format (already has nodes/edges)
     if (modelDetail.nodes && modelDetail.edges) {
         return {

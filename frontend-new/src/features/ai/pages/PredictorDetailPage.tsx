@@ -50,7 +50,7 @@ const possibleActivities = ['Submit', 'Review', 'Approve', 'Reject', 'Revise', '
 export function PredictorDetailPage() {
   const navigate = useNavigate();
   const { id, projectId } = useParams<{ id: string; projectId?: string }>();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
   const [testInput, setTestInput] = useState('');
   const [testResult, setTestResult] = useState<{ prediction: string; confidence: number } | null>(null);
   const [isTesting, setIsTesting] = useState(false);
