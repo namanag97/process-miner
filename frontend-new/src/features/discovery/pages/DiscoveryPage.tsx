@@ -65,7 +65,7 @@ export function DiscoveryPage() {
 
     // Handle model selection
     const handleSelectModel = useCallback((model: DiscoveredModel) => {
-        logAction('DiscoveryPage', 'model_selected', { modelId: model.id: model.modelFormat });
+        logAction('DiscoveryPage', 'model_selected', { modelId: model.id, modelFormat: model.modelFormat });
         setSelectedModel(model);
     }, []);
 

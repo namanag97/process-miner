@@ -19,7 +19,7 @@ import React, { useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, Typography, Button, Space, Spin, message } from 'antd';
 import { ArrowLeftOutlined, LoadingOutlined } from '@ant-design/icons';
-import { tokens } from '@lumina/design-system';
+import { tokens, logAction } from '@lumina/design-system';
 import { devLog } from '../../../components/DevConsole';
 import { useUploadWizard } from '../hooks/useUploadWizard';
 import { WizardStepper } from '../components/WizardStepper';
@@ -53,10 +53,7 @@ export function UploadWizardPage() {
 
         // Actions
         goToStep,
-        nextStep,
-        prevStep,
         setUploadResult,
-        selectSheet,
         setMapping,
         startAnalysis,
     } = useUploadWizard(projectId!, resumeDatasetId || undefined);
