@@ -18,7 +18,7 @@ export class PredictionsService {
      * Train a prediction model for an event log.
      *
      * Args:
-     * log_id: Event log ID
+     * dataset_id: Event log ID
      * request: Training request with target_type and algorithm
      * async_mode: If True, train asynchronously via Celery (default)
      *

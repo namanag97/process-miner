@@ -2,7 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { OrganizationResponse } from './OrganizationResponse';
+import type { src__platform__schemas__OrganizationResponse } from './src__platform__schemas__OrganizationResponse';
 import type { UserResponse } from './UserResponse';
 import type { WorkspaceResponse } from './WorkspaceResponse';
 /**
@@ -10,7 +10,7 @@ import type { WorkspaceResponse } from './WorkspaceResponse';
  */
 export type CurrentUserResponse = {
     user: UserResponse;
-    organization?: (OrganizationResponse | null);
+    organization?: (src__platform__schemas__OrganizationResponse | null);
     workspaces?: Array<WorkspaceResponse>;
     current_workspace_id?: (string | null);
 };

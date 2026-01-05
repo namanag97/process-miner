@@ -3,13 +3,25 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
- * Column type information for data preview.
+ * Column type information with suggestion data.
  */
 export type ColumnTypeInfo = {
     name: string;
-    detected_type: string;
+    /**
+     * Detected type: STRING, INTEGER, DATETIME, FLOAT
+     */
+    dtype: string;
+    position?: number;
     sample_values?: Array<any>;
-    null_count?: number;
-    date_format?: (string | null);
+    null_percentage?: number;
+    unique_count?: number;
+    /**
+     * case_id, activity, timestamp, resource
+     */
+    suggested_role?: (string | null);
+    /**
+     * Confidence score
+     */
+    confidence?: (number | null);
 };
 

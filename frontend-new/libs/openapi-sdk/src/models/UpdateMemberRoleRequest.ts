@@ -2,7 +2,10 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type Body_detect_columns_api_v1_datasets_detect_columns_post = {
-    file: Blob;
+/**
+ * Update member role request.
+ */
+export type UpdateMemberRoleRequest = {
+    role: string;
 };
 

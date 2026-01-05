@@ -3,19 +3,21 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { ActivityDetailResponse } from '../models/ActivityDetailResponse';
-import type { Body_detect_columns_api_v1_datasets_detect_columns_post } from '../models/Body_detect_columns_api_v1_datasets_detect_columns_post';
-import type { Body_upload_dataset_api_v1_datasets_upload_post } from '../models/Body_upload_dataset_api_v1_datasets_upload_post';
+import type { Body_upload_dataset_api_v1_datasets__post } from '../models/Body_upload_dataset_api_v1_datasets__post';
 import type { CaseListResponse } from '../models/CaseListResponse';
 import type { ColumnDetectionResponse } from '../models/ColumnDetectionResponse';
-import type { DataPreviewResponse } from '../models/DataPreviewResponse';
 import type { DatasetDetailResponse } from '../models/DatasetDetailResponse';
 import type { DatasetListResponse } from '../models/DatasetListResponse';
 import type { DatasetResponse } from '../models/DatasetResponse';
-import type { IngestRequest } from '../models/IngestRequest';
+import type { DownloadResponse } from '../models/DownloadResponse';
+import type { EventListResponse } from '../models/EventListResponse';
 import type { JobStatusResponse } from '../models/JobStatusResponse';
+import type { MappingResponse } from '../models/MappingResponse';
+import type { MappingUpdateRequest } from '../models/MappingUpdateRequest';
+import type { MetadataResponse } from '../models/MetadataResponse';
 import type { PresignedUploadRequest } from '../models/PresignedUploadRequest';
 import type { PresignedUploadResponse } from '../models/PresignedUploadResponse';
-import type { SheetsResponse } from '../models/SheetsResponse';
+import type { PreviewResponse } from '../models/PreviewResponse';
 import type { StatisticsResponse } from '../models/StatisticsResponse';
 import type { VariantResponse } from '../models/VariantResponse';
 import type { CancelablePromise } from '../core/CancelablePromise';
@@ -24,28 +26,24 @@ export class DatasetsService {
     constructor(public readonly httpRequest: BaseHttpRequest) {}
     /**
      * Get Presigned S3 Upload URL
-     * Generate a short-lived presigned URL for direct S3 upload.
-     *
-     * ## Use Case
-     * *   **Large Files**: Bypass the API server for files > 10MB.
-     * *   **Performance**: Faster upload speeds via direct S3 connection.
+     * Generate a presigned URL for direct S3 upload.
      *
      * ## Flow
-     * 1.  Call this endpoint to get `upload_url`.
-     * 2.  PUT the file to `upload_url`.
-     * 3.  Call `POST /datasets/{id}/trigger-validation` to start processing.
+     * 1. Call this endpoint to get `upload_url`
+     * 2. PUT the file to `upload_url`
+     * 3. Call `POST /datasets/{id}/uploaded` to trigger validation
      * @param requestBody
      * @param xOrgId
      * @returns PresignedUploadResponse Presigned URL generated successfully
      * @throws ApiError
      */
-    public getPresignedUploadUrlApiV1DatasetsUploadPresignedPost(
+    public createPresignedUploadApiV1DatasetsPresignPost(
         requestBody: PresignedUploadRequest,
         xOrgId?: (string | null),
     ): CancelablePromise<PresignedUploadResponse> {
         return this.httpRequest.request({
             method: 'POST',
-            url: '/api/v1/datasets/upload/presigned',
+            url: '/api/v1/datasets/presign',
             headers: {
                 'X-Org-Id': xOrgId,
             },
@@ -58,23 +56,22 @@ export class DatasetsService {
         });
     }
     /**
-     * Trigger Dataset Validation
-     * Start the background validation and ingestion process after a successful S3 upload.
+     * Confirm Upload Complete
+     * Confirm that S3 upload is complete and trigger validation.
      *
-     * ## When to use
-     * Call this **only** after successfully uploading a file to the presigned URL obtained from `/upload/presigned`.
+     * Call this after successfully uploading to the presigned URL.
      * @param datasetId
      * @param xOrgId
-     * @returns string Validation task queued
+     * @returns any Validation queued
      * @throws ApiError
      */
-    public triggerValidationApiV1DatasetsDatasetIdTriggerValidationPost(
+    public confirmUploadCompleteApiV1DatasetsDatasetIdUploadedPost(
         datasetId: string,
         xOrgId?: (string | null),
-    ): CancelablePromise<Record<string, string>> {
+    ): CancelablePromise<Record<string, any>> {
         return this.httpRequest.request({
             method: 'POST',
-            url: '/api/v1/datasets/{dataset_id}/trigger-validation',
+            url: '/api/v1/datasets/{dataset_id}/uploaded',
             path: {
                 'dataset_id': datasetId,
             },
@@ -90,223 +87,47 @@ export class DatasetsService {
     }
     /**
      * Upload Event Log File
-     * Upload and ingest an event log file (CSV or XES).
+     * Upload and store an event log file (CSV or XES).
      *
-     * ## Features
-     * *   **Auto-detection**: Smart column detection for CSV files.
-     * *   **Streaming**: efficiently handles large files (up to 100MB) without memory issues.
-     * *   **Async Store**: Optional deferred processing for very large datasets.
+     * For small files (< 50MB), use this direct upload.
+     * For large files (> 50MB), use the presigned upload flow.
      *
-     * ## Form Parameters
-     * *   `file`: The file to upload.
-     * *   `project_id`: Target project ID.
-     * *   `case_id_column` etc.: Manual mapping overrides.
+     * ## Flow
+     * 1. File is validated and stored
+     * 2. Validation job is queued automatically
+     * 3. Poll `GET /datasets/{id}` for status updates
      * @param formData
      * @param xOrgId
-     * @returns DatasetResponse Dataset created and ingested successfully
+     * @returns DatasetResponse Dataset created and validation queued
      * @throws ApiError
      */
-    public uploadDatasetApiV1DatasetsUploadPost(
-        formData: Body_upload_dataset_api_v1_datasets_upload_post,
+    public uploadDatasetApiV1DatasetsPost(
+        formData: Body_upload_dataset_api_v1_datasets__post,
         xOrgId?: (string | null),
     ): CancelablePromise<DatasetResponse> {
         return this.httpRequest.request({
             method: 'POST',
-            url: '/api/v1/datasets/upload',
+            url: '/api/v1/datasets/',
             headers: {
                 'X-Org-Id': xOrgId,
             },
             formData: formData,
             mediaType: 'multipart/form-data',
             errors: {
-                400: `Invalid file format or missing columns`,
-                413: `File too large (exceeds 100MB)`,
-                422: `Validation error (missing project_id)`,
-            },
-        });
-    }
-    /**
-     * Detect Columns
-     * Detect column mappings from a CSV file.
-     *
-     * Returns suggested mappings for case_id, activity, timestamp, and resource columns.
-     *
-     * Requires DATASET_READ permission (public utility endpoint for authenticated users).
-     * @param formData
-     * @param xOrgId
-     * @returns ColumnDetectionResponse Successful Response
-     * @throws ApiError
-     */
-    public detectColumnsApiV1DatasetsDetectColumnsPost(
-        formData: Body_detect_columns_api_v1_datasets_detect_columns_post,
-        xOrgId?: (string | null),
-    ): CancelablePromise<ColumnDetectionResponse> {
-        return this.httpRequest.request({
-            method: 'POST',
-            url: '/api/v1/datasets/detect-columns',
-            headers: {
-                'X-Org-Id': xOrgId,
-            },
-            formData: formData,
-            mediaType: 'multipart/form-data',
-            errors: {
-                422: `Validation Error`,
-            },
-        });
-    }
-    /**
-     * Ingest Dataset
-     * Trigger background ingestion for an AWAITING_MAPPING dataset.
-     *
-     * Job-Centric Architecture: Returns 202 with job_id for progress tracking.
-     *
-     * Phase 2 of deferred ingestion: user provides column mapping,
-     * background worker parses file and computes variants.
-     *
-     * Returns AsyncJob status for progress tracking via GET /jobs/{job_id}.
-     *
-     * Requires DATASET_UPDATE permission in the workspace.
-     * @param datasetId
-     * @param requestBody
-     * @param xOrgId
-     * @returns JobStatusResponse Successful Response
-     * @throws ApiError
-     */
-    public ingestDatasetApiV1DatasetsDatasetIdIngestPost(
-        datasetId: string,
-        requestBody: IngestRequest,
-        xOrgId?: (string | null),
-    ): CancelablePromise<JobStatusResponse> {
-        return this.httpRequest.request({
-            method: 'POST',
-            url: '/api/v1/datasets/{dataset_id}/ingest',
-            path: {
-                'dataset_id': datasetId,
-            },
-            headers: {
-                'X-Org-Id': xOrgId,
-            },
-            body: requestBody,
-            mediaType: 'application/json',
-            errors: {
-                422: `Validation Error`,
-            },
-        });
-    }
-    /**
-     * Detect Columns For Dataset
-     * Detect column mappings from an already-uploaded UNSTRUCTURED dataset.
-     *
-     * Reads the stored file and returns suggested mappings for case_id,
-     * activity, timestamp, and resource columns.
-     *
-     * Requires DATASET_READ permission in the workspace.
-     * @param datasetId
-     * @param xOrgId
-     * @returns ColumnDetectionResponse Successful Response
-     * @throws ApiError
-     */
-    public detectColumnsForDatasetApiV1DatasetsDatasetIdDetectColumnsGet(
-        datasetId: string,
-        xOrgId?: (string | null),
-    ): CancelablePromise<ColumnDetectionResponse> {
-        return this.httpRequest.request({
-            method: 'GET',
-            url: '/api/v1/datasets/{dataset_id}/detect-columns',
-            path: {
-                'dataset_id': datasetId,
-            },
-            headers: {
-                'X-Org-Id': xOrgId,
-            },
-            errors: {
-                422: `Validation Error`,
-            },
-        });
-    }
-    /**
-     * Get Data Preview
-     * Get data preview with column types for upload wizard Configure step.
-     *
-     * Returns:
-     * - Column names with detected types (STRING, INTEGER, DATETIME, etc.)
-     * - Sample preview rows
-     * - Parsing configuration info
-     *
-     * Supports navigation away and back - data is preserved in storage.
-     *
-     * Requires DATASET_READ permission in the workspace.
-     * @param datasetId
-     * @param rows Number of preview rows
-     * @param xOrgId
-     * @returns DataPreviewResponse Successful Response
-     * @throws ApiError
-     */
-    public getDataPreviewApiV1DatasetsDatasetIdPreviewGet(
-        datasetId: string,
-        rows: number = 10,
-        xOrgId?: (string | null),
-    ): CancelablePromise<DataPreviewResponse> {
-        return this.httpRequest.request({
-            method: 'GET',
-            url: '/api/v1/datasets/{dataset_id}/preview',
-            path: {
-                'dataset_id': datasetId,
-            },
-            headers: {
-                'X-Org-Id': xOrgId,
-            },
-            query: {
-                'rows': rows,
-            },
-            errors: {
-                422: `Validation Error`,
-            },
-        });
-    }
-    /**
-     * Get Sheets
-     * List available sheets in an Excel file.
-     *
-     * For CSV files, returns a single pseudo-sheet.
-     * Required for upload wizard Step 2 (Select Sheet).
-     *
-     * Requires DATASET_READ permission in the workspace.
-     * @param datasetId
-     * @param xOrgId
-     * @returns SheetsResponse Successful Response
-     * @throws ApiError
-     */
-    public getSheetsApiV1DatasetsDatasetIdSheetsGet(
-        datasetId: string,
-        xOrgId?: (string | null),
-    ): CancelablePromise<SheetsResponse> {
-        return this.httpRequest.request({
-            method: 'GET',
-            url: '/api/v1/datasets/{dataset_id}/sheets',
-            path: {
-                'dataset_id': datasetId,
-            },
-            headers: {
-                'X-Org-Id': xOrgId,
-            },
-            errors: {
-                422: `Validation Error`,
+                400: `Invalid file format`,
+                413: `File too large (> 100MB)`,
+                422: `Validation error`,
             },
         });
     }
     /**
      * List Datasets
-     * List all uploaded datasets.
-     *
-     * Supports pagination and filtering by source format.
-     *
-     * Requires DATASET_READ permission.
-     * Automatically filtered by workspace membership (RLS).
+     * List all datasets with pagination and filtering.
      * @param page
      * @param pageSize
      * @param sourceFormat
-     * @param projectId Filter by project ID
+     * @param projectId
+     * @param status Filter by status
      * @param xOrgId
      * @returns DatasetListResponse Successful Response
      * @throws ApiError
@@ -316,11 +137,12 @@ export class DatasetsService {
         pageSize: number = 20,
         sourceFormat?: (string | null),
         projectId?: (string | null),
+        status?: (string | null),
         xOrgId?: (string | null),
     ): CancelablePromise<DatasetListResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/datasets',
+            url: '/api/v1/datasets/',
             headers: {
                 'X-Org-Id': xOrgId,
             },
@@ -329,6 +151,7 @@ export class DatasetsService {
                 'page_size': pageSize,
                 'source_format': sourceFormat,
                 'project_id': projectId,
+                'status': status,
             },
             errors: {
                 422: `Validation Error`,
@@ -336,22 +159,26 @@ export class DatasetsService {
         });
     }
     /**
-     * Get Dataset
-     * Get detailed information about an event log.
+     * Get Detected Columns
+     * Get detected columns with type information and mapping suggestions.
      *
-     * Requires DATASET_READ permission in the workspace.
+     * Returns each column with:
+     * - Detected data type
+     * - Sample values
+     * - Suggested role (case_id, activity, timestamp, resource)
+     * - Confidence score for suggestion ( 0.0-1.0)
      * @param datasetId
      * @param xOrgId
-     * @returns DatasetDetailResponse Successful Response
+     * @returns ColumnDetectionResponse Column detection results
      * @throws ApiError
      */
-    public getDatasetApiV1DatasetsDatasetIdGet(
+    public getColumnsApiV1DatasetsDatasetIdColumnsGet(
         datasetId: string,
         xOrgId?: (string | null),
-    ): CancelablePromise<DatasetDetailResponse> {
+    ): CancelablePromise<ColumnDetectionResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/datasets/{dataset_id}',
+            url: '/api/v1/datasets/{dataset_id}/columns',
             path: {
                 'dataset_id': datasetId,
             },
@@ -359,30 +186,67 @@ export class DatasetsService {
                 'X-Org-Id': xOrgId,
             },
             errors: {
+                404: `Dataset not found`,
                 422: `Validation Error`,
             },
         });
     }
     /**
-     * Delete Dataset
-     * Delete an event log and all associated data.
+     * Submit Column Mapping
+     * Submit column mapping for the dataset.
      *
-     * Requires DATASET_DELETE permission in the workspace.
+     * Required mappings:
+     * - case_id_column: Column containing case/trace identifiers
+     * - activity_column: Column containing activity names
+     * - timestamp_column: Column containing event timestamps
      *
-     * BUG-052 FIX: Also deletes orphaned recommendations.
-     * SECURITY: Added authentication and permission check (Phase 6.2)
+     * Optional mappings:
+     * - resource_column: Column containing performer/resource
+     * - timestamp_format: Timestamp format string (auto-detected if not provided)
      * @param datasetId
+     * @param requestBody
      * @param xOrgId
-     * @returns any Successful Response
+     * @returns any Mapping saved, status → MAPPED
      * @throws ApiError
      */
-    public deleteDatasetApiV1DatasetsDatasetIdDelete(
+    public submitMappingApiV1DatasetsDatasetIdMappingPost(
+        datasetId: string,
+        requestBody: MappingUpdateRequest,
+        xOrgId?: (string | null),
+    ): CancelablePromise<Record<string, any>> {
+        return this.httpRequest.request({
+            method: 'POST',
+            url: '/api/v1/datasets/{dataset_id}/mapping',
+            path: {
+                'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Invalid mapping (column not found)`,
+                404: `Dataset not found`,
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Get Current Mapping
+     * Get the current column mapping for a dataset.
+     * @param datasetId
+     * @param xOrgId
+     * @returns MappingResponse Current mapping
+     * @throws ApiError
+     */
+    public getMappingApiV1DatasetsDatasetIdMappingGet(
         datasetId: string,
         xOrgId?: (string | null),
-    ): CancelablePromise<any> {
+    ): CancelablePromise<MappingResponse> {
         return this.httpRequest.request({
-            method: 'DELETE',
-            url: '/api/v1/datasets/{dataset_id}',
+            method: 'GET',
+            url: '/api/v1/datasets/{dataset_id}/mapping',
             path: {
                 'dataset_id': datasetId,
             },
@@ -390,20 +254,228 @@ export class DatasetsService {
                 'X-Org-Id': xOrgId,
             },
             errors: {
+                404: `Dataset or mapping not found`,
                 422: `Validation Error`,
             },
         });
     }
     /**
-     * Get Statistics
-     * Get comprehensive statistics for an event log.
+     * Update Mapping
+     * Update the column mapping for a dataset.
+     * @param datasetId
+     * @param requestBody
+     * @param xOrgId
+     * @returns MappingResponse Mapping updated
+     * @throws ApiError
+     */
+    public updateMappingApiV1DatasetsDatasetIdMappingPut(
+        datasetId: string,
+        requestBody: MappingUpdateRequest,
+        xOrgId?: (string | null),
+    ): CancelablePromise<MappingResponse> {
+        return this.httpRequest.request({
+            method: 'PUT',
+            url: '/api/v1/datasets/{dataset_id}/mapping',
+            path: {
+                'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Invalid mapping`,
+                404: `Dataset not found`,
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Preview Mapped Data
+     * Preview how data will look after applying the mapping.
      *
-     * Includes activities, variants, case durations, and more.
+     * Returns a sample of events with the mapping applied.
+     * Useful for verifying column selections before ingestion.
+     * @param datasetId
+     * @param limit Number of sample rows
+     * @param xOrgId
+     * @returns PreviewResponse Preview generated
+     * @throws ApiError
+     */
+    public previewMappedDataApiV1DatasetsDatasetIdPreviewPost(
+        datasetId: string,
+        limit: number = 10,
+        xOrgId?: (string | null),
+    ): CancelablePromise<PreviewResponse> {
+        return this.httpRequest.request({
+            method: 'POST',
+            url: '/api/v1/datasets/{dataset_id}/preview',
+            path: {
+                'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
+            query: {
+                'limit': limit,
+            },
+            errors: {
+                400: `No mapping found`,
+                404: `Dataset not found`,
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Trigger Dataset Ingestion
+     * Start background ingestion job for a MAPPED dataset.
      *
-     * PERFORMANCE: Uses SQL aggregations instead of ORM eager loading
-     * to prevent OOM on large datasets (1M+ events).
+     * Prerequisites:
+     * - Dataset must be in MAPPED status
+     * - Column mapping must be saved
      *
-     * Requires DATASET_READ permission in the workspace.
+     * The ingestion job will:
+     * 1. Parse the file using the column mapping
+     * 2. Insert events into process_events table
+     * 3. Aggregate into process_cases
+     * 4. Compute metadata statistics
+     * 5. Update status to READY
+     *
+     * Use `GET /jobs/{job_id}` to track progress.
+     * @param datasetId
+     * @param xOrgId
+     * @returns JobStatusResponse Successful Response
+     * @returns any Ingestion job queued
+     * @throws ApiError
+     */
+    public triggerIngestionApiV1DatasetsDatasetIdIngestPost(
+        datasetId: string,
+        xOrgId?: (string | null),
+    ): CancelablePromise<JobStatusResponse | any> {
+        return this.httpRequest.request({
+            method: 'POST',
+            url: '/api/v1/datasets/{dataset_id}/ingest',
+            path: {
+                'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
+            errors: {
+                400: `Dataset not in MAPPED state`,
+                404: `Dataset not found`,
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Re-ingest Dataset
+     * Re-ingest a dataset with updated mapping.
+     *
+     * Use this when you've updated the column mapping and want to
+     * re-process the data without re-uploading the file.
+     *
+     * Clears existing events and reprocesses from the original file.
+     * @param datasetId
+     * @param xOrgId
+     * @returns JobStatusResponse Successful Response
+     * @returns any Re-ingestion job queued
+     * @throws ApiError
+     */
+    public triggerReingestApiV1DatasetsDatasetIdReingestPost(
+        datasetId: string,
+        xOrgId?: (string | null),
+    ): CancelablePromise<JobStatusResponse | any> {
+        return this.httpRequest.request({
+            method: 'POST',
+            url: '/api/v1/datasets/{dataset_id}/reingest',
+            path: {
+                'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
+            errors: {
+                400: `Dataset not in READY or ERROR state`,
+                404: `Dataset not found`,
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Export Dataset
+     * Export dataset to specified format (async job).
+     *
+     * Supported formats:
+     * - csv: Standard CSV file
+     * - xes: XES format for process mining tools
+     * - parquet: Columnar format for big data tools
+     *
+     * Returns job ID to track export progress.
+     * @param datasetId
+     * @param exportFormat
+     * @param xOrgId
+     * @returns JobStatusResponse Successful Response
+     * @returns any Export job queued
+     * @throws ApiError
+     */
+    public exportDatasetApiV1DatasetsDatasetIdExportPost(
+        datasetId: string,
+        exportFormat: string = 'csv',
+        xOrgId?: (string | null),
+    ): CancelablePromise<JobStatusResponse | any> {
+        return this.httpRequest.request({
+            method: 'POST',
+            url: '/api/v1/datasets/{dataset_id}/export',
+            path: {
+                'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
+            query: {
+                'export_format': exportFormat,
+            },
+            errors: {
+                400: `Invalid format or dataset not ready`,
+                404: `Dataset not found`,
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Download Original File
+     * Get presigned URL to download the original uploaded file.
+     *
+     * Returns a temporary URL that expires after 1 hour.
+     * @param datasetId
+     * @param xOrgId
+     * @returns DownloadResponse Download URL generated
+     * @throws ApiError
+     */
+    public downloadOriginalFileApiV1DatasetsDatasetIdDownloadGet(
+        datasetId: string,
+        xOrgId?: (string | null),
+    ): CancelablePromise<DownloadResponse> {
+        return this.httpRequest.request({
+            method: 'GET',
+            url: '/api/v1/datasets/{dataset_id}/download',
+            path: {
+                'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
+            errors: {
+                404: `Dataset or file not found`,
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Get Dataset Statistics
+     * Get comprehensive statistics for a dataset.
      * @param datasetId
      * @param xOrgId
      * @returns StatisticsResponse Successful Response
@@ -429,9 +501,7 @@ export class DatasetsService {
     }
     /**
      * List Cases
-     * List cases in an event log with pagination.
-     *
-     * Requires DATASET_READ permission in the workspace.
+     * List cases/traces in a dataset with pagination.
      * @param datasetId
      * @param page
      * @param pageSize
@@ -464,37 +534,19 @@ export class DatasetsService {
         });
     }
     /**
-     * Get Variants
-     * Get process variants (unique activity sequences) with frequencies.
-     *
-     * Supports filtering by:
-     * - top_n: Return top N variants by case count
-     * - top_k_percent: Return variants covering top K% of cases
-     *
-     * When include_complexity=true, each variant includes:
-     * - complexity_score: 0-1 score based on length, rework, and repetition
-     * - rework_count: Number of repeated activities
-     * - unique_activity_count: Number of distinct activities
-     *
-     * PERFORMANCE: Uses SQL aggregation instead of ORM iteration to avoid loading
-     * millions of objects into memory.
-     *
-     * Requires DATASET_READ permission in the workspace.
+     * Get Process Variants
+     * Get unique activity sequences (variants) with frequencies.
      * @param datasetId
      * @param topN
-     * @param topKPercent Return variants covering top K% of cases
-     * @param includeComplexity Include complexity metrics (score, rework count, unique activities)
-     * @param sortBy Sort variants by: 'frequency', 'complexity', 'duration'. Default: frequency
+     * @param topKPercent
      * @param xOrgId
      * @returns VariantResponse Successful Response
      * @throws ApiError
      */
     public getVariantsApiV1DatasetsDatasetIdVariantsGet(
         datasetId: string,
-        topN: number = 20,
+        topN?: (number | null),
         topKPercent?: (number | null),
-        includeComplexity: boolean = false,
-        sortBy?: (string | null),
         xOrgId?: (string | null),
     ): CancelablePromise<Array<VariantResponse>> {
         return this.httpRequest.request({
@@ -509,8 +561,6 @@ export class DatasetsService {
             query: {
                 'top_n': topN,
                 'top_k_percent': topKPercent,
-                'include_complexity': includeComplexity,
-                'sort_by': sortBy,
             },
             errors: {
                 422: `Validation Error`,
@@ -518,22 +568,10 @@ export class DatasetsService {
         });
     }
     /**
-     * Get Activities
-     * Get detailed activity statistics for a process.
-     *
-     * Returns each activity with:
-     * - frequency: Total occurrences
-     * - frequency_percent: Percentage of total events
-     * - avg/min/max_duration_seconds: Time to next activity
-     * - is_start_activity/is_end_activity: Position flags
-     * - position_avg: Average normalized position (0=start, 1=end)
-     *
-     * PERFORMANCE: Uses event_log_loader (DuckDB/Arrow) instead of ORM iteration
-     * to avoid loading millions of objects into memory.
-     *
-     * Requires DATASET_READ permission in the workspace.
+     * Get Activity Statistics
+     * Get detailed statistics for each activity.
      * @param datasetId
-     * @param sortBy Sort activities by: 'frequency', 'duration', 'position'. Default: frequency
+     * @param sortBy Sort by: frequency, duration
      * @param xOrgId
      * @returns ActivityDetailResponse Successful Response
      * @throws ApiError
@@ -561,30 +599,70 @@ export class DatasetsService {
         });
     }
     /**
-     * Get Domain Analysis
-     * Get process analysis using the new rich domain model.
+     * Query Events
+     * Query events with pagination and filtering.
      *
-     * This endpoint demonstrates the improved architecture:
-     * 1. Repository pattern for data access
-     * 2. DatasetAggregate for domain logic
-     * 3. PM4Py log caching (single conversion)
-     * 4. Computed properties on domain entities
-     *
-     * Returns aggregate statistics, variant analysis, and PM4Py cache status.
-     *
-     * Requires DATASET_READ permission in the workspace.
+     * Use this to browse individual events in the event log.
      * @param datasetId
+     * @param page
+     * @param limit
+     * @param caseId Filter by case ID
+     * @param activity Filter by activity
+     * @param from Start date
+     * @param to End date
      * @param xOrgId
-     * @returns any Successful Response
+     * @returns EventListResponse Successful Response
      * @throws ApiError
      */
-    public getDomainAnalysisApiV1DatasetsDatasetIdDomainAnalysisGet(
+    public listEventsApiV1DatasetsDatasetIdEventsGet(
         datasetId: string,
+        page: number = 1,
+        limit: number = 100,
+        caseId?: (string | null),
+        activity?: (string | null),
+        from?: (string | null),
+        to?: (string | null),
         xOrgId?: (string | null),
-    ): CancelablePromise<any> {
+    ): CancelablePromise<EventListResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/datasets/{dataset_id}/domain/analysis',
+            url: '/api/v1/datasets/{dataset_id}/events',
+            path: {
+                'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
+            query: {
+                'page': page,
+                'limit': limit,
+                'case_id': caseId,
+                'activity': activity,
+                'from': from,
+                'to': to,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Get Computed Metadata
+     * Get computed metadata for a dataset.
+     *
+     * Includes aggregated statistics computed during ingestion.
+     * @param datasetId
+     * @param xOrgId
+     * @returns MetadataResponse Successful Response
+     * @throws ApiError
+     */
+    public getMetadataApiV1DatasetsDatasetIdMetadataGet(
+        datasetId: string,
+        xOrgId?: (string | null),
+    ): CancelablePromise<MetadataResponse> {
+        return this.httpRequest.request({
+            method: 'GET',
+            url: '/api/v1/datasets/{dataset_id}/metadata',
             path: {
                 'dataset_id': datasetId,
             },
@@ -592,6 +670,59 @@ export class DatasetsService {
                 'X-Org-Id': xOrgId,
             },
             errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Get Dataset Details
+     * Get detailed information about a dataset.
+     * @param datasetId
+     * @param xOrgId
+     * @returns DatasetDetailResponse Successful Response
+     * @throws ApiError
+     */
+    public getDatasetApiV1DatasetsDatasetIdGet(
+        datasetId: string,
+        xOrgId?: (string | null),
+    ): CancelablePromise<DatasetDetailResponse> {
+        return this.httpRequest.request({
+            method: 'GET',
+            url: '/api/v1/datasets/{dataset_id}',
+            path: {
+                'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Delete Dataset
+     * Delete a dataset and all associated data.
+     * @param datasetId
+     * @param xOrgId
+     * @returns any Dataset deleted
+     * @throws ApiError
+     */
+    public deleteDatasetApiV1DatasetsDatasetIdDelete(
+        datasetId: string,
+        xOrgId?: (string | null),
+    ): CancelablePromise<Record<string, any>> {
+        return this.httpRequest.request({
+            method: 'DELETE',
+            url: '/api/v1/datasets/{dataset_id}',
+            path: {
+                'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
+            errors: {
+                404: `Dataset not found`,
                 422: `Validation Error`,
             },
         });

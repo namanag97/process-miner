@@ -5,6 +5,7 @@
 import type { BaseHttpRequest } from './core/BaseHttpRequest';
 import type { OpenAPIConfig } from './core/OpenAPI';
 import { AxiosHttpRequest } from './core/AxiosHttpRequest';
+import { AdminService } from './services/AdminService';
 import { AnalysesService } from './services/AnalysesService';
 import { AnalyticsService } from './services/AnalyticsService';
 import { AuthService } from './services/AuthService';
@@ -20,16 +21,16 @@ import { HealthService } from './services/HealthService';
 import { JobsService } from './services/JobsService';
 import { ObjectCentricProcessMiningService } from './services/ObjectCentricProcessMiningService';
 import { OrganizationalMiningService } from './services/OrganizationalMiningService';
+import { OrganizationsService } from './services/OrganizationsService';
 import { PredictionsService } from './services/PredictionsService';
 import { ProjectsService } from './services/ProjectsService';
 import { SimulationService } from './services/SimulationService';
-import { TelemetryService } from './services/TelemetryService';
-import { TestService } from './services/TestService';
 import { VisualizationService } from './services/VisualizationService';
 import { WorkflowsService } from './services/WorkflowsService';
 import { WorkspacesService } from './services/WorkspacesService';
 type HttpRequestConstructor = new (config: OpenAPIConfig) => BaseHttpRequest;
 export class OpenAPI {
+    public readonly admin: AdminService;
     public readonly analyses: AnalysesService;
     public readonly analytics: AnalyticsService;
     public readonly auth: AuthService;
@@ -45,11 +46,10 @@ export class OpenAPI {
     public readonly jobs: JobsService;
     public readonly objectCentricProcessMining: ObjectCentricProcessMiningService;
     public readonly organizationalMining: OrganizationalMiningService;
+    public readonly organizations: OrganizationsService;
     public readonly predictions: PredictionsService;
     public readonly projects: ProjectsService;
     public readonly simulation: SimulationService;
-    public readonly telemetry: TelemetryService;
-    public readonly test: TestService;
     public readonly visualization: VisualizationService;
     public readonly workflows: WorkflowsService;
     public readonly workspaces: WorkspacesService;
@@ -66,6 +66,7 @@ export class OpenAPI {
             HEADERS: config?.HEADERS,
             ENCODE_PATH: config?.ENCODE_PATH,
         });
+        this.admin = new AdminService(this.request);
         this.analyses = new AnalysesService(this.request);
         this.analytics = new AnalyticsService(this.request);
         this.auth = new AuthService(this.request);
@@ -81,11 +82,10 @@ export class OpenAPI {
         this.jobs = new JobsService(this.request);
         this.objectCentricProcessMining = new ObjectCentricProcessMiningService(this.request);
         this.organizationalMining = new OrganizationalMiningService(this.request);
+        this.organizations = new OrganizationsService(this.request);
         this.predictions = new PredictionsService(this.request);
         this.projects = new ProjectsService(this.request);
         this.simulation = new SimulationService(this.request);
-        this.telemetry = new TelemetryService(this.request);
-        this.test = new TestService(this.request);
         this.visualization = new VisualizationService(this.request);
         this.workflows = new WorkflowsService(this.request);
         this.workspaces = new WorkspacesService(this.request);

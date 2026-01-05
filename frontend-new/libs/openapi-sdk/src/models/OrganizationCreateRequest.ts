@@ -3,12 +3,10 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
- * Sheet information for Excel files.
+ * Create organization request.
  */
-export type SheetInfo = {
+export type OrganizationCreateRequest = {
     name: string;
-    index: number;
-    row_count: number;
-    column_count: number;
+    slug?: (string | null);
 };
 

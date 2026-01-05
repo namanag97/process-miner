@@ -3,24 +3,29 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
- * Request to trigger background ingestion with column mapping.
+ * Update mapping request.
  */
-export type IngestRequest = {
+export type MappingUpdateRequest = {
     /**
-     * Column name for case ID
+     * Column for case ID
      */
     case_id_column: string;
     /**
-     * Column name for activity
+     * Column for activity
      */
     activity_column: string;
     /**
-     * Column name for timestamp
+     * Column for timestamp
      */
     timestamp_column: string;
     /**
-     * Column name for resource
+     * Column for resource
      */
     resource_column?: (string | null);
+    /**
+     * Timestamp format
+     */
+    timestamp_format?: (string | null);
+    additional_columns?: Array<string>;
 };
 

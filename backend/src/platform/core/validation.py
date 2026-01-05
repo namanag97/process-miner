@@ -29,11 +29,15 @@ def validate_uuid(value: str, field_name: str = "id") -> str:
         field_name: Name of the field for error messages
 
     Returns:
-        The validated UUID string (lowercase)
+        The validated UUID string (lowercase) or MVP ID
 
     Raises:
         HTTPException: 400 if invalid UUID format
     """
+    # Allow MVP IDs in development (mvp-org-001, mvp-ws-001, mvp-user-001)
+    if value and value.startswith("mvp-"):
+        return value
+
     if not value or not UUID_PATTERN.match(value):
         raise HTTPException(
             status_code=400,

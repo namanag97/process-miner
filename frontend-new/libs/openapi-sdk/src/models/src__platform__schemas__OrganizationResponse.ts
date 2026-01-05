@@ -5,12 +5,12 @@
 /**
  * Organization response.
  */
-export type OrganizationResponse = {
+export type src__platform__schemas__OrganizationResponse = {
     id: string;
     name: string;
     slug: string;
     plan: string;
     created_at: string;
-    updated_at?: (string | null);
+    updated_at: (string | null);
 };
 

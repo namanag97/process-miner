@@ -21,5 +21,6 @@ export type DatasetDetailResponse = {
     file_size_bytes?: (number | null);
     statistics: (Record<string, any> | null);
     updated_at: (string | null);
+    error_message?: (string | null);
 };
 

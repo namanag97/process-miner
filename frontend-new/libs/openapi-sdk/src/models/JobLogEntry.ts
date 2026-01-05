@@ -3,14 +3,12 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
- * Browser log entry.
+ * Job log entry.
  */
-export type BrowserLog = {
+export type JobLogEntry = {
+    timestamp: string;
     level: string;
     message: string;
-    timestamp: string;
-    data?: (Record<string, any> | null);
-    trace_id?: (string | null);
-    span_id?: (string | null);
+    details?: (Record<string, any> | null);
 };
 

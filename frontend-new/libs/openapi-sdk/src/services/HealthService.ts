@@ -94,26 +94,4 @@ export class HealthService {
             url: '/health',
         });
     }
-    /**
-     * Prometheus Metrics
-     * Prometheus metrics endpoint.
-     *
-     * Returns metrics in Prometheus text format for scraping.
-     * Compatible with Prometheus, Grafana Cloud, Datadog, etc.
-     *
-     * Metrics include:
-     * - HTTP request latency and throughput
-     * - PM4Py operation performance
-     * - Business metrics (processes, analyses)
-     * - Circuit breaker states
-     * - Cache hit/miss rates
-     * @returns any Successful Response
-     * @throws ApiError
-     */
-    public prometheusMetricsHealthMetricsGet(): CancelablePromise<any> {
-        return this.httpRequest.request({
-            method: 'GET',
-            url: '/health/metrics',
-        });
-    }
 }

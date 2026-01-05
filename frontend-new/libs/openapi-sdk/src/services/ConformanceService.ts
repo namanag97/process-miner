@@ -52,7 +52,7 @@ export class ConformanceService {
      * List Conformance Results
      * List conformance check results.
      *
-     * Optionally filter by log_id or model_id.
+     * Optionally filter by dataset_id or model_id.
      * @param datasetId Filter by event log ID
      * @param modelId Filter by model ID
      * @param page
@@ -318,7 +318,7 @@ export class ConformanceService {
      * Use this to identify patterns in conformance violations.
      *
      * Args:
-     * log_id: Event log ID
+     * dataset_id: Event log ID
      * model_id: Process model ID
      * attributes: Comma-separated attributes to analyze (default: "resource")
      *

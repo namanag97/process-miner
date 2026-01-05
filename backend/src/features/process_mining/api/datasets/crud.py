@@ -89,11 +89,15 @@ async def list_datasets(
             )
         )
 
+    # Calculate total pages
+    pages = (total + page_size - 1) // page_size if total > 0 else 1
+
     return DatasetListResponse(
         items=items,
         total=total,
         page=page,
         page_size=page_size,
+        pages=pages,
     )
 
 

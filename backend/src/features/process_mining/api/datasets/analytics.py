@@ -135,11 +135,15 @@ async def list_cases(
             )
         )
 
+    # Calculate total pages
+    pages = (total + page_size - 1) // page_size if total > 0 else 1
+
     return CaseListResponse(
         items=items,
         total=total,
         page=page,
         page_size=page_size,
+        pages=pages,
     )
 
 
