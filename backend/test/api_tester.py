@@ -50,15 +50,15 @@ class E2ETester:
         # FORCE CRAWL: Substitute defined standard params with dummies if unresolved
         if "{" in url:
             standard_placeholders = {
-                "{organization_id}": "mvp-org-001",
-                "{workspace_id}": "mvp-ws-001",
-                "{project_id}": "mvp-project-001",
-                "{dataset_id}": "dummy-dataset-001",
-                "{job_id}": "dummy-job-001",
+                "{organization_id}": "11111111-1111-1111-1111-111111111111",
+                "{workspace_id}": "22222222-2222-2222-2222-222222222222",
+                "{project_id}": "33333333-3333-3333-3333-333333333333",
+                "{dataset_id}": "44444444-4444-4444-4444-444444444444",
+                "{job_id}": "55555555-5555-5555-5555-555555555555",
                 "{resource}": "dummy-resource",
-                "{predictor_id}": "dummy-predictor-001",
+                "{predictor_id}": "66666666-6666-6666-6666-666666666666",
                 "{case_id}": "dummy-case-001",
-                "{user_id}": "dummy-user-001"
+                "{user_id}": "77777777-7777-7777-7777-777777777777"
             }
             for ph, val in standard_placeholders.items():
                 if ph in url:
@@ -91,6 +91,8 @@ class E2ETester:
                 self.log_result(method, path, status_cat, response.status)
                 return resp_body
         except urllib.error.HTTPError as e:
+            err_body = e.read().decode()
+            print(f"    [Error Body] {err_body}")
             self.log_result(method, path, "FAIL", e.code, str(e))
             return None
         except urllib.error.URLError as e:
@@ -131,18 +133,20 @@ class E2ETester:
         print("\n--> Step 1: Verify Identity (Dev Mode)")
         me = self.request("GET", "/api/v1/auth/me")
         if me:
-            print(f"    [Success] Identified as: {me.get('email', 'Unknown')}")
-            if "organization" in me:
+            print(f"    [Debug] /auth/me payload: {json.dumps(me)}")
+            user_data = me.get('user', {})
+            print(f"    [Success] Identified as: {user_data.get('email', 'Unknown')}")
+            if "organization" in me and me["organization"]:
                 self.state["org_id"] = me["organization"]["id"]
                 print(f"    [State] org_id = {self.state['org_id']}")
         else:
             print("    [WARN] Could not get user info. Proceeding with hardcoded MVP IDs.")
-            self.state["org_id"] = "mvp-org-001"
+            self.state["org_id"] = "11111111-1111-1111-1111-111111111111"
 
         # 2. Set MVP Workspace
         print("\n--> Step 2: Set MVP Workspace")
         # Hardcode the known seeded workspace
-        self.state["workspace_id"] = "mvp-ws-001"
+        self.state["workspace_id"] = "22222222-2222-2222-2222-222222222222"
         print(f"    [State] workspace_id = {self.state['workspace_id']}")
         
         # Verify it exists
@@ -176,7 +180,7 @@ class E2ETester:
                  print(f"    [State] Created project_id = {self.state['project_id']}")
              else:
                  # Fallback for crawl
-                 self.state["project_id"] = "mvp-project-001"
+                 self.state["project_id"] = "33333333-3333-3333-3333-333333333333"
 
         # 4. Upload Dataset
         print("\n--> Step 4: Upload Dataset")
@@ -214,8 +218,8 @@ class E2ETester:
         headers = self.headers.copy()
         headers['Content-Type'] = f'multipart/form-data; boundary={boundary}'
         
-        # URL: /api/v1/datasets/upload (No query param needed)
-        url = self.base_url + "/api/v1/datasets/upload"
+        # URL: /api/v1/datasets/ (Needs trailing slash for direct upload mapping)
+        url = self.base_url + "/api/v1/datasets/"
         
         try:
             req = urllib.request.Request(url, headers=headers, method="POST", data=body_bytes)
@@ -228,6 +232,10 @@ class E2ETester:
                  else:
                      print(f"    [Fail] Upload failed: {response.status}")
                      self.log_result("POST", url.replace(self.base_url, ""), "FAIL", response.status, "Upload Failed")
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode()
+            print(f"    [Fail] Upload HTTP Error: {e.code} - {err_body}")
+            self.log_result("POST", url.replace(self.base_url, ""), "FAIL", e.code, f"{e} - {err_body}")
         except Exception as e:
             print(f"    [Fail] Upload exception: {e}")
             self.log_result("POST", url.replace(self.base_url, ""), "FAIL", 500, str(e))
