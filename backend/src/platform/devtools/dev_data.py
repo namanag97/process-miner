@@ -32,10 +32,11 @@ async def list_tables() -> list[str]:
     _check_debug()
     
     async with get_session_context() as session:
-        result = await session.execute(text(
-            "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename"
-        ))
-        return [row[0] for row in result.fetchall()]
+        def get_tables(conn):
+            return inspect(conn).get_table_names()
+            
+        tables = await session.run_sync(get_tables)
+        return sorted(tables)
 
 
 @router.get("/records/{table}")

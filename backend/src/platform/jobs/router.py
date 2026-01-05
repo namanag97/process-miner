@@ -269,7 +269,7 @@ async def stream_job_progress(
     job = result.scalar_one_or_none()
 
     if not job:
-        raise ProcessNotFoundError(job_id, resource_name="Job")
+        raise NotFoundError(resource="Job", resource_id=job_id)
 
     user_id = job.user_id or "anonymous"
 
