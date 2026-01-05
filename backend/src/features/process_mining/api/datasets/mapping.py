@@ -249,42 +249,11 @@ async def submit_mapping(
 # =============================================================================
 
 
-from pydantic import BaseModel, Field
-
-
-class MappingResponse(BaseModel):
-    """Current mapping response."""
-
-    dataset_id: str
-    case_id_column: str
-    activity_column: str
-    timestamp_column: str
-    resource_column: str | None = None
-    timestamp_format: str | None = None
-    additional_columns: list[str] = []
-    auto_mapped: bool = False
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
-
-
-class MappingUpdateRequest(BaseModel):
-    """Update mapping request."""
-
-    case_id_column: str = Field(..., description="Column for case ID")
-    activity_column: str = Field(..., description="Column for activity")
-    timestamp_column: str = Field(..., description="Column for timestamp")
-    resource_column: str | None = Field(None, description="Column for resource")
-    timestamp_format: str | None = Field(None, description="Timestamp format")
-    additional_columns: list[str] = Field(default_factory=list)
-
-
-class PreviewResponse(BaseModel):
-    """Preview response with sample mapped data."""
-
-    dataset_id: str
-    sample_events: list[dict]
-    total_rows: int
-    parse_errors: list[str] = []
+from src.features.process_mining.schemas.datasets import (
+    MappingResponse,
+    MappingUpdateRequest,
+    PreviewResponse,
+)
 
 
 @router.get(

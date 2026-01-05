@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from src.api.dependencies import DBSession
 from src.features.process_mining.enums import ModelFormat
-from src.features.process_mining.models import Dataset, ProcessModel
+from src.features.process_mining.models import Dataset, DatasetStatus, ProcessModel
 from src.features.process_mining.schemas import (
     ActivityDetailResponse,
     DFGEdge,
@@ -30,7 +30,6 @@ from src.platform.core.logging_config import get_logger
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/visualization", tags=["Visualization"])
-
 
 # =============================================================================
 # DFG (Directly-Follows Graph)
@@ -69,7 +68,6 @@ async def get_dfg(
         raise HTTPException(status_code=404, detail=f"Event log not found: {dataset_id}")
 
     # FIX: Validate dataset is ready for visualization
-    from src.features.process_mining.models import DatasetStatus
 
     if event_log.status != DatasetStatus.READY.value:
         logger.warning("dataset_not_ready", dataset_id=dataset_id, status=event_log.status)
@@ -219,7 +217,18 @@ async def get_model_svg(
     try:
         svg_bytes = mining_service.visualize_model(model_data, model_format)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Visualization failed: {e!s}")
+        logger.error(
+            "model_svg_visualization_failed",
+            model_id=model_id,
+            model_format=model_format.value,
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Model visualization failed for {model_id} (format: {model_format.value}): {str(e)}"
+        )
 
     return Response(
         content=svg_bytes,
@@ -254,7 +263,17 @@ async def get_dfg_svg(
             dfg_data["dfg"], dfg_data["start_activities"], dfg_data["end_activities"]
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Visualization failed: {e!s}")
+        logger.error(
+            "dfg_svg_visualization_failed",
+            dataset_id=dataset_id,
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"DFG visualization failed for dataset {dataset_id}: {str(e)}"
+        )
 
     return Response(
         content=svg_bytes,
@@ -288,7 +307,15 @@ async def get_footprints(
     footprints = mining_service.get_footprints(event_log)
 
     if "error" in footprints:
-        raise HTTPException(status_code=500, detail=footprints["error"])
+        logger.error(
+            "get_footprints_computation_failed",
+            dataset_id=dataset_id,
+            error=footprints.get("error")
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Footprint computation failed for dataset {dataset_id}: {footprints['error']}"
+        )
 
     return footprints
 
@@ -340,7 +367,6 @@ async def get_explorer_data(
         raise HTTPException(status_code=404, detail=f"Event log not found: {dataset_id}")
 
     # FIX: Validate dataset is ready for visualization
-    from src.features.process_mining.models import DatasetStatus
 
     if event_log.status != DatasetStatus.READY.value:
         logger.warning("dataset_not_ready", dataset_id=dataset_id, status=event_log.status)

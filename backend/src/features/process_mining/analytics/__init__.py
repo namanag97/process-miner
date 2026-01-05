@@ -2,12 +2,14 @@
 
 Components:
 - service.py: AnalyticsService for bottleneck detection, rework analysis, etc.
-- router.py: API router (not used in DDD - routers stay in api layer)
+- router.py: API router for analytics endpoints
 """
 
+from .router import router
 from .service import AnalyticsService, analytics_service
 
 __all__ = [
+    "router",
     "AnalyticsService",
     "analytics_service",
 ]

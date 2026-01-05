@@ -7,11 +7,11 @@ from datetime import datetime
 from uuid import uuid4
 
 from fastapi import APIRouter, Query
-from pydantic import BaseModel, Field
 
 from src.api.dependencies import CurrentUser, DBSession
 from src.features.process_mining.models import Dataset, DatasetStatus
 from src.features.process_mining.schemas.analysis import JobStatusResponse
+from src.features.process_mining.schemas.datasets import DownloadResponse, ExportRequest
 from src.platform.core.exceptions import NotFoundError, ValidationError
 from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
@@ -24,23 +24,8 @@ router = APIRouter()
 
 
 # =============================================================================
-# Request/Response Models
+# Export Endpoints
 # =============================================================================
-
-
-class ExportRequest(BaseModel):
-    """Export request."""
-
-    format: str = Field("csv", pattern=r"^(csv|xes|parquet)$")
-    include_metadata: bool = Field(True, description="Include dataset metadata")
-
-
-class DownloadResponse(BaseModel):
-    """Download URL response."""
-
-    download_url: str
-    filename: str
-    expires_in: int = 3600
 
 
 # =============================================================================
