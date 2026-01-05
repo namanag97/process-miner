@@ -9,7 +9,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Space, Table } from 'antd';
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
-import { FeaturePage, PageSection } from '../../../core/components/FeaturePage';
+import { FeaturePage, PageSection } from '../../../shared/core';
 import { use{{FEATURE_NAME_PASCAL}}List } from '../hooks';
 import type { {{FEATURE_NAME_PASCAL}}, {{FEATURE_NAME_PASCAL}}ListOptions } from '../types';
 

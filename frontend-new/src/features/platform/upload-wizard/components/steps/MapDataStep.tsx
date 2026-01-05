@@ -21,7 +21,7 @@ import {
     CheckCircleOutlined,
 } from '@ant-design/icons';
 import { tokens, logAction } from '@lumina/design-system';
-import { devLog } from '../../../../../components/DevConsole';
+import { devLog } from '../../../../../shared/ui/DevConsole';
 import type { DataPreview, ColumnMapping } from '../../types';
 
 const { Title, Text } = Typography;

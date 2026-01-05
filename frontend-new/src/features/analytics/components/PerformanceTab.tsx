@@ -6,7 +6,7 @@ import {
   InfoCircleOutlined,
 } from '@ant-design/icons';
 import { MetricCard, tokens, formatDurationFromSeconds, formatCompactNumber, type PerformanceData } from '@lumina/design-system';
-import { createLogger } from '../../../utils/logger';
+import { createLogger } from '../../../shared/lib/logger';
 
 const { Text, Title } = Typography;
 const log = createLogger('PerformanceTab');

@@ -5,7 +5,7 @@
  * Provides DFG visualization, variant analysis, and activity inspection.
  */
 
-import { FeatureRegistry } from '../../core/plugins/FeatureRegistry';
+import { FeatureRegistry } from '../../shared/core/plugins/FeatureRegistry';
 import { explorerRouteConfig } from './routes';
 
 // ============================================

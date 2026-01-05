@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { UploadWizardPage } from '../upload-wizard/pages/UploadWizardPage';
 import { instrumentedFetch } from '@lumina/design-system';
-import { devLog } from '../../../components/DevConsole';
+import { devLog } from '../../../shared/ui/DevConsole';
 import * as EnvConfig from 'src/config/env';
 
 // Mock the env configuration to avoid import.meta issues
@@ -22,7 +22,7 @@ jest.mock('src/config/env', () => ({
 }));
 
 // Mock DevConsole
-jest.mock('../../../components/DevConsole', () => ({
+jest.mock('../../../shared/ui/DevConsole', () => ({
     devLog: {
         action: jest.fn(),
         info: jest.fn(),

@@ -13,7 +13,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader, EmptyState, tokens } from '@lumina/design-system';
-import { FeaturePage } from '../../../core/components/FeaturePage';
+import { FeaturePage } from '../../../shared/core';
 import { ProcessSelector } from '../components/ProcessSelector';
 import type { ProcessOption } from '../components/ProcessSelector';
 import { ChatMessage } from '../components/ChatMessage';

@@ -12,7 +12,7 @@ import {
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { PageHeader, EmptyState, tokens } from '@lumina/design-system';
-import { createLogger } from '../../../utils/logger';
+import { createLogger } from '../../../shared/lib/logger';
 import { useAIProcesses, useAIPredictors/*, useTrainPredictor, useDeletePredictor*/ } from '../hooks';
 
 const { Text } = Typography;

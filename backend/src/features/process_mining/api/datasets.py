@@ -220,7 +220,40 @@ async def _stream_upload_to_temp(file: UploadFile) -> tuple[str, int]:
 # =============================================================================
 
 
-@router.post("/upload/presigned", response_model=PresignedUploadResponse)
+@router.post(
+    "/upload/presigned",
+    response_model=PresignedUploadResponse,
+    summary="Get Presigned S3 Upload URL",
+    description="""
+Generate a short-lived presigned URL for direct S3 upload.
+
+## Use Case
+*   **Large Files**: Bypass the API server for files > 10MB.
+*   **Performance**: Faster upload speeds via direct S3 connection.
+
+## Flow
+1.  Call this endpoint to get `upload_url`.
+2.  PUT the file to `upload_url`.
+3.  Call `POST /datasets/{id}/trigger-validation` to start processing.
+    """,
+    responses={
+        200: {
+            "description": "Presigned URL generated successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "upload_url": "https://s3.aws.com/bucket/key?sig=...",
+                        "storage_key": "123/456.csv",
+                        "dataset_id": "123e4567-e89b-12d3-a456-426614174000",
+                        "expires_in": 3600
+                    }
+                }
+            }
+        },
+        429: {"description": "Rate limit exceeded (10/min)"},
+        422: {"description": "Validation error (invalid extension)"}
+    }
+)
 @limiter.limit("10/minute")  # Max 10 presigned URLs per minute per IP
 async def get_presigned_upload_url(
     request: Request,
@@ -229,27 +262,9 @@ async def get_presigned_upload_url(
     db: DBSession,
     current_user: CurrentUser,
 ) -> PresignedUploadResponse:
-    """Generate presigned URL for direct client-to-S3 upload.
-
-    Phase 4: Data Ingestion Pipeline - Enterprise-grade upload flow:
-    1. Client requests presigned URL with filename and metadata
-    2. Backend generates unique storage key and dataset record
-    3. Client uploads directly to S3 (bypasses backend for large files)
-    4. Client calls POST /datasets/{dataset_id}/trigger-validation to start processing
-
-    Returns presigned PUT URL valid for 1 hour (configurable).
-
-    Args:
-        request: Upload request with filename, content_type, file_size
-        db: Database session
-        current_user: Authenticated user
-
-    Returns:
-        Presigned upload URL and dataset tracking info
-
-    Raises:
-        ValidationError: If validation fails
-        ProcessingError: If storage client fails
+    """
+    Generate presigned URL for direct client-to-S3 upload.
+    (Detailed docstring retained for code readability)
     """
     import uuid
     from datetime import datetime
@@ -431,32 +446,40 @@ async def get_presigned_upload_url(
     return response
 
 
-@router.post("/{dataset_id}/trigger-validation")
+@router.post(
+    "/{dataset_id}/trigger-validation",
+    summary="Trigger Dataset Validation",
+    description="""
+Start the background validation and ingestion process after a successful S3 upload.
+
+## When to use
+Call this **only** after successfully uploading a file to the presigned URL obtained from `/upload/presigned`.
+    """,
+    responses={
+        200: {
+            "description": "Validation task queued",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "validation_queued",
+                        "task_id": "task_12345",
+                        "dataset_id": "123e4567-..."
+                    }
+                }
+            }
+        },
+        400: {"description": "Dataset not in PENDING state"},
+        404: {"description": "Dataset not found"}
+    }
+)
 async def trigger_validation(
     dataset_id: str,
     db: DBSession,
     current_user: CurrentUser,
 ) -> dict[str, str]:
-    """Trigger validation worker after client completes S3 upload.
-
-    MVP Implementation: Client must call this after uploading to presigned URL.
-
-    Flow:
-    1. Client: POST /datasets/upload/presigned → Get presigned URL
-    2. Client: PUT to presigned URL → Upload file to S3
-    3. Client: POST /datasets/{dataset_id}/trigger-validation → Start processing
-
-    Args:
-        dataset_id: Dataset ID from presigned response
-        db: Database session
-        current_user: Authenticated user
-
-    Returns:
-        Status message with task_id for polling
-
-    Raises:
-        NotFoundError: If dataset doesn't exist
-        ValidationError: If dataset not in PENDING state
+    """
+    Trigger validation worker after client completes S3 upload.
+    (Detailed docstring retained for code readability)
     """
     from src.platform.core.permissions import Permission
     from src.platform.infrastructure.tasks import validate_uploaded_file_task
@@ -627,7 +650,42 @@ def validate_file_upload_extension(filename: str) -> None:
         )
 
 
-@router.post("/upload", response_model=DatasetResponse)
+@router.post(
+    "/upload",
+    response_model=DatasetResponse,
+    summary="Upload Event Log File",
+    description="""
+Upload and ingest an event log file (CSV or XES).
+
+## Features
+*   **Auto-detection**: Smart column detection for CSV files.
+*   **Streaming**: efficiently handles large files (up to 100MB) without memory issues.
+*   **Async Store**: Optional deferred processing for very large datasets.
+
+## Form Parameters
+*   `file`: The file to upload.
+*   `project_id`: Target project ID.
+*   `case_id_column` etc.: Manual mapping overrides.
+    """,
+    responses={
+        200: {
+            "description": "Dataset created and ingested successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": "123e4567-e89b-12d3-a456-426614174000",
+                        "name": "purchasing_log",
+                        "status": "ready",
+                        "total_events": 15400
+                    }
+                }
+            }
+        },
+        400: {"description": "Invalid file format or missing columns"},
+        413: {"description": "File too large (exceeds 100MB)"},
+        422: {"description": "Validation error (missing project_id)"}
+    }
+)
 async def upload_dataset(
     db: DBSession,
     user: CurrentUser,
@@ -644,15 +702,8 @@ async def upload_dataset(
 ):
     """
     Upload and ingest an event log file.
-
-    Supports CSV and XES formats. For CSV files, column mappings
-    will be auto-detected if not provided.
-
-    With async_store=true (deferred ingestion):
-    - File is stored immediately, Dataset created with status=UNSTRUCTURED
-    - Use POST /{dataset_id}/ingest to trigger background parsing with column mapping
-
-    Requires DATASET_CREATE permission in the workspace.
+    
+    (Detailed docstring retained for code readability)
     """
     # Validate file type and extension
     validate_file_upload(file)

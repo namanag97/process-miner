@@ -28,8 +28,8 @@ import {
   logAction,
 } from '@lumina/design-system';
 import { PerformanceTab, DeadlinesTab, UnwantedActivitiesTab, AutomationTab } from '../components';
-import { useKPIAuditLogger } from '../../../hooks';
-import { createLogger } from '../../../utils/logger';
+import { useKPIAuditLogger } from '../../../shared/hooks';
+import { createLogger } from '../../../shared/lib/logger';
 
 const log = createLogger('KPIPage');
 

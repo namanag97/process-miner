@@ -5,7 +5,7 @@
  * Provides AI assistant, automated insights, and ML predictions.
  */
 
-import { FeatureRegistry } from '../../core/plugins/FeatureRegistry';
+import { FeatureRegistry } from '../../shared/core/plugins/FeatureRegistry';
 import { aiRouteConfig } from './routes';
 
 // ============================================

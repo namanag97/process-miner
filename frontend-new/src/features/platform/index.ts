@@ -11,7 +11,7 @@
  * - Upload wizard (dataset ingestion)
  */
 
-import { FeatureRegistry } from '../../core/plugins/FeatureRegistry';
+import { FeatureRegistry } from '../../shared/core/plugins/FeatureRegistry';
 import { platformRouteConfig } from './routes';
 
 // Import sub-features (projects, upload-wizard)

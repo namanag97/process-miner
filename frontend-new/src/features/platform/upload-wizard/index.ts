@@ -9,7 +9,7 @@
  * 5. Finalize - Processing progress
  */
 
-import { FeatureRegistry } from '../../../core/plugins/FeatureRegistry';
+import { FeatureRegistry } from '../../../shared/core/plugins/FeatureRegistry';
 import { uploadWizardRouteConfig } from './routes';
 
 // ============================================

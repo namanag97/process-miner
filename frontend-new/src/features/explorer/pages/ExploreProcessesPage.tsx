@@ -15,9 +15,9 @@ import {
     CheckCircleOutlined,
 } from '@ant-design/icons';
 import { tokens, logAction } from '@lumina/design-system';
-import { FeaturePage } from '../../../core/components/FeaturePage';
+import { FeaturePage } from '../../../shared/core';
 import { useEventLogsList } from '../hooks';
-import { createLogger } from '../../../utils/logger';
+import { createLogger } from '../../../shared/lib/logger';
 
 const log = createLogger('ExploreProcessesPage');
 const { Text } = Typography;

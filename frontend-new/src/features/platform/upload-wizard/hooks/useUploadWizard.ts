@@ -16,7 +16,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { message } from 'antd';
 import { instrumentedFetch } from '@lumina/design-system';
 import { env } from '../../../../config/env';
-import { devLog } from '../../../../components/DevConsole';
+import { devLog } from '../../../../shared/ui/DevConsole';
 import type {
     WizardStep,
     WizardState,

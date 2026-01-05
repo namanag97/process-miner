@@ -5,7 +5,7 @@
  */
 
 import { queryKeys } from '@lumina/design-system';
-import { createQueryHook } from '../../../core/hooks/createFeatureHook';
+import { createQueryHook } from '../../../shared/core';
 
 // ============================================
 // Query Hooks

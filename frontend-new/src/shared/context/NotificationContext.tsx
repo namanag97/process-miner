@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../lib/logger';
 
 const log = createLogger('Notifications');
 

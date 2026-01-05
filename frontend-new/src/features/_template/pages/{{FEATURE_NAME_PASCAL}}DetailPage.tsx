@@ -9,7 +9,7 @@ import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Card, Descriptions, Popconfirm, Space, Tag } from 'antd';
 import { EditOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { FeaturePage, PageSection } from '../../../core/components/FeaturePage';
+import { FeaturePage, PageSection } from '../../../shared/core';
 import { use{{FEATURE_NAME_PASCAL}}Detail, useDelete{{FEATURE_NAME_PASCAL}} } from '../hooks';
 
 export function {{FEATURE_NAME_PASCAL}}DetailPage() {

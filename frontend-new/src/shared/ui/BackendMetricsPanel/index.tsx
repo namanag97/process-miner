@@ -17,7 +17,7 @@ import {
   CloseCircleOutlined,
   ClockCircleOutlined,
 } from '@ant-design/icons';
-import { BackendObservability } from '../hooks/useBackendLogs';
+import { BackendObservability } from '../../hooks/useBackendLogs';
 
 interface MetricsPanelProps {
   observability: BackendObservability;

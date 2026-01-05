@@ -9,7 +9,7 @@ import {
   LineChartOutlined,
 } from '@ant-design/icons';
 import { PageHeader, tokens, logAction } from '@lumina/design-system';
-import { createLogger } from '../../../utils/logger';
+import { createLogger } from '../../../shared/lib/logger';
 
 const { Text, Title } = Typography;
 const log = createLogger('AIIndexPage');

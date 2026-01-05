@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import * as ReactDOM from 'react-dom/client';
 import App from './App';
 import './styles.css';
-import { initTelemetry } from './lib/telemetry';
+import { initTelemetry } from './shared/lib/telemetry';
 import { env, isDevelopment } from './config/env';
 
 // Suppress harmless ResizeObserver errors (common with React Flow)

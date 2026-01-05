@@ -20,7 +20,7 @@ import {
     ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { tokens, logAction } from '@lumina/design-system';
-import { devLog } from '../../../../../components/DevConsole';
+import { devLog } from '../../../../../shared/ui/DevConsole';
 
 const { Title, Text } = Typography;
 

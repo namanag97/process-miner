@@ -4,7 +4,7 @@ import {
   InfoCircleOutlined,
 } from '@ant-design/icons';
 import { MetricCard, tokens, formatCompactNumber, type ReworkData } from '@lumina/design-system';
-import { createLogger } from '../../../utils/logger';
+import { createLogger } from '../../../shared/lib/logger';
 
 const { Text } = Typography;
 const log = createLogger('ReworkTab');

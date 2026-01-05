@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { instrumentedFetch } from '@lumina/design-system';
-import { devLog } from '../../../../components/DevConsole';
+import { devLog } from '../../../../shared/ui/DevConsole';
 
 export interface JobStreamEvent {
     job_id: string;

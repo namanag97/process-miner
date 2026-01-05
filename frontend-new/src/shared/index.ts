@@ -1,33 +1,21 @@
 /**
- * Core Infrastructure Exports
+ * Shared Layer Exports (FSD Architecture)
  *
- * Central export point for core infrastructure used across features.
- * Import from '@/core' (requires path alias setup)
+ * Central export point for shared resources used across features.
+ * Import from '@/shared' or '@/shared/{layer}'
  */
 
+// Core Infrastructure
+export * from './core';
+
+// UI Components
+export * from './ui';
+
+// Context Providers
+export * from './context';
+
 // Hooks
-export {
-  createQueryHook,
-  createMutationHook,
-  createOptimisticUpdate,
-  createPrefetch,
-} from './hooks/createFeatureHook';
+export * from './hooks';
 
-// Components
-export {
-  FeaturePage,
-  PageSection,
-  type FeaturePageProps,
-  type BreadcrumbItem,
-  type EmptyStateConfig,
-} from './components/FeaturePage';
-
-// Plugin System
-export {
-  FeatureRegistry,
-  useFeatureRegistry,
-  useFeatureNavigation,
-  useFeatureRoutes,
-  type FeatureConfig,
-  type NavItem,
-} from './plugins/FeatureRegistry';
+// Library Utilities
+export * from './lib';

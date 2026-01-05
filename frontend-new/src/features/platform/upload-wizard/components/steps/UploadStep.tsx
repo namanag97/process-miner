@@ -7,7 +7,7 @@ import { Upload, Card, Typography, Space, Alert, Progress } from 'antd';
 import { InboxOutlined, FileTextOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import { tokens } from '@lumina/design-system';
-import { devLog } from '../../../../../components/DevConsole';
+import { devLog } from '../../../../../shared/ui/DevConsole';
 
 const { Dragger } = Upload;
 const { Title, Text } = Typography;

@@ -4,7 +4,7 @@
  * Browse tables and records directly in the browser.
  * Only works in development mode.
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Select, Table, Button, Space, Tag, Spin, Alert, Input, Typography } from 'antd';
 import { ReloadOutlined, DatabaseOutlined } from '@ant-design/icons';
 

@@ -48,9 +48,9 @@ import {
   DatabaseOutlined,
 } from '@ant-design/icons';
 import { registerDevConsoleCallback } from '@lumina/design-system';
-import { useBackendLogs } from '../hooks/useBackendLogs';
-import { BackendMetricsPanel } from './BackendMetricsPanel';
-import { DataViewer } from './DataViewer';
+import { useBackendLogs } from '../../hooks/useBackendLogs';
+import { BackendMetricsPanel } from '../BackendMetricsPanel';
+import { DataViewer } from '../DataViewer';
 
 const { Text } = Typography;
 const { Panel } = Collapse;

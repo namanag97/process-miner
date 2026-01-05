@@ -45,17 +45,40 @@ class PresignedUploadRequest(BaseModel):
     Backend receives upload notification via webhook or polling.
     """
 
-    filename: str = Field(..., min_length=1, max_length=255, description="Original filename")
+    filename: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        description="Original filename",
+        examples=["purchasing_logs_2024.csv"]
+    )
     content_type: str = Field(
         default="text/csv",
         description="MIME type (text/csv, application/xml)",
+        examples=["text/csv"]
     )
     file_size_bytes: int | None = Field(
         None,
         ge=1,
         description="Expected file size in bytes (for validation)",
+        examples=[15728640]
     )
-    project_id: str | None = Field(None, description="Optional project association")
+    project_id: str | None = Field(
+        None,
+        description="Optional project association",
+        examples=["proj_123456789"]
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "filename": "process_log.csv",
+                "content_type": "text/csv",
+                "file_size_bytes": 1024000,
+                "project_id": "proj_abc123"
+            }
+        }
+    )
 
 
 class PresignedUploadResponse(BaseModel):
@@ -66,10 +89,33 @@ class PresignedUploadResponse(BaseModel):
     2. Poll /datasets/{dataset_id} for validation status
     """
 
-    upload_url: str = Field(..., description="Presigned PUT URL for direct S3 upload")
-    storage_key: str = Field(..., description="S3 object key for tracking")
-    dataset_id: str = Field(..., description="Dataset ID for status polling")
-    expires_in: int = Field(..., description="URL expiration in seconds")
+    upload_url: str = Field(
+        ...,
+        description="Presigned PUT URL for direct S3 upload"
+    )
+    storage_key: str = Field(
+        ...,
+        description="S3 object key for tracking"
+    )
+    dataset_id: str = Field(
+        ...,
+        description="Dataset ID for status polling"
+    )
+    expires_in: int = Field(
+        ...,
+        description="URL expiration in seconds"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "upload_url": "https://s3.amazonaws.com/bucket/key?sig=...",
+                "storage_key": "datasets/123/file.csv",
+                "dataset_id": "ds_123456789",
+                "expires_in": 3600
+            }
+        }
+    )
 
 
 class DatasetUploadRequest(BaseModel):
@@ -141,7 +187,24 @@ class DatasetResponse(BaseModel):
                 data["activities"] = []
         return data
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": "123e4567-e89b-12d3-a456-426614174000",
+                "name": "OrderToCash_2023",
+                "source_format": "CSV",
+                "total_events": 15420,
+                "total_cases": 1250,
+                "total_activities": 8,
+                "activities": ["Receive Order", "Check Credit", "Ship Goods", "Send Invoice"],
+                "created_at": "2023-10-27T10:00:00Z",
+                "source_file": "o2c_logs.csv",
+                "status": "ready",
+                "file_size_bytes": 2048500
+            }
+        }
+    )
 
 
 class DatasetListResponse(PaginatedResponse):

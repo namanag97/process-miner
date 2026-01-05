@@ -5,7 +5,7 @@
 import { Typography, Descriptions, Tag, Button, Space, Divider } from 'antd';
 import { FilterOutlined, CloseOutlined } from '@ant-design/icons';
 import { tokens } from '@lumina/design-system';
-import { createLogger } from '../../../utils/logger';
+import { createLogger } from '../../../shared/lib/logger';
 import { formatDuration } from '../utils/colorScales';
 import type { ActivityData } from '../types';
 

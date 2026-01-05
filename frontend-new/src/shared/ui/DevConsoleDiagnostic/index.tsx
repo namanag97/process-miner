@@ -6,7 +6,7 @@
  */
 
 import { useEffect } from 'react';
-import { devLog } from './DevConsole';
+import { devLog } from '../DevConsole';
 import { logAction, logError, logRequest, logResponse } from '@lumina/design-system';
 
 export function DevConsoleDiagnostic() {

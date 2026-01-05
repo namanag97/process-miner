@@ -8,7 +8,7 @@
  * - Performance breakdown for API calls
  */
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { devConsoleLog } from '../components/DevConsole';
+import { devConsoleLog } from '../ui/DevConsole';
 
 // =============================================================================
 // Types

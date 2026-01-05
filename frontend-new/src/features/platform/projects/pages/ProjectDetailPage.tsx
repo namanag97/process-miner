@@ -21,8 +21,8 @@ import {
   CheckCircleOutlined,
 } from '@ant-design/icons';
 import { tokens, logAction } from '@lumina/design-system';
-import { devLog } from '../../../../components/DevConsole';
-import { FeaturePage } from '../../../../core/components/FeaturePage';
+import { devLog } from '../../../../shared/ui/DevConsole';
+import { FeaturePage } from '../../../../shared/core';
 import { useProjectDetail, useDeleteProject } from '../hooks';
 import { DataSourcesList } from '../components/DataSourcesList';
 import { SimpleUploadModal } from '../components/SimpleUploadModal';

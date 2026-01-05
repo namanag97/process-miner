@@ -37,7 +37,7 @@ import {
   EyeOutlined,
 } from '@ant-design/icons';
 import { tokens } from '@lumina/design-system';
-import { createLogger } from '../../../utils/logger';
+import { createLogger } from '../../../shared/lib/logger';
 import { formatDuration, formatNumber, COLORS } from '../utils/colorScales';
 import type { ProcessedVariant } from '../types';
 

@@ -16,7 +16,7 @@ import {
   useProcess,
 } from '@lumina/design-system';
 import { PROCESS_QUESTIONS } from './questionsData';
-import { useAuditLogger } from '../../../hooks';
+import { useAuditLogger } from '../../../shared/hooks';
 
 const { TextArea } = Input;
 const { Title, Text } = Typography;

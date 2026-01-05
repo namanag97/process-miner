@@ -20,7 +20,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, Typography, Button, Space, Spin, message } from 'antd';
 import { ArrowLeftOutlined, LoadingOutlined } from '@ant-design/icons';
 import { tokens, logAction } from '@lumina/design-system';
-import { devLog } from '../../../../components/DevConsole';
+import { devLog } from '../../../../shared/ui/DevConsole';
 import { useUploadWizard } from '../hooks/useUploadWizard';
 import { WizardStepper } from '../components/WizardStepper';
 import {
@@ -57,7 +57,7 @@ export function UploadWizardPage() {
         setMapping,
         startAnalysis,
         uploadFileDirect, // Direct upload for local dev (no MinIO needed)
-        uploadFilePresigned, // Presigned upload for production (requires MinIO/S3)
+        uploadFilePresigned: _uploadFilePresigned, // Presigned upload for production (requires MinIO/S3)
     } = useUploadWizard(projectId!, resumeDatasetId || undefined);
 
     // Log wizard initialization

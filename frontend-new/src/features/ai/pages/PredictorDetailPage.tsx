@@ -10,7 +10,7 @@ import {
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { PageHeader, MetricCard, tokens, toast } from '@lumina/design-system';
-import { createLogger } from '../../../utils/logger';
+import { createLogger } from '../../../shared/lib/logger';
 
 const { Text, Title, Paragraph } = Typography;
 const log = createLogger('PredictorDetailPage');

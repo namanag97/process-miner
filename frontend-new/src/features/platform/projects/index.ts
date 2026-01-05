@@ -5,7 +5,7 @@
  * Provides pages, hooks, and components for managing projects.
  */
 
-import { FeatureRegistry } from '../../../core/plugins/FeatureRegistry';
+import { FeatureRegistry } from '../../../shared/core/plugins/FeatureRegistry';
 import { projectsRouteConfig } from './routes';
 
 // ============================================

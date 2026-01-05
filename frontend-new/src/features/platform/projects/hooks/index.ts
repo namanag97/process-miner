@@ -6,7 +6,7 @@
  */
 
 import { queryKeys } from '@lumina/design-system';
-import { createQueryHook, createMutationHook } from '../../../../core/hooks/createFeatureHook';
+import { createQueryHook, createMutationHook } from '../../../../shared/core';
 import type {
   Project,
   ProjectDetail,
