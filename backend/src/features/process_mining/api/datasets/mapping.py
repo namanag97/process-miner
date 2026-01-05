@@ -18,7 +18,11 @@ from src.features.process_mining.models import (
     DatasetColumnMapping,
     DatasetStatus,
 )
-from src.features.process_mining.schemas import ColumnDetectionResponse, ColumnTypeInfo
+from src.features.process_mining.schemas import (
+    ColumnDetectionResponse,
+    ColumnTypeInfo,
+    MappingUpdateRequest,
+)
 from src.platform.core.exceptions import ValidationError
 from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
