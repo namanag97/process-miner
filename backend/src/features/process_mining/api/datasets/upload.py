@@ -386,10 +386,11 @@ async def upload_dataset(
         storage_key = f"{dataset_id}/{uuid4()}{file_extension}"
 
         storage_client = get_storage_client()
-        storage_client.upload_file(
+        import io
+        storage_client.upload_fileobj(
             bucket_type="raw",
             key=storage_key,
-            file_content=content,
+            file_obj=io.BytesIO(content),
             content_type=file.content_type,
         )
 

@@ -38,6 +38,7 @@ from src.api.routers import (
     workspaces_router,
 )
 from src.platform.admin.router import router as admin_router
+from src.platform.audit.router import router as audit_router
 from src.platform.organizations.router import router as organizations_router
 from src.platform.devconsole.streaming import router as dev_logs_stream_router
 from src.platform.devtools.dev_data import router as dev_data_router
@@ -467,6 +468,7 @@ For support, please contact the developer team or refer to the internal document
     app.include_router(auth_router, prefix=settings.api_prefix)
     app.include_router(organizations_router, prefix=settings.api_prefix)  # New: Organizations
     app.include_router(admin_router, prefix=settings.api_prefix)  # New: Admin
+    app.include_router(audit_router, prefix=settings.api_prefix)  # New: Audit
     app.include_router(workspaces_router, prefix=settings.api_prefix)
     app.include_router(projects_router, prefix=settings.api_prefix)
     app.include_router(datasets_router, prefix=settings.api_prefix)
