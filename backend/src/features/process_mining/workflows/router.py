@@ -17,7 +17,7 @@ from src.features.process_mining.schemas import (
     WorkflowRunResponse,
     WorkflowTemplate,
 )
-from src.features.process_mining.services.workflow import workflow_service
+from src.features.process_mining.workflows.service import workflow_service
 from src.platform.core.enums import WorkflowStatus
 from src.platform.core.logging_config import get_logger
 

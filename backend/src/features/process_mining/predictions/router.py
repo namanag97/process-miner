@@ -12,7 +12,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_db
+from src.features.process_mining.filtering.service import filtering_service
 from src.features.process_mining.models import Dataset, PredictionModel
+from src.features.process_mining.predictions.service import prediction_service
 from src.features.process_mining.schemas import (
     BatchPredictionRequest,
     BatchPredictionResponse,
@@ -22,8 +24,6 @@ from src.features.process_mining.schemas import (
     PredictorResponse,
     TrainPredictorRequest,
 )
-from src.features.process_mining.services.filtering import filtering_service
-from src.features.process_mining.services.prediction import prediction_service
 from src.platform.core.logging_config import get_logger
 from src.platform.infrastructure.tasks import get_task_status, train_prediction_model_task
 from src.platform.models import AsyncJob

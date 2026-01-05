@@ -33,7 +33,7 @@ from src.features.process_mining.schemas import (
     OCELStatisticsResponse,
     OCPetriNetResponse,
 )
-from src.features.process_mining.services.ocpm import ocpm_service
+from src.features.process_mining.ocpm.service import ocpm_service
 from src.platform.core.logging_config import get_logger
 from src.platform.models import AsyncJob
 

@@ -18,8 +18,8 @@ from src.features.process_mining.schemas import (
     SimulationRequest,
     SimulationResponse,
 )
-from src.features.process_mining.services.filtering import filtering_service
-from src.features.process_mining.services.simulation import simulation_service
+from src.features.process_mining.filtering.service import filtering_service
+from src.features.process_mining.simulation.service import simulation_service
 from src.platform.core.logging_config import get_logger
 from src.platform.core.safe_unpickler import safe_loads
 

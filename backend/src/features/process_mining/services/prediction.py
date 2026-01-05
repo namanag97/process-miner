@@ -1,24 +1,28 @@
-"""Prediction Service - ML-based Process Predictions.
+"""Prediction Service - Re-export shim for backwards compatibility.
 
-Provides next activity prediction, remaining time prediction,
-and outcome prediction using scikit-learn and XGBoost.
+This module re-exports from the feature layer for backwards compatibility.
+New code should import directly from src.features.process_mining.predictions.
 
-Serialization: Uses joblib for ML model persistence (safer and more efficient than pickle).
+Example:
+    # Legacy (still works):
+    from src.features.process_mining.services.prediction import prediction_service
+
+    # Preferred (DDD-compliant):
+    from src.features.process_mining.predictions import prediction_service
 """
 
-import io
-import time
+from src.features.process_mining.predictions import (
+    PredictionService,
+    prediction_service,
+)
 
-import joblib
-import numpy as np
-from pm4py.objects.log.obj import EventLog as PM4PyLog
+__all__ = [
+    "PredictionService",
+    "prediction_service",
+]
 
-from src.platform.core.logging_config import get_logger
-
-logger = get_logger(__name__)
-
-
-class PredictionService:
+# Legacy class definition for backward compatibility (deprecated)
+class _LegacyPredictionService:
     """ML prediction service for process mining."""
 
     def extract_features(self, pm4py_log: PM4PyLog) -> tuple[list, list, list]:

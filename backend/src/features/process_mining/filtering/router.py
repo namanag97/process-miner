@@ -29,7 +29,7 @@ from src.features.process_mining.schemas import (
     FilterTemplateListResponse,
     FilterTemplateResponse,
 )
-from src.features.process_mining.services.filtering import filtering_service
+from src.features.process_mining.filtering.service import filtering_service
 from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
