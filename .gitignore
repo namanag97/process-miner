@@ -85,6 +85,10 @@ backend/data/exports/
 backend/data/models/
 backend/data/db/
 
+# Large data files (event logs, test data)
+backend/data/*.xes
+backend/data/*.csv
+
 # Application logs
 backend/data/logs/
 *.log
