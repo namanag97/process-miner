@@ -54,7 +54,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         # Stream to frontend DevConsole (dev mode only)
         if should_log_to_devconsole:
             try:
-                from src.api.routers.dev_logs_stream import log_api_request
+                from src.platform.devconsole import log_api_request
 
                 log_api_request(request.method, request.url.path, request_id)
             except ImportError:
@@ -76,7 +76,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             # Stream to frontend DevConsole (dev mode only, filtered)
             if should_log_to_devconsole:
                 try:
-                    from src.api.routers.dev_logs_stream import log_api_response
+                    from src.platform.devconsole import log_api_response
 
                     log_api_response(
                         request.method,
@@ -104,12 +104,12 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
             # Stream error to frontend DevConsole
             try:
-                from src.api.routers.dev_logs_stream import log_error
+                from src.platform.devconsole import log_error
 
                 log_error(
                     request.url.path,
                     str(e),
-                    details={"error_type": type(e).__name__},
+                    error_type=type(e).__name__,
                 )
             except ImportError:
                 pass

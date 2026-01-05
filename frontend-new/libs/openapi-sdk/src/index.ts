@@ -2,7 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export { OpenAPI as OpenAPIClient } from './OpenAPI';
+export { OpenAPI } from './OpenAPI';
 
 export { ApiError } from './core/ApiError';
 export { BaseHttpRequest } from './core/BaseHttpRequest';
@@ -20,7 +20,7 @@ export type { AnalysisResponse } from './models/AnalysisResponse';
 export type { BatchPredictionRequest } from './models/BatchPredictionRequest';
 export type { BatchPredictionResponse } from './models/BatchPredictionResponse';
 export type { Body_detect_columns_api_v1_datasets_detect_columns_post } from './models/Body_detect_columns_api_v1_datasets_detect_columns_post';
-export type { Body_flatten_ocel_to_dataset_api_v1_ocpm_logs__log_id__flatten_post } from './models/Body_flatten_ocel_to_dataset_api_v1_ocpm_logs__log_id__flatten_post';
+export type { Body_flatten_ocel_to_dataset_api_v1_ocpm_datasets__dataset_id__flatten_post } from './models/Body_flatten_ocel_to_dataset_api_v1_ocpm_datasets__dataset_id__flatten_post';
 export type { Body_upload_dataset_api_v1_datasets_upload_post } from './models/Body_upload_dataset_api_v1_datasets_upload_post';
 export type { Body_upload_ocel_api_v1_ocpm_upload_post } from './models/Body_upload_ocel_api_v1_ocpm_upload_post';
 export type { BottleneckListResponse } from './models/BottleneckListResponse';
@@ -146,6 +146,7 @@ export { AuthService } from './services/AuthService';
 export { BusinessUseCasesService } from './services/BusinessUseCasesService';
 export { ConformanceService } from './services/ConformanceService';
 export { DatasetsService } from './services/DatasetsService';
+export { DevDataService } from './services/DevDataService';
 export { DevelopmentService } from './services/DevelopmentService';
 export { DevLogsService } from './services/DevLogsService';
 export { DiscoveryService } from './services/DiscoveryService';

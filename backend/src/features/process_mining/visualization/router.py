@@ -37,7 +37,7 @@ router = APIRouter(prefix="/visualization", tags=["Visualization"])
 # =============================================================================
 
 
-@router.get("/{log_id}/dfg", response_model=DFGResponse)
+@router.get("/{dataset_id}/dfg", response_model=DFGResponse)
 async def get_dfg(
     db: DBSession,
     dataset_id: str,
@@ -66,7 +66,7 @@ async def get_dfg(
 
     if not event_log:
         logger.warning("log_not_found", dataset_id=dataset_id)
-        raise HTTPException(status_code=404, detail=f"Event log not found: {log_id}")
+        raise HTTPException(status_code=404, detail=f"Event log not found: {dataset_id}")
 
     # FIX: Validate dataset is ready for visualization
     from src.features.process_mining.models import DatasetStatus
@@ -227,7 +227,7 @@ async def get_model_svg(
     )
 
 
-@router.get("/{log_id}/dfg/svg")
+@router.get("/{dataset_id}/dfg/svg")
 async def get_dfg_svg(
     db: DBSession,
     dataset_id: str,
@@ -244,7 +244,7 @@ async def get_dfg_svg(
     event_log = result.scalar_one_or_none()
 
     if not event_log:
-        raise HTTPException(status_code=404, detail=f"Event log not found: {log_id}")
+        raise HTTPException(status_code=404, detail=f"Event log not found: {dataset_id}")
 
     # Discover DFG using efficient DuckDB path
     try:
@@ -267,7 +267,7 @@ async def get_dfg_svg(
 # =============================================================================
 
 
-@router.get("/{log_id}/footprints")
+@router.get("/{dataset_id}/footprints")
 async def get_footprints(
     db: DBSession,
     dataset_id: str,
@@ -283,7 +283,7 @@ async def get_footprints(
     event_log = result.scalar_one_or_none()
 
     if not event_log:
-        raise HTTPException(status_code=404, detail=f"Event log not found: {log_id}")
+        raise HTTPException(status_code=404, detail=f"Event log not found: {dataset_id}")
 
     footprints = mining_service.get_footprints(event_log)
 
@@ -298,7 +298,7 @@ async def get_footprints(
 # =============================================================================
 
 
-@router.get("/{log_id}/explorer-data", response_model=ProcessExplorerDataResponse)
+@router.get("/{dataset_id}/explorer-data", response_model=ProcessExplorerDataResponse)
 async def get_explorer_data(
     db: DBSession,
     dataset_id: str,
@@ -337,7 +337,7 @@ async def get_explorer_data(
 
     if not event_log:
         logger.warning("log_not_found", dataset_id=dataset_id)
-        raise HTTPException(status_code=404, detail=f"Event log not found: {log_id}")
+        raise HTTPException(status_code=404, detail=f"Event log not found: {dataset_id}")
 
     # FIX: Validate dataset is ready for visualization
     from src.features.process_mining.models import DatasetStatus

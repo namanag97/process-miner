@@ -32,7 +32,7 @@ export class DiscoveryService {
      * Set async_mode=False for synchronous execution (not recommended for large logs).
      *
      * Args:
-     * request: Discovery request with log_id, miner_type, model_name
+     * request: Discovery request with dataset_id, miner_type, model_name
      * async_mode: If True (default), runs in background and returns job_id
      *
      * Returns:
@@ -40,16 +40,21 @@ export class DiscoveryService {
      * - If async_mode=False: ModelResponse with discovered model
      * @param requestBody
      * @param asyncMode
+     * @param xOrgId
      * @returns any Successful Response
      * @throws ApiError
      */
     public discoverModelApiV1DiscoveryDiscoverPost(
         requestBody: DiscoverRequest,
         asyncMode: boolean = true,
+        xOrgId?: (string | null),
     ): CancelablePromise<any> {
         return this.httpRequest.request({
             method: 'POST',
             url: '/api/v1/discovery/discover',
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
             query: {
                 'async_mode': asyncMode,
             },
@@ -64,17 +69,17 @@ export class DiscoveryService {
      * List Models
      * List discovered process models.
      *
-     * Supports pagination and filtering by source log.
+     * Supports pagination and filtering by source dataset.
      * @param page
      * @param pageSize
-     * @param logId
+     * @param datasetId
      * @returns ModelListResponse Successful Response
      * @throws ApiError
      */
     public listModelsApiV1DiscoveryModelsGet(
         page: number = 1,
         pageSize: number = 20,
-        logId?: (string | null),
+        datasetId?: (string | null),
     ): CancelablePromise<ModelListResponse> {
         return this.httpRequest.request({
             method: 'GET',
@@ -82,7 +87,7 @@ export class DiscoveryService {
             query: {
                 'page': page,
                 'page_size': pageSize,
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,

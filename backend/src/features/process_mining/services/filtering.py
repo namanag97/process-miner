@@ -1008,7 +1008,7 @@ class FilteringService:
         """Convert ORM EventLog to PM4Py EventLog.
 
         DEPRECATED: This method triggers Object-Relational Impedance Mismatch.
-        Use event_log_loader.load_as_pm4py_log(log_id) instead for 10x better performance.
+        Use event_log_loader.load_as_pm4py_log(dataset_id) instead for 10x better performance.
 
         This method is kept only for backwards compatibility and will fail
         due to lazy="raise" on Dataset.cases relationship.
@@ -1017,7 +1017,7 @@ class FilteringService:
 
         warnings.warn(
             "FilteringService.to_pm4py_log() is deprecated. "
-            "Use event_log_loader.load_as_pm4py_log(log_id) instead.",
+            "Use event_log_loader.load_as_pm4py_log(dataset_id) instead.",
             DeprecationWarning,
             stacklevel=2,
         )

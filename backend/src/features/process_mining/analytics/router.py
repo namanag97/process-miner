@@ -54,7 +54,7 @@ async def get_bottlenecks(
     logger.info("getting_bottlenecks", dataset_id=dataset_id)
 
     # Try cache first
-    cache_key = f"bottlenecks:{log_id}"
+    cache_key = f"bottlenecks:{dataset_id}"
     cached = cache_service.get(cache_key)
     if cached:
         return cast(BottleneckListResponse, cached)
@@ -78,7 +78,7 @@ async def get_rework(dataset_id: str, db: AsyncSession = Depends(get_db)) -> Rew
     logger.info("getting_rework", dataset_id=dataset_id)
 
     # Try cache first
-    cache_key = f"rework:{log_id}"
+    cache_key = f"rework:{dataset_id}"
     cached = cache_service.get(cache_key)
     if cached:
         return cast(ReworkListResponse, cached)
@@ -105,7 +105,7 @@ async def get_service_times(
     logger.info("getting_service_times", dataset_id=dataset_id)
 
     # Try cache first
-    cache_key = f"service_times:{log_id}"
+    cache_key = f"service_times:{dataset_id}"
     cached = cache_service.get(cache_key)
     if cached:
         return cast(list[ServiceTimeResponse], cached)
@@ -166,7 +166,7 @@ async def get_rework_chains(
     logger.info("getting_rework_chains", dataset_id=dataset_id)
 
     # Try cache first
-    cache_key = f"rework_chains:{log_id}"
+    cache_key = f"rework_chains:{dataset_id}"
     cached = cache_service.get(cache_key)
     if cached:
         return cast(ReworkChainListResponse, cached)

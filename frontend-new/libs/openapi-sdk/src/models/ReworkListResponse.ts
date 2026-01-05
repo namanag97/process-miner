@@ -7,7 +7,7 @@ import type { ReworkResponse } from './ReworkResponse';
  * Rework analysis results.
  */
 export type ReworkListResponse = {
-    log_id: string;
+    dataset_id: string;
     rework_activities: Array<ReworkResponse>;
     total_rework_cases: number;
     rework_percentage: number;

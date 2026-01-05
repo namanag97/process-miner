@@ -14,6 +14,8 @@ from src.features.process_mining.models import Dataset
 from src.features.process_mining.schemas import (
     DatasetResponse,
 )
+from src.platform.core.logging_config import get_logger
+from src.platform.devconsole import log_error, log_info
 from src.platform.models import Project, Workspace, WorkspaceMember
 from src.platform.schemas import (
     ProjectCreateRequest,
@@ -23,6 +25,7 @@ from src.platform.schemas import (
     ProjectUpdateRequest,
 )
 
+logger = get_logger(__name__)
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
 # =============================================================================
@@ -60,9 +63,25 @@ async def create_project(
     from src.platform.core.permissions import Permission
     from src.platform.workspaces.authorization import AuthorizationService
 
+    logger.info("creating_project", user_id=user.id, workspace_id=workspace_id, name=request.name)
+
     # Workspace_id is required for RBAC
     if not workspace_id:
-        raise HTTPException(status_code=400, detail="workspace_id is required")
+        logger.warning("project_create_missing_workspace", user_id=user.id)
+        log_error(
+            "Project",
+            "Workspace ID is required",
+            error_code="PROJ_WORKSPACE_REQUIRED",
+            user_id=user.id,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Workspace ID is required to create a project",
+                "error_code": "PROJ_WORKSPACE_REQUIRED",
+                "suggestion": "Provide a workspace_id query parameter"
+            }
+        )
 
     # Verify user has PROJECT_CREATE permission in workspace
     auth_service = AuthorizationService(db)
@@ -77,11 +96,46 @@ async def create_project(
         total_analyses=0,
     )
 
-    db.add(project)
-    await db.commit()
-    await db.refresh(project)
+    try:
+        db.add(project)
+        await db.commit()
+        await db.refresh(project)
 
-    return _project_to_response(project)
+        logger.info(
+            "project_created",
+            project_id=project.id,
+            workspace_id=workspace_id,
+            name=project.name,
+            user_id=user.id,
+        )
+        log_info(
+            "Project",
+            "Project created successfully",
+            project_id=project.id,
+            name=project.name,
+            workspace_id=workspace_id,
+        )
+
+        return _project_to_response(project)
+    except Exception as e:
+        logger.error("project_creation_failed", workspace_id=workspace_id, error=str(e), exc_info=True)
+        log_error(
+            "Project",
+            "Failed to create project",
+            error_code="PROJ_CREATE_FAILED",
+            workspace_id=workspace_id,
+            name=request.name,
+            reason=str(e),
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Failed to create project",
+                "error_code": "PROJ_CREATE_FAILED",
+                "reason": str(e),
+                "suggestion": "Check database connectivity and ensure the workspace exists"
+            }
+        )
 
 
 @router.get("", response_model=ProjectListResponse)
@@ -165,12 +219,49 @@ async def get_project(
     from src.platform.core.permissions import Permission
     from src.platform.workspaces.authorization import require_project_permission
 
+    logger.info("fetching_project", project_id=project_id, user_id=user.id)
+
     # Check permission (also validates project exists)
-    _, project = await require_project_permission(db, project_id, user, Permission.PROJECT_READ)
+    try:
+        _, project = await require_project_permission(db, project_id, user, Permission.PROJECT_READ)
+    except HTTPException as e:
+        if e.status_code == 404:
+            logger.warning("project_not_found", project_id=project_id, user_id=user.id)
+            log_error(
+                "Project",
+                "Project not found",
+                error_code="PROJ_NOT_FOUND",
+                project_id=project_id,
+            )
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "Project not found",
+                    "error_code": "PROJ_NOT_FOUND",
+                    "project_id": project_id,
+                    "suggestion": "Check that the project ID is correct and you have access to it"
+                }
+            )
+        raise
 
     # Get datasets for this project
     datasets_result = await db.execute(select(Dataset).filter(Dataset.project_id == project_id))
     datasets = datasets_result.scalars().all()
+
+    logger.info(
+        "project_fetched",
+        project_id=project_id,
+        project_name=project.name,
+        dataset_count=len(datasets),
+        user_id=user.id,
+    )
+    log_info(
+        "Project",
+        "Project fetched successfully",
+        project_id=project_id,
+        name=project.name,
+        datasets=len(datasets),
+    )
 
     # Use model_validate to handle tags_json parsing
     base_response = ProjectResponse.model_validate(project)
@@ -203,8 +294,30 @@ async def update_project(
     from src.platform.core.permissions import Permission
     from src.platform.workspaces.authorization import require_project_permission
 
+    logger.info("updating_project", project_id=project_id, updates=request.model_dump(exclude_unset=True), user_id=user.id)
+
     # Check permission (also validates project exists)
-    _, project = await require_project_permission(db, project_id, user, Permission.PROJECT_UPDATE)
+    try:
+        _, project = await require_project_permission(db, project_id, user, Permission.PROJECT_UPDATE)
+    except HTTPException as e:
+        if e.status_code == 404:
+            logger.warning("project_not_found_for_update", project_id=project_id, user_id=user.id)
+            log_error(
+                "Project",
+                "Cannot update - project not found",
+                error_code="PROJ_NOT_FOUND",
+                project_id=project_id,
+            )
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "Project not found",
+                    "error_code": "PROJ_NOT_FOUND",
+                    "project_id": project_id,
+                    "suggestion": "Verify the project ID exists and you have access before updating"
+                }
+            )
+        raise
 
     if request.name is not None:
         project.name = request.name
@@ -215,10 +328,43 @@ async def update_project(
 
     project.updated_at = datetime.utcnow()
 
-    await db.commit()
-    await db.refresh(project)
+    try:
+        await db.commit()
+        await db.refresh(project)
 
-    return _project_to_response(project)
+        logger.info(
+            "project_updated",
+            project_id=project_id,
+            name=project.name,
+            user_id=user.id,
+        )
+        log_info(
+            "Project",
+            "Project updated successfully",
+            project_id=project_id,
+            name=project.name,
+        )
+
+        return _project_to_response(project)
+    except Exception as e:
+        logger.error("project_update_failed", project_id=project_id, error=str(e), exc_info=True)
+        log_error(
+            "Project",
+            "Failed to update project",
+            error_code="PROJ_UPDATE_FAILED",
+            project_id=project_id,
+            reason=str(e),
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Failed to update project",
+                "error_code": "PROJ_UPDATE_FAILED",
+                "project_id": project_id,
+                "reason": str(e),
+                "suggestion": "Check database connectivity and retry"
+            }
+        )
 
 
 @router.delete("/{project_id}", status_code=204)
@@ -238,18 +384,79 @@ async def delete_project(
     from src.platform.core.permissions import Permission
     from src.platform.workspaces.authorization import require_project_permission
 
+    logger.info("deleting_project", project_id=project_id, user_id=user.id)
+
     # Check permission (also validates project exists)
-    _, project = await require_project_permission(db, project_id, user, Permission.PROJECT_DELETE)
+    try:
+        _, project = await require_project_permission(db, project_id, user, Permission.PROJECT_DELETE)
+    except HTTPException as e:
+        if e.status_code == 404:
+            logger.warning("project_not_found_for_deletion", project_id=project_id, user_id=user.id)
+            log_error(
+                "Project",
+                "Cannot delete - project not found",
+                error_code="PROJ_NOT_FOUND",
+                project_id=project_id,
+            )
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "Project not found",
+                    "error_code": "PROJ_NOT_FOUND",
+                    "project_id": project_id,
+                    "suggestion": "Verify the project ID before attempting deletion"
+                }
+            )
+        raise
+
+    # Get dataset count for logging
+    datasets_result = await db.execute(select(func.count()).select_from(Dataset).where(Dataset.project_id == project_id))
+    dataset_count = datasets_result.scalar() or 0
 
     # Unlink datasets (they remain, just not in a project)
     from sqlalchemy import update
 
-    await db.execute(
-        update(Dataset).where(Dataset.project_id == project_id).values(project_id=None)
-    )
+    try:
+        await db.execute(
+            update(Dataset).where(Dataset.project_id == project_id).values(project_id=None)
+        )
 
-    await db.delete(project)
-    await db.commit()
+        await db.delete(project)
+        await db.commit()
+
+        logger.info(
+            "project_deleted",
+            project_id=project_id,
+            project_name=project.name,
+            datasets_unlinked=dataset_count,
+            user_id=user.id,
+        )
+        log_info(
+            "Project",
+            "Project deleted successfully",
+            project_id=project_id,
+            name=project.name,
+            datasets_unlinked=dataset_count,
+        )
+    except Exception as e:
+        logger.error("project_deletion_failed", project_id=project_id, error=str(e), exc_info=True)
+        log_error(
+            "Project",
+            "Failed to delete project",
+            error_code="PROJ_DELETE_FAILED",
+            project_id=project_id,
+            reason=str(e),
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Failed to delete project",
+                "error_code": "PROJ_DELETE_FAILED",
+                "project_id": project_id,
+                "reason": str(e),
+                "suggestion": "Check database connectivity and ensure no foreign key constraints are blocking deletion"
+            }
+        )
 
 
 # =============================================================================
@@ -272,11 +479,12 @@ async def add_file_to_project(
     from src.platform.core.permissions import Permission
     from src.platform.workspaces.authorization import require_dataset_permission, require_project_permission
 
+    logger.info("adding_dataset_to_project", project_id=project_id, dataset_id=dataset_id, user_id=user.id)
+
     # Check permission on project (also validates project exists)
     _, project = await require_project_permission(db, project_id, user, Permission.PROJECT_UPDATE)
 
     # Check permission on dataset (user must have access to move it)
-    # Helper already fetches the dataset, so we reuse it
     _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_UPDATE)
 
     dataset.project_id = project_id
@@ -288,9 +496,46 @@ async def add_file_to_project(
     project.total_files = count_result.scalar() or 0
     project.updated_at = datetime.utcnow()
 
-    await db.commit()
+    try:
+        await db.commit()
 
-    return await get_project(db, project_id, user)
+        logger.info(
+            "dataset_added_to_project",
+            project_id=project_id,
+            dataset_id=dataset_id,
+            total_files=project.total_files,
+            user_id=user.id,
+        )
+        log_info(
+            "Project",
+            "Dataset added to project",
+            project_id=project_id,
+            dataset_id=dataset_id,
+            total_files=project.total_files,
+        )
+
+        return await get_project(db, project_id, user)
+    except Exception as e:
+        logger.error("add_dataset_to_project_failed", project_id=project_id, dataset_id=dataset_id, error=str(e), exc_info=True)
+        log_error(
+            "Project",
+            "Failed to add dataset to project",
+            error_code="PROJ_ADD_DATASET_FAILED",
+            project_id=project_id,
+            dataset_id=dataset_id,
+            reason=str(e),
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Failed to add dataset to project",
+                "error_code": "PROJ_ADD_DATASET_FAILED",
+                "project_id": project_id,
+                "dataset_id": dataset_id,
+                "reason": str(e),
+                "suggestion": "Check database connectivity and retry"
+            }
+        )
 
 
 @router.delete("/{project_id}/files/{dataset_id}", status_code=204)
@@ -308,6 +553,8 @@ async def remove_file_from_project(
     from src.platform.core.permissions import Permission
     from src.platform.workspaces.authorization import require_dataset_permission, require_project_permission
 
+    logger.info("removing_dataset_from_project", project_id=project_id, dataset_id=dataset_id, user_id=user.id)
+
     # Check permission on project (also validates project exists)
     _, project = await require_project_permission(db, project_id, user, Permission.PROJECT_UPDATE)
 
@@ -315,7 +562,24 @@ async def remove_file_from_project(
     _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_UPDATE)
 
     if dataset.project_id != project_id:
-        raise HTTPException(status_code=400, detail="Dataset is not in this project")
+        logger.warning("dataset_not_in_project", project_id=project_id, dataset_id=dataset_id, user_id=user.id)
+        log_error(
+            "Project",
+            "Dataset is not in this project",
+            error_code="PROJ_DATASET_MISMATCH",
+            project_id=project_id,
+            dataset_id=dataset_id,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Dataset is not in this project",
+                "error_code": "PROJ_DATASET_MISMATCH",
+                "project_id": project_id,
+                "dataset_id": dataset_id,
+                "suggestion": "Verify that the dataset belongs to the specified project"
+            }
+        )
 
     dataset.project_id = None
 
@@ -326,4 +590,41 @@ async def remove_file_from_project(
     project.total_files = count_result.scalar() or 0
     project.updated_at = datetime.utcnow()
 
-    await db.commit()
+    try:
+        await db.commit()
+
+        logger.info(
+            "dataset_removed_from_project",
+            project_id=project_id,
+            dataset_id=dataset_id,
+            total_files=project.total_files,
+            user_id=user.id,
+        )
+        log_info(
+            "Project",
+            "Dataset removed from project",
+            project_id=project_id,
+            dataset_id=dataset_id,
+            total_files=project.total_files,
+        )
+    except Exception as e:
+        logger.error("remove_dataset_from_project_failed", project_id=project_id, dataset_id=dataset_id, error=str(e), exc_info=True)
+        log_error(
+            "Project",
+            "Failed to remove dataset from project",
+            error_code="PROJ_REMOVE_DATASET_FAILED",
+            project_id=project_id,
+            dataset_id=dataset_id,
+            reason=str(e),
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Failed to remove dataset from project",
+                "error_code": "PROJ_REMOVE_DATASET_FAILED",
+                "project_id": project_id,
+                "dataset_id": dataset_id,
+                "reason": str(e),
+                "suggestion": "Check database connectivity and retry"
+            }
+        )

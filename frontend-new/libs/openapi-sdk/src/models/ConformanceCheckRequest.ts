@@ -7,7 +7,7 @@ import type { ConformanceMethod } from './ConformanceMethod';
  * Request for conformance checking.
  */
 export type ConformanceCheckRequest = {
-    log_id: string;
+    dataset_id: string;
     model_id: string;
     method?: ConformanceMethod;
 };

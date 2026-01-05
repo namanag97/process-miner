@@ -2,7 +2,17 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Process Mining API",
-    "description": "\n# Process Mining SaaS API\n\nEnterprise-grade process mining platform powered by PM4Py.\n\n## Features\n\n- **Event Log Management**: Upload CSV, XES, OCEL files with column auto-detection\n- **Process Discovery**: Alpha, Inductive, Heuristics miners with quality metrics\n- **Conformance Checking**: Token replay, alignments with deviation analysis\n- **Performance Analytics**: Bottleneck detection, cycle time, throughput\n- **Predictions**: ML-based next activity and remaining time predictions\n- **OCEL Support**: Object-Centric Process Mining with OCEL 2.0\n\n## Error Handling\n\nAll errors follow RFC 7807 Problem Details format with typed error codes.\n\n## Authentication\n\nJWT-based authentication with optional workspace context.\n        ",
+    "description": "\n# Process Mining SaaS API\n\nWelcome to the **Process Mining SaaS API**. This API provides enterprise-grade process mining capabilities, allowing you to discover, analyze, and optimize business processes from event logs.\n\n## \ud83d\ude80 Key Features\n\n*   **Event Log Management**: Upload and process CSV, XES, and OCEL files with automatic schema detection.\n*   **Process Discovery**: Automatically generate process models (Petri nets, BPMN, DFG) using state-of-the-art algorithms (Alpha, Inductive, Heuristics).\n*   **Conformance Checking**: Compare actual process execution against reference models to identify deviations and root causes.\n*   **Performance Analytics**: Deep dive into bottlenecks, cycle times, and throughput efficiency.\n*   **Predictive Process Monitoring**: Leverage Machine Learning to predict next activities and remaining process time.\n*   **Object-Centric Process Mining (OCPM)**: Native support for OCEL 2.0 to analyze complex, multi-object processes.\n\n## \ud83d\udd10 Authentication\n\nThis API uses **JWT (JSON Web Token)** for authentication.\n\n1.  **Register/Login**: Use `/api/v1/auth/login` to obtain an `access_token` and `refresh_token`.\n2.  **Authorize**: Click the **Authorize** button at the top right and enter your token (Bearer format is handled automatically by the UI, just enter the token string if prompted, or follows the Scheme).\n    *   *Note: For this specific Swagger UI, standard Bearer auth is configured.*\n\n## \ud83d\udce6 Rate Limiting\n\nAPI requests are rate-limited to ensure stability.\n*   **Standard**: 100 requests/minute\n*   **Uploads**: 10 requests/minute\n\nHeaders returned:\n*   `X-RateLimit-Limit`\n*   `X-RateLimit-Remaining`\n*   `X-RateLimit-Reset`\n\n## \ud83c\udd98 Support\n\nFor support, please contact the developer team or refer to the internal documentation.\n",
+    "termsOfService": "https://processmining.io/terms",
+    "contact": {
+      "name": "Process Mining Platform Team",
+      "url": "https://processmining.io/support",
+      "email": "support@processmining.io"
+    },
+    "license": {
+      "name": "Proprietary",
+      "url": "https://processmining.io/license"
+    },
     "version": "1.0.0"
   },
   "paths": {
@@ -1299,8 +1309,8 @@
         "tags": [
           "Datasets"
         ],
-        "summary": "Get Presigned Upload Url",
-        "description": "Generate presigned URL for direct client-to-S3 upload.\n\nPhase 4: Data Ingestion Pipeline - Enterprise-grade upload flow:\n1. Client requests presigned URL with filename and metadata\n2. Backend generates unique storage key and dataset record\n3. Client uploads directly to S3 (bypasses backend for large files)\n4. Client calls POST /datasets/{dataset_id}/trigger-validation to start processing\n\nReturns presigned PUT URL valid for 1 hour (configurable).\n\nArgs:\n    request: Upload request with filename, content_type, file_size\n    db: Database session\n    current_user: Authenticated user\n\nReturns:\n    Presigned upload URL and dataset tracking info\n\nRaises:\n    ValidationError: If validation fails\n    ProcessingError: If storage client fails",
+        "summary": "Get Presigned S3 Upload URL",
+        "description": "Generate a short-lived presigned URL for direct S3 upload.\n\n## Use Case\n*   **Large Files**: Bypass the API server for files > 10MB.\n*   **Performance**: Faster upload speeds via direct S3 connection.\n\n## Flow\n1.  Call this endpoint to get `upload_url`.\n2.  PUT the file to `upload_url`.\n3.  Call `POST /datasets/{id}/trigger-validation` to start processing.",
         "operationId": "get_presigned_upload_url_api_v1_datasets_upload_presigned_post",
         "security": [
           {
@@ -1337,24 +1347,26 @@
         },
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Presigned URL generated successfully",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PresignedUploadResponse"
+                },
+                "example": {
+                  "upload_url": "https://s3.aws.com/bucket/key?sig=...",
+                  "storage_key": "123/456.csv",
+                  "dataset_id": "123e4567-e89b-12d3-a456-426614174000",
+                  "expires_in": 3600
                 }
               }
             }
           },
+          "429": {
+            "description": "Rate limit exceeded (10/min)"
+          },
           "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
+            "description": "Validation error (invalid extension)"
           }
         }
       }
@@ -1364,8 +1376,8 @@
         "tags": [
           "Datasets"
         ],
-        "summary": "Trigger Validation",
-        "description": "Trigger validation worker after client completes S3 upload.\n\nMVP Implementation: Client must call this after uploading to presigned URL.\n\nFlow:\n1. Client: POST /datasets/upload/presigned \u2192 Get presigned URL\n2. Client: PUT to presigned URL \u2192 Upload file to S3\n3. Client: POST /datasets/{dataset_id}/trigger-validation \u2192 Start processing\n\nArgs:\n    dataset_id: Dataset ID from presigned response\n    db: Database session\n    current_user: Authenticated user\n\nReturns:\n    Status message with task_id for polling\n\nRaises:\n    NotFoundError: If dataset doesn't exist\n    ValidationError: If dataset not in PENDING state",
+        "summary": "Trigger Dataset Validation",
+        "description": "Start the background validation and ingestion process after a successful S3 upload.\n\n## When to use\nCall this **only** after successfully uploading a file to the presigned URL obtained from `/upload/presigned`.",
         "operationId": "trigger_validation_api_v1_datasets__dataset_id__trigger_validation_post",
         "security": [
           {
@@ -1401,7 +1413,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Validation task queued",
             "content": {
               "application/json": {
                 "schema": {
@@ -1410,9 +1422,20 @@
                     "type": "string"
                   },
                   "title": "Response Trigger Validation Api V1 Datasets  Dataset Id  Trigger Validation Post"
+                },
+                "example": {
+                  "status": "validation_queued",
+                  "task_id": "task_12345",
+                  "dataset_id": "123e4567-..."
                 }
               }
             }
+          },
+          "400": {
+            "description": "Dataset not in PENDING state"
+          },
+          "404": {
+            "description": "Dataset not found"
           },
           "422": {
             "description": "Validation Error",
@@ -1432,8 +1455,8 @@
         "tags": [
           "Datasets"
         ],
-        "summary": "Upload Dataset",
-        "description": "Upload and ingest an event log file.\n\nSupports CSV and XES formats. For CSV files, column mappings\nwill be auto-detected if not provided.\n\nWith async_store=true (deferred ingestion):\n- File is stored immediately, Dataset created with status=UNSTRUCTURED\n- Use POST /{dataset_id}/ingest to trigger background parsing with column mapping\n\nRequires DATASET_CREATE permission in the workspace.",
+        "summary": "Upload Event Log File",
+        "description": "Upload and ingest an event log file (CSV or XES).\n\n## Features\n*   **Auto-detection**: Smart column detection for CSV files.\n*   **Streaming**: efficiently handles large files (up to 100MB) without memory issues.\n*   **Async Store**: Optional deferred processing for very large datasets.\n\n## Form Parameters\n*   `file`: The file to upload.\n*   `project_id`: Target project ID.\n*   `case_id_column` etc.: Manual mapping overrides.",
         "operationId": "upload_dataset_api_v1_datasets_upload_post",
         "security": [
           {
@@ -1470,24 +1493,29 @@
         },
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Dataset created and ingested successfully",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DatasetResponse"
+                },
+                "example": {
+                  "id": "123e4567-e89b-12d3-a456-426614174000",
+                  "name": "purchasing_log",
+                  "status": "ready",
+                  "total_events": 15400
                 }
               }
             }
           },
+          "400": {
+            "description": "Invalid file format or missing columns"
+          },
+          "413": {
+            "description": "File too large (exceeds 100MB)"
+          },
           "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
+            "description": "Validation error (missing project_id)"
           }
         }
       }
@@ -2536,12 +2564,12 @@
         "operationId": "create_analysis_api_v1_analyses_post",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "query",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -2587,7 +2615,7 @@
         "operationId": "list_analyses_api_v1_analyses_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "query",
             "required": false,
             "schema": {
@@ -2600,7 +2628,7 @@
                 }
               ],
               "description": "Filter by event log ID",
-              "title": "Log Id"
+              "title": "Dataset Id"
             },
             "description": "Filter by event log ID"
           },
@@ -2741,22 +2769,22 @@
         }
       }
     },
-    "/api/v1/analyses/log/{log_id}": {
+    "/api/v1/analyses/log/{dataset_id}": {
       "get": {
         "tags": [
           "Analyses"
         ],
         "summary": "List Analyses For Log",
         "description": "Get all analyses for a specific event log.",
-        "operationId": "list_analyses_for_log_api_v1_analyses_log__log_id__get",
+        "operationId": "list_analyses_for_log_api_v1_analyses_log__dataset_id__get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -2770,7 +2798,7 @@
                   "items": {
                     "$ref": "#/components/schemas/AnalysisResponse"
                   },
-                  "title": "Response List Analyses For Log Api V1 Analyses Log  Log Id  Get"
+                  "title": "Response List Analyses For Log Api V1 Analyses Log  Dataset Id  Get"
                 }
               }
             }
@@ -2820,8 +2848,13 @@
           "Discovery"
         ],
         "summary": "Discover Model",
-        "description": "Discover a process model from an event log.\n\nBUG-019 FIX: Heavy mining is now offloaded to Celery by default.\nSet async_mode=False for synchronous execution (not recommended for large logs).\n\nArgs:\n    request: Discovery request with log_id, miner_type, model_name\n    async_mode: If True (default), runs in background and returns job_id\n\nReturns:\n    - If async_mode=True: {\"job_id\": \"...\", \"status\": \"pending\"}\n    - If async_mode=False: ModelResponse with discovered model",
+        "description": "Discover a process model from an event log.\n\nBUG-019 FIX: Heavy mining is now offloaded to Celery by default.\nSet async_mode=False for synchronous execution (not recommended for large logs).\n\nArgs:\n    request: Discovery request with dataset_id, miner_type, model_name\n    async_mode: If True (default), runs in background and returns job_id\n\nReturns:\n    - If async_mode=True: {\"job_id\": \"...\", \"status\": \"pending\"}\n    - If async_mode=False: ModelResponse with discovered model",
         "operationId": "discover_model_api_v1_discovery_discover_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "async_mode",
@@ -2831,6 +2864,22 @@
               "type": "boolean",
               "default": true,
               "title": "Async Mode"
+            }
+          },
+          {
+            "name": "X-Org-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Org-Id"
             }
           }
         ],
@@ -2872,7 +2921,7 @@
           "Discovery"
         ],
         "summary": "List Models",
-        "description": "List discovered process models.\n\nSupports pagination and filtering by source log.",
+        "description": "List discovered process models.\n\nSupports pagination and filtering by source dataset.",
         "operationId": "list_models_api_v1_discovery_models_get",
         "parameters": [
           {
@@ -2899,7 +2948,7 @@
             }
           },
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "query",
             "required": false,
             "schema": {
@@ -2911,7 +2960,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -3021,22 +3070,22 @@
         }
       }
     },
-    "/api/v1/visualization/{log_id}/dfg": {
+    "/api/v1/visualization/{dataset_id}/dfg": {
       "get": {
         "tags": [
           "Visualization"
         ],
         "summary": "Get Dfg",
         "description": "Get Directly-Follows Graph data for visualization.\n\nReturns nodes (activities) and edges (transitions) with frequencies,\noptimized for rendering with React Flow, D3, or similar libraries.\n\nWhen include_performance=true, edges include timing metrics:\n- avg_duration_seconds: Mean time between activities\n- min_duration_seconds: Minimum time between activities\n- max_duration_seconds: Maximum time between activities",
-        "operationId": "get_dfg_api_v1_visualization__log_id__dfg_get",
+        "operationId": "get_dfg_api_v1_visualization__dataset_id__dfg_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           },
           {
@@ -3160,22 +3209,22 @@
         }
       }
     },
-    "/api/v1/visualization/{log_id}/dfg/svg": {
+    "/api/v1/visualization/{dataset_id}/dfg/svg": {
       "get": {
         "tags": [
           "Visualization"
         ],
         "summary": "Get Dfg Svg",
         "description": "Get SVG visualization of DFG for an event log.\n\nDiscovers DFG and returns SVG visualization.",
-        "operationId": "get_dfg_svg_api_v1_visualization__log_id__dfg_svg_get",
+        "operationId": "get_dfg_svg_api_v1_visualization__dataset_id__dfg_svg_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -3201,22 +3250,22 @@
         }
       }
     },
-    "/api/v1/visualization/{log_id}/footprints": {
+    "/api/v1/visualization/{dataset_id}/footprints": {
       "get": {
         "tags": [
           "Visualization"
         ],
         "summary": "Get Footprints",
         "description": "Get behavioral footprints for an event log.\n\nShows sequence and parallel relations between activities.",
-        "operationId": "get_footprints_api_v1_visualization__log_id__footprints_get",
+        "operationId": "get_footprints_api_v1_visualization__dataset_id__footprints_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -3242,22 +3291,22 @@
         }
       }
     },
-    "/api/v1/visualization/{log_id}/explorer-data": {
+    "/api/v1/visualization/{dataset_id}/explorer-data": {
       "get": {
         "tags": [
           "Visualization"
         ],
         "summary": "Get Explorer Data",
         "description": "Get unified explorer data for the Process Explorer frontend component.\n\nReturns all data needed for the process explorer in a single request:\n- dfg: Directly-Follows Graph with nodes and edges\n- variants: Top process variants with optional complexity metrics\n- activities: Activity statistics with frequency and timing\n- statistics: Overall process statistics\n\nThis endpoint is optimized for the frontend to reduce API calls.",
-        "operationId": "get_explorer_data_api_v1_visualization__log_id__explorer_data_get",
+        "operationId": "get_explorer_data_api_v1_visualization__dataset_id__explorer_data_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           },
           {
@@ -3389,7 +3438,7 @@
         "operationId": "list_conformance_results_api_v1_conformance_results_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "query",
             "required": false,
             "schema": {
@@ -3402,7 +3451,7 @@
                 }
               ],
               "description": "Filter by event log ID",
-              "title": "Log Id"
+              "title": "Dataset Id"
             },
             "description": "Filter by event log ID"
           },
@@ -3554,22 +3603,22 @@
         }
       }
     },
-    "/api/v1/conformance/diagnostics/{log_id}/{model_id}": {
+    "/api/v1/conformance/diagnostics/{dataset_id}/{model_id}": {
       "get": {
         "tags": [
           "Conformance"
         ],
         "summary": "Get Conformance Diagnostics",
         "description": "Get detailed conformance diagnostics for a log-model pair.\n\nReturns trace-level analysis including deviations.",
-        "operationId": "get_conformance_diagnostics_api_v1_conformance_diagnostics__log_id___model_id__get",
+        "operationId": "get_conformance_diagnostics_api_v1_conformance_diagnostics__dataset_id___model_id__get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           },
           {
@@ -3606,22 +3655,22 @@
         }
       }
     },
-    "/api/v1/conformance/deviations/{log_id}/{model_id}": {
+    "/api/v1/conformance/deviations/{dataset_id}/{model_id}": {
       "get": {
         "tags": [
           "Conformance"
         ],
         "summary": "Get Deviations",
         "description": "Detect and list specific deviations from the model.\n\nReturns case-level deviation information.",
-        "operationId": "get_deviations_api_v1_conformance_deviations__log_id___model_id__get",
+        "operationId": "get_deviations_api_v1_conformance_deviations__dataset_id___model_id__get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           },
           {
@@ -3656,7 +3705,7 @@
                   "items": {
                     "$ref": "#/components/schemas/DeviationResponse"
                   },
-                  "title": "Response Get Deviations Api V1 Conformance Deviations  Log Id   Model Id  Get"
+                  "title": "Response Get Deviations Api V1 Conformance Deviations  Dataset Id   Model Id  Get"
                 }
               }
             }
@@ -3674,22 +3723,22 @@
         }
       }
     },
-    "/api/v1/conformance/alignments/{log_id}/{model_id}": {
+    "/api/v1/conformance/alignments/{dataset_id}/{model_id}": {
       "get": {
         "tags": [
           "Conformance"
         ],
         "summary": "Get Alignment Diagnostics",
         "description": "Get detailed alignment diagnostics for a log-model pair.\n\nUses PM4Py's alignment-based conformance checking to compute optimal\nalignments between traces and the process model. This provides:\n- Per-case fitness scores\n- Detailed alignment moves (sync, log-only, model-only)\n- Identification of deviating activities\n\nNote: This is computationally expensive for large logs. Use max_cases to limit.",
-        "operationId": "get_alignment_diagnostics_api_v1_conformance_alignments__log_id___model_id__get",
+        "operationId": "get_alignment_diagnostics_api_v1_conformance_alignments__dataset_id___model_id__get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           },
           {
@@ -3760,22 +3809,22 @@
         }
       }
     },
-    "/api/v1/conformance/quality/{log_id}/{model_id}": {
+    "/api/v1/conformance/quality/{dataset_id}/{model_id}": {
       "get": {
         "tags": [
           "Conformance"
         ],
         "summary": "Get Quality Metrics",
         "description": "Get full quality metrics for a log-model pair.\n\nReturns all 4 quality dimensions from PM4py:\n- **Fitness**: How well the log fits the model (0-1)\n- **Precision**: How much the model allows for behavior not observed in log (0-1)\n- **Generalization**: How well the model generalizes beyond observed behavior (0-1)\n- **Simplicity**: How simple/understandable the model is (0-1)\n- **F-score**: Harmonic mean of fitness and precision\n\nAll metrics are higher-is-better.",
-        "operationId": "get_quality_metrics_api_v1_conformance_quality__log_id___model_id__get",
+        "operationId": "get_quality_metrics_api_v1_conformance_quality__dataset_id___model_id__get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           },
           {
@@ -3877,22 +3926,22 @@
         }
       }
     },
-    "/api/v1/conformance/root-cause/{log_id}/{model_id}": {
+    "/api/v1/conformance/root-cause/{dataset_id}/{model_id}": {
       "get": {
         "tags": [
           "Conformance"
         ],
         "summary": "Get Root Cause Analysis",
         "description": "Get comprehensive root cause analysis for conformance deviations.\n\nPhase 11.3 - Root Cause Analysis\n\nAnalyzes:\n- Deviation aggregation by activity (which activities cause most issues)\n- Deviation aggregation by position (where in the process do issues occur)\n- Attribute correlation (which resources/departments have more deviations)\n\nUse this to identify patterns in conformance violations.\n\nArgs:\n    log_id: Event log ID\n    model_id: Process model ID\n    attributes: Comma-separated attributes to analyze (default: \"resource\")\n\nReturns:\n    Comprehensive root cause analysis report",
-        "operationId": "get_root_cause_analysis_api_v1_conformance_root_cause__log_id___model_id__get",
+        "operationId": "get_root_cause_analysis_api_v1_conformance_root_cause__dataset_id___model_id__get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           },
           {
@@ -3939,22 +3988,22 @@
         }
       }
     },
-    "/api/v1/conformance/deviations/by-activity/{log_id}/{model_id}": {
+    "/api/v1/conformance/deviations/by-activity/{dataset_id}/{model_id}": {
       "get": {
         "tags": [
           "Conformance"
         ],
         "summary": "Get Deviations By Activity",
         "description": "Get deviation aggregation by activity.\n\nIdentifies which activities cause the most conformance issues.",
-        "operationId": "get_deviations_by_activity_api_v1_conformance_deviations_by_activity__log_id___model_id__get",
+        "operationId": "get_deviations_by_activity_api_v1_conformance_deviations_by_activity__dataset_id___model_id__get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           },
           {
@@ -3989,22 +4038,22 @@
         }
       }
     },
-    "/api/v1/conformance/deviations/by-position/{log_id}/{model_id}": {
+    "/api/v1/conformance/deviations/by-position/{dataset_id}/{model_id}": {
       "get": {
         "tags": [
           "Conformance"
         ],
         "summary": "Get Deviations By Position",
         "description": "Get deviation aggregation by position in trace.\n\nIdentifies at which point in the process deviations occur most frequently.",
-        "operationId": "get_deviations_by_position_api_v1_conformance_deviations_by_position__log_id___model_id__get",
+        "operationId": "get_deviations_by_position_api_v1_conformance_deviations_by_position__dataset_id___model_id__get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           },
           {
@@ -4039,22 +4088,22 @@
         }
       }
     },
-    "/api/v1/conformance/deviations/attribute-correlation/{log_id}/{model_id}": {
+    "/api/v1/conformance/deviations/attribute-correlation/{dataset_id}/{model_id}": {
       "get": {
         "tags": [
           "Conformance"
         ],
         "summary": "Get Attribute Correlation",
         "description": "Analyze correlation between case attributes and conformance deviations.\n\nIdentifies which attribute values (e.g., specific resources or departments)\nare associated with more conformance violations.",
-        "operationId": "get_attribute_correlation_api_v1_conformance_deviations_attribute_correlation__log_id___model_id__get",
+        "operationId": "get_attribute_correlation_api_v1_conformance_deviations_attribute_correlation__dataset_id___model_id__get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           },
           {
@@ -4101,22 +4150,22 @@
         }
       }
     },
-    "/api/v1/business/p2p/mavericks/{log_id}/{reference_model_id}": {
+    "/api/v1/business/p2p/mavericks/{dataset_id}/{reference_model_id}": {
       "get": {
         "tags": [
           "Business Use Cases"
         ],
         "summary": "Detect P2P Mavericks",
-        "description": "Detect maverick purchasing behavior in P2P process.\n\nMavericks are purchase orders that don't follow the approved process model.\n\nArgs:\n    log_id: Purchase order event log ID\n    reference_model_id: Approved P2P process model ID\n    threshold: Fitness threshold (default 0.8). Cases below this are mavericks.\n\nReturns:\n    Maverick cases and statistics",
-        "operationId": "detect_p2p_mavericks_api_v1_business_p2p_mavericks__log_id___reference_model_id__get",
+        "description": "Detect maverick purchasing behavior in P2P process.\n\nMavericks are purchase orders that don't follow the approved process model.\n\nArgs:\n    dataset_id: Purchase order event log ID\n    reference_model_id: Approved P2P process model ID\n    threshold: Fitness threshold (default 0.8). Cases below this are mavericks.\n\nReturns:\n    Maverick cases and statistics",
+        "operationId": "detect_p2p_mavericks_api_v1_business_p2p_mavericks__dataset_id___reference_model_id__get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           },
           {
@@ -4163,22 +4212,22 @@
         }
       }
     },
-    "/api/v1/business/p2p/audit-report/{log_id}/{reference_model_id}": {
+    "/api/v1/business/p2p/audit-report/{dataset_id}/{reference_model_id}": {
       "get": {
         "tags": [
           "Business Use Cases"
         ],
         "summary": "Generate P2P Audit Report",
-        "description": "Generate comprehensive P2P audit report.\n\nIncludes:\n- Conformance overview\n- Maverick analysis\n- Root cause analysis\n- Recommendations\n\nArgs:\n    log_id: Purchase order event log ID\n    reference_model_id: Approved P2P process model ID\n\nReturns:\n    Comprehensive audit report",
-        "operationId": "generate_p2p_audit_report_api_v1_business_p2p_audit_report__log_id___reference_model_id__get",
+        "description": "Generate comprehensive P2P audit report.\n\nIncludes:\n- Conformance overview\n- Maverick analysis\n- Root cause analysis\n- Recommendations\n\nArgs:\n    dataset_id: Purchase order event log ID\n    reference_model_id: Approved P2P process model ID\n\nReturns:\n    Comprehensive audit report",
+        "operationId": "generate_p2p_audit_report_api_v1_business_p2p_audit_report__dataset_id___reference_model_id__get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           },
           {
@@ -4213,22 +4262,22 @@
         }
       }
     },
-    "/api/v1/business/o2c/split-log/{log_id}": {
+    "/api/v1/business/o2c/split-log/{dataset_id}": {
       "get": {
         "tags": [
           "Business Use Cases"
         ],
         "summary": "Split Log By Attribute",
-        "description": "Split event log by attribute for comparative analysis.\n\nUseful for comparing processes across regions, products, or customer segments.\n\nArgs:\n    log_id: Event log ID\n    attribute: Attribute to split on\n    value: Specific value to filter for\n\nReturns:\n    Statistics about filtered subset",
-        "operationId": "split_log_by_attribute_api_v1_business_o2c_split_log__log_id__get",
+        "description": "Split event log by attribute for comparative analysis.\n\nUseful for comparing processes across regions, products, or customer segments.\n\nArgs:\n    dataset_id: Event log ID\n    attribute: Attribute to split on\n    value: Specific value to filter for\n\nReturns:\n    Statistics about filtered subset",
+        "operationId": "split_log_by_attribute_api_v1_business_o2c_split_log__dataset_id__get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           },
           {
@@ -4276,31 +4325,31 @@
         }
       }
     },
-    "/api/v1/business/o2c/compare/{log_id1}/{log_id2}": {
+    "/api/v1/business/o2c/compare/{dataset_id1}/{dataset_id2}": {
       "get": {
         "tags": [
           "Business Use Cases"
         ],
         "summary": "Compare Process Variants",
-        "description": "Compare process variants between two logs.\n\nUseful for comparing performance across regions, before/after improvements, etc.\n\nArgs:\n    log_id1: First event log ID\n    log_id2: Second event log ID\n    log1_name: Display name for first group\n    log2_name: Display name for second group\n\nReturns:\n    Comparison metrics (durations, variants, differences)",
-        "operationId": "compare_process_variants_api_v1_business_o2c_compare__log_id1___log_id2__get",
+        "description": "Compare process variants between two logs.\n\nUseful for comparing performance across regions, before/after improvements, etc.\n\nArgs:\n    dataset_id1: First event log ID\n    dataset_id2: Second event log ID\n    log1_name: Display name for first group\n    log2_name: Display name for second group\n\nReturns:\n    Comparison metrics (durations, variants, differences)",
+        "operationId": "compare_process_variants_api_v1_business_o2c_compare__dataset_id1___dataset_id2__get",
         "parameters": [
           {
-            "name": "log_id1",
+            "name": "dataset_id1",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id1"
+              "title": "Dataset Id1"
             }
           },
           {
-            "name": "log_id2",
+            "name": "dataset_id2",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id2"
+              "title": "Dataset Id2"
             }
           },
           {
@@ -4350,22 +4399,22 @@
         }
       }
     },
-    "/api/v1/business/supply-chain/simulate/{log_id}": {
+    "/api/v1/business/supply-chain/simulate/{dataset_id}": {
       "post": {
         "tags": [
           "Business Use Cases"
         ],
         "summary": "Simulate Process Changes",
-        "description": "Simulate process changes using Monte Carlo simulation.\n\nEstimates impact of process improvements on cycle time and throughput.\n\nArgs:\n    log_id: Historical event log ID\n    activity_duration_reduction: Percentage reduction in activity durations (0-1)\n    capacity_increase: Percentage increase in resource capacity (0-1)\n    num_simulations: Number of simulation runs (default 1000)\n\nReturns:\n    Simulation results with baseline, simulated metrics, and impact analysis",
-        "operationId": "simulate_process_changes_api_v1_business_supply_chain_simulate__log_id__post",
+        "description": "Simulate process changes using Monte Carlo simulation.\n\nEstimates impact of process improvements on cycle time and throughput.\n\nArgs:\n    dataset_id: Historical event log ID\n    activity_duration_reduction: Percentage reduction in activity durations (0-1)\n    capacity_increase: Percentage increase in resource capacity (0-1)\n    num_simulations: Number of simulation runs (default 1000)\n\nReturns:\n    Simulation results with baseline, simulated metrics, and impact analysis",
+        "operationId": "simulate_process_changes_api_v1_business_supply_chain_simulate__dataset_id__post",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           },
           {
@@ -4427,22 +4476,22 @@
         }
       }
     },
-    "/api/v1/business/customer-journey/dropoffs/{log_id}": {
+    "/api/v1/business/customer-journey/dropoffs/{dataset_id}": {
       "get": {
         "tags": [
           "Business Use Cases"
         ],
         "summary": "Detect Journey Dropoffs",
-        "description": "Detect drop-offs in customer journey funnel.\n\nIdentifies at which stage customers are dropping out of the process.\n\nArgs:\n    log_id: Customer journey event log ID\n    expected_path: Expected journey path (comma-separated), or None for auto-detect\n\nReturns:\n    Drop-off analysis by stage with completion rates",
-        "operationId": "detect_journey_dropoffs_api_v1_business_customer_journey_dropoffs__log_id__get",
+        "description": "Detect drop-offs in customer journey funnel.\n\nIdentifies at which stage customers are dropping out of the process.\n\nArgs:\n    dataset_id: Customer journey event log ID\n    expected_path: Expected journey path (comma-separated), or None for auto-detect\n\nReturns:\n    Drop-off analysis by stage with completion rates",
+        "operationId": "detect_journey_dropoffs_api_v1_business_customer_journey_dropoffs__dataset_id__get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           },
           {
@@ -4562,22 +4611,22 @@
         }
       }
     },
-    "/api/v1/ocpm/logs/{log_id}": {
+    "/api/v1/ocpm/datasets/{dataset_id}": {
       "get": {
         "tags": [
           "Object-Centric Process Mining"
         ],
         "summary": "Get Ocel Log",
         "description": "Get OCEL log details.\n\nReturns detailed information about a specific object-centric event log.",
-        "operationId": "get_ocel_log_api_v1_ocpm_logs__log_id__get",
+        "operationId": "get_ocel_log_api_v1_ocpm_datasets__dataset_id__get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -4610,15 +4659,15 @@
         ],
         "summary": "Delete Ocel Log",
         "description": "Delete an OCEL log.\n\nRemoves the log and all associated data (object types, models).",
-        "operationId": "delete_ocel_log_api_v1_ocpm_logs__log_id__delete",
+        "operationId": "delete_ocel_log_api_v1_ocpm_datasets__dataset_id__delete",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -4644,22 +4693,22 @@
         }
       }
     },
-    "/api/v1/ocpm/logs/{log_id}/object-types": {
+    "/api/v1/ocpm/datasets/{dataset_id}/object-types": {
       "get": {
         "tags": [
           "Object-Centric Process Mining"
         ],
         "summary": "Get Object Types",
         "description": "Get object types in an OCEL log.\n\nReturns all object types (e.g., Order, Item, Package) with their counts.",
-        "operationId": "get_object_types_api_v1_ocpm_logs__log_id__object_types_get",
+        "operationId": "get_object_types_api_v1_ocpm_datasets__dataset_id__object_types_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -4673,7 +4722,7 @@
                   "items": {
                     "$ref": "#/components/schemas/OCELObjectTypeResponse"
                   },
-                  "title": "Response Get Object Types Api V1 Ocpm Logs  Log Id  Object Types Get"
+                  "title": "Response Get Object Types Api V1 Ocpm Datasets  Dataset Id  Object Types Get"
                 }
               }
             }
@@ -4691,22 +4740,22 @@
         }
       }
     },
-    "/api/v1/ocpm/logs/{log_id}/statistics": {
+    "/api/v1/ocpm/datasets/{dataset_id}/statistics": {
       "get": {
         "tags": [
           "Object-Centric Process Mining"
         ],
         "summary": "Get Ocel Statistics",
         "description": "Get detailed statistics for an OCEL log.\n\nReturns comprehensive statistics including event counts, object counts,\nactivities, and objects per type.",
-        "operationId": "get_ocel_statistics_api_v1_ocpm_logs__log_id__statistics_get",
+        "operationId": "get_ocel_statistics_api_v1_ocpm_datasets__dataset_id__statistics_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -4894,22 +4943,22 @@
         }
       }
     },
-    "/api/v1/ocpm/logs/{log_id}/relationships": {
+    "/api/v1/ocpm/datasets/{dataset_id}/relationships": {
       "get": {
         "tags": [
           "Object-Centric Process Mining"
         ],
         "summary": "Get Object Relationships",
         "description": "Get object-event relationships summary.\n\nShows how many events and cases are associated with each object type.\nThis is stored metadata from the upload - actual graph requires re-parsing.",
-        "operationId": "get_object_relationships_api_v1_ocpm_logs__log_id__relationships_get",
+        "operationId": "get_object_relationships_api_v1_ocpm_datasets__dataset_id__relationships_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -4921,7 +4970,7 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true,
-                  "title": "Response Get Object Relationships Api V1 Ocpm Logs  Log Id  Relationships Get"
+                  "title": "Response Get Object Relationships Api V1 Ocpm Datasets  Dataset Id  Relationships Get"
                 }
               }
             }
@@ -4939,22 +4988,22 @@
         }
       }
     },
-    "/api/v1/ocpm/logs/{log_id}/oc-dfg": {
+    "/api/v1/ocpm/datasets/{dataset_id}/oc-dfg": {
       "get": {
         "tags": [
           "Object-Centric Process Mining"
         ],
         "summary": "Get Oc Dfg",
         "description": "Get Object-Centric Directly-Follows Graph (OC-DFG) for an OCEL log.\n\nComputes the OC-DFG using PM4Py's `ocel_discover_ocdfg()` function.\nReturns separate DFG graphs for each object type, showing how activities\nrelate to each other within the context of different object types.\n\nThis endpoint requires the OCEL data to be stored (uploaded after Phase 2.1).",
-        "operationId": "get_oc_dfg_api_v1_ocpm_logs__log_id__oc_dfg_get",
+        "operationId": "get_oc_dfg_api_v1_ocpm_datasets__dataset_id__oc_dfg_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -5002,22 +5051,22 @@
         }
       }
     },
-    "/api/v1/ocpm/logs/{log_id}/flatten": {
+    "/api/v1/ocpm/datasets/{dataset_id}/flatten": {
       "post": {
         "tags": [
           "Object-Centric Process Mining"
         ],
         "summary": "Flatten Ocel To Dataset",
         "description": "Flatten an OCEL log to a traditional event log (Dataset) based on an object type.\n\nJob-Centric Architecture: Returns 202 with job_id for progress tracking.\n\nThis operation:\n1. Takes an OCEL log and flattens it by a specific object type\n2. Creates a new Dataset entity with the flattened events\n3. Returns a job_id for tracking the background processing\n\nExample: Flattening an e-commerce OCEL on 'Order' creates a traditional\nevent log where each Order becomes a case.",
-        "operationId": "flatten_ocel_to_dataset_api_v1_ocpm_logs__log_id__flatten_post",
+        "operationId": "flatten_ocel_to_dataset_api_v1_ocpm_datasets__dataset_id__flatten_post",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -5026,7 +5075,7 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/Body_flatten_ocel_to_dataset_api_v1_ocpm_logs__log_id__flatten_post"
+                "$ref": "#/components/schemas/Body_flatten_ocel_to_dataset_api_v1_ocpm_datasets__dataset_id__flatten_post"
               }
             }
           }
@@ -5370,22 +5419,22 @@
         }
       }
     },
-    "/api/v1/filtering/logs/{log_id}/apply": {
+    "/api/v1/filtering/datasets/{dataset_id}/apply": {
       "post": {
         "tags": [
           "Filtering"
         ],
         "summary": "Apply Filters",
         "description": "Apply filters to an event log and create a new filtered log.\n\nThis creates a new event log that is a filtered version of the source log.\nThe original log is not modified.",
-        "operationId": "apply_filters_api_v1_filtering_logs__log_id__apply_post",
+        "operationId": "apply_filters_api_v1_filtering_datasets__dataset_id__apply_post",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -5423,22 +5472,22 @@
         }
       }
     },
-    "/api/v1/filtering/logs/{log_id}/preview": {
+    "/api/v1/filtering/datasets/{dataset_id}/preview": {
       "post": {
         "tags": [
           "Filtering"
         ],
         "summary": "Preview Filters",
         "description": "Preview the impact of filters without saving.\n\nReturns statistics on how many cases/events would be retained.",
-        "operationId": "preview_filters_api_v1_filtering_logs__log_id__preview_post",
+        "operationId": "preview_filters_api_v1_filtering_datasets__dataset_id__preview_post",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -5476,22 +5525,22 @@
         }
       }
     },
-    "/api/v1/filtering/logs/{log_id}/options": {
+    "/api/v1/filtering/datasets/{dataset_id}/options": {
       "get": {
         "tags": [
           "Filtering"
         ],
         "summary": "Get Filter Options",
         "description": "Get available filter options based on log contents.\n\nReturns activities, resources, time ranges, and other values\nthat can be used for filtering.",
-        "operationId": "get_filter_options_api_v1_filtering_logs__log_id__options_get",
+        "operationId": "get_filter_options_api_v1_filtering_datasets__dataset_id__options_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -5519,22 +5568,22 @@
         }
       }
     },
-    "/api/v1/filtering/logs/{log_id}/results": {
+    "/api/v1/filtering/datasets/{dataset_id}/results": {
       "get": {
         "tags": [
           "Filtering"
         ],
         "summary": "List Filtered Logs",
         "description": "List all filtered versions of an event log.",
-        "operationId": "list_filtered_logs_api_v1_filtering_logs__log_id__results_get",
+        "operationId": "list_filtered_logs_api_v1_filtering_datasets__dataset_id__results_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -5562,22 +5611,22 @@
         }
       }
     },
-    "/api/v1/filtering/logs/{log_id}/results/{filtered_id}": {
+    "/api/v1/filtering/datasets/{dataset_id}/results/{filtered_id}": {
       "delete": {
         "tags": [
           "Filtering"
         ],
         "summary": "Delete Filtered Log",
         "description": "Delete a filtered log.",
-        "operationId": "delete_filtered_log_api_v1_filtering_logs__log_id__results__filtered_id__delete",
+        "operationId": "delete_filtered_log_api_v1_filtering_datasets__dataset_id__results__filtered_id__delete",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           },
           {
@@ -5598,7 +5647,7 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true,
-                  "title": "Response Delete Filtered Log Api V1 Filtering Logs  Log Id  Results  Filtered Id  Delete"
+                  "title": "Response Delete Filtered Log Api V1 Filtering Datasets  Dataset Id  Results  Filtered Id  Delete"
                 }
               }
             }
@@ -5638,22 +5687,22 @@
         }
       }
     },
-    "/api/v1/analytics/logs/{log_id}/bottlenecks": {
+    "/api/v1/analytics/datasets/{dataset_id}/bottlenecks": {
       "get": {
         "tags": [
           "Analytics"
         ],
         "summary": "Get Bottlenecks",
         "description": "Detect process bottlenecks based on waiting times.",
-        "operationId": "get_bottlenecks_api_v1_analytics_logs__log_id__bottlenecks_get",
+        "operationId": "get_bottlenecks_api_v1_analytics_datasets__dataset_id__bottlenecks_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -5681,22 +5730,22 @@
         }
       }
     },
-    "/api/v1/analytics/logs/{log_id}/rework": {
+    "/api/v1/analytics/datasets/{dataset_id}/rework": {
       "get": {
         "tags": [
           "Analytics"
         ],
         "summary": "Get Rework",
         "description": "Analyze rework (repeated activities) in cases.",
-        "operationId": "get_rework_api_v1_analytics_logs__log_id__rework_get",
+        "operationId": "get_rework_api_v1_analytics_datasets__dataset_id__rework_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -5724,22 +5773,22 @@
         }
       }
     },
-    "/api/v1/analytics/logs/{log_id}/service-times": {
+    "/api/v1/analytics/datasets/{dataset_id}/service-times": {
       "get": {
         "tags": [
           "Analytics"
         ],
         "summary": "Get Service Times",
         "description": "Get service time statistics per activity.",
-        "operationId": "get_service_times_api_v1_analytics_logs__log_id__service_times_get",
+        "operationId": "get_service_times_api_v1_analytics_datasets__dataset_id__service_times_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -5753,7 +5802,7 @@
                   "items": {
                     "$ref": "#/components/schemas/ServiceTimeResponse"
                   },
-                  "title": "Response Get Service Times Api V1 Analytics Logs  Log Id  Service Times Get"
+                  "title": "Response Get Service Times Api V1 Analytics Datasets  Dataset Id  Service Times Get"
                 }
               }
             }
@@ -5771,22 +5820,22 @@
         }
       }
     },
-    "/api/v1/analytics/logs/{log_id}/cycle-time": {
+    "/api/v1/analytics/datasets/{dataset_id}/cycle-time": {
       "get": {
         "tags": [
           "Analytics"
         ],
         "summary": "Get Cycle Time",
         "description": "Get cycle time (case duration) statistics.",
-        "operationId": "get_cycle_time_api_v1_analytics_logs__log_id__cycle_time_get",
+        "operationId": "get_cycle_time_api_v1_analytics_datasets__dataset_id__cycle_time_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -5814,22 +5863,22 @@
         }
       }
     },
-    "/api/v1/analytics/logs/{log_id}/throughput": {
+    "/api/v1/analytics/datasets/{dataset_id}/throughput": {
       "get": {
         "tags": [
           "Analytics"
         ],
         "summary": "Get Throughput",
         "description": "Get throughput metrics (cases per day/week/month).",
-        "operationId": "get_throughput_api_v1_analytics_logs__log_id__throughput_get",
+        "operationId": "get_throughput_api_v1_analytics_datasets__dataset_id__throughput_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -5857,22 +5906,22 @@
         }
       }
     },
-    "/api/v1/analytics/logs/{log_id}/patterns": {
+    "/api/v1/analytics/datasets/{dataset_id}/patterns": {
       "get": {
         "tags": [
           "Analytics"
         ],
         "summary": "Get Patterns",
         "description": "Get frequent activity patterns/subsequences.",
-        "operationId": "get_patterns_api_v1_analytics_logs__log_id__patterns_get",
+        "operationId": "get_patterns_api_v1_analytics_datasets__dataset_id__patterns_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           },
           {
@@ -5896,7 +5945,7 @@
                   "items": {
                     "$ref": "#/components/schemas/PatternResponse"
                   },
-                  "title": "Response Get Patterns Api V1 Analytics Logs  Log Id  Patterns Get"
+                  "title": "Response Get Patterns Api V1 Analytics Datasets  Dataset Id  Patterns Get"
                 }
               }
             }
@@ -5914,22 +5963,22 @@
         }
       }
     },
-    "/api/v1/analytics/logs/{log_id}/rework-chains": {
+    "/api/v1/analytics/datasets/{dataset_id}/rework-chains": {
       "get": {
         "tags": [
           "Analytics"
         ],
         "summary": "Get Rework Chains",
         "description": "Detect rework chains - consecutive repetitions of the same activity.\n\nA rework chain is when an activity appears multiple times consecutively,\nindicating immediate rework/retry patterns. For example, if activity 'Review'\nappears 3 times in a row, that's a chain of length 3.\n\nReturns:\n    - chains: List of detected rework chains with frequency and duration\n    - most_problematic_activity: Activity with the most chains\n    - cases_with_chains: Number of cases containing chains",
-        "operationId": "get_rework_chains_api_v1_analytics_logs__log_id__rework_chains_get",
+        "operationId": "get_rework_chains_api_v1_analytics_datasets__dataset_id__rework_chains_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -5957,22 +6006,22 @@
         }
       }
     },
-    "/api/v1/analytics/logs/{log_id}/performance": {
+    "/api/v1/analytics/datasets/{dataset_id}/performance": {
       "get": {
         "tags": [
           "Analytics"
         ],
         "summary": "Get Performance Dashboard",
         "description": "Get comprehensive performance dashboard.",
-        "operationId": "get_performance_dashboard_api_v1_analytics_logs__log_id__performance_get",
+        "operationId": "get_performance_dashboard_api_v1_analytics_datasets__dataset_id__performance_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -6000,22 +6049,22 @@
         }
       }
     },
-    "/api/v1/organizational/logs/{log_id}/handover-network": {
+    "/api/v1/organizational/datasets/{dataset_id}/handover-network": {
       "get": {
         "tags": [
           "Organizational Mining"
         ],
         "summary": "Get Handover Network",
         "description": "Discover handover of work network.",
-        "operationId": "get_handover_network_api_v1_organizational_logs__log_id__handover_network_get",
+        "operationId": "get_handover_network_api_v1_organizational_datasets__dataset_id__handover_network_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -6043,22 +6092,22 @@
         }
       }
     },
-    "/api/v1/organizational/logs/{log_id}/collaboration-network": {
+    "/api/v1/organizational/datasets/{dataset_id}/collaboration-network": {
       "get": {
         "tags": [
           "Organizational Mining"
         ],
         "summary": "Get Collaboration Network",
         "description": "Discover working together network.",
-        "operationId": "get_collaboration_network_api_v1_organizational_logs__log_id__collaboration_network_get",
+        "operationId": "get_collaboration_network_api_v1_organizational_datasets__dataset_id__collaboration_network_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -6086,22 +6135,22 @@
         }
       }
     },
-    "/api/v1/organizational/logs/{log_id}/resource-similarity": {
+    "/api/v1/organizational/datasets/{dataset_id}/resource-similarity": {
       "get": {
         "tags": [
           "Organizational Mining"
         ],
         "summary": "Get Resource Similarity",
         "description": "Discover resource similarity based on activities.",
-        "operationId": "get_resource_similarity_api_v1_organizational_logs__log_id__resource_similarity_get",
+        "operationId": "get_resource_similarity_api_v1_organizational_datasets__dataset_id__resource_similarity_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -6129,22 +6178,22 @@
         }
       }
     },
-    "/api/v1/organizational/logs/{log_id}/roles": {
+    "/api/v1/organizational/datasets/{dataset_id}/roles": {
       "get": {
         "tags": [
           "Organizational Mining"
         ],
         "summary": "Get Roles",
         "description": "Discover organizational roles.",
-        "operationId": "get_roles_api_v1_organizational_logs__log_id__roles_get",
+        "operationId": "get_roles_api_v1_organizational_datasets__dataset_id__roles_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -6158,7 +6207,7 @@
                   "items": {
                     "$ref": "#/components/schemas/ResourceRoleResponse"
                   },
-                  "title": "Response Get Roles Api V1 Organizational Logs  Log Id  Roles Get"
+                  "title": "Response Get Roles Api V1 Organizational Datasets  Dataset Id  Roles Get"
                 }
               }
             }
@@ -6176,22 +6225,22 @@
         }
       }
     },
-    "/api/v1/organizational/logs/{log_id}/resources/{resource}/profile": {
+    "/api/v1/organizational/datasets/{dataset_id}/resources/{resource}/profile": {
       "get": {
         "tags": [
           "Organizational Mining"
         ],
         "summary": "Get Resource Profile",
         "description": "Get detailed profile for a specific resource.",
-        "operationId": "get_resource_profile_api_v1_organizational_logs__log_id__resources__resource__profile_get",
+        "operationId": "get_resource_profile_api_v1_organizational_datasets__dataset_id__resources__resource__profile_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           },
           {
@@ -6228,22 +6277,22 @@
         }
       }
     },
-    "/api/v1/organizational/logs/{log_id}/workload": {
+    "/api/v1/organizational/datasets/{dataset_id}/workload": {
       "get": {
         "tags": [
           "Organizational Mining"
         ],
         "summary": "Get Workload",
         "description": "Get workload distribution across resources.",
-        "operationId": "get_workload_api_v1_organizational_logs__log_id__workload_get",
+        "operationId": "get_workload_api_v1_organizational_datasets__dataset_id__workload_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -6271,22 +6320,22 @@
         }
       }
     },
-    "/api/v1/predictions/logs/{log_id}/train": {
+    "/api/v1/predictions/datasets/{dataset_id}/train": {
       "post": {
         "tags": [
           "Predictions"
         ],
         "summary": "Train Predictor",
         "description": "Train a prediction model for an event log.\n\nArgs:\n    log_id: Event log ID\n    request: Training request with target_type and algorithm\n    async_mode: If True, train asynchronously via Celery (default)\n\nReturns:\n    - If async_mode=True: {\"job_id\": \"...\", \"status\": \"pending\"}\n    - If async_mode=False: PredictorResponse with trained model",
-        "operationId": "train_predictor_api_v1_predictions_logs__log_id__train_post",
+        "operationId": "train_predictor_api_v1_predictions_datasets__dataset_id__train_post",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           },
           {
@@ -6334,7 +6383,7 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true,
-                  "title": "Response Train Predictor Api V1 Predictions Logs  Log Id  Train Post"
+                  "title": "Response Train Predictor Api V1 Predictions Datasets  Dataset Id  Train Post"
                 }
               }
             }
@@ -6413,22 +6462,22 @@
         }
       }
     },
-    "/api/v1/predictions/logs/{log_id}/predictors": {
+    "/api/v1/predictions/datasets/{dataset_id}/predictors": {
       "get": {
         "tags": [
           "Predictions"
         ],
         "summary": "List Predictors",
         "description": "List all predictors for an event log.",
-        "operationId": "list_predictors_api_v1_predictions_logs__log_id__predictors_get",
+        "operationId": "list_predictors_api_v1_predictions_datasets__dataset_id__predictors_get",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -6701,22 +6750,22 @@
         }
       }
     },
-    "/api/v1/simulation/logs/{log_id}/simulate": {
+    "/api/v1/simulation/datasets/{dataset_id}/simulate": {
       "post": {
         "tags": [
           "Simulation"
         ],
         "summary": "Simulate Scenario",
         "description": "Run what-if simulation on an event log.",
-        "operationId": "simulate_scenario_api_v1_simulation_logs__log_id__simulate_post",
+        "operationId": "simulate_scenario_api_v1_simulation_datasets__dataset_id__simulate_post",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           }
         ],
@@ -6754,22 +6803,22 @@
         }
       }
     },
-    "/api/v1/simulation/logs/{log_id}/capacity-plan": {
+    "/api/v1/simulation/datasets/{dataset_id}/capacity-plan": {
       "post": {
         "tags": [
           "Simulation"
         ],
         "summary": "Estimate Capacity",
         "description": "Estimate resource requirements for target throughput.",
-        "operationId": "estimate_capacity_api_v1_simulation_logs__log_id__capacity_plan_post",
+        "operationId": "estimate_capacity_api_v1_simulation_datasets__dataset_id__capacity_plan_post",
         "parameters": [
           {
-            "name": "log_id",
+            "name": "dataset_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Log Id"
+              "title": "Dataset Id"
             }
           },
           {
@@ -6790,7 +6839,7 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true,
-                  "title": "Response Estimate Capacity Api V1 Simulation Logs  Log Id  Capacity Plan Post"
+                  "title": "Response Estimate Capacity Api V1 Simulation Datasets  Dataset Id  Capacity Plan Post"
                 }
               }
             }
@@ -7343,6 +7392,154 @@
         }
       }
     },
+    "/api/v1/dev/data/tables": {
+      "get": {
+        "tags": [
+          "DevData"
+        ],
+        "summary": "List Tables",
+        "description": "List all tables in the database.",
+        "operationId": "list_tables_api_v1_dev_data_tables_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "title": "Response List Tables Api V1 Dev Data Tables Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dev/data/records/{table}": {
+      "get": {
+        "tags": [
+          "DevData"
+        ],
+        "summary": "Get Records",
+        "description": "Get records from a table with pagination.",
+        "operationId": "get_records_api_v1_dev_data_records__table__get",
+        "parameters": [
+          {
+            "name": "table",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Table"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Records Api V1 Dev Data Records  Table  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dev/data/record/{table}/{record_id}": {
+      "get": {
+        "tags": [
+          "DevData"
+        ],
+        "summary": "Get Record",
+        "description": "Get a single record by ID.",
+        "operationId": "get_record_api_v1_dev_data_record__table___record_id__get",
+        "parameters": [
+          {
+            "name": "table",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Table"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Record Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Record Api V1 Dev Data Record  Table   Record Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/telemetry/traces": {
       "post": {
         "tags": [
@@ -7514,9 +7711,9 @@
       },
       "AlignmentDiagnosticsResponse": {
         "properties": {
-          "log_id": {
+          "dataset_id": {
             "type": "string",
-            "title": "Log Id"
+            "title": "Dataset Id"
           },
           "model_id": {
             "type": "string",
@@ -7544,7 +7741,7 @@
         },
         "type": "object",
         "required": [
-          "log_id",
+          "dataset_id",
           "model_id",
           "total_cases",
           "fitting_cases",
@@ -7938,7 +8135,7 @@
         ],
         "title": "Body_detect_columns_api_v1_datasets_detect_columns_post"
       },
-      "Body_flatten_ocel_to_dataset_api_v1_ocpm_logs__log_id__flatten_post": {
+      "Body_flatten_ocel_to_dataset_api_v1_ocpm_datasets__dataset_id__flatten_post": {
         "properties": {
           "object_type": {
             "type": "string",
@@ -7962,7 +8159,7 @@
         "required": [
           "object_type"
         ],
-        "title": "Body_flatten_ocel_to_dataset_api_v1_ocpm_logs__log_id__flatten_post"
+        "title": "Body_flatten_ocel_to_dataset_api_v1_ocpm_datasets__dataset_id__flatten_post"
       },
       "Body_upload_dataset_api_v1_datasets_upload_post": {
         "properties": {
@@ -8078,9 +8275,9 @@
       },
       "BottleneckListResponse": {
         "properties": {
-          "log_id": {
+          "dataset_id": {
             "type": "string",
-            "title": "Log Id"
+            "title": "Dataset Id"
           },
           "bottlenecks": {
             "items": {
@@ -8096,7 +8293,7 @@
         },
         "type": "object",
         "required": [
-          "log_id",
+          "dataset_id",
           "bottlenecks",
           "total_bottlenecks"
         ],
@@ -8506,9 +8703,9 @@
       },
       "ConformanceCheckRequest": {
         "properties": {
-          "log_id": {
+          "dataset_id": {
             "type": "string",
-            "title": "Log Id"
+            "title": "Dataset Id"
           },
           "model_id": {
             "type": "string",
@@ -8521,7 +8718,7 @@
         },
         "type": "object",
         "required": [
-          "log_id",
+          "dataset_id",
           "model_id"
         ],
         "title": "ConformanceCheckRequest",
@@ -8726,9 +8923,9 @@
       },
       "CycleTimeResponse": {
         "properties": {
-          "log_id": {
+          "dataset_id": {
             "type": "string",
-            "title": "Log Id"
+            "title": "Dataset Id"
           },
           "min_seconds": {
             "type": "number",
@@ -8761,7 +8958,7 @@
         },
         "type": "object",
         "required": [
-          "log_id",
+          "dataset_id",
           "min_seconds",
           "max_seconds",
           "avg_seconds",
@@ -9098,7 +9295,25 @@
           "updated_at"
         ],
         "title": "DatasetDetailResponse",
-        "description": "Detailed dataset response with statistics."
+        "description": "Detailed dataset response with statistics.",
+        "example": {
+          "activities": [
+            "Receive Order",
+            "Check Credit",
+            "Ship Goods",
+            "Send Invoice"
+          ],
+          "created_at": "2023-10-27T10:00:00Z",
+          "file_size_bytes": 2048500,
+          "id": "123e4567-e89b-12d3-a456-426614174000",
+          "name": "OrderToCash_2023",
+          "source_file": "o2c_logs.csv",
+          "source_format": "CSV",
+          "status": "ready",
+          "total_activities": 8,
+          "total_cases": 1250,
+          "total_events": 15420
+        }
       },
       "DatasetListResponse": {
         "properties": {
@@ -9237,7 +9452,25 @@
           "created_at"
         ],
         "title": "DatasetResponse",
-        "description": "Dataset response."
+        "description": "Dataset response.",
+        "example": {
+          "activities": [
+            "Receive Order",
+            "Check Credit",
+            "Ship Goods",
+            "Send Invoice"
+          ],
+          "created_at": "2023-10-27T10:00:00Z",
+          "file_size_bytes": 2048500,
+          "id": "123e4567-e89b-12d3-a456-426614174000",
+          "name": "OrderToCash_2023",
+          "source_file": "o2c_logs.csv",
+          "source_format": "CSV",
+          "status": "ready",
+          "total_activities": 8,
+          "total_cases": 1250,
+          "total_events": 15420
+        }
       },
       "DetailedHealthResponse": {
         "properties": {
@@ -9464,9 +9697,9 @@
       },
       "DiscoverOCPNRequest": {
         "properties": {
-          "log_id": {
+          "dataset_id": {
             "type": "string",
-            "title": "Log Id"
+            "title": "Dataset Id"
           },
           "model_name": {
             "anyOf": [
@@ -9482,17 +9715,17 @@
         },
         "type": "object",
         "required": [
-          "log_id"
+          "dataset_id"
         ],
         "title": "DiscoverOCPNRequest",
         "description": "Request to discover Object-Centric Petri Net."
       },
       "DiscoverRequest": {
         "properties": {
-          "log_id": {
+          "dataset_id": {
             "type": "string",
-            "title": "Log Id",
-            "description": "Dataset/log ID to mine"
+            "title": "Dataset Id",
+            "description": "Dataset ID to mine"
           },
           "miner_type": {
             "$ref": "#/components/schemas/MinerType",
@@ -9512,7 +9745,7 @@
         },
         "type": "object",
         "required": [
-          "log_id"
+          "dataset_id"
         ],
         "title": "DiscoverRequest",
         "description": "Request to discover a process model."
@@ -9807,13 +10040,13 @@
       },
       "FilteredLogListResponse": {
         "properties": {
-          "source_log_id": {
+          "source_dataset_id": {
             "type": "string",
-            "title": "Source Log Id"
+            "title": "Source Dataset Id"
           },
-          "source_log_name": {
+          "source_dataset_name": {
             "type": "string",
-            "title": "Source Log Name"
+            "title": "Source Dataset Name"
           },
           "filtered_logs": {
             "items": {
@@ -9829,8 +10062,8 @@
         },
         "type": "object",
         "required": [
-          "source_log_id",
-          "source_log_name",
+          "source_dataset_id",
+          "source_dataset_name",
           "filtered_logs",
           "total"
         ],
@@ -9847,9 +10080,9 @@
             "type": "string",
             "title": "Name"
           },
-          "source_log_id": {
+          "source_dataset_id": {
             "type": "string",
-            "title": "Source Log Id",
+            "title": "Source Dataset Id",
             "default": ""
           },
           "is_filtered": {
@@ -10035,6 +10268,17 @@
           "progress": {
             "type": "integer",
             "title": "Progress"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
           },
           "result": {
             "anyOf": [
@@ -10415,9 +10659,9 @@
       },
       "OCDFGResponse": {
         "properties": {
-          "log_id": {
+          "dataset_id": {
             "type": "string",
-            "title": "Log Id"
+            "title": "Dataset Id"
           },
           "object_types": {
             "items": {
@@ -10453,7 +10697,7 @@
         },
         "type": "object",
         "required": [
-          "log_id",
+          "dataset_id",
           "object_types",
           "activities",
           "graphs_by_type"
@@ -10631,9 +10875,9 @@
       },
       "OCELStatisticsResponse": {
         "properties": {
-          "log_id": {
+          "dataset_id": {
             "type": "string",
-            "title": "Log Id"
+            "title": "Dataset Id"
           },
           "total_events": {
             "type": "integer",
@@ -10675,7 +10919,7 @@
         },
         "type": "object",
         "required": [
-          "log_id",
+          "dataset_id",
           "total_events",
           "total_objects",
           "total_object_types",
@@ -10693,9 +10937,9 @@
             "type": "string",
             "title": "Id"
           },
-          "log_id": {
+          "dataset_id": {
             "type": "string",
-            "title": "Log Id",
+            "title": "Dataset Id",
             "default": ""
           },
           "name": {
@@ -10799,9 +11043,9 @@
       },
       "PerformanceDashboardResponse": {
         "properties": {
-          "log_id": {
+          "dataset_id": {
             "type": "string",
-            "title": "Log Id"
+            "title": "Dataset Id"
           },
           "cycle_time": {
             "$ref": "#/components/schemas/CycleTimeResponse"
@@ -10824,7 +11068,7 @@
         },
         "type": "object",
         "required": [
-          "log_id",
+          "dataset_id",
           "cycle_time",
           "throughput",
           "top_bottlenecks",
@@ -10981,9 +11225,9 @@
             "type": "string",
             "title": "Model Id"
           },
-          "generated_log_id": {
+          "generated_dataset_id": {
             "type": "string",
-            "title": "Generated Log Id"
+            "title": "Generated Dataset Id"
           },
           "traces_generated": {
             "type": "integer",
@@ -10997,7 +11241,7 @@
         "type": "object",
         "required": [
           "model_id",
-          "generated_log_id",
+          "generated_dataset_id",
           "traces_generated",
           "events_generated"
         ],
@@ -11089,9 +11333,9 @@
       },
       "PredictorListResponse": {
         "properties": {
-          "log_id": {
+          "dataset_id": {
             "type": "string",
-            "title": "Log Id"
+            "title": "Dataset Id"
           },
           "predictors": {
             "items": {
@@ -11107,7 +11351,7 @@
         },
         "type": "object",
         "required": [
-          "log_id",
+          "dataset_id",
           "predictors",
           "total"
         ],
@@ -11120,9 +11364,9 @@
             "type": "string",
             "title": "Id"
           },
-          "log_id": {
+          "dataset_id": {
             "type": "string",
-            "title": "Log Id",
+            "title": "Dataset Id",
             "default": ""
           },
           "target_type": {
@@ -11168,13 +11412,19 @@
             "maxLength": 255,
             "minLength": 1,
             "title": "Filename",
-            "description": "Original filename"
+            "description": "Original filename",
+            "examples": [
+              "purchasing_logs_2024.csv"
+            ]
           },
           "content_type": {
             "type": "string",
             "title": "Content Type",
             "description": "MIME type (text/csv, application/xml)",
-            "default": "text/csv"
+            "default": "text/csv",
+            "examples": [
+              "text/csv"
+            ]
           },
           "file_size_bytes": {
             "anyOf": [
@@ -11187,7 +11437,10 @@
               }
             ],
             "title": "File Size Bytes",
-            "description": "Expected file size in bytes (for validation)"
+            "description": "Expected file size in bytes (for validation)",
+            "examples": [
+              15728640
+            ]
           },
           "project_id": {
             "anyOf": [
@@ -11199,7 +11452,10 @@
               }
             ],
             "title": "Project Id",
-            "description": "Optional project association"
+            "description": "Optional project association",
+            "examples": [
+              "proj_123456789"
+            ]
           }
         },
         "type": "object",
@@ -11207,7 +11463,13 @@
           "filename"
         ],
         "title": "PresignedUploadRequest",
-        "description": "Request for presigned upload URL generation.\n\nClient requests a presigned URL, then uploads directly to S3/MinIO.\nBackend receives upload notification via webhook or polling."
+        "description": "Request for presigned upload URL generation.\n\nClient requests a presigned URL, then uploads directly to S3/MinIO.\nBackend receives upload notification via webhook or polling.",
+        "example": {
+          "content_type": "text/csv",
+          "file_size_bytes": 1024000,
+          "filename": "process_log.csv",
+          "project_id": "proj_abc123"
+        }
       },
       "PresignedUploadResponse": {
         "properties": {
@@ -11240,13 +11502,19 @@
           "expires_in"
         ],
         "title": "PresignedUploadResponse",
-        "description": "Response containing presigned upload URL and tracking info.\n\nClient should:\n1. PUT file to upload_url with Content-Type header\n2. Poll /datasets/{dataset_id} for validation status"
+        "description": "Response containing presigned upload URL and tracking info.\n\nClient should:\n1. PUT file to upload_url with Content-Type header\n2. Poll /datasets/{dataset_id} for validation status",
+        "example": {
+          "dataset_id": "ds_123456789",
+          "expires_in": 3600,
+          "storage_key": "datasets/123/file.csv",
+          "upload_url": "https://s3.amazonaws.com/bucket/key?sig=..."
+        }
       },
       "ProcessExplorerDataResponse": {
         "properties": {
-          "log_id": {
+          "dataset_id": {
             "type": "string",
-            "title": "Log Id"
+            "title": "Dataset Id"
           },
           "dfg": {
             "$ref": "#/components/schemas/DFGResponse"
@@ -11271,7 +11539,7 @@
         },
         "type": "object",
         "required": [
-          "log_id",
+          "dataset_id",
           "dfg",
           "variants",
           "activities",
@@ -11374,7 +11642,8 @@
               "$ref": "#/components/schemas/DatasetResponse"
             },
             "type": "array",
-            "title": "Datasets"
+            "title": "Datasets",
+            "default": []
           }
         },
         "type": "object",
@@ -11385,8 +11654,7 @@
           "total_files",
           "total_analyses",
           "created_at",
-          "updated_at",
-          "datasets"
+          "updated_at"
         ],
         "title": "ProjectDetailResponse",
         "description": "Detailed project response with datasets."
@@ -11543,9 +11811,9 @@
       },
       "QualityMetricsResponse": {
         "properties": {
-          "log_id": {
+          "dataset_id": {
             "type": "string",
-            "title": "Log Id"
+            "title": "Dataset Id"
           },
           "model_id": {
             "type": "string",
@@ -11602,7 +11870,7 @@
         },
         "type": "object",
         "required": [
-          "log_id",
+          "dataset_id",
           "model_id",
           "fitness"
         ],
@@ -11749,9 +12017,9 @@
       },
       "ResourceWorkloadResponse": {
         "properties": {
-          "log_id": {
+          "dataset_id": {
             "type": "string",
-            "title": "Log Id"
+            "title": "Dataset Id"
           },
           "workload": {
             "additionalProperties": {
@@ -11767,7 +12035,7 @@
         },
         "type": "object",
         "required": [
-          "log_id",
+          "dataset_id",
           "workload",
           "avg_events_per_resource"
         ],
@@ -11813,9 +12081,9 @@
       },
       "ReworkChainListResponse": {
         "properties": {
-          "log_id": {
+          "dataset_id": {
             "type": "string",
-            "title": "Log Id"
+            "title": "Dataset Id"
           },
           "chains": {
             "items": {
@@ -11852,7 +12120,7 @@
         },
         "type": "object",
         "required": [
-          "log_id",
+          "dataset_id",
           "chains",
           "total_chains"
         ],
@@ -11861,9 +12129,9 @@
       },
       "ReworkListResponse": {
         "properties": {
-          "log_id": {
+          "dataset_id": {
             "type": "string",
-            "title": "Log Id"
+            "title": "Dataset Id"
           },
           "rework_activities": {
             "items": {
@@ -11883,7 +12151,7 @@
         },
         "type": "object",
         "required": [
-          "log_id",
+          "dataset_id",
           "rework_activities",
           "total_rework_cases",
           "rework_percentage"
@@ -12036,9 +12304,9 @@
       },
       "SimulationResponse": {
         "properties": {
-          "log_id": {
+          "dataset_id": {
             "type": "string",
-            "title": "Log Id"
+            "title": "Dataset Id"
           },
           "scenario": {
             "type": "string",
@@ -12068,7 +12336,7 @@
         },
         "type": "object",
         "required": [
-          "log_id",
+          "dataset_id",
           "scenario",
           "original_metrics",
           "simulated_metrics",
@@ -12079,9 +12347,9 @@
       },
       "SocialNetworkResponse": {
         "properties": {
-          "log_id": {
+          "dataset_id": {
             "type": "string",
-            "title": "Log Id"
+            "title": "Dataset Id"
           },
           "network_type": {
             "type": "string",
@@ -12109,7 +12377,7 @@
         },
         "type": "object",
         "required": [
-          "log_id",
+          "dataset_id",
           "network_type",
           "nodes",
           "edges",
@@ -12225,9 +12493,9 @@
       },
       "ThroughputResponse": {
         "properties": {
-          "log_id": {
+          "dataset_id": {
             "type": "string",
-            "title": "Log Id"
+            "title": "Dataset Id"
           },
           "total_cases": {
             "type": "integer",
@@ -12256,7 +12524,7 @@
         },
         "type": "object",
         "required": [
-          "log_id",
+          "dataset_id",
           "total_cases",
           "completed_cases",
           "cases_per_day",
@@ -12616,7 +12884,7 @@
       },
       "WorkflowRunRequest": {
         "properties": {
-          "log_id": {
+          "dataset_id": {
             "anyOf": [
               {
                 "type": "string"
@@ -12625,7 +12893,7 @@
                 "type": "null"
               }
             ],
-            "title": "Log Id"
+            "title": "Dataset Id"
           },
           "params": {
             "additionalProperties": true,
@@ -12991,76 +13259,76 @@
   },
   "tags": [
     {
-      "name": "Health",
-      "description": "Application health and readiness endpoints"
-    },
-    {
       "name": "Auth",
-      "description": "Authentication and authorization (JWT-based)"
+      "description": "\ud83d\udd10 Authentication and authorization. Uses JWT (Access & Refresh Tokens)."
     },
     {
       "name": "Workspaces",
-      "description": "Multi-tenant workspace management"
+      "description": "\ud83c\udfe2 Multi-tenant workspace management. Create, update, and manage workspaces."
     },
     {
       "name": "Projects",
-      "description": "Project organization for event logs and analyses"
-    },
-    {
-      "name": "Datasets",
-      "description": "Dataset upload, management, and statistics"
-    },
-    {
-      "name": "Analyses",
-      "description": "Stored analyses and results"
-    },
-    {
-      "name": "Discovery",
-      "description": "Process model discovery (Alpha, Inductive, Heuristics miners)"
-    },
-    {
-      "name": "Visualization",
-      "description": "DFG, Petri net, and BPMN visualization"
-    },
-    {
-      "name": "Conformance",
-      "description": "Conformance checking, fitness, precision, and deviation analysis"
-    },
-    {
-      "name": "Analytics",
-      "description": "Performance analytics, bottleneck detection, and KPIs"
-    },
-    {
-      "name": "Filtering",
-      "description": "Event log filtering and subsetting"
-    },
-    {
-      "name": "Organizational",
-      "description": "Organizational mining, social networks, and resource analysis"
-    },
-    {
-      "name": "Predictions",
-      "description": "ML-based predictions (next activity, remaining time)"
-    },
-    {
-      "name": "Simulation",
-      "description": "Process simulation and what-if analysis"
-    },
-    {
-      "name": "OCPM",
-      "description": "Object-Centric Process Mining (OCEL 2.0)"
-    },
-    {
-      "name": "Workflows",
-      "description": "Automation workflows and pipelines"
+      "description": "\ud83d\udcc1 Project organization for event logs and analyses."
     },
     {
       "name": "Jobs",
-      "description": "Unified async job tracking and progress monitoring"
+      "description": "\u26a1 Unified async job tracking and progress monitoring."
+    },
+    {
+      "name": "Health",
+      "description": "\u2764\ufe0f Application health and readiness endpoints for k8s/monitoring."
     },
     {
       "name": "Observability",
-      "description": "Metrics, tracing, and logging"
+      "description": "\ud83d\udcca Metrics, tracing, and logging endpoints."
+    },
+    {
+      "name": "Datasets",
+      "description": "\ud83d\udcbe Event log management. Upload, ingest, and manage CSV/XES/OCEL files."
+    },
+    {
+      "name": "Discovery",
+      "description": "\ud83d\udd0d Process model discovery. Alpha, Inductive, Heuristics miners."
+    },
+    {
+      "name": "Conformance",
+      "description": "\u2705 Conformance checking. Token replay, alignments, and deviation analysis."
+    },
+    {
+      "name": "Visualization",
+      "description": "\ud83c\udfa8 Process visualization. DFG, Petri nets, and BPMN layouts."
+    },
+    {
+      "name": "Analyses",
+      "description": "\ud83d\udccb Stored analyses and results management."
+    },
+    {
+      "name": "Analytics",
+      "description": "\ud83d\udcc8 Performance analytics. Bottlenecks, cycle times, and throughput."
+    },
+    {
+      "name": "Predictions",
+      "description": "\ud83d\udd2e ML-based predictions. Next activity and remaining time estimation."
+    },
+    {
+      "name": "Simulation",
+      "description": "\ud83c\udfb2 Process simulation and what-if analysis."
+    },
+    {
+      "name": "Filtering",
+      "description": "\ud83d\udd0d Event log filtering and subsetting."
+    },
+    {
+      "name": "Organizational",
+      "description": "\ud83d\udc65 Organizational mining. Social networks and resource analysis."
+    },
+    {
+      "name": "OCPM",
+      "description": "\ud83d\udce6 Object-Centric Process Mining (OCEL 2.0)."
+    },
+    {
+      "name": "Business Use Cases",
+      "description": "\ud83d\udcbc Specific business scenarios (P2P, O2C, Customer Journey)."
     }
   ]
 }

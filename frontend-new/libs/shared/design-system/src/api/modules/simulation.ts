@@ -129,7 +129,7 @@ export function createSimulationModule(client: ApiClient): SimulationModule {
 
     async simulate(datasetId: string, modifications: SimulationModification[]) {
       const response = await client.post<SimulationResponse>(
-        `/simulation/logs/${datasetId}/simulate`,
+        `/simulation/datasets/${datasetId}/simulate`,
         {
           modifications: modifications.map((m) => ({
             type: m.type,
@@ -150,7 +150,7 @@ export function createSimulationModule(client: ApiClient): SimulationModule {
         resources_required: Record<string, number>;
         bottlenecks: string[];
         recommendations: string[];
-      }>(`/simulation/logs/${datasetId}/capacity-plan`, {
+      }>(`/simulation/datasets/${datasetId}/capacity-plan`, {
         target_throughput: targetThroughput,
       });
 

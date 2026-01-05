@@ -528,13 +528,13 @@ class MiningService:
 
         warnings.warn(
             "MiningService._to_pm4py_log() is deprecated. "
-            "Use event_log_loader.load_as_pm4py_log(log_id) instead.",
+            "Use event_log_loader.load_as_pm4py_log(dataset_id) instead.",
             DeprecationWarning,
             stacklevel=2,
         )
         raise RuntimeError(
             "MiningService._to_pm4py_log() cannot access Dataset.cases due to lazy='raise'. "
-            "Use event_log_loader.load_as_pm4py_log(log_id) instead."
+            "Use event_log_loader.load_as_pm4py_log(dataset_id) instead."
         )
 
     def to_pm4py_dataframe(self, dataset_id: str, connection) -> "pd.DataFrame":

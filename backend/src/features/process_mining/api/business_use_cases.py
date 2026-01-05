@@ -24,7 +24,7 @@ router = APIRouter(prefix="/business", tags=["Business Use Cases"])
 # =============================================================================
 
 
-@router.get("/p2p/mavericks/{log_id}/{reference_model_id}")
+@router.get("/p2p/mavericks/{dataset_id}/{reference_model_id}")
 async def detect_p2p_mavericks(
     dataset_id: str,
     reference_model_id: str,
@@ -37,7 +37,7 @@ async def detect_p2p_mavericks(
     Mavericks are purchase orders that don't follow the approved process model.
 
     Args:
-        log_id: Purchase order event log ID
+        dataset_id: Purchase order event log ID
         reference_model_id: Approved P2P process model ID
         threshold: Fitness threshold (default 0.8). Cases below this are mavericks.
 
@@ -69,11 +69,21 @@ async def detect_p2p_mavericks(
         return business_use_cases.detect_mavericks(event_log, reference_model, threshold)
 
     except Exception as e:
-        logger.error("p2p_maverick_detection_failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to detect mavericks: {e!s}") from e
+        logger.error(
+            "p2p_maverick_detection_failed",
+            dataset_id=dataset_id,
+            reference_model_id=reference_model_id,
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Maverick detection failed for dataset {dataset_id}: {str(e)}"
+        ) from e
 
 
-@router.get("/p2p/audit-report/{log_id}/{reference_model_id}")
+@router.get("/p2p/audit-report/{dataset_id}/{reference_model_id}")
 async def generate_p2p_audit_report(
     dataset_id: str,
     reference_model_id: str,
@@ -89,7 +99,7 @@ async def generate_p2p_audit_report(
     - Recommendations
 
     Args:
-        log_id: Purchase order event log ID
+        dataset_id: Purchase order event log ID
         reference_model_id: Approved P2P process model ID
 
     Returns:
@@ -106,7 +116,11 @@ async def generate_p2p_audit_report(
     log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     event_log = log_result.scalar_one_or_none()
     if not event_log:
-        raise HTTPException(status_code=404, detail="Event log not found")
+        logger.error("p2p_audit_dataset_not_found", dataset_id=dataset_id, reference_model_id=reference_model_id)
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dataset not found: {dataset_id}. Verify the dataset ID exists."
+        )
 
     # Get reference model
     model_result = await session.execute(
@@ -114,7 +128,11 @@ async def generate_p2p_audit_report(
     )
     reference_model = model_result.scalar_one_or_none()
     if not reference_model:
-        raise HTTPException(status_code=404, detail="Reference model not found")
+        logger.error("p2p_audit_model_not_found", dataset_id=dataset_id, reference_model_id=reference_model_id)
+        raise HTTPException(
+            status_code=404,
+            detail=f"Reference model not found: {reference_model_id}. Verify the model ID exists."
+        )
 
     try:
         report = business_use_cases.generate_p2p_audit_report(event_log, reference_model)
@@ -128,9 +146,17 @@ async def generate_p2p_audit_report(
         return report
 
     except Exception as e:
-        logger.error("p2p_audit_report_failed", error=str(e), exc_info=True)
+        logger.error(
+            "p2p_audit_report_failed",
+            dataset_id=dataset_id,
+            reference_model_id=reference_model_id,
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True
+        )
         raise HTTPException(
-            status_code=500, detail=f"Failed to generate audit report: {e!s}"
+            status_code=500,
+            detail=f"Audit report generation failed for dataset {dataset_id}: {str(e)}"
         ) from e
 
 
@@ -139,7 +165,7 @@ async def generate_p2p_audit_report(
 # =============================================================================
 
 
-@router.get("/o2c/split-log/{log_id}")
+@router.get("/o2c/split-log/{dataset_id}")
 async def split_log_by_attribute(
     dataset_id: str,
     attribute: str = Query(..., description="Attribute to split on (e.g., region, product)"),
@@ -152,7 +178,7 @@ async def split_log_by_attribute(
     Useful for comparing processes across regions, products, or customer segments.
 
     Args:
-        log_id: Event log ID
+        dataset_id: Event log ID
         attribute: Attribute to split on
         value: Specific value to filter for
 
@@ -165,20 +191,35 @@ async def split_log_by_attribute(
     log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     event_log = log_result.scalar_one_or_none()
     if not event_log:
-        raise HTTPException(status_code=404, detail="Event log not found")
+        logger.error("o2c_split_dataset_not_found", dataset_id=dataset_id, attribute=attribute, value=value)
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dataset not found: {dataset_id}. Verify the dataset ID exists."
+        )
 
     try:
         return business_use_cases.split_log_by_attribute(event_log, attribute, value)
 
     except Exception as e:
-        logger.error("log_split_failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to split log: {e!s}") from e
+        logger.error(
+            "log_split_failed",
+            dataset_id=dataset_id,
+            attribute=attribute,
+            value=value,
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Log split failed for dataset {dataset_id} on attribute '{attribute}={value}': {str(e)}"
+        ) from e
 
 
-@router.get("/o2c/compare/{log_id1}/{log_id2}")
+@router.get("/o2c/compare/{dataset_id1}/{dataset_id2}")
 async def compare_process_variants(
-    log_id1: str,
-    log_id2: str,
+    dataset_id1: str,
+    dataset_id2: str,
     log1_name: str = Query("Group A", description="Display name for first group"),
     log2_name: str = Query("Group B", description="Display name for second group"),
     session: AsyncSession = Depends(get_session),
@@ -189,8 +230,8 @@ async def compare_process_variants(
     Useful for comparing performance across regions, before/after improvements, etc.
 
     Args:
-        log_id1: First event log ID
-        log_id2: Second event log ID
+        dataset_id1: First event log ID
+        dataset_id2: Second event log ID
         log1_name: Display name for first group
         log2_name: Display name for second group
 
@@ -199,20 +240,28 @@ async def compare_process_variants(
     """
     logger.info(
         "process_comparison_started",
-        log_id1=log_id1,
-        log_id2=log_id2,
+        dataset_id1=dataset_id1,
+        dataset_id2=dataset_id2,
     )
 
     # Get both event logs
     log1_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id1))
     event_log1 = log1_result.scalar_one_or_none()
     if not event_log1:
-        raise HTTPException(status_code=404, detail=f"Event log {log_id1} not found")
+        logger.error("o2c_compare_dataset1_not_found", dataset_id1=dataset_id1, dataset_id2=dataset_id2)
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dataset not found: {dataset_id1}. Verify the first dataset ID exists."
+        )
 
     log2_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id2))
     event_log2 = log2_result.scalar_one_or_none()
     if not event_log2:
-        raise HTTPException(status_code=404, detail=f"Event log {log_id2} not found")
+        logger.error("o2c_compare_dataset2_not_found", dataset_id1=dataset_id1, dataset_id2=dataset_id2)
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dataset not found: {dataset_id2}. Verify the second dataset ID exists."
+        )
 
     try:
         return business_use_cases.compare_process_variants(
@@ -220,8 +269,18 @@ async def compare_process_variants(
         )
 
     except Exception as e:
-        logger.error("process_comparison_failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to compare processes: {e!s}") from e
+        logger.error(
+            "process_comparison_failed",
+            dataset_id1=dataset_id1,
+            dataset_id2=dataset_id2,
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Process comparison failed between {dataset_id1} and {dataset_id2}: {str(e)}"
+        ) from e
 
 
 # =============================================================================
@@ -229,7 +288,7 @@ async def compare_process_variants(
 # =============================================================================
 
 
-@router.post("/supply-chain/simulate/{log_id}")
+@router.post("/supply-chain/simulate/{dataset_id}")
 async def simulate_process_changes(
     dataset_id: str,
     activity_duration_reduction: float = Query(
@@ -247,7 +306,7 @@ async def simulate_process_changes(
     Estimates impact of process improvements on cycle time and throughput.
 
     Args:
-        log_id: Historical event log ID
+        dataset_id: Historical event log ID
         activity_duration_reduction: Percentage reduction in activity durations (0-1)
         capacity_increase: Percentage increase in resource capacity (0-1)
         num_simulations: Number of simulation runs (default 1000)
@@ -266,7 +325,11 @@ async def simulate_process_changes(
     log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     event_log = log_result.scalar_one_or_none()
     if not event_log:
-        raise HTTPException(status_code=404, detail="Event log not found")
+        logger.error("simulation_dataset_not_found", dataset_id=dataset_id)
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dataset not found: {dataset_id}. Verify the dataset ID exists for simulation."
+        )
 
     try:
         parameter_changes = {
@@ -279,8 +342,19 @@ async def simulate_process_changes(
         )
 
     except Exception as e:
-        logger.error("simulation_failed", error=str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to run simulation: {e!s}") from e
+        logger.error(
+            "simulation_failed",
+            dataset_id=dataset_id,
+            activity_duration_reduction=activity_duration_reduction,
+            capacity_increase=capacity_increase,
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Simulation failed for dataset {dataset_id}: {str(e)}"
+        ) from e
 
 
 # =============================================================================
@@ -288,7 +362,7 @@ async def simulate_process_changes(
 # =============================================================================
 
 
-@router.get("/customer-journey/dropoffs/{log_id}")
+@router.get("/customer-journey/dropoffs/{dataset_id}")
 async def detect_journey_dropoffs(
     dataset_id: str,
     expected_path: str | None = Query(
@@ -303,7 +377,7 @@ async def detect_journey_dropoffs(
     Identifies at which stage customers are dropping out of the process.
 
     Args:
-        log_id: Customer journey event log ID
+        dataset_id: Customer journey event log ID
         expected_path: Expected journey path (comma-separated), or None for auto-detect
 
     Returns:
@@ -315,7 +389,11 @@ async def detect_journey_dropoffs(
     log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     event_log = log_result.scalar_one_or_none()
     if not event_log:
-        raise HTTPException(status_code=404, detail="Event log not found")
+        logger.error("journey_dropoff_dataset_not_found", dataset_id=dataset_id)
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dataset not found: {dataset_id}. Verify the dataset ID exists."
+        )
 
     try:
         # Parse expected path if provided
@@ -326,5 +404,15 @@ async def detect_journey_dropoffs(
         return business_use_cases.detect_journey_dropoffs(event_log, expected_path_list)
 
     except Exception as e:
-        logger.error("journey_dropoff_detection_failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to detect drop-offs: {e!s}") from e
+        logger.error(
+            "journey_dropoff_detection_failed",
+            dataset_id=dataset_id,
+            expected_path=expected_path,
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Drop-off detection failed for dataset {dataset_id}: {str(e)}"
+        ) from e

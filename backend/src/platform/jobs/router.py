@@ -60,7 +60,7 @@ async def list_jobs(
     total = len(jobs)  # This is wrong for real pagination but okay for MVP
 
     return JobListResponse(
-        items=[JobStatusResponse.from_orm(j) for j in jobs],
+        items=[JobStatusResponse.model_validate(j) for j in jobs],
         total=total,
         page=page,
         page_size=page_size,
@@ -84,7 +84,7 @@ async def get_job_status(
         logger.warning("job_not_found", job_id=job_id)
         raise ProcessNotFoundError(job_id, resource_name="Job")
 
-    return JobStatusResponse.from_orm(job)
+    return JobStatusResponse.model_validate(job)
 
 
 @router.delete("/{job_id}")

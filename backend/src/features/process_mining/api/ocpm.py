@@ -196,8 +196,18 @@ async def upload_ocel(
         )
 
     except Exception as e:
-        logger.error("ocel_upload_failed", filename=filename, error=str(e), exc_info=True)
-        raise HTTPException(status_code=400, detail=f"Failed to parse OCEL file: {e!s}")
+        logger.error(
+            "ocel_upload_failed",
+            filename=filename,
+            source_format=source_format,
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to parse OCEL file '{filename}' (format: {source_format}): {str(e)}"
+        )
     finally:
         # BUG-059 FIX: Clean up temp file
         if temp_file_path and os.path.exists(temp_file_path):
@@ -291,7 +301,11 @@ async def get_object_types(
         # Check if log exists
         log_result = await session.execute(select(OCELLog).where(OCELLog.id == dataset_id))
         if not log_result.scalar_one_or_none():
-            raise HTTPException(status_code=404, detail="OCEL log not found")
+            logger.error("get_object_types_log_not_found", dataset_id=dataset_id)
+            raise HTTPException(
+                status_code=404,
+                detail=f"OCEL log not found: {dataset_id}. Verify the dataset ID exists."
+            )
 
     return [
         OCELObjectTypeResponse(
@@ -445,8 +459,18 @@ async def discover_oc_petri_net(
         )
 
     except Exception as e:
-        logger.error("oc_pn_discovery_failed", dataset_id=log.id, error=str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"OC-PN discovery failed: {e!s}")
+        logger.error(
+            "oc_pn_discovery_failed",
+            dataset_id=log.id,
+            model_name=model_name,
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"OC-PN discovery failed for dataset {log.id}: {str(e)}"
+        )
 
 
 @router.get("/models", response_model=list[OCPetriNetResponse])
@@ -595,8 +619,17 @@ async def get_oc_dfg(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("oc_dfg_computation_failed", dataset_id=log.id, error=str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"OC-DFG computation failed: {e!s}")
+        logger.error(
+            "oc_dfg_computation_failed",
+            dataset_id=log.id,
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"OC-DFG computation failed for dataset {log.id}: {str(e)}"
+        )
 
 
 @router.get("/formats")
@@ -675,9 +708,15 @@ async def flatten_ocel_to_dataset(
     available_types = list(metadata.get("objects_per_type", {}).keys())
 
     if object_type not in available_types:
+        logger.error(
+            "flatten_ocel_invalid_object_type",
+            dataset_id=dataset_id,
+            object_type=object_type,
+            available_types=available_types
+        )
         raise HTTPException(
             status_code=400,
-            detail=f"Object type '{object_type}' not found. Available types: {available_types}",
+            detail=f"Object type '{object_type}' not found in dataset {dataset_id}. Available types: {', '.join(available_types)}",
         )
 
     # Create Dataset record for the flattened log
@@ -698,7 +737,7 @@ async def flatten_ocel_to_dataset(
         entity_id=dataset.id,
         parameters_json=json.dumps(
             {
-                "ocel_log_id": dataset_id,
+                "ocel_dataset_id": dataset_id,
                 "object_type": object_type,
                 "dataset_id": dataset.id,
             }

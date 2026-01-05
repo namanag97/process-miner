@@ -39,8 +39,27 @@ async def _get_pm4py_log(dataset_id: str, db: AsyncSession):
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
     if not event_log:
-        raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
-    return filtering_service.to_pm4py_log(event_log), event_log
+        logger.error("predictions_dataset_not_found", dataset_id=dataset_id)
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dataset not found: {dataset_id}. Verify the dataset ID exists."
+        )
+
+    try:
+        pm4py_log = filtering_service.to_pm4py_log(event_log)
+        return pm4py_log, event_log
+    except Exception as e:
+        logger.error(
+            "predictions_pm4py_conversion_failed",
+            dataset_id=dataset_id,
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to convert dataset {dataset_id} to PM4Py log: {str(e)}"
+        )
 
 
 @router.post("/datasets/{dataset_id}/train")
@@ -54,7 +73,7 @@ async def train_predictor(
     """Train a prediction model for an event log.
 
     Args:
-        log_id: Event log ID
+        dataset_id: Event log ID
         request: Training request with target_type and algorithm
         async_mode: If True, train asynchronously via Celery (default)
 

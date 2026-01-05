@@ -51,6 +51,7 @@ from src.platform.core.exceptions import (
 )
 from src.platform.core.logging_config import get_logger
 from src.platform.core.rate_limit import limiter
+from src.platform.devconsole import log_error, log_info
 from src.platform.models import Project
 
 logger = get_logger(__name__)
@@ -825,7 +826,7 @@ async def upload_dataset(
 
             # DuckDB vectorized parse
             logger.info("using_duckdb_ingestion", filename=filename)
-            duck_result = duckdb_ingestion_service.parse_csv_fast(
+            duck_result = duckdb_ingestion_service.parse_csv(
                 file_content=content,
                 case_id_col=case_id_column,
                 activity_col=activity_column,
@@ -895,6 +896,8 @@ async def upload_dataset(
         raise  # Let the AppException handler deal with it
     except Exception as e:
         import traceback
+        with open("upload_error_debug.log", "w") as f:
+            f.write(traceback.format_exc())
 
         # Log full exception details for debugging
         logger.error(
@@ -1539,13 +1542,52 @@ async def get_dataset(
     from src.platform.core.permissions import Permission
     from src.platform.workspaces.authorization import require_dataset_permission
 
-    logger.debug("get_dataset", dataset_id=dataset_id, user_id=user.id)
+    logger.info("fetching_dataset", dataset_id=dataset_id, user_id=user.id)
 
     # Check permission (also validates dataset exists)
-    _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
+    try:
+        _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
+    except HTTPException as e:
+        if e.status_code == 404:
+            logger.warning("dataset_not_found", dataset_id=dataset_id, user_id=user.id)
+            log_error(
+                "Dataset",
+                "Dataset not found",
+                error_code="DS_NOT_FOUND",
+                dataset_id=dataset_id,
+            )
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "Dataset not found",
+                    "error_code": "DS_NOT_FOUND",
+                    "dataset_id": dataset_id,
+                    "suggestion": "Check that the dataset ID is correct and you have access to it"
+                }
+            )
+        raise
 
     activities = json.loads(dataset.activities_json) if dataset.activities_json else []
     statistics = json.loads(dataset.statistics_json) if dataset.statistics_json else None
+
+    logger.info(
+        "dataset_fetched",
+        dataset_id=dataset_id,
+        dataset_name=dataset.name,
+        total_events=dataset.total_events,
+        total_cases=dataset.total_cases,
+        status=dataset.status,
+        user_id=user.id,
+    )
+    log_info(
+        "Dataset",
+        "Dataset fetched successfully",
+        dataset_id=dataset_id,
+        name=dataset.name,
+        events=dataset.total_events,
+        cases=dataset.total_cases,
+        status=dataset.status,
+    )
 
     return DatasetDetailResponse(
         id=dataset.id,
@@ -1580,23 +1622,76 @@ async def delete_dataset(
     from src.platform.core.permissions import Permission
     from src.platform.workspaces.authorization import require_dataset_permission
 
-    logger.info("delete_dataset_started", dataset_id=dataset_id, user_id=user.id)
+    logger.info("deleting_dataset", dataset_id=dataset_id, user_id=user.id)
 
     # Check permission (also validates dataset exists and user has access)
-    _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_DELETE)
+    try:
+        _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_DELETE)
+    except HTTPException as e:
+        if e.status_code == 404:
+            logger.warning("dataset_not_found_for_deletion", dataset_id=dataset_id, user_id=user.id)
+            log_error(
+                "Dataset",
+                "Cannot delete - dataset not found",
+                error_code="DS_NOT_FOUND",
+                dataset_id=dataset_id,
+            )
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "Dataset not found",
+                    "error_code": "DS_NOT_FOUND",
+                    "dataset_id": dataset_id,
+                    "suggestion": "Verify the dataset ID before attempting deletion"
+                }
+            )
+        raise
 
     # BUG-052 FIX: Clean up recommendations before deleting dataset
     from sqlalchemy import delete
 
     from src.features.process_mining.models import Recommendation
 
-    await db.execute(delete(Recommendation).where(Recommendation.dataset_id == dataset_id))
+    try:
+        await db.execute(delete(Recommendation).where(Recommendation.dataset_id == dataset_id))
+        await db.delete(dataset)
+        await db.commit()
 
-    await db.delete(dataset)
-    await db.commit()
-    logger.info("delete_dataset_completed", dataset_id=dataset_id, user_id=user.id)
+        logger.info(
+            "dataset_deleted",
+            dataset_id=dataset_id,
+            dataset_name=dataset.name,
+            total_events=dataset.total_events,
+            user_id=user.id,
+        )
+        log_info(
+            "Dataset",
+            "Dataset deleted successfully",
+            dataset_id=dataset_id,
+            name=dataset.name,
+            events=dataset.total_events,
+        )
 
-    return {"status": "deleted", "id": dataset_id}
+        return {"status": "deleted", "id": dataset_id}
+    except Exception as e:
+        logger.error("dataset_deletion_failed", dataset_id=dataset_id, error=str(e), exc_info=True)
+        log_error(
+            "Dataset",
+            "Failed to delete dataset",
+            error_code="DS_DELETE_FAILED",
+            dataset_id=dataset_id,
+            reason=str(e),
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Failed to delete dataset",
+                "error_code": "DS_DELETE_FAILED",
+                "dataset_id": dataset_id,
+                "reason": str(e),
+                "suggestion": "Check database connectivity and ensure no foreign key constraints are blocking deletion"
+            }
+        )
 
 
 # =============================================================================

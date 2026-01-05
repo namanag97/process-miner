@@ -37,11 +37,9 @@ from src.api.routers import (
     workflows_router,
     workspaces_router,
 )
-from src.platform.devtools.streaming import router as dev_logs_stream_router
+from src.platform.devconsole.streaming import router as dev_logs_stream_router
 from src.platform.devtools.dev_data import router as dev_data_router
 from src.platform.health.router import mark_startup_complete
-from src.platform.telemetry.proxy import router as telemetry_proxy_router
-from src.platform.telemetry.test import router as telemetry_test_router
 from src.platform.infrastructure.database import close_database, init_database
 from src.platform.core.config import get_settings
 from src.platform.core.exceptions import AppException
@@ -76,8 +74,10 @@ async def lifespan(app: FastAPI):
     # Seed MVP data (org, workspace, user) for development
     await _seed_mvp_data()
 
-    # Setup observability (optional dependencies)
-    _setup_observability(app)
+    # Connect log broker for DevConsole
+    if settings.debug:
+        from src.platform.devconsole.broker import startup_log_broker
+        await startup_log_broker()
 
     # Mark startup complete for health checks
     mark_startup_complete()
@@ -88,6 +88,12 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info("application_shutting_down")
     await close_database()
+
+    # Disconnect log broker
+    if settings.debug:
+        from src.platform.devconsole.broker import shutdown_log_broker
+        await shutdown_log_broker()
+
     logger.info("application_stopped")
 
 
@@ -162,33 +168,6 @@ async def _seed_mvp_data() -> None:
         logger.warning("mvp_seed_data_failed", error=str(e))
 
 
-def _setup_observability(app: FastAPI) -> None:
-    """Initialize optional observability components."""
-    try:
-        from src.platform.infrastructure.metrics import set_app_info
-        from src.platform.infrastructure.tracing import setup_tracing
-
-        # Setup OpenTelemetry tracing
-        setup_tracing(
-            app,
-            service_name="process-mining-api",
-            service_version=settings.app_version,
-            environment="development" if settings.debug else "production",
-            console_export=settings.debug,
-            devconsole_export=settings.debug,  # Real-time trace visualization in DevConsole
-        )
-
-        # Set app info metric
-        set_app_info(
-            version=settings.app_version,
-            environment="development" if settings.debug else "production",
-        )
-
-        logger.info("observability_initialized")
-    except ImportError as e:
-        logger.warning("observability_not_available", reason=str(e))
-    except Exception as e:
-        logger.warning("observability_setup_failed", error=str(e))
 
 
 # =============================================================================
@@ -459,22 +438,6 @@ For support, please contact the developer team or refer to the internal document
             headers={"X-Request-ID": correlation_id} if correlation_id else None,
         )
 
-    # Metrics endpoint
-    @app.get("/metrics", tags=["Observability"], include_in_schema=False)
-    async def prometheus_metrics() -> Response:
-        """Prometheus metrics endpoint."""
-        try:
-            from src.platform.infrastructure.metrics import get_metrics
-
-            return Response(
-                content=get_metrics(),
-                media_type="text/plain; charset=utf-8",
-            )
-        except ImportError:
-            return Response(
-                content=b"# Prometheus client not installed\n",
-                media_type="text/plain; charset=utf-8",
-            )
 
     # Root endpoint
     @app.get("/", tags=["Health"])
@@ -485,7 +448,6 @@ For support, please contact the developer team or refer to the internal document
             "version": settings.app_version,
             "docs": "/docs",
             "health": "/health",
-            "metrics": "/metrics",
         }
 
     # Include health router (replaces inline /health endpoint)
@@ -511,12 +473,7 @@ For support, please contact the developer team or refer to the internal document
     app.include_router(jobs_router, prefix=settings.api_prefix)  # Job-Centric Architecture
     app.include_router(dev_log_router, prefix=settings.api_prefix)
     app.include_router(dev_logs_stream_router, prefix=settings.api_prefix)
-    app.include_router(dev_data_router, prefix=settings.api_prefix)  # Data viewer for DevConsole
-    app.include_router(telemetry_proxy_router, prefix=settings.api_prefix)
-
-    # Test endpoint for telemetry (debug mode only)
-    if settings.debug:
-        app.include_router(telemetry_test_router, prefix=settings.api_prefix)
+    app.include_router(dev_data_router, prefix=settings.api_prefix)
 
     return app
 

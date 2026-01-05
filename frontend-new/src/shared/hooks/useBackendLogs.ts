@@ -161,7 +161,7 @@ export function useBackendLogs(enabled: boolean = true): BackendObservability {
 
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8001';
-      const source = new EventSource(`${apiUrl}/api/v1/dev/logs/stream`);
+      const source = new EventSource(`${apiUrl}/api/v1/dev/datasets/stream`);
       eventSourceRef.current = source;
 
       // Handle log messages
@@ -327,7 +327,7 @@ export function useBackendLogs(enabled: boolean = true): BackendObservability {
           'info',
           'BE Connection',
           '✓ Connected to backend observability stream',
-          { url: `${apiUrl}/api/v1/dev/logs/stream` }
+          { url: `${apiUrl}/api/v1/dev/datasets/stream` }
         );
       };
     } catch (err) {

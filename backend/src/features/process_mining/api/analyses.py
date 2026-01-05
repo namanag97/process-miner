@@ -84,7 +84,7 @@ async def create_analysis(
     log_result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
     event_log = log_result.scalar_one_or_none()
     if not event_log:
-        raise HTTPException(status_code=404, detail=f"Event log not found: {log_id}")
+        raise HTTPException(status_code=404, detail=f"Event log not found: {dataset_id}")
 
     analysis = Analysis(
         dataset_id=dataset_id,  # BUG-001 FIX: ORM uses dataset_id
@@ -137,12 +137,12 @@ async def list_analyses(
     """
     query = select(Analysis).order_by(Analysis.created_at.desc())
 
-    if log_id:
+    if dataset_id:
         query = query.where(Analysis.dataset_id == dataset_id)  # BUG-001 FIX
 
     # Count total
     count_query = select(func.count()).select_from(Analysis)
-    if log_id:
+    if dataset_id:
         count_query = count_query.where(Analysis.dataset_id == dataset_id)  # BUG-001 FIX
     total = await db.scalar(count_query) or 0
 
@@ -262,7 +262,7 @@ async def delete_analysis(
 # =============================================================================
 
 
-@router.get("/log/{log_id}", response_model=list[AnalysisResponse])
+@router.get("/log/{dataset_id}", response_model=list[AnalysisResponse])
 async def list_analyses_for_log(
     db: DBSession,
     dataset_id: str,
@@ -273,7 +273,7 @@ async def list_analyses_for_log(
     # Verify log exists
     log_result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
     if not log_result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail=f"Event log not found: {log_id}")
+        raise HTTPException(status_code=404, detail=f"Event log not found: {dataset_id}")
 
     result = await db.execute(
         select(Analysis)

@@ -84,7 +84,7 @@ class AsyncTask(Task):
 )
 async def train_prediction_model_task(
     self,
-    log_id: str,
+    dataset_id: str,
     target_type: str,
     algorithm: str = "random_forest",
     **params: Any,
@@ -92,7 +92,7 @@ async def train_prediction_model_task(
     """Async task for training ML prediction models.
 
     Args:
-        log_id: Event log ID to train on
+        dataset_id: Event log ID to train on
         target_type: Type of prediction ('next_activity' or 'remaining_time')
         algorithm: ML algorithm to use
         **params: Additional training parameters
@@ -102,7 +102,7 @@ async def train_prediction_model_task(
     """
     logger.info(
         "prediction_training_started",
-        log_id=log_id,
+        dataset_id=dataset_id,
         target_type=target_type,
         algorithm=algorithm,
         task_id=self.request.id,
@@ -128,11 +128,11 @@ async def train_prediction_model_task(
             from src.platform.models import AsyncJob
 
             # Verify dataset exists
-            result = await db.execute(select(Dataset).where(Dataset.id == log_id))
+            result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
             dataset = result.scalar_one_or_none()
 
             if not dataset:
-                raise ValueError(f"Dataset not found: {log_id}")
+                raise ValueError(f"Dataset not found: {dataset_id}")
 
             # Update progress
             self.update_state(
@@ -145,7 +145,7 @@ async def train_prediction_model_task(
 
             # Convert to PM4Py log (Synchronous DuckDB load)
             # Note: We call sync function directly since we are in a task runner
-            pm4py_log = event_log_loader.load_as_pm4py_log(log_id)
+            pm4py_log = event_log_loader.load_as_pm4py_log(dataset_id)
 
             # Update progress
             self.update_state(
@@ -182,9 +182,9 @@ async def train_prediction_model_task(
             )
 
             # Save model to database
-            # BUG-047 FIX: Use correct field names (dataset_id, target_type not log_id, model_type)
+            # BUG-047 FIX: Use correct field names (dataset_id, target_type not dataset_id, model_type)
             db_model = PredictionModel(
-                dataset_id=log_id,  # ORM field is dataset_id
+                dataset_id=dataset_id,  # ORM field is dataset_id
                 target_type=target_type,  # ORM field is target_type, not model_type
                 algorithm=algorithm,
                 model_binary=model_info["model_binary"],
@@ -218,7 +218,7 @@ async def train_prediction_model_task(
 
             return {
                 "model_id": db_model.id,
-                "log_id": log_id,
+                "dataset_id": dataset_id,
                 "target_type": target_type,
                 "algorithm": algorithm,
                 "metrics": model_info.get("metrics", {}),
@@ -228,7 +228,7 @@ async def train_prediction_model_task(
     except SoftTimeLimitExceeded:
         logger.warning(
             "prediction_training_soft_timeout",
-            log_id=log_id,
+            dataset_id=dataset_id,
             target_type=target_type,
             task_id=self.request.id,
         )
@@ -254,7 +254,7 @@ async def train_prediction_model_task(
         logger.error(
             "prediction_training_failed",
             error=str(e),
-            log_id=log_id,
+            dataset_id=dataset_id,
             target_type=target_type,
             task_id=self.request.id,
         )
@@ -835,7 +835,7 @@ async def validate_dataset_task(
 async def perform_analysis_task(
     self,
     analysis_id: str,
-    log_id: str,
+    dataset_id: str,
     analysis_type: str,
     config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -846,7 +846,7 @@ async def perform_analysis_task(
 
     Args:
         analysis_id: Analysis record ID
-        log_id: Dataset ID to analyze
+        dataset_id: Dataset ID to analyze
         analysis_type: Type of analysis (discovery, variants, statistics)
         config: Optional configuration dict
 
@@ -856,7 +856,7 @@ async def perform_analysis_task(
     logger.info(
         "perform_analysis_task_started",
         analysis_id=analysis_id,
-        log_id=log_id,
+        dataset_id=dataset_id,
         analysis_type=analysis_type,
         task_id=self.request.id,
     )
@@ -898,7 +898,7 @@ async def perform_analysis_task(
 
             if analysis_type == AnalysisType.DISCOVERY.value:
                 # Get DFG for discovery
-                dfg_data = mining_service.get_dfg_fast(log_id)
+                dfg_data = mining_service.get_dfg_fast(dataset_id)
                 result_data["dfg"] = dfg_data
 
                 analysis.result_summary_json = json.dumps(
@@ -916,7 +916,7 @@ async def perform_analysis_task(
                     state="PROGRESS",
                     meta={"status": "Computing variants", "progress": 50},
                 )
-                variants_data = mining_service.get_variants_fast(log_id, top_n=50)
+                variants_data = mining_service.get_variants_fast(dataset_id, top_n=50)
                 result_data["variants"] = variants_data
 
                 analysis.result_summary_json = json.dumps(
@@ -934,7 +934,7 @@ async def perform_analysis_task(
                     state="PROGRESS",
                     meta={"status": "Computing statistics", "progress": 50},
                 )
-                stats = mining_service.get_statistics_fast(log_id)
+                stats = mining_service.get_statistics_fast(dataset_id)
                 result_data["statistics"] = stats
                 analysis.result_summary_json = json.dumps(stats)
 
@@ -956,7 +956,7 @@ async def perform_analysis_task(
 
             return {
                 "analysis_id": analysis_id,
-                "log_id": log_id,
+                "dataset_id": dataset_id,
                 "analysis_type": analysis_type,
                 "status": "completed",
                 "duration_ms": round(duration, 2),
@@ -990,7 +990,7 @@ async def perform_analysis_task(
 )
 async def perform_discovery_task(
     self,
-    log_id: str,
+    dataset_id: str,
     miner_type: str,
     model_name: str | None = None,
 ) -> dict[str, Any]:
@@ -999,7 +999,7 @@ async def perform_discovery_task(
     Runs heavy PM4Py miners (Alpha, Inductive, ILP) in background.
 
     Args:
-        log_id: Dataset ID to mine
+        dataset_id: Dataset ID to mine
         miner_type: Mining algorithm type (alpha, inductive, heuristic, ilp)
         model_name: Optional name for the discovered model
 
@@ -1008,7 +1008,7 @@ async def perform_discovery_task(
     """
     logger.info(
         "discovery_task_started",
-        log_id=log_id,
+        dataset_id=dataset_id,
         miner_type=miner_type,
         task_id=self.request.id,
     )
@@ -1027,11 +1027,11 @@ async def perform_discovery_task(
             from src.platform.models import AsyncJob
 
             # Load dataset
-            result = await db.execute(select(Dataset).where(Dataset.id == log_id))
+            result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
             dataset = result.scalar_one_or_none()
 
             if not dataset:
-                raise ValueError(f"Dataset not found: {log_id}")
+                raise ValueError(f"Dataset not found: {dataset_id}")
 
             # Update job with stage
             job_result = await db.execute(
@@ -1105,7 +1105,7 @@ async def perform_discovery_task(
             # Save model
             process_model = ProcessModel(
                 name=final_name,
-                dataset_id=log_id,
+                dataset_id=dataset_id,
                 miner_type=miner_type,
                 model_format=model_format.value,
                 serialized_model=serialized,
@@ -1147,7 +1147,7 @@ async def perform_discovery_task(
 
             return {
                 "model_id": process_model.id,
-                "log_id": log_id,
+                "dataset_id": dataset_id,
                 "miner_type": miner_type,
                 "fitness": fitness,
                 "precision": precision,
@@ -1155,7 +1155,7 @@ async def perform_discovery_task(
             }
 
     except Exception as e:
-        logger.error("discovery_task_failed", error=str(e), log_id=log_id, exc_info=True)
+        logger.error("discovery_task_failed", error=str(e), dataset_id=dataset_id, exc_info=True)
 
         async with AsyncSessionLocal() as db:
             from src.platform.models import AsyncJob
@@ -1178,14 +1178,14 @@ async def perform_discovery_task(
 )
 async def perform_conformance_task(
     self,
-    log_id: str,
+    dataset_id: str,
     model_id: str,
     method: str = "token_replay",
 ) -> dict[str, Any]:
     """BUG-039 FIX: Async task for conformance checking to prevent API freeze.
 
     Args:
-        log_id: Dataset ID
+        dataset_id: Dataset ID
         model_id: ProcessModel ID
         method: Conformance method (token_replay or alignment)
 
@@ -1194,7 +1194,7 @@ async def perform_conformance_task(
     """
     logger.info(
         "conformance_task_started",
-        log_id=log_id,
+        dataset_id=dataset_id,
         model_id=model_id,
         method=method,
         task_id=self.request.id,
@@ -1215,10 +1215,10 @@ async def perform_conformance_task(
             from src.platform.models import AsyncJob
 
             # Load dataset and model
-            result = await db.execute(select(Dataset).where(Dataset.id == log_id))
+            result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
             dataset = result.scalar_one_or_none()
             if not dataset:
-                raise ValueError(f"Dataset not found: {log_id}")
+                raise ValueError(f"Dataset not found: {dataset_id}")
 
             result = await db.execute(select(ProcessModel).where(ProcessModel.id == model_id))
             model = result.scalar_one_or_none()
@@ -1244,7 +1244,7 @@ async def perform_conformance_task(
 
             # Save result
             conformance_record = ConformanceResult(
-                dataset_id=log_id,
+                dataset_id=dataset_id,
                 model_id=model_id,
                 fitness=conf_result["fitness"],
                 precision=conf_result.get("precision"),
@@ -1286,7 +1286,7 @@ async def perform_conformance_task(
 
             return {
                 "conformance_id": conformance_record.id,
-                "log_id": log_id,
+                "dataset_id": dataset_id,
                 "model_id": model_id,
                 "fitness": conf_result["fitness"],
                 "precision": conf_result.get("precision"),

@@ -13,18 +13,18 @@ export class OrganizationalMiningService {
     /**
      * Get Handover Network
      * Discover handover of work network.
-     * @param logId
+     * @param datasetId
      * @returns SocialNetworkResponse Successful Response
      * @throws ApiError
      */
-    public getHandoverNetworkApiV1OrganizationalLogsLogIdHandoverNetworkGet(
-        logId: string,
+    public getHandoverNetworkApiV1OrganizationalDatasetsDatasetIdHandoverNetworkGet(
+        datasetId: string,
     ): CancelablePromise<SocialNetworkResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/organizational/logs/{log_id}/handover-network',
+            url: '/api/v1/organizational/datasets/{dataset_id}/handover-network',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,
@@ -34,18 +34,18 @@ export class OrganizationalMiningService {
     /**
      * Get Collaboration Network
      * Discover working together network.
-     * @param logId
+     * @param datasetId
      * @returns SocialNetworkResponse Successful Response
      * @throws ApiError
      */
-    public getCollaborationNetworkApiV1OrganizationalLogsLogIdCollaborationNetworkGet(
-        logId: string,
+    public getCollaborationNetworkApiV1OrganizationalDatasetsDatasetIdCollaborationNetworkGet(
+        datasetId: string,
     ): CancelablePromise<SocialNetworkResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/organizational/logs/{log_id}/collaboration-network',
+            url: '/api/v1/organizational/datasets/{dataset_id}/collaboration-network',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,
@@ -55,18 +55,18 @@ export class OrganizationalMiningService {
     /**
      * Get Resource Similarity
      * Discover resource similarity based on activities.
-     * @param logId
+     * @param datasetId
      * @returns SocialNetworkResponse Successful Response
      * @throws ApiError
      */
-    public getResourceSimilarityApiV1OrganizationalLogsLogIdResourceSimilarityGet(
-        logId: string,
+    public getResourceSimilarityApiV1OrganizationalDatasetsDatasetIdResourceSimilarityGet(
+        datasetId: string,
     ): CancelablePromise<SocialNetworkResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/organizational/logs/{log_id}/resource-similarity',
+            url: '/api/v1/organizational/datasets/{dataset_id}/resource-similarity',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,
@@ -76,18 +76,18 @@ export class OrganizationalMiningService {
     /**
      * Get Roles
      * Discover organizational roles.
-     * @param logId
+     * @param datasetId
      * @returns ResourceRoleResponse Successful Response
      * @throws ApiError
      */
-    public getRolesApiV1OrganizationalLogsLogIdRolesGet(
-        logId: string,
+    public getRolesApiV1OrganizationalDatasetsDatasetIdRolesGet(
+        datasetId: string,
     ): CancelablePromise<Array<ResourceRoleResponse>> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/organizational/logs/{log_id}/roles',
+            url: '/api/v1/organizational/datasets/{dataset_id}/roles',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,
@@ -97,20 +97,20 @@ export class OrganizationalMiningService {
     /**
      * Get Resource Profile
      * Get detailed profile for a specific resource.
-     * @param logId
+     * @param datasetId
      * @param resource
      * @returns ResourceProfileResponse Successful Response
      * @throws ApiError
      */
-    public getResourceProfileApiV1OrganizationalLogsLogIdResourcesResourceProfileGet(
-        logId: string,
+    public getResourceProfileApiV1OrganizationalDatasetsDatasetIdResourcesResourceProfileGet(
+        datasetId: string,
         resource: string,
     ): CancelablePromise<ResourceProfileResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/organizational/logs/{log_id}/resources/{resource}/profile',
+            url: '/api/v1/organizational/datasets/{dataset_id}/resources/{resource}/profile',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
                 'resource': resource,
             },
             errors: {
@@ -121,18 +121,18 @@ export class OrganizationalMiningService {
     /**
      * Get Workload
      * Get workload distribution across resources.
-     * @param logId
+     * @param datasetId
      * @returns ResourceWorkloadResponse Successful Response
      * @throws ApiError
      */
-    public getWorkloadApiV1OrganizationalLogsLogIdWorkloadGet(
-        logId: string,
+    public getWorkloadApiV1OrganizationalDatasetsDatasetIdWorkloadGet(
+        datasetId: string,
     ): CancelablePromise<ResourceWorkloadResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/organizational/logs/{log_id}/workload',
+            url: '/api/v1/organizational/datasets/{dataset_id}/workload',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,

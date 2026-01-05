@@ -6,7 +6,7 @@
  * Request to run a workflow.
  */
 export type WorkflowRunRequest = {
-    log_id?: (string | null);
+    dataset_id?: (string | null);
     params?: Record<string, any>;
 };
 

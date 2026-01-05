@@ -33,7 +33,7 @@ class RootCauseAnalyzer:
         Returns:
             Dictionary with deviation counts per activity
         """
-        logger.info("deviation_aggregation_by_activity_started", log_id=event_log.id)
+        logger.info("deviation_aggregation_by_activity_started", dataset_id=event_log.id)
 
         # Get diagnostics
         diagnostics = conformance_service.get_diagnostics(event_log, model)
@@ -97,7 +97,7 @@ class RootCauseAnalyzer:
         Returns:
             Dictionary with deviation counts per position
         """
-        logger.info("deviation_aggregation_by_position_started", log_id=event_log.id)
+        logger.info("deviation_aggregation_by_position_started", dataset_id=event_log.id)
 
         # Get alignment diagnostics for position-level analysis
         alignment_diagnostics = conformance_service.get_alignment_diagnostics(
@@ -163,7 +163,7 @@ class RootCauseAnalyzer:
         """
         logger.info(
             "attribute_correlation_started",
-            log_id=event_log.id,
+            dataset_id=event_log.id,
             attribute=attribute,
         )
 
@@ -278,7 +278,7 @@ class RootCauseAnalyzer:
 
         logger.info(
             "comprehensive_root_cause_analysis_started",
-            log_id=event_log.id,
+            dataset_id=event_log.id,
             model_id=model.id,
         )
 

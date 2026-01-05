@@ -6,7 +6,7 @@
  * Request to discover Object-Centric Petri Net.
  */
 export type DiscoverOCPNRequest = {
-    log_id: string;
+    dataset_id: string;
     model_name?: (string | null);
 };
 

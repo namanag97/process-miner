@@ -43,7 +43,7 @@ class BusinessUseCases:
         """
         logger.info(
             "maverick_detection_started",
-            log_id=event_log.id,
+            dataset_id=event_log.id,
             model_id=reference_model.id,
             threshold=threshold,
         )
@@ -120,7 +120,7 @@ class BusinessUseCases:
         """
         logger.info(
             "p2p_audit_report_started",
-            log_id=event_log.id,
+            dataset_id=event_log.id,
             model_id=reference_model.id,
         )
 
@@ -208,7 +208,7 @@ class BusinessUseCases:
         """
         logger.info(
             "log_split_started",
-            log_id=event_log.id,
+            dataset_id=event_log.id,
             attribute=attribute,
             value=value,
         )
@@ -341,7 +341,7 @@ class BusinessUseCases:
         """
         logger.info(
             "simulation_started",
-            log_id=event_log.id,
+            dataset_id=event_log.id,
             num_simulations=num_simulations,
             parameter_changes=parameter_changes,
         )
@@ -447,7 +447,7 @@ class BusinessUseCases:
         Returns:
             Drop-off analysis by stage
         """
-        logger.info("journey_dropoff_detection_started", log_id=event_log.id)
+        logger.info("journey_dropoff_detection_started", dataset_id=event_log.id)
 
         from src.features.process_mining.services.loader import event_log_loader
 

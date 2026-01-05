@@ -11,6 +11,7 @@ import { AuthService } from './services/AuthService';
 import { BusinessUseCasesService } from './services/BusinessUseCasesService';
 import { ConformanceService } from './services/ConformanceService';
 import { DatasetsService } from './services/DatasetsService';
+import { DevDataService } from './services/DevDataService';
 import { DevelopmentService } from './services/DevelopmentService';
 import { DevLogsService } from './services/DevLogsService';
 import { DiscoveryService } from './services/DiscoveryService';
@@ -35,6 +36,7 @@ export class OpenAPI {
     public readonly businessUseCases: BusinessUseCasesService;
     public readonly conformance: ConformanceService;
     public readonly datasets: DatasetsService;
+    public readonly devData: DevDataService;
     public readonly development: DevelopmentService;
     public readonly devLogs: DevLogsService;
     public readonly discovery: DiscoveryService;
@@ -70,6 +72,7 @@ export class OpenAPI {
         this.businessUseCases = new BusinessUseCasesService(this.request);
         this.conformance = new ConformanceService(this.request);
         this.datasets = new DatasetsService(this.request);
+        this.devData = new DevDataService(this.request);
         this.development = new DevelopmentService(this.request);
         this.devLogs = new DevLogsService(this.request);
         this.discovery = new DiscoveryService(this.request);

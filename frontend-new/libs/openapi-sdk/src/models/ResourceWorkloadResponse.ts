@@ -6,7 +6,7 @@
  * Resource workload distribution.
  */
 export type ResourceWorkloadResponse = {
-    log_id: string;
+    dataset_id: string;
     workload: Record<string, number>;
     avg_events_per_resource: number;
 };

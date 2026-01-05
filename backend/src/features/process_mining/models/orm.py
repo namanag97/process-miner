@@ -533,7 +533,7 @@ class OCELObjectType(Base):
     __tablename__ = "ocel_object_types"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    log_id: Mapped[str] = mapped_column(
+    dataset_id: Mapped[str] = mapped_column(
         ForeignKey("ocel_logs.id", ondelete="CASCADE"), nullable=False
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -549,7 +549,7 @@ class OCPetriNet(Base):
     __tablename__ = "oc_petri_nets"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    log_id: Mapped[str] = mapped_column(
+    dataset_id: Mapped[str] = mapped_column(
         ForeignKey("ocel_logs.id", ondelete="CASCADE"), nullable=False
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)

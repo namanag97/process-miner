@@ -577,7 +577,7 @@ class OCPetriNetResponse(BaseModel):
         if hasattr(data, "__dict__"):
             data = {
                 k: getattr(data, k)
-                for k in ["id", "log_id", "name", "object_types_json", "created_at"]
+                for k in ["id", "dataset_id", "name", "object_types_json", "created_at"]
                 if hasattr(data, k)
             }
         if isinstance(data, dict):
@@ -829,9 +829,39 @@ class JobStatusResponse(BaseModel):
     job_type: str
     status: str
     progress: int
+    stage: str | None = None
     result: dict[str, Any] | None = None
     error: str | None = None
     created_at: datetime
+
+    @model_validator(mode="before")
+    @classmethod
+    def parse_json_fields(cls, data: Any) -> Any:
+        """Auto-parse result_json to result dict."""
+        if hasattr(data, "__dict__"):
+            data = {
+                k: getattr(data, k)
+                for k in [
+                    "id",
+                    "job_type",
+                    "status",
+                    "progress",
+                    "stage",
+                    "result_json",
+                    "error",
+                    "created_at",
+                ]
+                if hasattr(data, k)
+            }
+        if isinstance(data, dict):
+            if data.get("result_json"):
+                try:
+                    data["result"] = json.loads(data["result_json"])
+                except (json.JSONDecodeError, TypeError):
+                    data["result"] = None
+            elif "result" not in data:
+                data["result"] = None
+        return data
 
     model_config = ConfigDict(from_attributes=True)
 

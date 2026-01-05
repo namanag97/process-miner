@@ -211,7 +211,7 @@ def cache_result(
 
     Example:
         @cache_result("bottlenecks", ttl=1800)
-        def detect_bottlenecks(log_id: str):
+        def detect_bottlenecks(dataset_id: str):
             # Expensive operation
             return results
     """
@@ -259,11 +259,11 @@ def cache_result(
     return decorator
 
 
-def invalidate_log_cache(log_id: str):
+def invalidate_dataset_cache(dataset_id: str):
     """Invalidate all cached results for a specific event log.
 
     Args:
-        log_id: Event log ID
+        dataset_id: Event log ID
 
     This should be called when:
     - Log is updated or deleted
@@ -271,18 +271,18 @@ def invalidate_log_cache(log_id: str):
     - New process model is discovered
     """
     patterns = [
-        f"bottlenecks:*{log_id}*",
-        f"rework:*{log_id}*",
-        f"variants:*{log_id}*",
-        f"social_network:*{log_id}*",
-        f"analytics:*{log_id}*",
-        f"discovery:*{log_id}*",
-        f"conformance:*{log_id}*",
+        f"bottlenecks:*{dataset_id}*",
+        f"rework:*{dataset_id}*",
+        f"variants:*{dataset_id}*",
+        f"social_network:*{dataset_id}*",
+        f"analytics:*{dataset_id}*",
+        f"discovery:*{dataset_id}*",
+        f"conformance:*{dataset_id}*",
     ]
 
     total_deleted = 0
     for pattern in patterns:
         total_deleted += cache_service.invalidate_pattern(pattern)
 
-    logger.info("log_cache_invalidated", log_id=log_id, keys_deleted=total_deleted)
+    logger.info("dataset_cache_invalidated", dataset_id=dataset_id, keys_deleted=total_deleted)
     return total_deleted

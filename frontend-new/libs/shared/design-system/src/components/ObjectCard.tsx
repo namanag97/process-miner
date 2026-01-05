@@ -14,7 +14,7 @@
  *     { label: 'Cases', value: '12,456' },
  *     { label: 'Activities', value: '47' },
  *   ]}
- *   onClick={() => navigate(`/logs/${id}`)}
+ *   onClick={() => navigate(`/datasets/${id}`)}
  * />
  */
 import { useState } from 'react';

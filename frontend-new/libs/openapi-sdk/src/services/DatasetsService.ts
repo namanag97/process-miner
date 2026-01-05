@@ -23,31 +23,20 @@ import type { BaseHttpRequest } from '../core/BaseHttpRequest';
 export class DatasetsService {
     constructor(public readonly httpRequest: BaseHttpRequest) {}
     /**
-     * Get Presigned Upload Url
-     * Generate presigned URL for direct client-to-S3 upload.
+     * Get Presigned S3 Upload URL
+     * Generate a short-lived presigned URL for direct S3 upload.
      *
-     * Phase 4: Data Ingestion Pipeline - Enterprise-grade upload flow:
-     * 1. Client requests presigned URL with filename and metadata
-     * 2. Backend generates unique storage key and dataset record
-     * 3. Client uploads directly to S3 (bypasses backend for large files)
-     * 4. Client calls POST /datasets/{dataset_id}/trigger-validation to start processing
+     * ## Use Case
+     * *   **Large Files**: Bypass the API server for files > 10MB.
+     * *   **Performance**: Faster upload speeds via direct S3 connection.
      *
-     * Returns presigned PUT URL valid for 1 hour (configurable).
-     *
-     * Args:
-     * request: Upload request with filename, content_type, file_size
-     * db: Database session
-     * current_user: Authenticated user
-     *
-     * Returns:
-     * Presigned upload URL and dataset tracking info
-     *
-     * Raises:
-     * ValidationError: If validation fails
-     * ProcessingError: If storage client fails
+     * ## Flow
+     * 1.  Call this endpoint to get `upload_url`.
+     * 2.  PUT the file to `upload_url`.
+     * 3.  Call `POST /datasets/{id}/trigger-validation` to start processing.
      * @param requestBody
      * @param xOrgId
-     * @returns PresignedUploadResponse Successful Response
+     * @returns PresignedUploadResponse Presigned URL generated successfully
      * @throws ApiError
      */
     public getPresignedUploadUrlApiV1DatasetsUploadPresignedPost(
@@ -63,35 +52,20 @@ export class DatasetsService {
             body: requestBody,
             mediaType: 'application/json',
             errors: {
-                422: `Validation Error`,
+                422: `Validation error (invalid extension)`,
+                429: `Rate limit exceeded (10/min)`,
             },
         });
     }
     /**
-     * Trigger Validation
-     * Trigger validation worker after client completes S3 upload.
+     * Trigger Dataset Validation
+     * Start the background validation and ingestion process after a successful S3 upload.
      *
-     * MVP Implementation: Client must call this after uploading to presigned URL.
-     *
-     * Flow:
-     * 1. Client: POST /datasets/upload/presigned → Get presigned URL
-     * 2. Client: PUT to presigned URL → Upload file to S3
-     * 3. Client: POST /datasets/{dataset_id}/trigger-validation → Start processing
-     *
-     * Args:
-     * dataset_id: Dataset ID from presigned response
-     * db: Database session
-     * current_user: Authenticated user
-     *
-     * Returns:
-     * Status message with task_id for polling
-     *
-     * Raises:
-     * NotFoundError: If dataset doesn't exist
-     * ValidationError: If dataset not in PENDING state
+     * ## When to use
+     * Call this **only** after successfully uploading a file to the presigned URL obtained from `/upload/presigned`.
      * @param datasetId
      * @param xOrgId
-     * @returns string Successful Response
+     * @returns string Validation task queued
      * @throws ApiError
      */
     public triggerValidationApiV1DatasetsDatasetIdTriggerValidationPost(
@@ -108,25 +82,28 @@ export class DatasetsService {
                 'X-Org-Id': xOrgId,
             },
             errors: {
+                400: `Dataset not in PENDING state`,
+                404: `Dataset not found`,
                 422: `Validation Error`,
             },
         });
     }
     /**
-     * Upload Dataset
-     * Upload and ingest an event log file.
+     * Upload Event Log File
+     * Upload and ingest an event log file (CSV or XES).
      *
-     * Supports CSV and XES formats. For CSV files, column mappings
-     * will be auto-detected if not provided.
+     * ## Features
+     * *   **Auto-detection**: Smart column detection for CSV files.
+     * *   **Streaming**: efficiently handles large files (up to 100MB) without memory issues.
+     * *   **Async Store**: Optional deferred processing for very large datasets.
      *
-     * With async_store=true (deferred ingestion):
-     * - File is stored immediately, Dataset created with status=UNSTRUCTURED
-     * - Use POST /{dataset_id}/ingest to trigger background parsing with column mapping
-     *
-     * Requires DATASET_CREATE permission in the workspace.
+     * ## Form Parameters
+     * *   `file`: The file to upload.
+     * *   `project_id`: Target project ID.
+     * *   `case_id_column` etc.: Manual mapping overrides.
      * @param formData
      * @param xOrgId
-     * @returns DatasetResponse Successful Response
+     * @returns DatasetResponse Dataset created and ingested successfully
      * @throws ApiError
      */
     public uploadDatasetApiV1DatasetsUploadPost(
@@ -142,7 +119,9 @@ export class DatasetsService {
             formData: formData,
             mediaType: 'multipart/form-data',
             errors: {
-                422: `Validation Error`,
+                400: `Invalid file format or missing columns`,
+                413: `File too large (exceeds 100MB)`,
+                422: `Validation error (missing project_id)`,
             },
         });
     }

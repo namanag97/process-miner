@@ -1,0 +1,6 @@
+case_id,activity,timestamp,resource
+case_1,register,2023-01-01T10:00:00,user_1
+case_1,check_email,2023-01-01T10:05:00,system
+case_1,verify,2023-01-01T10:10:00,user_2
+case_2,register,2023-01-01T11:00:00,user_1
+case_2,check_email,2023-01-01T11:05:00,system

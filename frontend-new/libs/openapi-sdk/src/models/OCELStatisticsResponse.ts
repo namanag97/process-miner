@@ -6,7 +6,7 @@
  * OCEL statistics response.
  */
 export type OCELStatisticsResponse = {
-    log_id: string;
+    dataset_id: string;
     total_events: number;
     total_objects: number;
     total_object_types: number;

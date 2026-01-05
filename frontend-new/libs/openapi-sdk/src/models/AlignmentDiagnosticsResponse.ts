@@ -7,7 +7,7 @@ import type { CaseAlignmentResponse } from './CaseAlignmentResponse';
  * Response for alignment diagnostics endpoint.
  */
 export type AlignmentDiagnosticsResponse = {
-    log_id: string;
+    dataset_id: string;
     model_id: string;
     total_cases: number;
     fitting_cases: number;

@@ -607,7 +607,7 @@ class OCPMService:
         except Exception as e:
             return {"error": str(e)}
 
-    async def persist_ocel_2_0(self, session: AsyncSession, ocel, source_log_id: str | None = None):
+    async def persist_ocel_2_0(self, session: AsyncSession, ocel, source_dataset_id: str | None = None):
         """Persist OCEL 2.0 data into the relational OCEL2 tables.
 
         This enables deep object-centric queries without re-parsing the blob.
@@ -656,7 +656,7 @@ class OCPMService:
                 event_type_id=event_types[activity].id,
                 activity=activity,
                 timestamp=timestamp,
-                source_log_id=source_log_id,
+                source_dataset_id=source_dataset_id,
                 attributes={},  # Could be populated from other cols
             )
             session.add(event)

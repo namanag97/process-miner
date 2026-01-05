@@ -53,7 +53,7 @@ export class ConformanceService {
      * List conformance check results.
      *
      * Optionally filter by log_id or model_id.
-     * @param logId Filter by event log ID
+     * @param datasetId Filter by event log ID
      * @param modelId Filter by model ID
      * @param page
      * @param pageSize
@@ -61,7 +61,7 @@ export class ConformanceService {
      * @throws ApiError
      */
     public listConformanceResultsApiV1ConformanceResultsGet(
-        logId?: (string | null),
+        datasetId?: (string | null),
         modelId?: (string | null),
         page: number = 1,
         pageSize: number = 20,
@@ -70,7 +70,7 @@ export class ConformanceService {
             method: 'GET',
             url: '/api/v1/conformance/results',
             query: {
-                'log_id': logId,
+                'dataset_id': datasetId,
                 'model_id': modelId,
                 'page': page,
                 'page_size': pageSize,
@@ -127,20 +127,20 @@ export class ConformanceService {
      * Get detailed conformance diagnostics for a log-model pair.
      *
      * Returns trace-level analysis including deviations.
-     * @param logId
+     * @param datasetId
      * @param modelId
      * @returns DiagnosticsResponse Successful Response
      * @throws ApiError
      */
-    public getConformanceDiagnosticsApiV1ConformanceDiagnosticsLogIdModelIdGet(
-        logId: string,
+    public getConformanceDiagnosticsApiV1ConformanceDiagnosticsDatasetIdModelIdGet(
+        datasetId: string,
         modelId: string,
     ): CancelablePromise<DiagnosticsResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/conformance/diagnostics/{log_id}/{model_id}',
+            url: '/api/v1/conformance/diagnostics/{dataset_id}/{model_id}',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
                 'model_id': modelId,
             },
             errors: {
@@ -153,22 +153,22 @@ export class ConformanceService {
      * Detect and list specific deviations from the model.
      *
      * Returns case-level deviation information.
-     * @param logId
+     * @param datasetId
      * @param modelId
      * @param threshold
      * @returns DeviationResponse Successful Response
      * @throws ApiError
      */
-    public getDeviationsApiV1ConformanceDeviationsLogIdModelIdGet(
-        logId: string,
+    public getDeviationsApiV1ConformanceDeviationsDatasetIdModelIdGet(
+        datasetId: string,
         modelId: string,
         threshold: number = 0.8,
     ): CancelablePromise<Array<DeviationResponse>> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/conformance/deviations/{log_id}/{model_id}',
+            url: '/api/v1/conformance/deviations/{dataset_id}/{model_id}',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
                 'model_id': modelId,
             },
             query: {
@@ -190,22 +190,22 @@ export class ConformanceService {
      * - Identification of deviating activities
      *
      * Note: This is computationally expensive for large logs. Use max_cases to limit.
-     * @param logId
+     * @param datasetId
      * @param modelId
      * @param maxCases Max cases to include
      * @returns AlignmentDiagnosticsResponse Successful Response
      * @throws ApiError
      */
-    public getAlignmentDiagnosticsApiV1ConformanceAlignmentsLogIdModelIdGet(
-        logId: string,
+    public getAlignmentDiagnosticsApiV1ConformanceAlignmentsDatasetIdModelIdGet(
+        datasetId: string,
         modelId: string,
         maxCases: number = 100,
     ): CancelablePromise<AlignmentDiagnosticsResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/conformance/alignments/{log_id}/{model_id}',
+            url: '/api/v1/conformance/alignments/{dataset_id}/{model_id}',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
                 'model_id': modelId,
             },
             query: {
@@ -240,20 +240,20 @@ export class ConformanceService {
      * - **F-score**: Harmonic mean of fitness and precision
      *
      * All metrics are higher-is-better.
-     * @param logId
+     * @param datasetId
      * @param modelId
      * @returns QualityMetricsResponse Successful Response
      * @throws ApiError
      */
-    public getQualityMetricsApiV1ConformanceQualityLogIdModelIdGet(
-        logId: string,
+    public getQualityMetricsApiV1ConformanceQualityDatasetIdModelIdGet(
+        datasetId: string,
         modelId: string,
     ): CancelablePromise<QualityMetricsResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/conformance/quality/{log_id}/{model_id}',
+            url: '/api/v1/conformance/quality/{dataset_id}/{model_id}',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
                 'model_id': modelId,
             },
             errors: {
@@ -324,22 +324,22 @@ export class ConformanceService {
      *
      * Returns:
      * Comprehensive root cause analysis report
-     * @param logId
+     * @param datasetId
      * @param modelId
      * @param attributes Comma-separated list of attributes to analyze (e.g., 'resource,department')
      * @returns any Successful Response
      * @throws ApiError
      */
-    public getRootCauseAnalysisApiV1ConformanceRootCauseLogIdModelIdGet(
-        logId: string,
+    public getRootCauseAnalysisApiV1ConformanceRootCauseDatasetIdModelIdGet(
+        datasetId: string,
         modelId: string,
         attributes: string = 'resource',
     ): CancelablePromise<any> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/conformance/root-cause/{log_id}/{model_id}',
+            url: '/api/v1/conformance/root-cause/{dataset_id}/{model_id}',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
                 'model_id': modelId,
             },
             query: {
@@ -355,20 +355,20 @@ export class ConformanceService {
      * Get deviation aggregation by activity.
      *
      * Identifies which activities cause the most conformance issues.
-     * @param logId
+     * @param datasetId
      * @param modelId
      * @returns any Successful Response
      * @throws ApiError
      */
-    public getDeviationsByActivityApiV1ConformanceDeviationsByActivityLogIdModelIdGet(
-        logId: string,
+    public getDeviationsByActivityApiV1ConformanceDeviationsByActivityDatasetIdModelIdGet(
+        datasetId: string,
         modelId: string,
     ): CancelablePromise<any> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/conformance/deviations/by-activity/{log_id}/{model_id}',
+            url: '/api/v1/conformance/deviations/by-activity/{dataset_id}/{model_id}',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
                 'model_id': modelId,
             },
             errors: {
@@ -381,20 +381,20 @@ export class ConformanceService {
      * Get deviation aggregation by position in trace.
      *
      * Identifies at which point in the process deviations occur most frequently.
-     * @param logId
+     * @param datasetId
      * @param modelId
      * @returns any Successful Response
      * @throws ApiError
      */
-    public getDeviationsByPositionApiV1ConformanceDeviationsByPositionLogIdModelIdGet(
-        logId: string,
+    public getDeviationsByPositionApiV1ConformanceDeviationsByPositionDatasetIdModelIdGet(
+        datasetId: string,
         modelId: string,
     ): CancelablePromise<any> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/conformance/deviations/by-position/{log_id}/{model_id}',
+            url: '/api/v1/conformance/deviations/by-position/{dataset_id}/{model_id}',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
                 'model_id': modelId,
             },
             errors: {
@@ -408,22 +408,22 @@ export class ConformanceService {
      *
      * Identifies which attribute values (e.g., specific resources or departments)
      * are associated with more conformance violations.
-     * @param logId
+     * @param datasetId
      * @param modelId
      * @param attribute Attribute to analyze (e.g., resource, department)
      * @returns any Successful Response
      * @throws ApiError
      */
-    public getAttributeCorrelationApiV1ConformanceDeviationsAttributeCorrelationLogIdModelIdGet(
-        logId: string,
+    public getAttributeCorrelationApiV1ConformanceDeviationsAttributeCorrelationDatasetIdModelIdGet(
+        datasetId: string,
         modelId: string,
         attribute: string = 'resource',
     ): CancelablePromise<any> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/conformance/deviations/attribute-correlation/{log_id}/{model_id}',
+            url: '/api/v1/conformance/deviations/attribute-correlation/{dataset_id}/{model_id}',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
                 'model_id': modelId,
             },
             query: {

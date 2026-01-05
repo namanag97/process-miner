@@ -7,7 +7,7 @@
  */
 export type PlayOutResponse = {
     model_id: string;
-    generated_log_id: string;
+    generated_dataset_id: string;
     traces_generated: number;
     events_generated: number;
 };

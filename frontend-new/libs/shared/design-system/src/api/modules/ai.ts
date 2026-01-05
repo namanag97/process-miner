@@ -34,13 +34,13 @@ function transformPredictor(be: PredictorResponse): Predictor {
 export function createAIModule(client: ApiClient): AIModule {
   return {
     async listPredictors(datasetId: string) {
-      const response = await client.get<PredictorResponse[]>(`/predictions/logs/${datasetId}/predictors`);
+      const response = await client.get<PredictorResponse[]>(`/predictions/datasets/${datasetId}/predictors`);
       return response.map(transformPredictor);
     },
 
     async getInsights(datasetId: string) {
       // Uses predictions endpoint for insights
-      return client.get(`/predictions/logs/${datasetId}/predictions`);
+      return client.get(`/predictions/datasets/${datasetId}/predictions`);
     },
 
     async getPredictorDetail(id: string) {

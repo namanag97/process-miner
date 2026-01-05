@@ -7,7 +7,7 @@ import type { ReworkChain } from './ReworkChain';
  * Response for rework chain analysis.
  */
 export type ReworkChainListResponse = {
-    log_id: string;
+    dataset_id: string;
     chains: Array<ReworkChain>;
     total_chains: number;
     most_problematic_activity?: (string | null);

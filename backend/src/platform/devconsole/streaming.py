@@ -24,29 +24,21 @@ from fastapi.responses import StreamingResponse
 
 from src.platform.core.config import get_settings
 from src.platform.core.logging_config import get_logger
-from src.platform.infrastructure.dev_logs import (
+
+from .logging import (
     get_error_count,
     get_slow_request_count,
     get_system_metrics,
     log_api_request,
     log_api_response,
-    log_auth_event,
-    log_cache_operation,
-    log_circuit_breaker,
-    log_database_query,
     log_error,
-    log_perf_warning,
-    log_pm4py_operation,
-    log_validation,
     reset_metrics,
 )
-from src.platform.infrastructure.devconsole_types import (
+from .models import (
     DevLogEntry,
     HeartbeatMessage,
     LogLevel,
     SystemMetrics,
-    TraceSpan,
-    log_trace_span,
 )
 
 logger = get_logger(__name__)
@@ -66,18 +58,9 @@ __all__ = [
     "HeartbeatMessage",
     "LogLevel",
     "SystemMetrics",
-    "TraceSpan",
     "log_api_request",
     "log_api_response",
-    "log_auth_event",
-    "log_cache_operation",
-    "log_circuit_breaker",
-    "log_database_query",
     "log_error",
-    "log_perf_warning",
-    "log_pm4py_operation",
-    "log_trace_span",
-    "log_validation",
 ]
 
 
@@ -96,7 +79,7 @@ async def _stream_logs(
         include_recent: Include recent logs from buffer
         user_id: Optional user ID for tenant filtering (BUG-034)
     """
-    from src.platform.infrastructure.log_broker import log_broker
+    from .broker import log_broker
 
     # Ensure broker is connected
     await log_broker.connect()
@@ -160,7 +143,7 @@ async def stream_logs(
     - `event: heartbeat` for system metrics every 5s
 
     BUG-034 FIX: Pass user_id to filter logs by tenant.
-    Connect with: `new EventSource('/api/v1/dev/logs/stream?user_id=xxx')`
+    Connect with: `new EventSource('/api/v1/dev/datasets/stream?user_id=xxx')`
     """
     if not settings.debug:
         return {"error": "Dev logs only available in debug mode"}
@@ -195,7 +178,7 @@ async def get_recent_logs(
     if not settings.debug:
         return {"error": "Dev logs only available in debug mode"}
 
-    from src.platform.infrastructure.log_broker import log_broker
+    from .broker import log_broker
 
     logs = log_broker.get_recent_logs(limit=limit)
 
@@ -213,7 +196,7 @@ async def clear_logs():
     if not settings.debug:
         return {"error": "Dev logs only available in debug mode"}
 
-    from src.platform.infrastructure.log_broker import log_broker
+    from .broker import log_broker
 
     log_broker._local_buffer.clear()
     reset_metrics()

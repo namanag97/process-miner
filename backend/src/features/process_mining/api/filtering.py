@@ -62,7 +62,11 @@ async def apply_filters(
     source_log = result.scalar_one_or_none()
 
     if not source_log:
-        raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+        logger.error("apply_filters_dataset_not_found", dataset_id=dataset_id, filter_count=len(request.filters))
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dataset not found: {dataset_id}. Cannot apply filters to non-existent dataset."
+        )
 
     # Convert to PM4Py log
     pm4py_log = filtering_service.to_pm4py_log(source_log)
@@ -203,7 +207,11 @@ async def preview_filters(
     source_log = result.scalar_one_or_none()
 
     if not source_log:
-        raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+        logger.error("preview_filters_dataset_not_found", dataset_id=dataset_id, filter_count=len(request.filters))
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dataset not found: {dataset_id}. Cannot preview filters for non-existent dataset."
+        )
 
     # Convert to PM4Py log
     pm4py_log = filtering_service.to_pm4py_log(source_log)
@@ -254,7 +262,11 @@ async def get_filter_options(
     source_log = result.scalar_one_or_none()
 
     if not source_log:
-        raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+        logger.error("get_filter_options_dataset_not_found", dataset_id=dataset_id)
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dataset not found: {dataset_id}. Cannot get filter options for non-existent dataset."
+        )
 
     # Convert to PM4Py log
     pm4py_log = filtering_service.to_pm4py_log(source_log)
@@ -286,7 +298,11 @@ async def list_filtered_logs(
     source_log = result.scalar_one_or_none()
 
     if not source_log:
-        raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+        logger.error("list_filtered_logs_dataset_not_found", dataset_id=dataset_id)
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dataset not found: {dataset_id}. Cannot list filtered versions of non-existent dataset."
+        )
 
     # Get filtered logs
     query = (
@@ -366,9 +382,10 @@ async def delete_filtered_log(
     filtered_log = result.scalar_one_or_none()
 
     if not filtered_log:
+        logger.error("delete_filtered_log_not_found", dataset_id=dataset_id, filtered_id=filtered_id)
         raise HTTPException(
             status_code=404,
-            detail=f"Filtered log {filtered_id} not found for source log {log_id}",
+            detail=f"Filtered log {filtered_id} not found for source dataset {dataset_id}. Verify both IDs are correct.",
         )
 
     await db.delete(filtered_log)

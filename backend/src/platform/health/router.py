@@ -313,33 +313,3 @@ async def health_check() -> HealthStatus:
     return HealthStatus(status="healthy")
 
 
-# =============================================================================
-# Metrics Endpoint (Phase 7 - Observability)
-# =============================================================================
-
-
-@router.get("/metrics")
-async def prometheus_metrics() -> Response:
-    """Prometheus metrics endpoint.
-
-    Returns metrics in Prometheus text format for scraping.
-    Compatible with Prometheus, Grafana Cloud, Datadog, etc.
-
-    Metrics include:
-    - HTTP request latency and throughput
-    - PM4Py operation performance
-    - Business metrics (processes, analyses)
-    - Circuit breaker states
-    - Cache hit/miss rates
-    """
-    try:
-        from src.platform.infrastructure.metrics import get_metrics
-
-        metrics_data = get_metrics()
-        return Response(content=metrics_data, media_type="text/plain; version=0.0.4")
-    except ImportError:
-        # Prometheus client not installed
-        return Response(
-            content="# Prometheus client not installed\n# Install with: pip install prometheus-client\n",
-            media_type="text/plain",
-        )
