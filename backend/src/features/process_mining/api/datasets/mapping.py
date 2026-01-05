@@ -5,10 +5,11 @@ Part of 4-Phase Upload Architecture: Upload → Validate → Map → Ingest
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Query
 from sqlalchemy import select
+from starlette.concurrency import run_in_threadpool
 
 from src.api.dependencies import CurrentUser, DBSession
 from src.features.process_mining.models import (
@@ -145,11 +146,7 @@ async def submit_mapping(
     db: DBSession,
     dataset_id: str,
     user: CurrentUser,
-    case_id_column: str,
-    activity_column: str,
-    timestamp_column: str,
-    resource_column: str | None = None,
-    timestamp_format: str | None = None,
+    request: MappingUpdateRequest,
 ) -> dict:
     """Submit and validate column mapping."""
     # Verify permission
@@ -173,15 +170,15 @@ async def submit_mapping(
     # Validate required columns exist
     errors = []
     for col_name, col_field in [
-        (case_id_column, "case_id_column"),
-        (activity_column, "activity_column"),
-        (timestamp_column, "timestamp_column"),
+        (request.case_id_column, "case_id_column"),
+        (request.activity_column, "activity_column"),
+        (request.timestamp_column, "timestamp_column"),
     ]:
         if col_name not in valid_columns:
             errors.append(f"{col_field}: Column '{col_name}' not found in dataset")
 
-    if resource_column and resource_column not in valid_columns:
-        errors.append(f"resource_column: Column '{resource_column}' not found")
+    if request.resource_column and request.resource_column not in valid_columns:
+        errors.append(f"resource_column: Column '{request.resource_column}' not found")
 
     if errors:
         raise ValidationError("; ".join(errors))
@@ -194,23 +191,26 @@ async def submit_mapping(
 
     if mapping:
         # Update existing
-        mapping.case_id_column = case_id_column
-        mapping.activity_column = activity_column
-        mapping.timestamp_column = timestamp_column
-        mapping.resource_column = resource_column
-        mapping.timestamp_format = timestamp_format
+        mapping.case_id_column = request.case_id_column
+        mapping.activity_column = request.activity_column
+        mapping.timestamp_column = request.timestamp_column
+        mapping.resource_column = request.resource_column
+        mapping.timestamp_format = request.timestamp_format
+        mapping.additional_columns_json = json.dumps(request.additional_columns)
         mapping.auto_mapped = False
-        mapping.updated_at = datetime.utcnow()
+        mapping.updated_at = datetime.now(timezone.utc)
     else:
         # Create new
         mapping = DatasetColumnMapping(
             dataset_id=dataset_id,
-            case_id_column=case_id_column,
-            activity_column=activity_column,
-            timestamp_column=timestamp_column,
-            resource_column=resource_column,
-            timestamp_format=timestamp_format,
+            case_id_column=request.case_id_column,
+            activity_column=request.activity_column,
+            timestamp_column=request.timestamp_column,
+            resource_column=request.resource_column,
+            timestamp_format=request.timestamp_format,
+            additional_columns_json=json.dumps(request.additional_columns),
             auto_mapped=False,
+            created_at=datetime.now(timezone.utc),
         )
         db.add(mapping)
 
@@ -220,11 +220,12 @@ async def submit_mapping(
     
     # Also store in legacy mapping_json for backward compatibility
     dataset.mapping_json = json.dumps({
-        "case_id_column": case_id_column,
-        "activity_column": activity_column,
-        "timestamp_column": timestamp_column,
-        "resource_column": resource_column,
-        "timestamp_format": timestamp_format,
+        "case_id_column": request.case_id_column,
+        "activity_column": request.activity_column,
+        "timestamp_column": request.timestamp_column,
+        "resource_column": request.resource_column,
+        "timestamp_format": request.timestamp_format,
+        "additional_columns": request.additional_columns,
     })
 
     await db.commit()
@@ -232,9 +233,9 @@ async def submit_mapping(
     logger.info(
         "mapping_submitted",
         dataset_id=dataset_id,
-        case_id=case_id_column,
-        activity=activity_column,
-        timestamp=timestamp_column,
+        case_id=request.case_id_column,
+        activity=request.activity_column,
+        timestamp=request.timestamp_column,
     )
 
     return {
@@ -411,7 +412,7 @@ async def update_mapping(
         resource_column=mapping.resource_column,
         timestamp_format=mapping.timestamp_format,
         auto_mapped=False,
-        updated_at=datetime.utcnow(),
+        updated_at=datetime.now(timezone.utc),
     )
 
 
@@ -478,7 +479,9 @@ async def preview_mapped_data(
     if dataset.storage_key:
         try:
             storage_client = get_storage_client()
-            content = storage_client.download_file(bucket_type="raw", key=dataset.storage_key)
+            content = await run_in_threadpool(
+                storage_client.download_file, bucket_type="raw", key=dataset.storage_key
+            )
 
             # Parse CSV
             text_content = content.decode("utf-8")
