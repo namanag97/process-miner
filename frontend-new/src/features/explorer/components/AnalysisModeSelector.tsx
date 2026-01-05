@@ -122,7 +122,7 @@ export function AnalysisModeSelector({
                 const minerTypeMap: Record<string, string> = {
                     dfg_discovery: 'dfg',
                     alpha_miner: 'alpha',
-                    alpha_plus_miner: 'alpha_plus',
+                    // alpha_plus_miner: 'alpha_plus', // DEPRECATED in PM4Py 2.3+
                     inductive_miner: 'inductive',
                     inductive_infrequent: 'inductive_infrequent',
                     heuristic_miner: 'heuristics',
