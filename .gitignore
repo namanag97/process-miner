@@ -108,6 +108,13 @@ backend/data/logs/
 *.temp
 .cache/
 
+# Documentation and notes (except README files)
+*.md
+!README.md
+!readme.md
+*.txt
+!README.txt
+
 # ========================
 # Workspace Organization
 # ========================
