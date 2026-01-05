@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useMemo, useCallback, useEffect } from 'react';
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query';
 import { ApiClient } from '../api/client';
 import { logQuery, logMutation } from '../utils/devLogger';
+import { configureOpenAPISDK } from '../api/sdk-bridge';
 import {
   createProcessesModule,
   createProjectsModule,
@@ -56,7 +57,7 @@ const SDKContext = createContext<ProcessMiningSdk | null>(null);
 const queryCache = new QueryCache({
   onSuccess: (data, query) => {
     const key = Array.isArray(query.queryKey) ? query.queryKey.join('/') : String(query.queryKey);
-    logQuery(key, 'success', { 
+    logQuery(key, 'success', {
       dataPreview: typeof data === 'object' ? Object.keys(data as object).slice(0, 5) : typeof data,
       fetchStatus: query.state.fetchStatus,
     });
@@ -70,34 +71,34 @@ const queryCache = new QueryCache({
 // Mutation cache with logging for all mutation events
 const mutationCache = new MutationCache({
   onSuccess: (data, variables, _context, mutation) => {
-    const key = mutation.options.mutationKey 
-      ? Array.isArray(mutation.options.mutationKey) 
-        ? mutation.options.mutationKey.join('/') 
+    const key = mutation.options.mutationKey
+      ? Array.isArray(mutation.options.mutationKey)
+        ? mutation.options.mutationKey.join('/')
         : String(mutation.options.mutationKey)
       : 'anonymous';
-    logMutation(key, 'success', { 
+    logMutation(key, 'success', {
       dataPreview: typeof data === 'object' ? Object.keys(data as object).slice(0, 5) : typeof data,
       variables: typeof variables === 'object' ? Object.keys(variables as object) : typeof variables,
     });
   },
   onError: (error, variables, _context, mutation) => {
-    const key = mutation.options.mutationKey 
-      ? Array.isArray(mutation.options.mutationKey) 
-        ? mutation.options.mutationKey.join('/') 
+    const key = mutation.options.mutationKey
+      ? Array.isArray(mutation.options.mutationKey)
+        ? mutation.options.mutationKey.join('/')
         : String(mutation.options.mutationKey)
       : 'anonymous';
-    logMutation(key, 'error', { 
+    logMutation(key, 'error', {
       error: error instanceof Error ? error.message : String(error),
       variables: typeof variables === 'object' ? Object.keys(variables as object) : typeof variables,
     });
   },
   onMutate: (variables, mutation) => {
-    const key = mutation.options.mutationKey 
-      ? Array.isArray(mutation.options.mutationKey) 
-        ? mutation.options.mutationKey.join('/') 
+    const key = mutation.options.mutationKey
+      ? Array.isArray(mutation.options.mutationKey)
+        ? mutation.options.mutationKey.join('/')
         : String(mutation.options.mutationKey)
       : 'anonymous';
-    logMutation(key, 'start', { 
+    logMutation(key, 'start', {
       variables: typeof variables === 'object' ? Object.keys(variables as object) : typeof variables,
     });
   },
@@ -129,8 +130,8 @@ interface SDKProviderProps {
 /**
  * SDKProvider - Wraps app with SDK and React Query contexts
  */
-export function SDKProvider({ 
-  children, 
+export function SDKProvider({
+  children,
   baseUrl = 'http://localhost:8001',
   getAuthToken,
 }: SDKProviderProps) {
@@ -142,6 +143,14 @@ export function SDKProvider({
     // Default: try localStorage
     return localStorage.getItem('auth_token');
   }, [getAuthToken]);
+
+  // Configure the OpenAPI-generated SDK with same config
+  useEffect(() => {
+    configureOpenAPISDK({
+      baseUrl,
+      getAuthToken: memoizedGetAuthToken,
+    });
+  }, [baseUrl, memoizedGetAuthToken]);
 
   // Create SDK with real API modules
   const sdk = useMemo<ProcessMiningSdk>(() => {
