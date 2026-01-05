@@ -1,9 +1,9 @@
 """CRUD Router - List, Get, Delete dataset endpoints.
 
-Basic CRUD operations for datasets.
+Basic CRUD operations for datasets with comprehensive logging.
 """
 
-from datetime import datetime
+import json
 from typing import Any
 
 from fastapi import APIRouter, Query
@@ -41,6 +41,16 @@ async def list_datasets(
     status: str | None = Query(None, description="Filter by status"),
 ) -> DatasetListResponse:
     """List datasets with optional filters."""
+    logger.info(
+        "list_datasets_request",
+        user_id=user.id,
+        page=page,
+        page_size=page_size,
+        project_id=project_id,
+        source_format=source_format,
+        status_filter=status,
+    )
+
     # Build query
     query = select(Dataset)
 
@@ -62,16 +72,26 @@ async def list_datasets(
     result = await db.execute(query)
     datasets = result.scalars().all()
 
+    logger.debug(
+        "list_datasets_query_executed",
+        total_count=total,
+        fetched_count=len(datasets),
+        offset=offset,
+    )
+
     # Convert to response
     items = []
     for ds in datasets:
         activities = []
         if ds.activities_json:
             try:
-                import json
                 activities = json.loads(ds.activities_json)
-            except Exception:
-                pass
+            except json.JSONDecodeError as e:
+                logger.warning(
+                    "failed_to_parse_activities_json",
+                    dataset_id=ds.id,
+                    error=str(e),
+                )
 
         items.append(
             DatasetResponse(
@@ -91,6 +111,15 @@ async def list_datasets(
 
     # Calculate total pages
     pages = (total + page_size - 1) // page_size if total > 0 else 1
+
+    logger.info(
+        "list_datasets_success",
+        user_id=user.id,
+        total=total,
+        page=page,
+        pages=pages,
+        items_returned=len(items),
+    )
 
     return DatasetListResponse(
         items=items,
@@ -113,9 +142,22 @@ async def get_dataset(
     user: CurrentUser,
 ) -> DatasetDetailResponse:
     """Get dataset with full details and metadata."""
+    logger.info(
+        "get_dataset_request",
+        dataset_id=dataset_id,
+        user_id=user.id,
+    )
+
     # Verify permission
     _, dataset = await require_dataset_permission(
         db, dataset_id, user, Permission.DATASET_READ
+    )
+
+    logger.debug(
+        "get_dataset_permission_verified",
+        dataset_id=dataset_id,
+        dataset_name=dataset.name,
+        status=dataset.status,
     )
 
     # Parse JSON fields
@@ -124,17 +166,23 @@ async def get_dataset(
 
     if dataset.activities_json:
         try:
-            import json
             activities = json.loads(dataset.activities_json)
-        except Exception:
-            pass
+        except json.JSONDecodeError as e:
+            logger.warning(
+                "failed_to_parse_activities_json",
+                dataset_id=dataset_id,
+                error=str(e),
+            )
 
     if dataset.statistics_json:
         try:
-            import json
             statistics = json.loads(dataset.statistics_json)
-        except Exception:
-            pass
+        except json.JSONDecodeError as e:
+            logger.warning(
+                "failed_to_parse_statistics_json",
+                dataset_id=dataset_id,
+                error=str(e),
+            )
 
     # Get metadata if available
     metadata = None
@@ -148,6 +196,22 @@ async def get_dataset(
             "last_event_at": dataset.metadata_record.last_event_at.isoformat() if dataset.metadata_record.last_event_at else None,
             "avg_case_duration": dataset.metadata_record.avg_case_duration,
         }
+        logger.debug(
+            "get_dataset_metadata_loaded",
+            dataset_id=dataset_id,
+            has_metadata=True,
+            total_events=metadata.get("total_events"),
+            total_cases=metadata.get("total_cases"),
+        )
+
+    logger.info(
+        "get_dataset_success",
+        dataset_id=dataset_id,
+        dataset_name=dataset.name,
+        status=dataset.status,
+        total_events=dataset.total_events,
+        total_cases=dataset.total_cases,
+    )
 
     return DatasetDetailResponse(
         id=dataset.id,
@@ -180,29 +244,69 @@ async def delete_dataset(
     db: DBSession,
     dataset_id: str,
     user: CurrentUser,
-) -> dict:
+) -> dict[str, Any]:
     """Delete dataset and cascade to related records."""
     from src.platform.infrastructure.object_storage import get_storage_client
+
+    logger.info(
+        "delete_dataset_request",
+        dataset_id=dataset_id,
+        user_id=user.id,
+    )
 
     # Verify permission
     _, dataset = await require_dataset_permission(
         db, dataset_id, user, Permission.DATASET_DELETE
     )
 
+    dataset_name = dataset.name
     storage_key = dataset.storage_key
+    total_events = dataset.total_events
+    total_cases = dataset.total_cases
+
+    logger.debug(
+        "delete_dataset_permission_verified",
+        dataset_id=dataset_id,
+        dataset_name=dataset_name,
+        storage_key=storage_key,
+    )
 
     # Delete from database (cascades to cases, events, etc.)
     await db.delete(dataset)
     await db.commit()
+
+    logger.debug(
+        "delete_dataset_db_deleted",
+        dataset_id=dataset_id,
+        dataset_name=dataset_name,
+    )
 
     # Delete from S3 if exists
     if storage_key:
         try:
             storage_client = get_storage_client()
             storage_client.delete_file(bucket_type="raw", key=storage_key)
+            logger.debug(
+                "delete_dataset_s3_deleted",
+                dataset_id=dataset_id,
+                storage_key=storage_key,
+            )
         except Exception as e:
-            logger.warning("failed_to_delete_s3_file", key=storage_key, error=str(e))
+            logger.warning(
+                "delete_dataset_s3_failed",
+                dataset_id=dataset_id,
+                storage_key=storage_key,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
 
-    logger.info("dataset_deleted", dataset_id=dataset_id, user_id=user.id)
+    logger.info(
+        "delete_dataset_success",
+        dataset_id=dataset_id,
+        dataset_name=dataset_name,
+        user_id=user.id,
+        events_deleted=total_events,
+        cases_deleted=total_cases,
+    )
 
     return {"status": "deleted", "dataset_id": dataset_id}

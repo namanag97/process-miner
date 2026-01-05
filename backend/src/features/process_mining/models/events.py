@@ -61,8 +61,8 @@ class ProcessEvent(Base):
         ForeignKey("lookup_resources.id", ondelete="SET NULL"), nullable=True
     )
     
-    # Legacy string columns (kept for backward compatibility during migration)
-    # TODO: Remove after data migration is complete
+    
+    # Legacy string columns (retained for query compatibility - denormalized for DuckDB analytics)
     activity: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     resource: Mapped[str | None] = mapped_column(String(255), nullable=True)
     
