@@ -386,6 +386,109 @@ async def get_current_user_info(
     )
 
 
+@router.put("/me", response_model=UserResponse)
+async def update_current_user(
+    db: DBSession,
+    current_user: CurrentUser,
+    name: str | None = None,
+) -> UserResponse:
+    """Update current user's profile (name, etc.)."""
+    if name:
+        current_user.name = name.strip()
+        await db.commit()
+        await db.refresh(current_user)
+        logger.info("user_profile_updated", user_id=current_user.id)
+
+    return _user_to_response(current_user)
+
+
+class ChangePasswordRequest(BaseModel):
+    """Change password request."""
+
+    current_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+
+@router.post("/change-password")
+async def change_password(
+    request: ChangePasswordRequest,
+    db: DBSession,
+    current_user: CurrentUser,
+) -> dict[str, str]:
+    """Change password for logged in user."""
+    # Verify current password
+    if not current_user.password_hash or not verify_password(
+        request.current_password, current_user.password_hash
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Current password is incorrect",
+        )
+
+    # Update password
+    current_user.password_hash = hash_password(request.new_password)
+    await db.commit()
+
+    logger.info("password_changed", user_id=current_user.id)
+    return {"status": "success", "message": "Password changed successfully"}
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Forgot password request."""
+
+    email: EmailStr
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    request: ForgotPasswordRequest,
+    db: DBSession,
+) -> dict[str, str]:
+    """Request password reset email.
+
+    Always returns success to prevent email enumeration.
+    """
+    result = await db.execute(
+        select(User).filter(User.email == request.email.lower())
+    )
+    user = result.scalar_one_or_none()
+
+    if user:
+        # In production: generate token, store it, send email
+        logger.info("password_reset_requested", email=request.email)
+
+    # Always return success to prevent email enumeration
+    return {
+        "status": "success",
+        "message": "If an account exists, a password reset email will be sent",
+    }
+
+
+class ResetPasswordRequest(BaseModel):
+    """Reset password request."""
+
+    token: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+
+@router.post("/reset-password")
+async def reset_password(
+    request: ResetPasswordRequest,
+    db: DBSession,
+) -> dict[str, str]:
+    """Set new password with reset token.
+
+    Note: Token validation not implemented - placeholder.
+    """
+    # In production: validate token, find user, update password
+    logger.warning("reset_password_attempted", msg="Token validation not implemented")
+
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Password reset token validation not yet implemented",
+    )
+
+
 @router.post("/logout")
 async def logout() -> dict[str, str]:
     """Logout endpoint.
@@ -394,6 +497,75 @@ async def logout() -> dict[str, str]:
     For additional security, implement token blacklisting in production.
     """
     return {"status": "logged_out", "message": "Token should be discarded by client"}
+
+
+# =============================================================================
+# OAuth Endpoints (Placeholders)
+# =============================================================================
+
+
+@router.get("/oauth/google")
+async def oauth_google_init() -> dict:
+    """Initiate Google OAuth flow.
+
+    Note: OAuth integration not yet implemented.
+    """
+    logger.info("oauth_google_init_attempted")
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail={
+            "code": "OAUTH_NOT_IMPLEMENTED",
+            "message": "Google OAuth integration not yet configured",
+            "provider": "google",
+        },
+    )
+
+
+@router.get("/oauth/google/callback")
+async def oauth_google_callback(
+    code: str | None = Query(None),
+    state: str | None = Query(None),
+) -> dict:
+    """Google OAuth callback.
+
+    Note: OAuth integration not yet implemented.
+    """
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Google OAuth callback not implemented",
+    )
+
+
+@router.get("/oauth/github")
+async def oauth_github_init() -> dict:
+    """Initiate GitHub OAuth flow.
+
+    Note: OAuth integration not yet implemented.
+    """
+    logger.info("oauth_github_init_attempted")
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail={
+            "code": "OAUTH_NOT_IMPLEMENTED",
+            "message": "GitHub OAuth integration not yet configured",
+            "provider": "github",
+        },
+    )
+
+
+@router.get("/oauth/github/callback")
+async def oauth_github_callback(
+    code: str | None = Query(None),
+    state: str | None = Query(None),
+) -> dict:
+    """GitHub OAuth callback.
+
+    Note: OAuth integration not yet implemented.
+    """
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="GitHub OAuth callback not implemented",
+    )
 
 
 # =============================================================================
@@ -441,3 +613,4 @@ async def get_current_user_legacy(
         workspaces=[_workspace_to_response(w) for w in workspaces],
         current_workspace_id=workspaces[0].id if workspaces else None,
     )
+

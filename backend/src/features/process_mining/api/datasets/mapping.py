@@ -242,3 +242,300 @@ async def submit_mapping(
         "dataset_id": dataset_id,
         "message": "Column mapping saved. Ready for ingestion.",
     }
+
+
+# =============================================================================
+# Additional Mapping Endpoints (per API spec)
+# =============================================================================
+
+
+from pydantic import BaseModel, Field
+
+
+class MappingResponse(BaseModel):
+    """Current mapping response."""
+
+    dataset_id: str
+    case_id_column: str
+    activity_column: str
+    timestamp_column: str
+    resource_column: str | None = None
+    timestamp_format: str | None = None
+    additional_columns: list[str] = []
+    auto_mapped: bool = False
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class MappingUpdateRequest(BaseModel):
+    """Update mapping request."""
+
+    case_id_column: str = Field(..., description="Column for case ID")
+    activity_column: str = Field(..., description="Column for activity")
+    timestamp_column: str = Field(..., description="Column for timestamp")
+    resource_column: str | None = Field(None, description="Column for resource")
+    timestamp_format: str | None = Field(None, description="Timestamp format")
+    additional_columns: list[str] = Field(default_factory=list)
+
+
+class PreviewResponse(BaseModel):
+    """Preview response with sample mapped data."""
+
+    dataset_id: str
+    sample_events: list[dict]
+    total_rows: int
+    parse_errors: list[str] = []
+
+
+@router.get(
+    "/{dataset_id}/mapping",
+    response_model=MappingResponse,
+    summary="Get Current Mapping",
+    description="Get the current column mapping for a dataset.",
+    responses={
+        200: {"description": "Current mapping"},
+        404: {"description": "Dataset or mapping not found"},
+    },
+)
+async def get_mapping(
+    db: DBSession,
+    dataset_id: str,
+    user: CurrentUser,
+) -> MappingResponse:
+    """Get current column mapping."""
+    from src.platform.core.exceptions import NotFoundError
+
+    # Verify permission
+    _, dataset = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_READ
+    )
+
+    # Get mapping
+    result = await db.execute(
+        select(DatasetColumnMapping).where(DatasetColumnMapping.dataset_id == dataset_id)
+    )
+    mapping = result.scalar_one_or_none()
+
+    if not mapping:
+        # Try to get from legacy mapping_json
+        if dataset.mapping_json:
+            try:
+                data = json.loads(dataset.mapping_json)
+                return MappingResponse(
+                    dataset_id=dataset_id,
+                    case_id_column=data.get("case_id_column", ""),
+                    activity_column=data.get("activity_column", ""),
+                    timestamp_column=data.get("timestamp_column", ""),
+                    resource_column=data.get("resource_column"),
+                    timestamp_format=data.get("timestamp_format"),
+                )
+            except Exception:
+                pass
+        raise NotFoundError("No mapping found for this dataset")
+
+    return MappingResponse(
+        dataset_id=dataset_id,
+        case_id_column=mapping.case_id_column,
+        activity_column=mapping.activity_column,
+        timestamp_column=mapping.timestamp_column,
+        resource_column=mapping.resource_column,
+        timestamp_format=mapping.timestamp_format,
+        auto_mapped=mapping.auto_mapped or False,
+        created_at=mapping.created_at,
+        updated_at=mapping.updated_at,
+    )
+
+
+@router.put(
+    "/{dataset_id}/mapping",
+    response_model=MappingResponse,
+    summary="Update Mapping",
+    description="Update the column mapping for a dataset.",
+    responses={
+        200: {"description": "Mapping updated"},
+        400: {"description": "Invalid mapping"},
+        404: {"description": "Dataset not found"},
+    },
+)
+async def update_mapping(
+    request: MappingUpdateRequest,
+    db: DBSession,
+    dataset_id: str,
+    user: CurrentUser,
+) -> MappingResponse:
+    """Update existing column mapping."""
+    # Verify permission
+    _, dataset = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_UPDATE
+    )
+
+    # Get column names to validate mapping
+    result = await db.execute(
+        select(DatasetColumn.name).where(DatasetColumn.dataset_id == dataset_id)
+    )
+    valid_columns = {row[0] for row in result.all()}
+
+    # Validate required columns exist
+    errors = []
+    for col_name, col_field in [
+        (request.case_id_column, "case_id_column"),
+        (request.activity_column, "activity_column"),
+        (request.timestamp_column, "timestamp_column"),
+    ]:
+        if col_name not in valid_columns:
+            errors.append(f"{col_field}: Column '{col_name}' not found in dataset")
+
+    if request.resource_column and request.resource_column not in valid_columns:
+        errors.append(f"resource_column: Column '{request.resource_column}' not found")
+
+    if errors:
+        raise ValidationError("; ".join(errors))
+
+    # Get or create mapping
+    existing_mapping = await db.execute(
+        select(DatasetColumnMapping).where(DatasetColumnMapping.dataset_id == dataset_id)
+    )
+    mapping = existing_mapping.scalar_one_or_none()
+
+    if mapping:
+        mapping.case_id_column = request.case_id_column
+        mapping.activity_column = request.activity_column
+        mapping.timestamp_column = request.timestamp_column
+        mapping.resource_column = request.resource_column
+        mapping.timestamp_format = request.timestamp_format
+        mapping.auto_mapped = False
+        mapping.updated_at = datetime.utcnow()
+    else:
+        mapping = DatasetColumnMapping(
+            dataset_id=dataset_id,
+            case_id_column=request.case_id_column,
+            activity_column=request.activity_column,
+            timestamp_column=request.timestamp_column,
+            resource_column=request.resource_column,
+            timestamp_format=request.timestamp_format,
+            auto_mapped=False,
+        )
+        db.add(mapping)
+
+    # Update dataset status if needed
+    if dataset.status == DatasetStatus.AWAITING_MAPPING.value:
+        dataset.status = DatasetStatus.MAPPED.value
+
+    # Update legacy mapping_json
+    dataset.mapping_json = json.dumps({
+        "case_id_column": request.case_id_column,
+        "activity_column": request.activity_column,
+        "timestamp_column": request.timestamp_column,
+        "resource_column": request.resource_column,
+        "timestamp_format": request.timestamp_format,
+    })
+
+    await db.commit()
+
+    logger.info("mapping_updated", dataset_id=dataset_id, user_id=user.id)
+
+    return MappingResponse(
+        dataset_id=dataset_id,
+        case_id_column=mapping.case_id_column,
+        activity_column=mapping.activity_column,
+        timestamp_column=mapping.timestamp_column,
+        resource_column=mapping.resource_column,
+        timestamp_format=mapping.timestamp_format,
+        auto_mapped=False,
+        updated_at=datetime.utcnow(),
+    )
+
+
+@router.post(
+    "/{dataset_id}/preview",
+    response_model=PreviewResponse,
+    summary="Preview Mapped Data",
+    description="""
+Preview how data will look after applying the mapping.
+
+Returns a sample of events with the mapping applied.
+Useful for verifying column selections before ingestion.
+    """,
+    responses={
+        200: {"description": "Preview generated"},
+        400: {"description": "No mapping found"},
+        404: {"description": "Dataset not found"},
+    },
+)
+async def preview_mapped_data(
+    db: DBSession,
+    dataset_id: str,
+    user: CurrentUser,
+    limit: int = Query(10, ge=1, le=100, description="Number of sample rows"),
+) -> PreviewResponse:
+    """Preview mapped data before ingestion."""
+    from src.platform.core.exceptions import NotFoundError
+    from src.platform.infrastructure.object_storage import get_storage_client
+    import csv
+    import io
+
+    # Verify permission
+    _, dataset = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_READ
+    )
+
+    # Get mapping
+    mapping_result = await db.execute(
+        select(DatasetColumnMapping).where(DatasetColumnMapping.dataset_id == dataset_id)
+    )
+    mapping = mapping_result.scalar_one_or_none()
+
+    if not mapping and not dataset.mapping_json:
+        raise NotFoundError("No mapping found. Submit mapping first.")
+
+    # Get mapping data
+    if mapping:
+        case_col = mapping.case_id_column
+        activity_col = mapping.activity_column
+        timestamp_col = mapping.timestamp_column
+        resource_col = mapping.resource_column
+    else:
+        data = json.loads(dataset.mapping_json)
+        case_col = data.get("case_id_column")
+        activity_col = data.get("activity_column")
+        timestamp_col = data.get("timestamp_column")
+        resource_col = data.get("resource_column")
+
+    # Try to read sample from file
+    sample_events = []
+    parse_errors = []
+    total_rows = 0
+
+    if dataset.storage_key:
+        try:
+            storage_client = get_storage_client()
+            content = storage_client.download_file(bucket_type="raw", key=dataset.storage_key)
+
+            # Parse CSV
+            text_content = content.decode("utf-8")
+            reader = csv.DictReader(io.StringIO(text_content))
+
+            for i, row in enumerate(reader):
+                total_rows += 1
+                if i < limit:
+                    try:
+                        event = {
+                            "case_id": row.get(case_col, ""),
+                            "activity": row.get(activity_col, ""),
+                            "timestamp": row.get(timestamp_col, ""),
+                        }
+                        if resource_col:
+                            event["resource"] = row.get(resource_col, "")
+                        sample_events.append(event)
+                    except Exception as e:
+                        parse_errors.append(f"Row {i+1}: {str(e)}")
+        except Exception as e:
+            logger.warning("preview_failed", dataset_id=dataset_id, error=str(e))
+            parse_errors.append(f"Failed to read file: {str(e)}")
+
+    return PreviewResponse(
+        dataset_id=dataset_id,
+        sample_events=sample_events,
+        total_rows=total_rows,
+        parse_errors=parse_errors,
+    )

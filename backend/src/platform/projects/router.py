@@ -383,3 +383,100 @@ async def remove_file_from_project(
     await db.commit()
 
     logger.info("dataset_removed_from_project", dataset_id=dataset_id, project_id=project_id, user_id=user.id)
+
+
+# =============================================================================
+# Archive/Restore
+# =============================================================================
+
+
+@router.post("/{project_id}/archive", response_model=ProjectResponse)
+async def archive_project(
+    db: DBSession,
+    user: CurrentUser,
+    project_id: str = Path(..., description="Project ID (UUID format)"),
+) -> ProjectResponse:
+    """
+    Archive a project.
+
+    Archived projects are hidden from default list views but still accessible.
+    Requires PROJECT_UPDATE permission (editor+).
+    """
+    from src.platform.workspaces.authorization import require_project_permission
+
+    # Validate UUID format
+    validate_uuid(project_id, "project_id")
+
+    # Check permission
+    _, project = await require_project_permission(db, project_id, user, Permission.PROJECT_UPDATE)
+
+    # Check if already archived
+    if getattr(project, "archived", False):
+        raise ConflictError(message="Project is already archived")
+
+    # Archive project (set archived flag or update status)
+    # Note: If Project model doesn't have 'archived' field, we store in tags_json
+    try:
+        project.archived = True
+    except AttributeError:
+        # Fallback: store in tags_json
+        import json
+
+        tags = json.loads(project.tags_json) if project.tags_json else []
+        if "_archived" not in tags:
+            tags.append("_archived")
+            project.tags_json = json.dumps(tags)
+
+    project.updated_at = datetime.now(timezone.utc)
+
+    await db.commit()
+    await db.refresh(project)
+
+    logger.info("project_archived", project_id=project_id, user_id=user.id)
+
+    return _project_to_response(project)
+
+
+@router.post("/{project_id}/restore", response_model=ProjectResponse)
+async def restore_project(
+    db: DBSession,
+    user: CurrentUser,
+    project_id: str = Path(..., description="Project ID (UUID format)"),
+) -> ProjectResponse:
+    """
+    Restore an archived project.
+
+    Restores a previously archived project back to active status.
+    Requires PROJECT_UPDATE permission (editor+).
+    """
+    from src.platform.workspaces.authorization import require_project_permission
+
+    # Validate UUID format
+    validate_uuid(project_id, "project_id")
+
+    # Check permission
+    _, project = await require_project_permission(db, project_id, user, Permission.PROJECT_UPDATE)
+
+    # Restore project
+    try:
+        if not getattr(project, "archived", False):
+            raise ConflictError(message="Project is not archived")
+        project.archived = False
+    except AttributeError:
+        # Fallback: remove from tags_json
+        import json
+
+        tags = json.loads(project.tags_json) if project.tags_json else []
+        if "_archived" not in tags:
+            raise ConflictError(message="Project is not archived")
+        tags = [t for t in tags if t != "_archived"]
+        project.tags_json = json.dumps(tags) if tags else None
+
+    project.updated_at = datetime.now(timezone.utc)
+
+    await db.commit()
+    await db.refresh(project)
+
+    logger.info("project_restored", project_id=project_id, user_id=user.id)
+
+    return _project_to_response(project)

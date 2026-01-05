@@ -344,3 +344,126 @@ async def stream_job_progress(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# =============================================================================
+# Job Logs Endpoint (per API spec)
+# =============================================================================
+
+
+class JobLogEntry(BaseModel):
+    """Job log entry."""
+
+    timestamp: str
+    level: str
+    message: str
+    details: dict | None = None
+
+
+class JobLogsResponse(BaseModel):
+    """Job logs response."""
+
+    job_id: str
+    logs: list[JobLogEntry]
+    total: int
+
+
+@router.get("/{job_id}/logs", response_model=JobLogsResponse)
+async def get_job_logs(
+    db: DBSession,
+    job_id: str = Path(..., description="Job ID (UUID format)"),
+    limit: int = Query(100, ge=1, le=1000, description="Max log entries to return"),
+    level: str | None = Query(None, description="Filter by log level (info, warn, error)"),
+) -> JobLogsResponse:
+    """
+    Get execution logs for a job.
+
+    Returns structured log entries for the job's execution.
+    Useful for debugging failed jobs or understanding execution flow.
+    """
+    # Validate UUID format
+    validate_uuid(job_id, "job_id")
+
+    # Verify job exists
+    query = select(AsyncJob).where(AsyncJob.id == job_id)
+    result = await db.execute(query)
+    job = result.scalar_one_or_none()
+
+    if not job:
+        raise NotFoundError(resource="Job", resource_id=job_id)
+
+    # Note: In production, logs would be stored in a dedicated table or log service
+    # For now, return synthetic logs based on job state
+    logs = []
+
+    # Add job creation log
+    logs.append(
+        JobLogEntry(
+            timestamp=job.created_at.isoformat() if job.created_at else "",
+            level="info",
+            message=f"Job {job.job_type} created",
+            details={"entity_type": job.entity_type, "entity_id": job.entity_id},
+        )
+    )
+
+    # Add started log if running or completed
+    if job.started_at:
+        logs.append(
+            JobLogEntry(
+                timestamp=job.started_at.isoformat(),
+                level="info",
+                message="Job execution started",
+            )
+        )
+
+    # Add stage info if available
+    if job.stage:
+        logs.append(
+            JobLogEntry(
+                timestamp=job.updated_at.isoformat() if job.updated_at else "",
+                level="info",
+                message=f"Processing stage: {job.stage}",
+                details={"progress": job.progress},
+            )
+        )
+
+    # Add completion/error logs
+    if job.status == "completed":
+        logs.append(
+            JobLogEntry(
+                timestamp=job.completed_at.isoformat() if job.completed_at else "",
+                level="info",
+                message="Job completed successfully",
+                details={"result": job.result_json if hasattr(job, "result_json") else None},
+            )
+        )
+    elif job.status == "failed":
+        logs.append(
+            JobLogEntry(
+                timestamp=job.completed_at.isoformat() if job.completed_at else "",
+                level="error",
+                message=f"Job failed: {job.error_message or 'Unknown error'}",
+                details={"error": job.error_message},
+            )
+        )
+    elif job.status == "cancelled":
+        logs.append(
+            JobLogEntry(
+                timestamp=job.updated_at.isoformat() if job.updated_at else "",
+                level="warn",
+                message="Job was cancelled",
+            )
+        )
+
+    # Apply level filter
+    if level:
+        logs = [log for log in logs if log.level == level.lower()]
+
+    # Apply limit
+    logs = logs[:limit]
+
+    return JobLogsResponse(
+        job_id=job_id,
+        logs=logs,
+        total=len(logs),
+    )

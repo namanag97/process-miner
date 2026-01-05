@@ -8,13 +8,14 @@
 
 Plus:
 - CRUD (crud.py) - List, get, delete
-- Analytics (analytics.py) - Statistics, cases, variants
+- Analytics (analytics.py) - Statistics, cases, variants, events
+- Export (export.py) - Export and download
 """
 
 from fastapi import APIRouter
 
 # Use relative imports to avoid circular dependency
-from . import analytics, crud, ingest, mapping, upload
+from . import analytics, crud, export, ingest, mapping, upload
 
 # Create main router
 router = APIRouter(prefix="/datasets", tags=["Datasets"])
@@ -25,13 +26,16 @@ router = APIRouter(prefix="/datasets", tags=["Datasets"])
 # Upload routes: POST /datasets, POST /datasets/presign, POST /datasets/{id}/uploaded
 router.include_router(upload.router)
 
-# Mapping routes: GET /datasets/{id}/columns, POST /datasets/{id}/mapping
+# Mapping routes: GET /datasets/{id}/columns, POST/GET/PUT /datasets/{id}/mapping
 router.include_router(mapping.router)
 
-# Ingest routes: POST /datasets/{id}/ingest
+# Ingest routes: POST /datasets/{id}/ingest, POST /datasets/{id}/reingest
 router.include_router(ingest.router)
 
-# Analytics routes: GET /datasets/{id}/statistics, cases, variants, activities
+# Export routes: POST /datasets/{id}/export, GET /datasets/{id}/download
+router.include_router(export.router)
+
+# Analytics routes: GET /datasets/{id}/statistics, cases, variants, activities, events, metadata
 router.include_router(analytics.router)
 
 # CRUD routes: GET /datasets, GET /datasets/{id}, DELETE /datasets/{id}
@@ -40,4 +44,3 @@ router.include_router(crud.router)
 
 
 __all__ = ["router"]
-

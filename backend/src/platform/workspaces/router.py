@@ -402,3 +402,243 @@ async def remove_project_from_workspace(
     await db.commit()
 
     logger.info("project_removed_from_workspace", project_id=project_id, workspace_id=workspace_id)
+
+
+# =============================================================================
+# Member Management
+# =============================================================================
+
+
+from pydantic import BaseModel, Field
+
+
+class WorkspaceMemberResponse(BaseModel):
+    """Workspace member response."""
+
+    user_id: str
+    email: str
+    name: str
+    role: str
+    joined_at: datetime | None = None
+
+
+class WorkspaceMemberListResponse(BaseModel):
+    """Workspace member list response."""
+
+    items: list[WorkspaceMemberResponse]
+    total: int
+
+
+class AddMemberRequest(BaseModel):
+    """Add member request."""
+
+    user_id: str = Field(..., description="User ID to add")
+    role: str = Field("viewer", pattern=r"^(owner|admin|editor|analyst|viewer)$")
+
+
+class UpdateMemberRoleRequest(BaseModel):
+    """Update member role request."""
+
+    role: str = Field(..., pattern=r"^(owner|admin|editor|analyst|viewer)$")
+
+
+@router.get("/{workspace_id}/members", response_model=WorkspaceMemberListResponse)
+async def list_workspace_members(
+    db: DBSession,
+    user: CurrentUser,
+    workspace_id: str = Path(..., description="Workspace ID (UUID format)"),
+) -> WorkspaceMemberListResponse:
+    """List workspace members."""
+    validate_uuid(workspace_id, "workspace_id")
+
+    # Verify user has access
+    auth_service = AuthorizationService(db)
+    await auth_service.verify_workspace_access(workspace_id, user, Permission.WORKSPACE_READ)
+
+    # Get members with user info
+    from src.platform.models import User
+
+    result = await db.execute(
+        select(WorkspaceMember, User)
+        .join(User, User.id == WorkspaceMember.user_id)
+        .where(WorkspaceMember.workspace_id == workspace_id)
+    )
+    rows = result.all()
+
+    members = [
+        WorkspaceMemberResponse(
+            user_id=member.user_id,
+            email=u.email,
+            name=u.name,
+            role=member.role,
+            joined_at=member.joined_at,
+        )
+        for member, u in rows
+    ]
+
+    return WorkspaceMemberListResponse(items=members, total=len(members))
+
+
+@router.post("/{workspace_id}/members", response_model=WorkspaceMemberResponse, status_code=201)
+async def add_workspace_member(
+    request: AddMemberRequest,
+    db: DBSession,
+    user: CurrentUser,
+    workspace_id: str = Path(..., description="Workspace ID (UUID format)"),
+) -> WorkspaceMemberResponse:
+    """Add member to workspace (admin only)."""
+    validate_uuid(workspace_id, "workspace_id")
+    validate_uuid(request.user_id, "user_id")
+
+    # Verify user has admin access
+    auth_service = AuthorizationService(db)
+    await auth_service.verify_workspace_access(workspace_id, user, Permission.WORKSPACE_UPDATE)
+
+    # Check workspace exists
+    ws_result = await db.execute(select(Workspace).where(Workspace.id == workspace_id))
+    workspace = ws_result.scalar_one_or_none()
+    if not workspace:
+        raise NotFoundError(resource="Workspace", resource_id=workspace_id)
+
+    # Check target user exists
+    from src.platform.models import User
+
+    user_result = await db.execute(select(User).where(User.id == request.user_id))
+    target_user = user_result.scalar_one_or_none()
+    if not target_user:
+        raise NotFoundError(resource="User", resource_id=request.user_id)
+
+    # Check if already a member
+    existing = await db.execute(
+        select(WorkspaceMember).where(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == request.user_id,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise ConflictError(message="User is already a member of this workspace")
+
+    # Add member
+    from uuid import uuid4
+
+    member = WorkspaceMember(
+        id=str(uuid4()),
+        workspace_id=workspace_id,
+        user_id=request.user_id,
+        role=request.role,
+        joined_at=datetime.now(timezone.utc),
+    )
+    db.add(member)
+    await db.commit()
+
+    logger.info(
+        "workspace_member_added",
+        workspace_id=workspace_id,
+        user_id=request.user_id,
+        role=request.role,
+        by_user=user.id,
+    )
+
+    return WorkspaceMemberResponse(
+        user_id=target_user.id,
+        email=target_user.email,
+        name=target_user.name,
+        role=request.role,
+        joined_at=member.joined_at,
+    )
+
+
+@router.put("/{workspace_id}/members/{user_id}", response_model=WorkspaceMemberResponse)
+async def update_workspace_member_role(
+    request: UpdateMemberRoleRequest,
+    db: DBSession,
+    user: CurrentUser,
+    workspace_id: str = Path(..., description="Workspace ID (UUID format)"),
+    user_id: str = Path(..., description="User ID"),
+) -> WorkspaceMemberResponse:
+    """Update member role (admin only)."""
+    validate_uuid(workspace_id, "workspace_id")
+    validate_uuid(user_id, "user_id")
+
+    # Verify user has admin access
+    auth_service = AuthorizationService(db)
+    await auth_service.verify_workspace_access(workspace_id, user, Permission.WORKSPACE_UPDATE)
+
+    # Get membership
+    result = await db.execute(
+        select(WorkspaceMember).where(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == user_id,
+        )
+    )
+    member = result.scalar_one_or_none()
+    if not member:
+        raise NotFoundError(resource="WorkspaceMember", resource_id=user_id)
+
+    # Get user info
+    from src.platform.models import User
+
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    target_user = user_result.scalar_one_or_none()
+
+    # Update role
+    member.role = request.role
+    await db.commit()
+
+    logger.info(
+        "workspace_member_role_updated",
+        workspace_id=workspace_id,
+        user_id=user_id,
+        new_role=request.role,
+        by_user=user.id,
+    )
+
+    return WorkspaceMemberResponse(
+        user_id=user_id,
+        email=target_user.email if target_user else "",
+        name=target_user.name if target_user else "",
+        role=request.role,
+        joined_at=member.joined_at,
+    )
+
+
+@router.delete("/{workspace_id}/members/{user_id}", status_code=204)
+async def remove_workspace_member(
+    db: DBSession,
+    user: CurrentUser,
+    workspace_id: str = Path(..., description="Workspace ID (UUID format)"),
+    user_id: str = Path(..., description="User ID"),
+) -> None:
+    """Remove member from workspace (admin only)."""
+    validate_uuid(workspace_id, "workspace_id")
+    validate_uuid(user_id, "user_id")
+
+    # Verify user has admin access
+    auth_service = AuthorizationService(db)
+    await auth_service.verify_workspace_access(workspace_id, user, Permission.WORKSPACE_UPDATE)
+
+    # Get membership
+    result = await db.execute(
+        select(WorkspaceMember).where(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == user_id,
+        )
+    )
+    member = result.scalar_one_or_none()
+    if not member:
+        raise NotFoundError(resource="WorkspaceMember", resource_id=user_id)
+
+    # Cannot remove self
+    if user_id == user.id:
+        raise ConflictError(message="Cannot remove yourself from the workspace")
+
+    # Delete membership
+    await db.delete(member)
+    await db.commit()
+
+    logger.info(
+        "workspace_member_removed",
+        workspace_id=workspace_id,
+        user_id=user_id,
+        by_user=user.id,
+    )

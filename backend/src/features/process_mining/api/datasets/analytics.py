@@ -258,3 +258,192 @@ async def get_activities(
         )
 
     return activities
+
+
+# =============================================================================
+# Events and Metadata (per API spec)
+# =============================================================================
+
+
+from pydantic import BaseModel, Field
+
+
+class EventResponse(BaseModel):
+    """Event response."""
+
+    id: str
+    case_id: str
+    activity: str
+    timestamp: datetime
+    resource: str | None = None
+    attributes: dict[str, Any] | None = None
+
+
+class EventListResponse(BaseModel):
+    """Paginated event list."""
+
+    items: list[EventResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+class MetadataResponse(BaseModel):
+    """Dataset metadata response."""
+
+    dataset_id: str
+    total_events: int
+    total_cases: int
+    total_activities: int
+    total_variants: int
+    first_event_at: datetime | None = None
+    last_event_at: datetime | None = None
+    avg_case_duration_seconds: float | None = None
+    activities: list[str] = []
+    date_range: dict | None = None
+
+
+@router.get(
+    "/{dataset_id}/events",
+    response_model=EventListResponse,
+    summary="Query Events",
+    description="""
+Query events with pagination and filtering.
+
+Use this to browse individual events in the event log.
+    """,
+)
+async def list_events(
+    db: DBSession,
+    dataset_id: str,
+    user: CurrentUser,
+    page: int = Query(1, ge=1),
+    limit: int = Query(100, ge=1, le=1000, alias="limit"),
+    case_id: str | None = Query(None, description="Filter by case ID"),
+    activity: str | None = Query(None, description="Filter by activity"),
+    from_date: datetime | None = Query(None, alias="from", description="Start date"),
+    to_date: datetime | None = Query(None, alias="to", description="End date"),
+) -> EventListResponse:
+    """Query events with pagination."""
+    # Verify permission
+    _, dataset = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_READ
+    )
+
+    # Build query
+    query = (
+        select(ProcessEvent, ProcessCase.case_id)
+        .join(ProcessCase, ProcessCase.id == ProcessEvent.case_ref_id)
+        .where(ProcessCase.dataset_id == dataset_id)
+    )
+
+    # Apply filters
+    if case_id:
+        query = query.where(ProcessCase.case_id == case_id)
+    if activity:
+        query = query.where(ProcessEvent.activity == activity)
+    if from_date:
+        query = query.where(ProcessEvent.timestamp >= from_date)
+    if to_date:
+        query = query.where(ProcessEvent.timestamp <= to_date)
+
+    # Count
+    count_query = (
+        select(func.count())
+        .select_from(ProcessEvent)
+        .join(ProcessCase, ProcessCase.id == ProcessEvent.case_ref_id)
+        .where(ProcessCase.dataset_id == dataset_id)
+    )
+    if case_id:
+        count_query = count_query.where(ProcessCase.case_id == case_id)
+    if activity:
+        count_query = count_query.where(ProcessEvent.activity == activity)
+
+    total = (await db.execute(count_query)).scalar() or 0
+
+    # Paginate
+    offset = (page - 1) * limit
+    query = query.order_by(ProcessEvent.timestamp.asc()).offset(offset).limit(limit)
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    items = [
+        EventResponse(
+            id=event.id,
+            case_id=case_id_val,
+            activity=event.activity,
+            timestamp=event.timestamp,
+            resource=event.resource,
+            attributes=json.loads(event.attributes_json) if event.attributes_json else None,
+        )
+        for event, case_id_val in rows
+    ]
+
+    return EventListResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=limit,
+    )
+
+
+@router.get(
+    "/{dataset_id}/metadata",
+    response_model=MetadataResponse,
+    summary="Get Computed Metadata",
+    description="""
+Get computed metadata for a dataset.
+
+Includes aggregated statistics computed during ingestion.
+    """,
+)
+async def get_metadata(
+    db: DBSession,
+    dataset_id: str,
+    user: CurrentUser,
+) -> MetadataResponse:
+    """Get computed dataset metadata."""
+    # Verify permission
+    _, dataset = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_READ
+    )
+
+    # Get metadata from dataset record
+    activities = []
+    if dataset.activities_json:
+        try:
+            activities = json.loads(dataset.activities_json)
+        except Exception:
+            pass
+
+    # Try to get detailed metadata
+    date_range = None
+    first_event = None
+    last_event = None
+    avg_duration = None
+
+    if dataset.metadata_record:
+        meta = dataset.metadata_record
+        first_event = meta.first_event_at
+        last_event = meta.last_event_at
+        avg_duration = meta.avg_case_duration
+
+        if first_event and last_event:
+            date_range = {
+                "start": first_event.isoformat(),
+                "end": last_event.isoformat(),
+            }
+
+    return MetadataResponse(
+        dataset_id=dataset_id,
+        total_events=dataset.total_events,
+        total_cases=dataset.total_cases,
+        total_activities=dataset.total_activities,
+        total_variants=0,  # Would compute from ProcessCase
+        first_event_at=first_event,
+        last_event_at=last_event,
+        avg_case_duration_seconds=avg_duration,
+        activities=activities,
+        date_range=date_range,
+    )

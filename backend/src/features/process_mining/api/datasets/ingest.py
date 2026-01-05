@@ -117,3 +117,98 @@ async def trigger_ingestion(
         progress=0,
         message="Ingestion job queued",
     )
+
+
+@router.post(
+    "/{dataset_id}/reingest",
+    response_model=JobStatusResponse,
+    summary="Re-ingest Dataset",
+    description="""
+Re-ingest a dataset with updated mapping.
+
+Use this when you've updated the column mapping and want to
+re-process the data without re-uploading the file.
+
+Clears existing events and reprocesses from the original file.
+    """,
+    responses={
+        202: {"description": "Re-ingestion job queued"},
+        400: {"description": "Dataset not in READY or ERROR state"},
+        404: {"description": "Dataset not found"},
+    },
+)
+async def trigger_reingest(
+    db: DBSession,
+    dataset_id: str,
+    user: CurrentUser,
+) -> JobStatusResponse:
+    """Trigger re-ingestion with updated mapping."""
+    from datetime import datetime
+    from uuid import uuid4
+
+    from src.platform.core.enums import JobStatus
+    from src.platform.infrastructure.tasks import ingest_dataset_task
+
+    # Verify permission
+    _, dataset = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_UPDATE
+    )
+
+    # Check status - allow from READY or ERROR
+    valid_statuses = [
+        DatasetStatus.READY.value,
+        DatasetStatus.ERROR.value,
+        DatasetStatus.MAPPED.value,
+    ]
+    if dataset.status not in valid_statuses:
+        raise ValidationError(
+            f"Dataset must be in READY, MAPPED or ERROR state for re-ingestion. Current: {dataset.status}"
+        )
+
+    # Check mapping exists
+    if not dataset.column_mapping and not dataset.mapping_json:
+        raise ValidationError("No column mapping found. Submit mapping first.")
+
+    # Create async job record
+    job = AsyncJob(
+        id=str(uuid4()),
+        job_type="reingest_dataset",
+        status=JobStatus.PENDING.value,
+        entity_type="dataset",
+        entity_id=dataset_id,
+        user_id=user.id,
+        created_at=datetime.utcnow(),
+    )
+    db.add(job)
+
+    # Update dataset status
+    dataset.status = DatasetStatus.INGESTING.value
+    dataset.ingestion_job_id = job.id
+    dataset.error_message = None
+
+    await db.commit()
+
+    # Queue Celery task (same as regular ingest, but could clear existing data)
+    task = ingest_dataset_task.delay(dataset_id, job.id)
+
+    # Update job with task_id
+    job.task_id = task.id
+    await db.commit()
+
+    logger.info(
+        "reingest_triggered",
+        dataset_id=dataset_id,
+        job_id=job.id,
+        task_id=task.id,
+    )
+
+    return JobStatusResponse(
+        job_id=job.id,
+        task_id=task.id,
+        status=JobStatus.PENDING.value,
+        job_type="reingest_dataset",
+        entity_type="dataset",
+        entity_id=dataset_id,
+        progress=0,
+        message="Re-ingestion job queued",
+    )
