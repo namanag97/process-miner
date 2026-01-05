@@ -17,7 +17,7 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { tokens } from '@lumina/design-system';
-import { createLogger } from '../../../utils/logger';
+import { createLogger } from '../../../shared/lib/logger';
 import { formatDuration, formatNumber } from '../utils/colorScales';
 import type { EdgeDetail } from '../types';
 

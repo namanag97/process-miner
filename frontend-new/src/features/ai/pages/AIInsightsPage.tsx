@@ -13,7 +13,7 @@ import {
   SendOutlined,
 } from '@ant-design/icons';
 import { PageHeader, MetricCard, EmptyState, tokens } from '@lumina/design-system';
-import { createLogger } from '../../../utils/logger';
+import { createLogger } from '../../../shared/lib/logger';
 
 const { Text, Title, Paragraph } = Typography;
 const { Panel } = Collapse;

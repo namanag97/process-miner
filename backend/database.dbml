@@ -1,0 +1,435 @@
+// Platform Layer
+// Based on backend/src/platform/models.py
+
+Table organizations {
+  id varchar(36) [pk]
+  name varchar(255) [not null]
+  slug varchar(100) [unique, not null]
+  plan varchar(50) [default: 'free', not null]
+  created_at datetime [default: `now()`]
+  updated_at datetime [null]
+}
+
+Table workspaces {
+  id varchar(36) [pk]
+  org_id varchar(36) [ref: > organizations.id, not null]
+  name varchar(255) [not null]
+  description text [null]
+  created_at datetime [default: `now()`]
+  updated_at datetime [null]
+}
+
+Table users {
+  id varchar(36) [pk]
+  org_id varchar(36) [ref: > organizations.id, null]
+  email varchar(255) [unique, not null]
+  name varchar(255) [null]
+  auth_provider varchar(50) [default: 'local', not null]
+  auth_provider_id varchar(255) [null]
+  role varchar(50) [default: 'member', not null]
+  password_hash varchar(255) [null]
+  created_at datetime [default: `now()`]
+  last_login_at datetime [null]
+}
+
+Table workspace_members {
+  id varchar(36) [pk]
+  workspace_id varchar(36) [ref: > workspaces.id, not null]
+  user_id varchar(36) [ref: > users.id, not null]
+  role varchar(20) [default: 'member', not null] // owner, admin, member, viewer
+  joined_at datetime [default: `now()`]
+}
+
+Table projects {
+  id varchar(36) [pk]
+  workspace_id varchar(36) [ref: > workspaces.id, null]
+  name varchar(255) [not null]
+  description text [null]
+  tags_json text [null]
+  total_files int [default: 0]
+  total_analyses int [default: 0]
+  created_at datetime [default: `now()`]
+  updated_at datetime [null]
+}
+
+Enum JobStatus {
+  pending
+  running
+  completed
+  failed
+  cancelled
+}
+
+Table async_jobs {
+  id varchar(36) [pk]
+  task_id varchar(255) [unique, null]
+  user_id varchar(36) [null]
+  job_type varchar(50) [not null]
+  status varchar(20) [default: 'pending'] // JobStatus
+  progress int [default: 0]
+  stage varchar(100) [null]
+  entity_type varchar(50) [null]
+  entity_id varchar(36) [null]
+  parent_job_id varchar(36) [ref: > async_jobs.id, null]
+  parameters_json text [null]
+  result_json text [null]
+  error text [null]
+  error_message text [null]
+  created_at datetime [default: `now()`]
+  started_at datetime [null]
+  completed_at datetime [null]
+  updated_at datetime [null]
+}
+
+Table error_logs {
+  id varchar(36) [pk]
+  timestamp datetime [not null, default: `now()`]
+  level varchar(20) [not null]
+  exception_type varchar(255) [not null]
+  exception_message text [not null]
+  stack_trace text [null]
+  request_id varchar(36) [null]
+  user_id varchar(36) [null]
+  endpoint varchar(255) [null]
+  method varchar(10) [null]
+  context_json text [null]
+  resolved boolean [default: false, not null]
+  resolved_at datetime [null]
+  resolved_by varchar(36) [null]
+  notes text [null]
+}
+
+// Feature Layer: Process Mining
+// Based on backend/src/features/process_mining/models/orm.py
+
+Enum DatasetStatus {
+  pending
+  validating
+  awaiting_mapping
+  ingesting
+  ready
+  error
+  archived
+  unstructured
+  analyzing
+}
+
+Table datasets {
+  id varchar(36) [pk]
+  name varchar(255) [not null]
+  source_file varchar(500) [null]
+  source_format varchar(20) [default: 'csv']
+  project_id varchar(36) [ref: > projects.id, null]
+  total_cases int [default: 0]
+  total_events int [default: 0]
+  total_activities int [default: 0]
+  activities_json text [null]
+  statistics_json text [null]
+  status varchar(20) [default: 'pending'] // DatasetStatus
+  error_message text [null]
+  mapping_json text [null]
+  column_suggestions_json text [null]
+  detected_columns_json text [null]
+  file_size_bytes int [null]
+  storage_key varchar(500) [null]
+  validation_job_id varchar(36) [ref: > async_jobs.id, null]
+  ingestion_job_id varchar(36) [ref: > async_jobs.id, null]
+  source_dataset_id varchar(36) [ref: > datasets.id, null]
+  filter_config_json text [null]
+  is_filtered boolean [default: false]
+  filter_stats_json text [null]
+  created_at datetime [default: `now()`]
+  updated_at datetime [null]
+}
+
+Table uploaded_files {
+  id varchar(36) [pk]
+  dataset_id varchar(36) [ref: > datasets.id, not null, unique]
+  filename varchar(500) [not null]
+  storage_path varchar(1000) [not null]
+  size_bytes int [null]
+  mime_type varchar(100) [null]
+  checksum varchar(64) [null]
+  created_at datetime [default: `now()`]
+}
+
+Enum AnalysisStatus {
+  pending
+  running
+  completed
+  failed
+}
+
+Table analyses {
+  id varchar(36) [pk]
+  dataset_id varchar(36) [ref: > datasets.id, not null]
+  name varchar(255) [not null]
+  analysis_type varchar(50) [not null]
+  config_json text [null]
+  status varchar(20) [default: 'pending'] // AnalysisStatus
+  error_message text [null]
+  result_summary_json text [null]
+  result_json text [null]
+  model_id varchar(36) [null] // Defined later
+  created_at datetime [default: `now()`]
+  completed_at datetime [null]
+}
+
+Table process_cases {
+  id varchar(36) [pk]
+  dataset_id varchar(36) [ref: > datasets.id, not null]
+  case_id varchar(255) [not null]
+  variant_key text [null]
+  start_time datetime [null]
+  end_time datetime [null]
+}
+
+Table process_events {
+  id varchar(36) [pk]
+  case_ref_id varchar(36) [ref: > process_cases.id, not null]
+  activity varchar(255) [not null]
+  timestamp datetime [not null]
+  resource varchar(255) [null]
+  attributes_json text [null]
+}
+
+Table process_models {
+  id varchar(36) [pk]
+  name varchar(255) [not null]
+  dataset_id varchar(36) [ref: > datasets.id, null]
+  miner_type varchar(50) [not null]
+  model_format varchar(50) [not null]
+  serialized_model blob [null]
+  standard_content_path varchar(500) [null]
+  graph_structure_json text [null]
+  metadata_json text [null]
+  fitness float [null]
+  precision float [null]
+  created_at datetime [default: `now()`]
+}
+
+Ref: analyses.model_id > process_models.id
+
+Table process_model_metrics {
+  id varchar(36) [pk]
+  model_id varchar(36) [ref: > process_models.id, not null]
+  total_activities int [null]
+  total_transitions int [null]
+  complexity_score float [null]
+  fitness_score float [null]
+  precision_score float [null]
+  computed_at datetime [default: `now()`]
+  created_at datetime [default: `now()`]
+  updated_at datetime [default: `now()`]
+}
+
+Table graph_cache {
+  id varchar(36) [pk]
+  model_id varchar(36) [ref: > process_models.id, not null]
+  abstraction_level int [default: 0, not null]
+  layout_algorithm varchar(50) [default: 'dagre', not null]
+  cached_layout_json text [null]
+  expires_at datetime [null]
+  created_at datetime [default: `now()`]
+  updated_at datetime [default: `now()`]
+}
+
+Table conformance_results {
+  id varchar(36) [pk]
+  dataset_id varchar(36) [ref: > datasets.id, not null]
+  model_id varchar(36) [ref: > process_models.id, not null]
+  fitness float [not null]
+  precision float [null]
+  method varchar(50) [default: 'token_replay']
+  generalization float [null]
+  simplicity float [null]
+  f_score float [null]
+  non_fitting_traces int [null]
+  average_alignment_cost float [null]
+  diagnostics_json text [null]
+  created_at datetime [default: `now()`]
+}
+
+Table activity_mappings {
+  id varchar(36) [pk]
+  dataset_id varchar(36) [ref: > datasets.id, not null]
+  name varchar(200) [not null]
+  description text [null]
+  level int [default: 0, not null]
+  mapping_rules text [not null]
+  created_at datetime [not null, default: `now()`]
+  updated_at datetime [not null, default: `now()`]
+}
+
+Table analytics_cache {
+  id varchar(36) [pk]
+  dataset_id varchar(36) [ref: > datasets.id, not null]
+  metric_type varchar(50) [not null]
+  result_json text [null]
+  computed_at datetime [default: `now()`]
+  ttl_seconds int [default: 3600]
+}
+
+Table social_networks {
+  id varchar(36) [pk]
+  dataset_id varchar(36) [ref: > datasets.id, not null]
+  network_type varchar(50) [not null]
+  graph_json text [null]
+  metrics_json text [null]
+  created_at datetime [default: `now()`]
+}
+
+Table prediction_models {
+  id varchar(36) [pk]
+  dataset_id varchar(36) [ref: > datasets.id, not null]
+  target_type varchar(50) [not null]
+  algorithm varchar(50) [not null]
+  model_binary blob [null]
+  metrics_json text [null]
+  trained_at datetime [default: `now()`]
+}
+
+Table predictions {
+  id varchar(36) [pk]
+  model_id varchar(36) [ref: > prediction_models.id, not null]
+  case_prefix_json text [null]
+  prediction_json text [null]
+  confidence float [null]
+  predicted_at datetime [default: `now()`]
+}
+
+Table recommendations {
+  id varchar(36) [pk]
+  dataset_id varchar(36) [ref: > datasets.id, not null]
+  case_id varchar(255) [not null]
+  signal_type varchar(50) [not null]
+  signal_data_json text [null]
+  action_type varchar(50) [not null]
+  action_params_json text [null]
+  priority varchar(20) [default: 'medium']
+  state varchar(20) [default: 'pending']
+  created_at datetime [default: `now()`]
+}
+
+Table workflows {
+  id varchar(36) [pk]
+  name varchar(255) [not null]
+  steps_json text [not null]
+  schedule varchar(100) [null]
+  is_active boolean [default: true]
+  created_at datetime [default: `now()`]
+  updated_at datetime [null]
+}
+
+Table workflow_runs {
+  id varchar(36) [pk]
+  workflow_id varchar(36) [ref: > workflows.id, not null]
+  dataset_id varchar(36) [ref: > datasets.id, null]
+  status varchar(50) [default: 'pending']
+  result_json text [null]
+  error text [null]
+  started_at datetime [null]
+  completed_at datetime [null]
+}
+
+// OCEL
+Table ocel_logs {
+  id varchar(36) [pk]
+  name varchar(255) [not null]
+  source_file varchar(500) [null]
+  source_format varchar(20) [default: 'jsonocel']
+  total_events int [default: 0]
+  total_objects int [default: 0]
+  total_object_types int [default: 0]
+  metadata_json text [null]
+  ocel_data blob [null]
+  created_at datetime [default: `now()`]
+}
+
+Table ocel_object_types {
+  id varchar(36) [pk]
+  log_id varchar(36) [ref: > ocel_logs.id, not null]
+  name varchar(255) [not null]
+  object_count int [default: 0]
+  attributes_schema_json text [null]
+}
+
+Table oc_petri_nets {
+  id varchar(36) [pk]
+  log_id varchar(36) [ref: > ocel_logs.id, not null]
+  name varchar(255) [not null]
+  object_types_json text [null]
+  serialized_model blob [null]
+  created_at datetime [default: `now()`]
+}
+
+Table hierarchical_process_models {
+  id varchar(36) [pk]
+  mapping_id varchar(36) [ref: > activity_mappings.id, not null]
+  level int [not null]
+  graph_structure_json text [not null]
+  pnml_path varchar(500) [null]
+  activity_count int [not null]
+  edge_count int [not null]
+  created_at datetime [not null, default: `now()`]
+  updated_at datetime [not null, default: `now()`]
+}
+
+// OCEL 2.0
+// Based on backend/src/features/process_mining/models/ocel2.py
+
+Table ocel2_event_types {
+  id varchar(36) [pk]
+  name varchar(255) [unique, not null]
+  attributes_schema json [null]
+}
+
+Table ocel2_object_types {
+  id varchar(36) [pk]
+  name varchar(255) [unique, not null]
+  attributes_schema json [null]
+}
+
+Table ocel2_events {
+  id varchar(36) [pk]
+  event_type_id varchar(36) [ref: > ocel2_event_types.id, not null]
+  activity varchar(255) [not null]
+  timestamp datetime [not null]
+  attributes json [null]
+  source_log_id varchar(36) [ref: > datasets.id, null]
+  created_at datetime [default: `now()`]
+}
+
+Table ocel2_objects {
+  id varchar(36) [pk]
+  object_type_id varchar(36) [ref: > ocel2_object_types.id, not null]
+  object_id varchar(255) [not null]
+  attributes json [null]
+  created_at datetime [default: `now()`]
+}
+
+Table ocel2_e2o_relations {
+  id varchar(36) [pk]
+  event_id varchar(36) [ref: > ocel2_events.id, not null]
+  object_id varchar(36) [ref: > ocel2_objects.id, not null]
+  qualifier varchar(50) [default: 'involved']
+}
+
+Table ocel2_o2o_relations {
+  id varchar(36) [pk]
+  source_object_id varchar(36) [ref: > ocel2_objects.id, not null]
+  target_object_id varchar(36) [ref: > ocel2_objects.id, not null]
+  qualifier varchar(50) [not null]
+  attributes json [null]
+  created_at datetime [default: `now()`]
+}
+
+Table ocel2_object_attribute_changes {
+  id varchar(36) [pk]
+  object_id varchar(36) [ref: > ocel2_objects.id, not null]
+  event_id varchar(36) [ref: > ocel2_events.id, null]
+  attribute_name varchar(255) [not null]
+  old_value text [null]
+  new_value text [null]
+  changed_at datetime [default: `now()`]
+}

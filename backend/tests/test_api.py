@@ -100,11 +100,13 @@ class TestDatasetEndpoints:
         assert "page_size" in data
 
     @pytest.mark.asyncio
-    async def test_upload_dataset(self, client: AsyncClient, sample_csv_content: bytes):
+    async def test_upload_dataset(self, client: AsyncClient, sample_csv_content: bytes, default_project: str):
         """Test uploading a dataset."""
+        # Upload with default_project fixture
         response = await client.post(
             "/api/v1/datasets/upload",
             files={"file": ("test.csv", sample_csv_content, "text/csv")},
+            data={"project_id": default_project},
         )
         if response.status_code != 200:
             print(f"Upload failed: {response.text}")

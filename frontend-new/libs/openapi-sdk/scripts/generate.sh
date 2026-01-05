@@ -1,42 +1,23 @@
 #!/bin/bash
-set -e
 
-# Configuration
-API_URL="${API_URL:-http://localhost:8001}"
-OUTPUT_DIR="./src"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SDK_DIR="$(dirname "$SCRIPT_DIR")"
+# Ensure we're in the right directory
+cd "$(dirname "$0")/.."
 
-cd "$SDK_DIR"
+# Backend OpenAPI spec location
+OPENAPI_SPEC="../../../backend/docs/openapi.json"
 
-echo "🔍 Fetching OpenAPI spec from ${API_URL}/openapi.json..."
-curl -s "${API_URL}/openapi.json" -o openapi.json
-
-if [ ! -f openapi.json ] || [ ! -s openapi.json ]; then
-    echo "❌ Error: Failed to fetch OpenAPI spec. Is the backend running?"
-    echo "   Start it with: cd backend && source .venv/bin/activate && uvicorn src.api.main:app --port 8001"
+if [ ! -f "$OPENAPI_SPEC" ]; then
+    echo "Error: OpenAPI spec not found at $OPENAPI_SPEC"
     exit 1
 fi
 
-echo "📦 Generating TypeScript SDK..."
+echo "Found OpenAPI spec at $OPENAPI_SPEC"
+
+# Generate Client using Node.js tool (no Java required)
 npx openapi-typescript-codegen \
-    --input openapi.json \
-    --output "${OUTPUT_DIR}" \
-    --client fetch \
-    --useOptions \
-    --useUnionTypes \
-    --exportCore true \
-    --exportServices true \
-    --exportModels true \
-    --exportSchemas false
+    --input "$OPENAPI_SPEC" \
+    --output src \
+    --client axios \
+    --name OpenAPI
 
-# Clean up temp file
-rm -f openapi.json
-
-echo "✅ SDK generated successfully!"
-echo ""
-echo "Generated files:"
-ls -la "${OUTPUT_DIR}/"
-echo ""
-echo "Models: $(ls -1 "${OUTPUT_DIR}/models/" 2>/dev/null | wc -l | tr -d ' ') files"
-echo "Services: $(ls -1 "${OUTPUT_DIR}/services/" 2>/dev/null | wc -l | tr -d ' ') files"
+echo "SDK Generated successfully in libs/openapi-sdk/src"

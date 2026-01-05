@@ -1,0 +1,511 @@
+"""Datasets layer schemas.
+
+Contains schemas for:
+- Datasets and ingestion
+- Events and Cases
+- Column mapping and validation
+- File upload handling
+"""
+
+import json
+from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from src.shared.schemas import PaginatedResponse
+
+# =============================================================================
+# Ingestion & Column Mapping
+# =============================================================================
+
+
+class ColumnMapping(BaseModel):
+    """CSV column mapping for ingestion."""
+
+    case_id: str = Field(..., description="Column name for case ID")
+    activity: str = Field(..., description="Column name for activity")
+    timestamp: str = Field(..., description="Column name for timestamp")
+    resource: str | None = Field(None, description="Column name for resource")
+
+
+class IngestRequest(BaseModel):
+    """Request to trigger background ingestion with column mapping."""
+
+    case_id_column: str = Field(..., description="Column name for case ID")
+    activity_column: str = Field(..., description="Column name for activity")
+    timestamp_column: str = Field(..., description="Column name for timestamp")
+    resource_column: str | None = Field(None, description="Column name for resource")
+
+
+class PresignedUploadRequest(BaseModel):
+    """Request for presigned upload URL generation.
+
+    Client requests a presigned URL, then uploads directly to S3/MinIO.
+    Backend receives upload notification via webhook or polling.
+    """
+
+    filename: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        description="Original filename",
+        examples=["purchasing_logs_2024.csv"]
+    )
+    content_type: str = Field(
+        default="text/csv",
+        description="MIME type (text/csv, application/xml)",
+        examples=["text/csv"]
+    )
+    file_size_bytes: int | None = Field(
+        None,
+        ge=1,
+        description="Expected file size in bytes (for validation)",
+        examples=[15728640]
+    )
+    project_id: str | None = Field(
+        None,
+        description="Optional project association",
+        examples=["proj_123456789"]
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "filename": "process_log.csv",
+                "content_type": "text/csv",
+                "file_size_bytes": 1024000,
+                "project_id": "proj_abc123"
+            }
+        }
+    )
+
+
+class PresignedUploadResponse(BaseModel):
+    """Response containing presigned upload URL and tracking info.
+
+    Client should:
+    1. PUT file to upload_url with Content-Type header
+    2. Poll /datasets/{dataset_id} for validation status
+    """
+
+    upload_url: str = Field(
+        ...,
+        description="Presigned PUT URL for direct S3 upload"
+    )
+    storage_key: str = Field(
+        ...,
+        description="S3 object key for tracking"
+    )
+    dataset_id: str = Field(
+        ...,
+        description="Dataset ID for status polling"
+    )
+    expires_in: int = Field(
+        ...,
+        description="URL expiration in seconds"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "upload_url": "https://s3.amazonaws.com/bucket/key?sig=...",
+                "storage_key": "datasets/123/file.csv",
+                "dataset_id": "ds_123456789",
+                "expires_in": 3600
+            }
+        }
+    )
+
+
+class DatasetUploadRequest(BaseModel):
+    """Request for file upload with column mapping."""
+
+    name: str | None = None
+    case_id_column: str | None = None
+    activity_column: str | None = None
+    timestamp_column: str | None = None
+    resource_column: str | None = None
+
+
+# =============================================================================
+# Datasets
+# =============================================================================
+
+
+class DatasetResponse(BaseModel):
+    """Dataset response."""
+
+    id: str
+    name: str
+    source_format: str
+    total_events: int
+    total_cases: int
+    total_activities: int
+    activities: list[str] = []
+    created_at: datetime
+    source_file: str | None = None  # FE expects this for display
+    status: str = "ready"  # Dataset lifecycle: unstructured, analyzing, ready, error
+    # Job tracking for progress visibility
+    validation_job_id: str | None = None
+    ingestion_job_id: str | None = None
+    # File metadata
+    file_size_bytes: int | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def parse_json_fields(cls, data: Any) -> Any:
+        """Auto-parse activities_json to activities list."""
+        if hasattr(data, "__dict__"):
+            # ORM object - convert to dict with relevant fields
+            data = {
+                k: getattr(data, k)
+                for k in [
+                    "id",
+                    "name",
+                    "source_format",
+                    "total_events",
+                    "total_cases",
+                    "total_activities",
+                    "activities_json",
+                    "created_at",
+                    "source_file",
+                    "status",
+                    "validation_job_id",
+                    "ingestion_job_id",
+                    "file_size_bytes",
+                ]
+                if hasattr(data, k)
+            }
+        if isinstance(data, dict):
+            if data.get("activities_json"):
+                try:
+                    data["activities"] = json.loads(data["activities_json"])
+                except (json.JSONDecodeError, TypeError):
+                    data["activities"] = []
+            elif "activities" not in data:
+                data["activities"] = []
+        return data
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": "123e4567-e89b-12d3-a456-426614174000",
+                "name": "OrderToCash_2023",
+                "source_format": "CSV",
+                "total_events": 15420,
+                "total_cases": 1250,
+                "total_activities": 8,
+                "activities": ["Receive Order", "Check Credit", "Ship Goods", "Send Invoice"],
+                "created_at": "2023-10-27T10:00:00Z",
+                "source_file": "o2c_logs.csv",
+                "status": "ready",
+                "file_size_bytes": 2048500
+            }
+        }
+    )
+
+
+class DatasetListResponse(PaginatedResponse):
+    """Paginated dataset list."""
+
+    items: list[DatasetResponse]
+
+
+class DatasetDetailResponse(DatasetResponse):
+    """Detailed dataset response with statistics."""
+
+    source_file: str | None
+    statistics: dict[str, Any] | None
+    updated_at: datetime | None
+
+
+# =============================================================================
+# Cases & Events
+# =============================================================================
+
+
+class CaseResponse(BaseModel):
+    """Case/trace response."""
+
+    case_id: str
+    event_count: int
+    variant: str | None
+    start_time: datetime | None
+    end_time: datetime | None
+    duration_seconds: float | None
+
+
+class CaseListResponse(PaginatedResponse):
+    """Paginated case list."""
+
+    items: list[CaseResponse]
+
+
+class EventResponse(BaseModel):
+    """Event response."""
+
+    id: str
+    activity: str
+    timestamp: datetime
+    resource: str | None
+    attributes: dict[str, Any] | None
+
+
+class VariantResponse(BaseModel):
+    """Process variant response with both trace string and parsed activities array."""
+
+    variant_key: str
+    activity_trace: str  # Human-readable: "A → B → C" (for display)
+    activities: list[str]  # Pre-parsed array: ["A", "B", "C"] (for FE consumption)
+    case_count: int
+    frequency_percent: float
+    avg_duration_seconds: float | None = None
+    # Complexity metrics (optional, populated when requested)
+    complexity_score: float | None = None
+    rework_count: int | None = None
+    unique_activity_count: int | None = None
+
+
+# =============================================================================
+# Statistics & Analysis Data (Foundation layer)
+# =============================================================================
+
+
+class ActivityDetailResponse(BaseModel):
+    """Detailed activity statistics for process explorer."""
+
+    activity: str
+    frequency: int
+    frequency_percent: float
+    avg_duration_seconds: float | None = None
+    min_duration_seconds: float | None = None
+    max_duration_seconds: float | None = None
+    is_start_activity: bool = False
+    is_end_activity: bool = False
+    position_avg: float | None = None  # Average position in trace (0=first, 1=last)
+    resources: list[str] = []  # Resources that perform this activity
+
+
+class StatisticsResponse(BaseModel):
+    """Process statistics response."""
+
+    total_events: int
+    total_cases: int
+    total_activities: int
+    total_variants: int
+    activities: list[str]
+    start_activities: dict[str, int]
+    end_activities: dict[str, int]
+    avg_case_duration_seconds: float | None
+    min_case_duration_seconds: float | None
+    max_case_duration_seconds: float | None
+    date_range: dict[str, datetime] | None
+
+
+# =============================================================================
+# File Parsing & Validation
+# =============================================================================
+
+
+class ColumnDetectionResponse(BaseModel):
+    """Column detection result."""
+
+    columns: list[str]
+    suggestions: dict[str, str | None]
+    sample_rows: list[dict[str, Any]]
+    row_count: int
+
+
+class ColumnTypeInfo(BaseModel):
+    """Column type information for data preview."""
+
+    name: str
+    detected_type: str  # STRING, INTEGER, DECIMAL, DATETIME, BOOLEAN
+    sample_values: list[Any] = []
+    null_count: int = 0
+    date_format: str | None = None  # For DATETIME columns
+
+
+class DataPreviewResponse(BaseModel):
+    """Data preview for upload wizard Configure step."""
+
+    dataset_id: str
+    filename: str
+    columns: list[ColumnTypeInfo]
+    rows: list[dict[str, Any]]  # Preview rows (first 10-20)
+    total_rows: int
+    has_header: bool = True
+    field_separator: str = ","
+    encoding: str = "utf-8"
+
+
+class SheetInfo(BaseModel):
+    """Sheet information for Excel files."""
+
+    name: str
+    index: int
+    row_count: int
+    column_count: int
+
+
+class SheetsResponse(BaseModel):
+    """Available sheets in an Excel file."""
+
+    dataset_id: str
+    filename: str
+    sheets: list[SheetInfo]
+
+
+class ParseConfigRequest(BaseModel):
+    """Request to apply parsing configuration."""
+
+    has_header: bool = True
+    field_separator: str = ","
+    decimal_separator: str = "."
+    thousand_separator: str = ","
+    sheet_name: str | None = None  # For Excel files
+    encoding: str = "utf-8"
+
+# =============================================================================
+# Filtering
+# =============================================================================
+
+
+class FilterConfig(BaseModel):
+    """Single filter configuration."""
+
+    type: str = Field(..., description="Filter type: time_range, variants_top_k, etc.")
+    params: dict[str, Any] = Field(default_factory=dict, description="Filter parameters")
+
+
+class FilterRequest(BaseModel):
+    """Request to apply filters to an event log."""
+
+    name: str | None = Field(None, description="Name for the filtered log")
+    filters: list[FilterConfig] = Field(..., description="List of filters to apply")
+    save_result: bool = Field(default=True, description="Whether to save the filtered log")
+
+
+class FilterPreviewRequest(BaseModel):
+    """Request to preview filter impact without saving."""
+
+    filters: list[FilterConfig] = Field(..., description="List of filters to apply")
+
+
+class FilterStatistics(BaseModel):
+    """Statistics comparing original and filtered logs."""
+
+    original_cases: int
+    filtered_cases: int
+    cases_removed: int
+    cases_retained_pct: float
+    original_events: int
+    filtered_events: int
+    events_removed: int
+    events_retained_pct: float
+    original_activities: int
+    filtered_activities: int
+    activities_removed: int
+
+
+class FilterPreviewResponse(BaseModel):
+    """Response for filter preview."""
+
+    would_retain_cases: int
+    would_retain_events: int
+    statistics: FilterStatistics
+    filters_applied: list[FilterConfig]
+
+
+class FilteredLogResponse(BaseModel):
+    """Response for a filtered log."""
+
+    id: str
+    name: str
+    source_dataset_id: str = ""
+    is_filtered: bool = True
+    filter_config: list[FilterConfig] = []
+    total_events: int
+    total_cases: int
+    total_activities: int
+    statistics: FilterStatistics | None = None
+    created_at: datetime
+
+    @model_validator(mode="before")
+    @classmethod
+    def parse_json_fields(cls, data: Any) -> Any:
+        """Auto-parse filter_config_json and filter_stats_json."""
+        if hasattr(data, "__dict__"):
+            data = {
+                k: getattr(data, k)
+                for k in [
+                    "id",
+                    "name",
+                    "source_dataset_id",
+                    "is_filtered",
+                    "filter_config_json",
+                    "filter_stats_json",
+                    "total_events",
+                    "total_cases",
+                    "total_activities",
+                    "created_at",
+                ]
+                if hasattr(data, k)
+            }
+        if isinstance(data, dict):
+            # No longer need to map - using source_dataset_id directly
+            if data.get("filter_config_json"):
+                try:
+                    config_list = json.loads(data["filter_config_json"])
+                    data["filter_config"] = [FilterConfig(**c) for c in config_list]
+                except (json.JSONDecodeError, TypeError):
+                    data["filter_config"] = []
+            elif "filter_config" not in data:
+                data["filter_config"] = []
+            if data.get("filter_stats_json"):
+                try:
+                    stats_dict = json.loads(data["filter_stats_json"])
+                    data["statistics"] = FilterStatistics(**stats_dict)
+                except (json.JSONDecodeError, TypeError):
+                    data["statistics"] = None
+        return data
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class FilteredLogListResponse(BaseModel):
+    """List of filtered logs derived from a source log."""
+
+    source_dataset_id: str
+    source_dataset_name: str
+    filtered_logs: list[FilteredLogResponse]
+    total: int
+
+
+class FilterOptionsResponse(BaseModel):
+    """Available filter options based on log contents."""
+
+    activities: list[str]
+    resources: list[str]
+    start_activities: dict[str, int]
+    end_activities: dict[str, int]
+    total_variants: int
+    time_range: dict[str, str | None]
+    case_size_range: dict[str, float]
+
+
+class FilterTemplateResponse(BaseModel):
+    """Pre-built filter template."""
+
+    id: str
+    name: str
+    description: str
+    filters: list[FilterConfig]
+
+
+class FilterTemplateListResponse(BaseModel):
+    """List of available filter templates."""
+
+    templates: list[FilterTemplateResponse]

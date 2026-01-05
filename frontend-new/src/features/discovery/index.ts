@@ -4,7 +4,7 @@
  * Process discovery with 15 algorithms, job tracking, and interactive visualization.
  */
 
-import { FeatureRegistry } from '../../core/plugins/FeatureRegistry';
+import { FeatureRegistry } from '../../shared/core/plugins/FeatureRegistry';
 import { discoveryRouteConfig } from './routes';
 
 // ============================================

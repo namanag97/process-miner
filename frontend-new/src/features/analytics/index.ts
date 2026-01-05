@@ -5,7 +5,7 @@
  * Provides performance, conformance, rework, and resource analysis.
  */
 
-import { FeatureRegistry } from '../../core/plugins/FeatureRegistry';
+import { FeatureRegistry } from '../../shared/core/plugins/FeatureRegistry';
 import { analyticsRouteConfig } from './routes';
 
 // ============================================

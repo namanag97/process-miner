@@ -8,15 +8,15 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.routers.dev_logs_stream import log_auth_event
-from src.core.config import get_settings
-from src.core.exceptions import AuthenticationError
-from src.core.logging_config import get_logger
-from src.models.database import get_session
+from src.platform.devtools.streaming import log_auth_event
+from src.platform.infrastructure.database import get_session
+from src.platform.core.config import get_settings
+from src.platform.core.exceptions import AuthenticationError
+from src.platform.core.logging_config import get_logger
 
 if TYPE_CHECKING:
-    from src.models.orm import User
-    from src.services.authorization import AuthorizationService
+    from src.platform.models import User
+    from src.platform.workspaces.authorization import AuthorizationService
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -63,8 +63,8 @@ async def get_current_user(
     Raises:
         AuthenticationError: If auth is enabled and token is invalid/missing
     """
-    from src.core.security import decode_token
-    from src.models.orm import User
+    from src.platform.core.security import decode_token
+    from src.platform.models import User
 
     # If auth is disabled, return mock user for development
     if not settings.auth_enabled:
@@ -82,7 +82,7 @@ async def get_current_user(
     try:
         token_data = decode_token(credentials.credentials)
     except Exception as e:
-        log_auth_event("login", success=False, reason=f"Invalid token: {str(e)}")
+        log_auth_event("login", success=False, reason=f"Invalid token: {e!s}")
         raise
 
     # Fetch user from database
@@ -121,8 +121,8 @@ async def get_current_user_optional(
 
     Use this for endpoints that work with or without auth.
     """
-    from src.core.security import decode_token
-    from src.models.orm import User
+    from src.platform.core.security import decode_token
+    from src.platform.models import User
 
     if not credentials:
         return None
@@ -137,20 +137,18 @@ async def get_current_user_optional(
 
 async def _get_mock_user(db: AsyncSession) -> "User":
     """Get the seeded MVP user for development when auth is disabled.
-    
+
     This function returns the pre-seeded MVP user (analyst@company.local)
     which has access to mvp-ws-001 - the workspace the frontend is hardcoded to use.
-    
+
     The seeding happens in main.py's _seed_mvp_data() during application startup.
     """
     from datetime import datetime
 
-    from src.models.orm import Organization, User, Workspace, WorkspaceMember
+    from src.platform.models import Organization, User, Workspace, WorkspaceMember
 
     # First, try to find the seeded MVP user (preferred)
-    result = await db.execute(
-        select(User).filter(User.email == "analyst@company.local")
-    )
+    result = await db.execute(select(User).filter(User.email == "analyst@company.local"))
     user = result.scalar_one_or_none()
 
     if user:
@@ -159,13 +157,11 @@ async def _get_mock_user(db: AsyncSession) -> "User":
     # Fallback: If MVP user doesn't exist yet (rare edge case), create it
     # This matches the seeding in main.py's _seed_mvp_data()
     logger.warning("mvp_user_not_found", msg="Creating MVP user on-demand - seed may have failed")
-    
+
     # Check if org exists
-    org_result = await db.execute(
-        select(Organization).filter(Organization.id == "mvp-org-001")
-    )
+    org_result = await db.execute(select(Organization).filter(Organization.id == "mvp-org-001"))
     org = org_result.scalar_one_or_none()
-    
+
     if not org:
         org = Organization(
             id="mvp-org-001",
@@ -177,11 +173,9 @@ async def _get_mock_user(db: AsyncSession) -> "User":
         db.add(org)
 
     # Check if workspace exists
-    ws_result = await db.execute(
-        select(Workspace).filter(Workspace.id == "mvp-ws-001")
-    )
+    ws_result = await db.execute(select(Workspace).filter(Workspace.id == "mvp-ws-001"))
     workspace = ws_result.scalar_one_or_none()
-    
+
     if not workspace:
         workspace = Workspace(
             id="mvp-ws-001",
@@ -233,13 +227,13 @@ OptionalUser = Annotated["User | None", Depends(get_current_user_optional)]
 async def get_authorization_service(db: DBSession) -> "AuthorizationService":
     """Get authorization service for permission checking.
 
-    Example usage in router:
+    args:
         auth_service: AuthorizationService = Depends(get_authorization_service)
         await auth_service.verify_workspace_access(
             workspace_id, user, Permission.DATASET_READ
         )
     """
-    from src.services.authorization import AuthorizationService
+    from src.platform.workspaces.authorization import AuthorizationService
 
     return AuthorizationService(db)
 

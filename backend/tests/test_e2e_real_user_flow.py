@@ -2,7 +2,7 @@
 
 This test simulates a complete user journey:
 1. Register/Login as user
-2. Create project  
+2. Create project
 3. Upload event log
 4. Run ALL discovery algorithms
 5. Verify visualization endpoints return valid graph data
@@ -109,7 +109,9 @@ class TestRealUserFlowE2E:
         dataset = upload_resp.json()
         dataset_id = dataset["id"]
         print(f"   ✅ Uploaded dataset: {dataset_id[:8]}...")
-        print(f"   📊 Cases: {dataset.get('total_cases', 'N/A')}, Events: {dataset.get('total_events', 'N/A')}")
+        print(
+            f"   📊 Cases: {dataset.get('total_cases', 'N/A')}, Events: {dataset.get('total_events', 'N/A')}"
+        )
 
         # =====================================================================
         # STEP 2: Verify Dataset is Accessible
@@ -193,8 +195,10 @@ class TestRealUserFlowE2E:
                 algorithm_results["xfail"].append(miner_type)
                 print("⚠️ XFAIL (known bug)")
 
-        print(f"   └─ Summary: {len(algorithm_results['passed'])} passed, "
-              f"{len(algorithm_results['xfail'])} xfail, {len(algorithm_results['failed'])} failed")
+        print(
+            f"   └─ Summary: {len(algorithm_results['passed'])} passed, "
+            f"{len(algorithm_results['xfail'])} xfail, {len(algorithm_results['failed'])} failed"
+        )
 
         # =====================================================================
         # STEP 6: Verify Model Retrieval
@@ -245,7 +249,7 @@ class TestRealUserFlowE2E:
         bottlenecks_resp = await client.get(f"/api/v1/analytics/logs/{dataset_id}/bottlenecks")
         if bottlenecks_resp.status_code == 200:
             bottlenecks = bottlenecks_resp.json()
-            print(f"   ✅ Bottleneck analysis completed")
+            print("   ✅ Bottleneck analysis completed")
         else:
             print("   ⚠️ Bottleneck analysis not available")
 
@@ -274,7 +278,9 @@ class TestRealUserFlowE2E:
         print("=" * 60 + "\n")
 
         # Final assertions
-        assert len(algorithm_results["failed"]) == 0, f"Algorithms failed: {algorithm_results['failed']}"
+        assert len(algorithm_results["failed"]) == 0, (
+            f"Algorithms failed: {algorithm_results['failed']}"
+        )
         assert len(algorithm_results["passed"]) >= 13, "Expected at least 13 algorithms to pass"
 
 
@@ -305,7 +311,9 @@ class TestVisualizationEndpointsE2E:
             assert "source" in edge, "Edge missing 'source'"
             assert "target" in edge, "Edge missing 'target'"
 
-        print(f"✅ DFG Cytoscape-compatible: {len(data['nodes'])} nodes, {len(data['edges'])} edges")
+        print(
+            f"✅ DFG Cytoscape-compatible: {len(data['nodes'])} nodes, {len(data['edges'])} edges"
+        )
 
     @pytest.mark.asyncio
     async def test_variants_endpoint_returns_structured_data(

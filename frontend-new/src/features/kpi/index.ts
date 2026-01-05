@@ -5,7 +5,7 @@
  * Provides performance analysis, deadline tracking, and automation assessment.
  */
 
-import { FeatureRegistry } from '../../core/plugins/FeatureRegistry';
+import { FeatureRegistry } from '../../shared/core/plugins/FeatureRegistry';
 import { kpiRouteConfig } from './routes';
 
 // ============================================

@@ -29,13 +29,9 @@ Performance Target: Discovery on 100 cases should complete in <5s
 """
 
 import time
-from typing import Any
 
 import pytest
 from httpx import AsyncClient
-
-from src.core.enums import MinerType, ModelFormat
-
 
 # =============================================================================
 # TEST DATA FIXTURES
@@ -115,7 +111,9 @@ def loop_activity_csv() -> bytes:
 ALL_MINERS = [
     # Classic algorithms
     pytest.param("alpha", "petri_net", id="alpha_miner"),
-    pytest.param("alpha_plus", "petri_net", id="alpha_plus_miner"),  # FIXED: fallback to alpha on failure
+    pytest.param(
+        "alpha_plus", "petri_net", id="alpha_plus_miner"
+    ),  # FIXED: fallback to alpha on failure
     pytest.param("inductive", "process_tree", id="inductive_miner"),
     pytest.param("inductive_infrequent", "process_tree", id="inductive_infrequent_miner"),
     pytest.param("heuristics", "petri_net", id="heuristics_miner"),
@@ -123,13 +121,19 @@ ALL_MINERS = [
     pytest.param("performance_dfg", "performance_dfg", id="performance_dfg_miner"),
     # Advanced algorithms
     pytest.param(
-        "ilp", "petri_net", id="ilp_miner",
-        marks=pytest.mark.xfail(reason="BUG: NetworkXError - fitness evaluation fails with Unicode start marker")
+        "ilp",
+        "petri_net",
+        id="ilp_miner",
+        marks=pytest.mark.xfail(
+            reason="BUG: NetworkXError - fitness evaluation fails with Unicode start marker"
+        ),
     ),
     pytest.param("powl", "powl", id="powl_miner"),
     pytest.param("bpmn_inductive", "bpmn", id="bpmn_inductive_miner"),
     pytest.param("declare", "declare", id="declare_miner"),  # FIXED: graceful error handling
-    pytest.param("log_skeleton", "log_skeleton", id="log_skeleton_miner"),  # FIXED: set serialization
+    pytest.param(
+        "log_skeleton", "log_skeleton", id="log_skeleton_miner"
+    ),  # FIXED: set serialization
     pytest.param("temporal_profile", "temporal_profile", id="temporal_profile_miner"),
     pytest.param("prefix_tree", "prefix_tree", id="prefix_tree_miner"),
     pytest.param("transition_system", "transition_system", id="transition_system_miner"),
@@ -222,9 +226,7 @@ class TestAllMinersAPIEndpoint:
         elapsed = time.perf_counter() - start_time
 
         assert response.status_code == 200
-        assert elapsed < 5.0, (
-            f"Miner {miner_type} took {elapsed:.2f}s, exceeds 5s threshold"
-        )
+        assert elapsed < 5.0, f"Miner {miner_type} took {elapsed:.2f}s, exceeds 5s threshold"
 
     @pytest.mark.asyncio
     async def test_list_miners_returns_all_types(self, client: AsyncClient):
@@ -241,7 +243,15 @@ class TestAllMinersAPIEndpoint:
         miner_types = {m.get("type", m.get("id", "")).lower() for m in miners}
 
         # Verify core miners are present
-        expected_miners = {"alpha", "inductive", "heuristics", "dfg", "ilp", "powl", "bpmn_inductive"}
+        expected_miners = {
+            "alpha",
+            "inductive",
+            "heuristics",
+            "dfg",
+            "ilp",
+            "powl",
+            "bpmn_inductive",
+        }
         for expected in expected_miners:
             assert any(expected in mt for mt in miner_types), (
                 f"Expected miner '{expected}' not found in {miner_types}"
@@ -436,9 +446,7 @@ class TestQualityMetrics:
 
         # Fitness should be present and in valid range
         if "fitness" in data and data["fitness"] is not None:
-            assert 0.0 <= data["fitness"] <= 1.0, (
-                f"Fitness {data['fitness']} out of range [0, 1]"
-            )
+            assert 0.0 <= data["fitness"] <= 1.0, f"Fitness {data['fitness']} out of range [0, 1]"
 
     @pytest.mark.asyncio
     async def test_self_discovered_model_high_fitness(
@@ -623,9 +631,7 @@ class TestAdvancedAlgorithms:
         assert data["model_format"] == "powl"
 
     @pytest.mark.asyncio
-    async def test_ilp_returns_petri_net(
-        self, client: AsyncClient, uploaded_insurance_log_id: str
-    ):
+    async def test_ilp_returns_petri_net(self, client: AsyncClient, uploaded_insurance_log_id: str):
         """
         TEST: ILP miner should return Petri net format.
         """

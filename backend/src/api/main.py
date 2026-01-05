@@ -20,32 +20,33 @@ from src.api.routers import (
     analyses_router,
     analytics_router,
     auth_router,
+    business_use_cases_router,
     conformance_router,
     datasets_router,
     dev_log_router,
     discovery_router,
     filtering_router,
+    health_router,
+    jobs_router,
     ocpm_router,
     organizational_router,
     predictions_router,
     projects_router,
     simulation_router,
     visualization_router,
-    # workflows_router removed - orphaned code with no frontend consumers
+    workflows_router,
     workspaces_router,
 )
-from src.api.routers.business_use_cases import router as business_use_cases_router
-from src.api.routers.dev_logs_stream import router as dev_logs_stream_router
-from src.api.routers.health import mark_startup_complete
-from src.api.routers.health import router as health_router
-from src.api.routers.jobs import router as jobs_router
-from src.api.routers.telemetry_proxy import router as telemetry_proxy_router
-from src.api.routers.telemetry_test import router as telemetry_test_router
-from src.core.config import get_settings
-from src.core.exceptions import AppException
-from src.core.logging_config import configure_logging, get_logger
-from src.core.middleware import PerformanceLoggingMiddleware, RequestLoggingMiddleware
-from src.models.database import close_database, init_database
+from src.platform.devtools.streaming import router as dev_logs_stream_router
+from src.platform.devtools.dev_data import router as dev_data_router
+from src.platform.health.router import mark_startup_complete
+from src.platform.telemetry.proxy import router as telemetry_proxy_router
+from src.platform.telemetry.test import router as telemetry_test_router
+from src.platform.infrastructure.database import close_database, init_database
+from src.platform.core.config import get_settings
+from src.platform.core.exceptions import AppException
+from src.platform.core.logging_config import configure_logging, get_logger
+from src.platform.core.middleware import PerformanceLoggingMiddleware, RequestLoggingMiddleware
 
 settings = get_settings()
 
@@ -102,15 +103,13 @@ async def _seed_mvp_data() -> None:
     """
     from sqlalchemy import select
 
-    from src.models.database import async_session_maker
-    from src.models.orm import Organization, User, Workspace, WorkspaceMember
+    from src.platform.infrastructure.database import async_session_maker
+    from src.platform.models import Organization, User, Workspace, WorkspaceMember
 
     try:
         async with async_session_maker() as db:
             # Check if MVP org already exists
-            result = await db.execute(
-                select(Organization).where(Organization.id == "mvp-org-001")
-            )
+            result = await db.execute(select(Organization).where(Organization.id == "mvp-org-001"))
             if result.scalar_one_or_none():
                 logger.debug("mvp_seed_data_exists", msg="Skipping seeding")
                 return
@@ -163,13 +162,11 @@ async def _seed_mvp_data() -> None:
         logger.warning("mvp_seed_data_failed", error=str(e))
 
 
-
-
 def _setup_observability(app: FastAPI) -> None:
     """Initialize optional observability components."""
     try:
-        from src.infrastructure.metrics import set_app_info
-        from src.infrastructure.tracing import setup_tracing
+        from src.platform.infrastructure.metrics import set_app_info
+        from src.platform.infrastructure.tracing import setup_tracing
 
         # Setup OpenTelemetry tracing
         setup_tracing(
@@ -204,101 +201,141 @@ def create_app() -> FastAPI:
 
     # OpenAPI tags for documentation organization
     openapi_tags = [
-        {
-            "name": "Health",
-            "description": "Application health and readiness endpoints",
-        },
+        # =====================================================================
+        # Platform Layer
+        # =====================================================================
         {
             "name": "Auth",
-            "description": "Authentication and authorization (JWT-based)",
+            "description": "🔐 Authentication and authorization. Uses JWT (Access & Refresh Tokens).",
         },
         {
             "name": "Workspaces",
-            "description": "Multi-tenant workspace management",
+            "description": "🏢 Multi-tenant workspace management. Create, update, and manage workspaces.",
         },
         {
             "name": "Projects",
-            "description": "Project organization for event logs and analyses",
-        },
-        {
-            "name": "Datasets",
-            "description": "Dataset upload, management, and statistics",
-        },
-        {
-            "name": "Analyses",
-            "description": "Stored analyses and results",
-        },
-        {
-            "name": "Discovery",
-            "description": "Process model discovery (Alpha, Inductive, Heuristics miners)",
-        },
-        {
-            "name": "Visualization",
-            "description": "DFG, Petri net, and BPMN visualization",
-        },
-        {
-            "name": "Conformance",
-            "description": "Conformance checking, fitness, precision, and deviation analysis",
-        },
-        {
-            "name": "Analytics",
-            "description": "Performance analytics, bottleneck detection, and KPIs",
-        },
-        {
-            "name": "Filtering",
-            "description": "Event log filtering and subsetting",
-        },
-        {
-            "name": "Organizational",
-            "description": "Organizational mining, social networks, and resource analysis",
-        },
-        {
-            "name": "Predictions",
-            "description": "ML-based predictions (next activity, remaining time)",
-        },
-        {
-            "name": "Simulation",
-            "description": "Process simulation and what-if analysis",
-        },
-        {
-            "name": "OCPM",
-            "description": "Object-Centric Process Mining (OCEL 2.0)",
+            "description": "📁 Project organization for event logs and analyses.",
         },
         {
             "name": "Jobs",
-            "description": "Unified async job tracking and progress monitoring",
+            "description": "⚡ Unified async job tracking and progress monitoring.",
+        },
+        {
+            "name": "Health",
+            "description": "❤️ Application health and readiness endpoints for k8s/monitoring.",
         },
         {
             "name": "Observability",
-            "description": "Metrics, tracing, and logging",
+            "description": "📊 Metrics, tracing, and logging endpoints.",
+        },
+        # =====================================================================
+        # Process Mining Domain - Core
+        # =====================================================================
+        {
+            "name": "Datasets",
+            "description": "💾 Event log management. Upload, ingest, and manage CSV/XES/OCEL files.",
+        },
+        {
+            "name": "Discovery",
+            "description": "🔍 Process model discovery. Alpha, Inductive, Heuristics miners.",
+        },
+        {
+            "name": "Conformance",
+            "description": "✅ Conformance checking. Token replay, alignments, and deviation analysis.",
+        },
+        {
+            "name": "Visualization",
+            "description": "🎨 Process visualization. DFG, Petri nets, and BPMN layouts.",
+        },
+        # =====================================================================
+        # Process Mining Domain - Advanced
+        # =====================================================================
+        {
+            "name": "Analyses",
+            "description": "📋 Stored analyses and results management.",
+        },
+        {
+            "name": "Analytics",
+            "description": "📈 Performance analytics. Bottlenecks, cycle times, and throughput.",
+        },
+        {
+            "name": "Predictions",
+            "description": "🔮 ML-based predictions. Next activity and remaining time estimation.",
+        },
+        {
+            "name": "Simulation",
+            "description": "🎲 Process simulation and what-if analysis.",
+        },
+        {
+            "name": "Filtering",
+            "description": "🔍 Event log filtering and subsetting.",
+        },
+        {
+            "name": "Organizational",
+            "description": "👥 Organizational mining. Social networks and resource analysis.",
+        },
+        {
+            "name": "OCPM",
+            "description": "📦 Object-Centric Process Mining (OCEL 2.0).",
+        },
+        {
+            "name": "Business Use Cases",
+            "description": "💼 Specific business scenarios (P2P, O2C, Customer Journey).",
         },
     ]
+
+    description = """
+# Process Mining SaaS API
+
+Welcome to the **Process Mining SaaS API**. This API provides enterprise-grade process mining capabilities, allowing you to discover, analyze, and optimize business processes from event logs.
+
+## 🚀 Key Features
+
+*   **Event Log Management**: Upload and process CSV, XES, and OCEL files with automatic schema detection.
+*   **Process Discovery**: Automatically generate process models (Petri nets, BPMN, DFG) using state-of-the-art algorithms (Alpha, Inductive, Heuristics).
+*   **Conformance Checking**: Compare actual process execution against reference models to identify deviations and root causes.
+*   **Performance Analytics**: Deep dive into bottlenecks, cycle times, and throughput efficiency.
+*   **Predictive Process Monitoring**: Leverage Machine Learning to predict next activities and remaining process time.
+*   **Object-Centric Process Mining (OCPM)**: Native support for OCEL 2.0 to analyze complex, multi-object processes.
+
+## 🔐 Authentication
+
+This API uses **JWT (JSON Web Token)** for authentication.
+
+1.  **Register/Login**: Use `/api/v1/auth/login` to obtain an `access_token` and `refresh_token`.
+2.  **Authorize**: Click the **Authorize** button at the top right and enter your token (Bearer format is handled automatically by the UI, just enter the token string if prompted, or follows the Scheme).
+    *   *Note: For this specific Swagger UI, standard Bearer auth is configured.*
+
+## 📦 Rate Limiting
+
+API requests are rate-limited to ensure stability.
+*   **Standard**: 100 requests/minute
+*   **Uploads**: 10 requests/minute
+
+Headers returned:
+*   `X-RateLimit-Limit`
+*   `X-RateLimit-Remaining`
+*   `X-RateLimit-Reset`
+
+## 🆘 Support
+
+For support, please contact the developer team or refer to the internal documentation.
+"""
 
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
-        description="""
-# Process Mining SaaS API
-
-Enterprise-grade process mining platform powered by PM4Py.
-
-## Features
-
-- **Event Log Management**: Upload CSV, XES, OCEL files with column auto-detection
-- **Process Discovery**: Alpha, Inductive, Heuristics miners with quality metrics
-- **Conformance Checking**: Token replay, alignments with deviation analysis
-- **Performance Analytics**: Bottleneck detection, cycle time, throughput
-- **Predictions**: ML-based next activity and remaining time predictions
-- **OCEL Support**: Object-Centric Process Mining with OCEL 2.0
-
-## Error Handling
-
-All errors follow RFC 7807 Problem Details format with typed error codes.
-
-## Authentication
-
-JWT-based authentication with optional workspace context.
-        """,
+        description=description,
+        contact={
+            "name": "Process Mining Platform Team",
+            "url": "https://processmining.io/support",
+            "email": "support@processmining.io",
+        },
+        license_info={
+            "name": "Proprietary",
+            "url": "https://processmining.io/license",
+        },
+        terms_of_service="https://processmining.io/terms",
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
@@ -324,7 +361,7 @@ JWT-based authentication with optional workspace context.
     from slowapi import _rate_limit_exceeded_handler
     from slowapi.errors import RateLimitExceeded
 
-    from src.core.rate_limit import limiter
+    from src.platform.core.rate_limit import limiter
 
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
@@ -427,7 +464,7 @@ JWT-based authentication with optional workspace context.
     async def prometheus_metrics() -> Response:
         """Prometheus metrics endpoint."""
         try:
-            from src.infrastructure.metrics import get_metrics
+            from src.platform.infrastructure.metrics import get_metrics
 
             return Response(
                 content=get_metrics(),
@@ -465,7 +502,7 @@ JWT-based authentication with optional workspace context.
     app.include_router(conformance_router, prefix=settings.api_prefix)
     app.include_router(business_use_cases_router, prefix=settings.api_prefix)  # Phase 9
     app.include_router(ocpm_router, prefix=settings.api_prefix)
-    # workflows_router removed - orphaned code
+    app.include_router(workflows_router, prefix=settings.api_prefix)
     app.include_router(filtering_router, prefix=settings.api_prefix)
     app.include_router(analytics_router, prefix=settings.api_prefix)
     app.include_router(organizational_router, prefix=settings.api_prefix)
@@ -474,6 +511,7 @@ JWT-based authentication with optional workspace context.
     app.include_router(jobs_router, prefix=settings.api_prefix)  # Job-Centric Architecture
     app.include_router(dev_log_router, prefix=settings.api_prefix)
     app.include_router(dev_logs_stream_router, prefix=settings.api_prefix)
+    app.include_router(dev_data_router, prefix=settings.api_prefix)  # Data viewer for DevConsole
     app.include_router(telemetry_proxy_router, prefix=settings.api_prefix)
 
     # Test endpoint for telemetry (debug mode only)

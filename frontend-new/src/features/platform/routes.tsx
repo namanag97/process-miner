@@ -1,13 +1,17 @@
 /**
  * Platform Feature Routes
- * 
- * Routes for settings, notifications, activity, audit logs, and other platform-level pages.
+ *
+ * Routes for platform layer (settings, projects, uploads, etc.)
  */
 
 import { lazy } from 'react';
 import type { RouteObject } from 'react-router-dom';
 
-// Lazy load pages
+// Import sub-feature routes
+import { projectsRouteConfig } from './projects/routes';
+import { uploadWizardRouteConfig } from './upload-wizard/routes';
+
+// Lazy load platform pages
 const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const ActivityLogPage = lazy(() => import('./pages/ActivityLogPage'));
@@ -20,6 +24,12 @@ const ProcessQuestionsPage = lazy(() => import('./pages/ProcessQuestionsPage'));
  * Route configuration for FeatureRegistry
  */
 export const platformRouteConfig: RouteObject[] = [
+    // Projects & workspace routes (from projects sub-feature)
+    ...projectsRouteConfig,
+
+    // Upload wizard routes (from upload-wizard sub-feature)
+    ...uploadWizardRouteConfig,
+
     // Settings
     { path: '/settings/*', element: <SettingsPage /> },
 

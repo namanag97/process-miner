@@ -3,14 +3,14 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from
 import { ConfigProvider } from 'antd';
 import type { RouteObject } from 'react-router-dom';
 import { AppShell, SDKProvider, luminaTheme, logAction } from '@lumina/design-system';
-import { UserProvider, useUser } from './context/UserContext';
-import { NotificationProvider, useNotifications } from './context/NotificationContext';
-import { BackendHealthProvider } from './context/BackendHealthContext';
-import { GlobalErrorBoundary, ErrorReport } from './components/GlobalErrorBoundary';
-import { PageLoader } from './components/PageLoader';
-import { DevConsole, devLog } from './components/DevConsole';
-import { createLogger } from './utils/logger';
-import { useFeatureRoutes } from './core/plugins/FeatureRegistry';
+import { UserProvider, useUser } from './shared/context/UserContext';
+import { NotificationProvider, useNotifications } from './shared/context/NotificationContext';
+import { BackendHealthProvider } from './shared/context/BackendHealthContext';
+import { GlobalErrorBoundary, ErrorReport } from './shared/ui/GlobalErrorBoundary';
+import { PageLoader } from './shared/ui/PageLoader';
+import { DevConsole, devLog } from './shared/ui/DevConsole';
+import { createLogger } from './shared/lib/logger';
+import { useFeatureRoutes } from './shared/core/plugins/FeatureRegistry';
 
 // ============================================
 // Feature Auto-Registration

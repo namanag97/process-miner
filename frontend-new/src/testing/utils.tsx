@@ -5,9 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
 import { SDKProvider, luminaTheme } from '@lumina/design-system';
-import { UserProvider } from '../context/UserContext';
-import { NotificationProvider } from '../context/NotificationContext';
-import { BackendHealthProvider } from '../context/BackendHealthContext';
+import { UserProvider } from '../shared/context/UserContext';
+import { NotificationProvider } from '../shared/context/NotificationContext';
+import { BackendHealthProvider } from '../shared/context/BackendHealthContext';
 
 /**
  * Create a fresh QueryClient for each test

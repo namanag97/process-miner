@@ -5,7 +5,7 @@
  * All hooks follow consistent patterns for queries and mutations.
  */
 
-import { createQueryHook, createMutationHook } from '../../../core/hooks/createFeatureHook';
+import { createQueryHook, createMutationHook } from '../../../shared/core';
 import { queryKeys } from '@lumina/design-system';
 import type {
   {{FEATURE_NAME_PASCAL}},

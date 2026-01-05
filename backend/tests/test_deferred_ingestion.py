@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.models.orm import Dataset, DatasetStatus, UploadedFile
+from src.features.process_mining.models.orm import Dataset, DatasetStatus, UploadedFile
 
 
 class TestDeferredIngestion:

@@ -6,16 +6,13 @@ providing faster feedback and more granular error messages.
 Run: pytest tests/test_discovery_integration.py -v --tb=short
 """
 
-import os
 import time
 from pathlib import Path
-from typing import Any
 
 import pytest
+from src.features.process_mining.enums import MinerType, ModelFormat
 
-from src.core.enums import MinerType, ModelFormat
-from src.services.mining import MiningService, mining_service
-
+from src.features.process_mining.services.mining import MiningService, mining_service
 
 # =============================================================================
 # TEST DATA PATHS
@@ -76,10 +73,22 @@ class TestMiningServiceAvailableMiners:
         available_types = {m.get("type", m.get("name", "")).lower() for m in miners}
 
         expected_types = [
-            "alpha", "alpha_plus", "inductive", "inductive_infrequent",
-            "heuristics", "dfg", "performance_dfg", "ilp", "powl",
-            "bpmn_inductive", "declare", "log_skeleton", "temporal_profile",
-            "prefix_tree", "transition_system", "batches", "correlation"
+            "alpha",
+            "inductive",
+            "inductive_infrequent",
+            "heuristics",
+            "dfg",
+            "performance_dfg",
+            "ilp",
+            "powl",
+            "bpmn_inductive",
+            "declare",
+            "log_skeleton",
+            "temporal_profile",
+            "prefix_tree",
+            "transition_system",
+            "batches",
+            "correlation",
         ]
 
         for expected in expected_types:
@@ -124,7 +133,7 @@ class TestGraphJSONSerialization:
         dfg_data = (
             {("A", "B"): 10, ("B", "C"): 8},  # DFG edges
             {"A": 10},  # Start activities
-            {"C": 8},   # End activities
+            {"C": 8},  # End activities
         )
 
         graph_json = mining_svc.serialize_to_graph_json(dfg_data, ModelFormat.DFG)
@@ -148,7 +157,7 @@ class TestAlgorithmOutputFormats:
         """
         expected_mappings = {
             MinerType.ALPHA: ModelFormat.PETRI_NET,
-            MinerType.ALPHA_PLUS: ModelFormat.PETRI_NET,
+            # Alpha+ is legacy/deprecated
             MinerType.INDUCTIVE: ModelFormat.PROCESS_TREE,
             MinerType.INDUCTIVE_INFREQUENT: ModelFormat.PROCESS_TREE,
             MinerType.HEURISTICS: ModelFormat.PETRI_NET,
@@ -180,8 +189,7 @@ class TestBPIChallenge2019:
     """Tests using the real BPI Challenge 2019 dataset."""
 
     @pytest.mark.skipif(
-        not BPI_2019_XES.exists(),
-        reason="BPI Challenge 2019 XES file not available"
+        not BPI_2019_XES.exists(), reason="BPI Challenge 2019 XES file not available"
     )
     def test_bpi_2019_file_exists(self):
         """
@@ -191,8 +199,7 @@ class TestBPIChallenge2019:
         assert BPI_2019_XES.stat().st_size > 0
 
     @pytest.mark.skipif(
-        not BPI_2019_XES.exists(),
-        reason="BPI Challenge 2019 XES file not available"
+        not BPI_2019_XES.exists(), reason="BPI Challenge 2019 XES file not available"
     )
     @pytest.mark.asyncio
     async def test_upload_bpi_2019_xes(self, client, default_project: str):
@@ -212,8 +219,7 @@ class TestBPIChallenge2019:
         assert response.status_code in [200, 202], f"Upload failed: {response.text}"
 
     @pytest.mark.skipif(
-        not BPI_2019_XES.exists(),
-        reason="BPI Challenge 2019 XES file not available"
+        not BPI_2019_XES.exists(), reason="BPI Challenge 2019 XES file not available"
     )
     @pytest.mark.slow
     @pytest.mark.asyncio
@@ -266,9 +272,7 @@ class TestConformanceIntegration:
     """Tests that discovered models can be used for conformance checking."""
 
     @pytest.mark.asyncio
-    async def test_discover_then_conformance(
-        self, client, uploaded_insurance_log_id: str
-    ):
+    async def test_discover_then_conformance(self, client, uploaded_insurance_log_id: str):
         """
         E2E: Discover model → Run conformance check → Get fitness.
         """
@@ -310,15 +314,11 @@ class TestVisualizationIntegration:
     """Tests that discovered models produce valid visualization data."""
 
     @pytest.mark.asyncio
-    async def test_dfg_visualization_endpoint(
-        self, client, uploaded_insurance_log_id: str
-    ):
+    async def test_dfg_visualization_endpoint(self, client, uploaded_insurance_log_id: str):
         """
         TEST: DFG visualization endpoint returns nodes/edges.
         """
-        response = await client.get(
-            f"/api/v1/visualization/{uploaded_insurance_log_id}/dfg"
-        )
+        response = await client.get(f"/api/v1/visualization/{uploaded_insurance_log_id}/dfg")
         assert response.status_code == 200
 
         data = response.json()
@@ -328,9 +328,7 @@ class TestVisualizationIntegration:
         assert len(data["edges"]) >= 1
 
     @pytest.mark.asyncio
-    async def test_performance_dfg_visualization(
-        self, client, uploaded_insurance_log_id: str
-    ):
+    async def test_performance_dfg_visualization(self, client, uploaded_insurance_log_id: str):
         """
         TEST: Performance DFG returns timing data on edges.
         """
@@ -344,7 +342,8 @@ class TestVisualizationIntegration:
 
         # At least some edges should have timing data
         edges_with_timing = [
-            e for e in data["edges"]
+            e
+            for e in data["edges"]
             if "avg_duration_seconds" in e or "mean" in e or "avg_time" in e
         ]
         # Note: timing data may not always be present depending on log
