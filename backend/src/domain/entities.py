@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from src.core.logging_config import get_logger
+from src.platform.core.logging_config import get_logger
 from src.domain.value_objects import (
     ActivitySequence,
     CaseId,

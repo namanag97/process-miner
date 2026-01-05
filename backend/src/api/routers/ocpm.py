@@ -17,8 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_session
-from src.core.logging_config import get_logger
-from src.models.orm import OCELLog, OCELObjectType, OCPetriNet
+from src.platform.core.logging_config import get_logger
 from src.models.schemas import (
     DiscoverOCPNRequest,
     OCDFGResponse,
@@ -29,16 +28,16 @@ from src.models.schemas import (
     OCPetriNetResponse,
 )
 from src.services.ocpm import ocpm_service
+from src.platform.models import AsyncJob
+from src.features.process_mining.models import Dataset, DatasetStatus, OCELLog, OCELObjectType, OCPetriNet
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/ocpm", tags=["Object-Centric Process Mining"])
 
-
 # =============================================================================
 # OCEL Upload and Management
 # =============================================================================
-
 
 @router.post("/upload", response_model=OCELLogResponse)
 async def upload_ocel(
@@ -200,7 +199,6 @@ async def upload_ocel(
             except OSError:
                 logger.warning("ocel_temp_file_cleanup_failed", path=temp_file_path)
 
-
 @router.get("/logs", response_model=OCELLogListResponse)
 async def list_ocel_logs(
     session: AsyncSession = Depends(get_session),
@@ -217,7 +215,6 @@ async def list_ocel_logs(
     response_logs = [OCELLogResponse.model_validate(log) for log in logs]
 
     return OCELLogListResponse(logs=response_logs, total=len(response_logs))
-
 
 @router.get("/datasets/{dataset_id}", response_model=OCELLogResponse)
 async def get_ocel_log(
@@ -237,7 +234,6 @@ async def get_ocel_log(
 
     # Use model_validate() - the schema's model_validator handles metadata_json parsing
     return OCELLogResponse.model_validate(log)
-
 
 @router.delete("/datasets/{dataset_id}")
 async def delete_ocel_log(
@@ -260,11 +256,9 @@ async def delete_ocel_log(
 
     return {"status": "deleted", "dataset_id": dataset_id}
 
-
 # =============================================================================
 # Object Types
 # =============================================================================
-
 
 @router.get("/datasets/{dataset_id}/object-types", response_model=list[OCELObjectTypeResponse])
 async def get_object_types(
@@ -295,7 +289,6 @@ async def get_object_types(
         )
         for ot in object_types
     ]
-
 
 @router.get("/datasets/{dataset_id}/statistics", response_model=OCELStatisticsResponse)
 async def get_ocel_statistics(
@@ -329,11 +322,9 @@ async def get_ocel_statistics(
         objects_per_type=objects_per_type,
     )
 
-
 # =============================================================================
 # Discovery
 # =============================================================================
-
 
 @router.post("/discover")
 async def discover_oc_petri_net(
@@ -365,8 +356,7 @@ async def discover_oc_petri_net(
     if async_mode:
         import uuid
 
-        from src.models.orm import AsyncJob
-
+        
         # For OCPM, we'll do a simpler async approach - just return job placeholder
         # Full task implementation would be similar to perform_discovery_task
         job_id = str(uuid.uuid4())
@@ -442,7 +432,6 @@ async def discover_oc_petri_net(
         logger.error("oc_pn_discovery_failed", dataset_id=log.id, error=str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"OC-PN discovery failed: {e!s}")
 
-
 @router.get("/models", response_model=list[OCPetriNetResponse])
 async def list_oc_petri_nets(
     session: AsyncSession = Depends(get_session),
@@ -455,7 +444,6 @@ async def list_oc_petri_nets(
 
     # Use model_validate() - the schema's model_validator handles object_types_json
     return [OCPetriNetResponse.model_validate(m) for m in models]
-
 
 @router.get("/models/{model_id}", response_model=OCPetriNetResponse)
 async def get_oc_petri_net(
@@ -473,7 +461,6 @@ async def get_oc_petri_net(
 
     # Use model_validate() - the schema's model_validator handles object_types_json
     return OCPetriNetResponse.model_validate(model)
-
 
 @router.delete("/models/{model_id}")
 async def delete_oc_petri_net(
@@ -494,11 +481,9 @@ async def delete_oc_petri_net(
 
     return {"status": "deleted", "model_id": model_id}
 
-
 # =============================================================================
 # Analysis
 # =============================================================================
-
 
 @router.get("/datasets/{dataset_id}/relationships", response_model=dict)
 async def get_object_relationships(
@@ -527,7 +512,6 @@ async def get_object_relationships(
         "total_objects": log.total_objects,
         "total_events": log.total_events,
     }
-
 
 @router.get("/datasets/{dataset_id}/oc-dfg", response_model=OCDFGResponse)
 async def get_oc_dfg(
@@ -592,7 +576,6 @@ async def get_oc_dfg(
         logger.error("oc_dfg_computation_failed", dataset_id=log.id, error=str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"OC-DFG computation failed: {e!s}")
 
-
 @router.get("/formats")
 async def list_supported_formats():
     """
@@ -619,11 +602,9 @@ async def list_supported_formats():
         },
     ]
 
-
 # =============================================================================
 # Flatten to Traditional Event Log - Job-Centric Architecture
 # =============================================================================
-
 
 @router.post("/datasets/{dataset_id}/flatten")
 async def flatten_ocel_to_dataset(
@@ -648,9 +629,8 @@ async def flatten_ocel_to_dataset(
 
     from fastapi.responses import JSONResponse
 
-    from src.core.enums import EntityType, JobStatus, JobType
-    from src.models.orm import AsyncJob, Dataset, DatasetStatus
-
+    from src.platform.core.enums import EntityType, JobStatus, JobType
+    
     logger.info("ocel_flatten_started", dataset_id=dataset_id, object_type=object_type, name=name)
 
     # Validate OCEL log exists

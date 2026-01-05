@@ -12,9 +12,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_db
-from src.core.logging_config import get_logger
-from src.infrastructure.tasks import get_task_status, train_prediction_model_task
-from src.models.orm import AsyncJob, Dataset, PredictionModel
+from src.platform.core.logging_config import get_logger
+from src.platform.infrastructure.tasks import get_task_status, train_prediction_model_task
 from src.models.schemas import (
     BatchPredictionRequest,
     BatchPredictionResponse,
@@ -26,11 +25,12 @@ from src.models.schemas import (
 )
 from src.services.filtering import filtering_service
 from src.services.prediction import prediction_service
+from src.platform.models import AsyncJob
+from src.features.process_mining.models import Dataset, PredictionModel
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/predictions", tags=["Predictions"])
-
 
 async def _get_pm4py_log(dataset_id: str, db: AsyncSession):
     """Helper to get PM4Py log from dataset_id."""
@@ -40,7 +40,6 @@ async def _get_pm4py_log(dataset_id: str, db: AsyncSession):
     if not event_log:
         raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
     return filtering_service.to_pm4py_log(event_log), event_log
-
 
 @router.post("/datasets/{dataset_id}/train")
 async def train_predictor(
@@ -150,7 +149,6 @@ async def train_predictor(
         else None,
     }
 
-
 @router.get("/jobs/{job_id}")
 async def get_job_status(
     job_id: str,
@@ -190,7 +188,6 @@ async def get_job_status(
 
     return task_status
 
-
 @router.get("/datasets/{dataset_id}/predictors", response_model=PredictorListResponse)
 async def list_predictors(dataset_id: str, db: AsyncSession = Depends(get_db)) -> PredictorListResponse:
     """List all predictors for an event log."""
@@ -203,7 +200,6 @@ async def list_predictors(dataset_id: str, db: AsyncSession = Depends(get_db)) -
     items = [PredictorResponse.model_validate(p) for p in predictors]
 
     return PredictorListResponse(dataset_id=dataset_id, predictors=items, total=len(items))
-
 
 @router.get("/predictors/{predictor_id}", response_model=PredictorResponse)
 async def get_predictor(predictor_id: str, db: AsyncSession = Depends(get_db)) -> PredictorResponse:
@@ -218,7 +214,6 @@ async def get_predictor(predictor_id: str, db: AsyncSession = Depends(get_db)) -
         raise HTTPException(status_code=404, detail=f"Predictor {predictor_id} not found")
 
     return PredictorResponse.model_validate(predictor)
-
 
 @router.post("/predictors/{predictor_id}/predict", response_model=PredictionResponse)
 async def predict(
@@ -264,7 +259,6 @@ async def predict(
             confidence=prediction_result["confidence"],
         )
     raise HTTPException(status_code=400, detail=f"Unsupported target type: {predictor.target_type}")
-
 
 @router.post("/predictors/{predictor_id}/predict-batch", response_model=BatchPredictionResponse)
 async def predict_batch(
@@ -316,7 +310,6 @@ async def predict_batch(
             )
 
     return BatchPredictionResponse(predictor_id=predictor_id, predictions=predictions)
-
 
 @router.delete("/predictors/{predictor_id}")
 async def delete_predictor(predictor_id: str, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:

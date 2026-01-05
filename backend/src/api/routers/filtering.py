@@ -16,8 +16,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_db
-from src.core.logging_config import get_logger
-from src.models.orm import Dataset, ProcessCase, ProcessEvent
+from src.features.process_mining.models import Dataset, ProcessCase, ProcessEvent
+from src.platform.core.logging_config import get_logger
 from src.models.schemas import (
     FilterConfig,
     FilteredLogListResponse,

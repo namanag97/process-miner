@@ -7,12 +7,11 @@ Analyzes conformance deviations and identifies patterns.
 from collections import Counter, defaultdict
 from typing import Any
 
-from src.core.logging_config import get_logger
-from src.models.orm import Dataset, ProcessModel
+from src.platform.core.logging_config import get_logger
 from src.services.conformance import conformance_service
+from src.features.process_mining.models import Dataset, ProcessModel
 
 logger = get_logger(__name__)
-
 
 class RootCauseAnalyzer:
     """Service for analyzing root causes of conformance deviations."""
@@ -319,7 +318,6 @@ class RootCauseAnalyzer:
             "by_position": by_position,
             "by_attributes": attribute_analyses,
         }
-
 
 # Singleton instance
 root_cause_analyzer = RootCauseAnalyzer()

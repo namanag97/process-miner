@@ -14,7 +14,7 @@ from typing import Any
 from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel
 
-from src.core.logging_config import get_logger
+from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -52,7 +52,7 @@ async def proxy_traces(request: Request):
         otlp_data = json.loads(body)
 
         # In debug mode, send to DevConsole
-        from src.core.config import get_settings
+        from src.platform.core.config import get_settings
 
         settings = get_settings()
 
@@ -80,7 +80,7 @@ async def proxy_logs(log: BrowserLog):
     """
     try:
         from src.api.routers.dev_logs_stream import LogLevel, devConsoleLog
-        from src.core.config import get_settings
+        from src.platform.core.config import get_settings
 
         settings = get_settings()
 

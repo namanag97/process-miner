@@ -11,11 +11,10 @@ from typing import Any
 import pm4py
 from pm4py.objects.log.obj import EventLog as PM4PyLog
 
-from src.core.logging_config import get_logger
-from src.models.orm import Dataset
+from src.platform.core.logging_config import get_logger
+from src.features.process_mining.models import Dataset
 
 logger = get_logger(__name__)
-
 
 class FilterType:
     """Filter type constants."""
@@ -40,7 +39,6 @@ class FilterType:
     PREFIXES = "prefixes"  # Extract case prefixes
     SUFFIXES = "suffixes"  # Extract case suffixes
     PATH_PERFORMANCE = "path_performance"  # Filter by path duration
-
 
 class FilteringService:
     """
@@ -1026,7 +1024,6 @@ class FilteringService:
         from src.services.event_log_loader import event_log_loader
 
         return event_log_loader.load_as_pm4py_log(event_log.id)
-
 
 # Singleton instance
 filtering_service = FilteringService()

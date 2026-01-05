@@ -12,7 +12,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from src.core.config import get_settings
+from src.platform.core.config import get_settings
 
 router = APIRouter(prefix="/dev", tags=["Development"])
 settings = get_settings()

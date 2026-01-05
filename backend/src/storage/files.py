@@ -1,6 +1,6 @@
 """File storage operations."""
 
-from src.core.config import get_settings
+from src.platform.core.config import get_settings
 
 
 async def save_upload(

@@ -10,8 +10,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_session
-from src.core.logging_config import get_logger
-from src.models.orm import Dataset, ProcessModel
+from src.features.process_mining.models import Dataset, ProcessModel
+from src.platform.core.logging_config import get_logger
 from src.services.business_use_cases import business_use_cases
 
 logger = get_logger(__name__)

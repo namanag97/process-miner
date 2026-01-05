@@ -9,9 +9,8 @@ from fastapi import APIRouter, HTTPException, Query, Response
 from sqlalchemy import select
 
 from src.api.dependencies import DBSession
-from src.core.enums import ModelFormat
-from src.core.logging_config import get_logger
-from src.models.orm import Dataset, ProcessModel
+from src.platform.core.enums import ModelFormat
+from src.platform.core.logging_config import get_logger
 from src.models.schemas import (
     ActivityDetailResponse,
     DFGEdge,
@@ -26,16 +25,15 @@ from src.models.schemas import (
     VariantResponse,
 )
 from src.services.mining import mining_service
+from src.features.process_mining.models import Dataset, DatasetStatus, ProcessModel
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/visualization", tags=["Visualization"])
 
-
 # =============================================================================
 # DFG (Directly-Follows Graph)
 # =============================================================================
-
 
 @router.get("/{log_id}/dfg", response_model=DFGResponse)
 async def get_dfg(
@@ -69,8 +67,7 @@ async def get_dfg(
         raise HTTPException(status_code=404, detail=f"Event log not found: {log_id}")
 
     # FIX: Validate dataset is ready for visualization
-    from src.models.orm import DatasetStatus
-
+    
     if event_log.status != DatasetStatus.READY.value:
         logger.warning("dataset_not_ready", dataset_id=dataset_id, status=event_log.status)
         raise HTTPException(
@@ -103,11 +100,9 @@ async def get_dfg(
         total_frequency=dfg_data["total_frequency"],
     )
 
-
 # =============================================================================
 # Petri Net
 # =============================================================================
-
 
 @router.get("/models/{model_id}/petri", response_model=PetriNetResponse)
 async def get_petri_net(
@@ -186,11 +181,9 @@ async def get_petri_net(
         final_marking=final_marking,
     )
 
-
 # =============================================================================
 # SVG Export
 # =============================================================================
-
 
 @router.get("/models/{model_id}/svg")
 async def get_model_svg(
@@ -226,7 +219,6 @@ async def get_model_svg(
         media_type="image/svg+xml",
     )
 
-
 @router.get("/{log_id}/dfg/svg")
 async def get_dfg_svg(
     db: DBSession,
@@ -261,11 +253,9 @@ async def get_dfg_svg(
         media_type="image/svg+xml",
     )
 
-
 # =============================================================================
 # Footprints
 # =============================================================================
-
 
 @router.get("/{log_id}/footprints")
 async def get_footprints(
@@ -292,11 +282,9 @@ async def get_footprints(
 
     return footprints
 
-
 # =============================================================================
 # Unified Explorer Data
 # =============================================================================
-
 
 @router.get("/{log_id}/explorer-data", response_model=ProcessExplorerDataResponse)
 async def get_explorer_data(
@@ -340,8 +328,7 @@ async def get_explorer_data(
         raise HTTPException(status_code=404, detail=f"Event log not found: {log_id}")
 
     # FIX: Validate dataset is ready for visualization
-    from src.models.orm import DatasetStatus
-
+    
     if event_log.status != DatasetStatus.READY.value:
         logger.warning("dataset_not_ready", dataset_id=dataset_id, status=event_log.status)
         raise HTTPException(

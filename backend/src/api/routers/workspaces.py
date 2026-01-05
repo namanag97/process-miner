@@ -9,7 +9,6 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, select
 
 from src.api.dependencies import DBSession
-from src.models.orm import Project, Workspace
 from src.models.schemas import (
     ProjectResponse,
     WorkspaceCreateRequest,
@@ -18,14 +17,13 @@ from src.models.schemas import (
     WorkspaceResponse,
     WorkspaceUpdateRequest,
 )
+from src.platform.models import Project, Workspace
 
 router = APIRouter(prefix="/workspaces", tags=["Workspaces"])
-
 
 # =============================================================================
 # Helper Functions
 # =============================================================================
-
 
 def _workspace_to_response(workspace: Workspace) -> WorkspaceResponse:
     """Convert Workspace ORM to WorkspaceResponse."""
@@ -38,16 +36,13 @@ def _workspace_to_response(workspace: Workspace) -> WorkspaceResponse:
         updated_at=workspace.updated_at,
     )
 
-
 def _project_to_response(project: Project) -> ProjectResponse:
     """Convert Project ORM to ProjectResponse using Pydantic model_validate."""
     return ProjectResponse.model_validate(project)
 
-
 # =============================================================================
 # CRUD Endpoints
 # =============================================================================
-
 
 @router.get("", response_model=WorkspaceListResponse)
 async def list_workspaces(
@@ -88,7 +83,6 @@ async def list_workspaces(
         pages=(total + page_size - 1) // page_size if total > 0 else 0,
     )
 
-
 @router.get("/{workspace_id}", response_model=WorkspaceDetailResponse)
 async def get_workspace(
     db: DBSession,
@@ -117,7 +111,6 @@ async def get_workspace(
         projects=[_project_to_response(p) for p in projects],
     )
 
-
 @router.post("", response_model=WorkspaceResponse, status_code=201)
 async def create_workspace(
     db: DBSession,
@@ -138,7 +131,6 @@ async def create_workspace(
     await db.refresh(workspace)
 
     return _workspace_to_response(workspace)
-
 
 @router.put("/{workspace_id}", response_model=WorkspaceResponse)
 async def update_workspace(
@@ -167,7 +159,6 @@ async def update_workspace(
 
     return _workspace_to_response(workspace)
 
-
 @router.delete("/{workspace_id}", status_code=204)
 async def delete_workspace(
     db: DBSession,
@@ -192,11 +183,9 @@ async def delete_workspace(
     await db.delete(workspace)
     await db.commit()
 
-
 # =============================================================================
 # Project Association
 # =============================================================================
-
 
 @router.post("/{workspace_id}/projects/{project_id}", response_model=WorkspaceDetailResponse)
 async def add_project_to_workspace(
@@ -223,7 +212,6 @@ async def add_project_to_workspace(
     await db.commit()
 
     return await get_workspace(db, workspace_id)
-
 
 @router.delete("/{workspace_id}/projects/{project_id}", status_code=204)
 async def remove_project_from_workspace(

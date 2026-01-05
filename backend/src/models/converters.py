@@ -27,8 +27,9 @@ from src.models.schemas import (
 )
 
 if TYPE_CHECKING:
-    from src.models.orm import Analysis, Dataset, OCELLog, Project, Workflow
-
+    from src.platform.models import Project
+    from src.features.process_mining.models import Analysis, Dataset, OCELLog, Workflow
+    
 
 def dataset_to_response(dataset: "Dataset") -> DatasetResponse:
     """Convert ORM Dataset to API response with JSON field parsing.
@@ -36,7 +37,6 @@ def dataset_to_response(dataset: "Dataset") -> DatasetResponse:
     Handles: activities_json → activities
     """
     return DatasetResponse.model_validate(dataset)
-
 
 def dataset_to_detail_response(dataset: "Dataset") -> DatasetDetailResponse:
     """Convert ORM Dataset to detailed API response.
@@ -72,14 +72,12 @@ def dataset_to_detail_response(dataset: "Dataset") -> DatasetDetailResponse:
         updated_at=dataset.updated_at,
     )
 
-
 def project_to_response(project: "Project") -> ProjectResponse:
     """Convert ORM Project to API response with JSON field parsing.
 
     Handles: tags_json → tags
     """
     return ProjectResponse.model_validate(project)
-
 
 def analysis_to_response(analysis: "Analysis") -> AnalysisResponse:
     """Convert ORM Analysis to API response with JSON field parsing.
@@ -88,14 +86,12 @@ def analysis_to_response(analysis: "Analysis") -> AnalysisResponse:
     """
     return AnalysisResponse.model_validate(analysis)
 
-
 def workflow_to_response(workflow: "Workflow") -> WorkflowResponse:
     """Convert ORM Workflow to API response with JSON field parsing.
 
     Handles: steps_json → steps
     """
     return WorkflowResponse.model_validate(workflow)
-
 
 def ocel_log_to_response(log: "OCELLog") -> OCELLogResponse:
     """Convert ORM OCELLog to API response with metadata parsing.
@@ -121,7 +117,6 @@ def ocel_log_to_response(log: "OCELLog") -> OCELLogResponse:
         activities=metadata.get("activities", []),
         created_at=log.created_at,
     )
-
 
 def filtered_dataset_to_response(dataset: "Dataset") -> FilteredLogResponse:
     """Convert filtered ORM Dataset to FilteredLogResponse.

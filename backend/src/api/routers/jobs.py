@@ -7,21 +7,19 @@ from fastapi import APIRouter, Query, Request
 from sqlalchemy import select
 
 from src.api.dependencies import DBSession
-from src.core.exceptions import ProcessNotFoundError
-from src.core.logging_config import get_logger
-from src.models.orm import AsyncJob
+from src.platform.core.exceptions import ProcessNotFoundError
+from src.platform.core.logging_config import get_logger
 from src.models.schemas import JobStatusResponse, PaginatedResponse
+from src.platform.models import AsyncJob
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
-
 class JobListResponse(PaginatedResponse):
     """Paginated job list."""
 
     items: list[JobStatusResponse]
-
 
 @router.get("", response_model=JobListResponse)
 async def list_jobs(
@@ -66,7 +64,6 @@ async def list_jobs(
         pages=1,
     )
 
-
 @router.get("/{job_id}", response_model=JobStatusResponse)
 async def get_job_status(
     db: DBSession,
@@ -85,7 +82,6 @@ async def get_job_status(
 
     return JobStatusResponse.from_orm(job)
 
-
 @router.delete("/{job_id}")
 async def cancel_job(
     db: DBSession,
@@ -102,14 +98,13 @@ async def cancel_job(
         raise ProcessNotFoundError(job_id, resource_name="Job")
 
     # In a real implementation, we would also cancel the Celery task
-    # from src.infrastructure.tasks import celery_app
+    # from src.platform.infrastructure.tasks import celery_app
     # celery_app.control.revoke(job.task_id, terminate=True)
 
     await db.delete(job)
     await db.commit()
 
     return {"status": "deleted", "id": job_id}
-
 
 @router.get("/{job_id}/stream")
 async def stream_job_progress(

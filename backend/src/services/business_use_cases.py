@@ -9,8 +9,8 @@ from typing import Any
 
 import pm4py
 
-from src.core.logging_config import get_logger
-from src.models.orm import Dataset, ProcessModel
+from src.features.process_mining.models import Dataset, ProcessModel
+from src.platform.core.logging_config import get_logger
 from src.services.conformance import conformance_service
 
 logger = get_logger(__name__)

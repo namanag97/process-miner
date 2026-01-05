@@ -9,13 +9,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.routers.dev_logs_stream import log_auth_event
-from src.core.config import get_settings
-from src.core.exceptions import AuthenticationError
-from src.core.logging_config import get_logger
+from src.platform.core.config import get_settings
+from src.platform.core.exceptions import AuthenticationError
+from src.platform.core.logging_config import get_logger
 from src.models.database import get_session
 
 if TYPE_CHECKING:
-    from src.models.orm import User
+    from src.platform.models import User
     from src.services.authorization import AuthorizationService
 
 logger = get_logger(__name__)
@@ -63,8 +63,8 @@ async def get_current_user(
     Raises:
         AuthenticationError: If auth is enabled and token is invalid/missing
     """
-    from src.core.security import decode_token
-    from src.models.orm import User
+    from src.platform.core.security import decode_token
+    from src.platform.models import User
 
     # If auth is disabled, return mock user for development
     if not settings.auth_enabled:
@@ -121,8 +121,8 @@ async def get_current_user_optional(
 
     Use this for endpoints that work with or without auth.
     """
-    from src.core.security import decode_token
-    from src.models.orm import User
+    from src.platform.core.security import decode_token
+    from src.platform.models import User
 
     if not credentials:
         return None
@@ -137,15 +137,15 @@ async def get_current_user_optional(
 
 async def _get_mock_user(db: AsyncSession) -> "User":
     """Get the seeded MVP user for development when auth is disabled.
-    
+
     This function returns the pre-seeded MVP user (analyst@company.local)
     which has access to mvp-ws-001 - the workspace the frontend is hardcoded to use.
-    
+
     The seeding happens in main.py's _seed_mvp_data() during application startup.
     """
     from datetime import datetime
 
-    from src.models.orm import Organization, User, Workspace, WorkspaceMember
+    from src.platform.models import Organization, User, Workspace, WorkspaceMember
 
     # First, try to find the seeded MVP user (preferred)
     result = await db.execute(

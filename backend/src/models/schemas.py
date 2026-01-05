@@ -9,7 +9,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src.core.enums import ConformanceMethod, MinerType
+from src.platform.core.enums import ConformanceMethod, MinerType
 
 # =============================================================================
 # Common

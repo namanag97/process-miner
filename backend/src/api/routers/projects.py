@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, select
 
 from src.api.dependencies import CurrentUser, DBSession
-from src.models.orm import Dataset, Project
+from src.features.process_mining.models import Dataset
 from src.models.schemas import (
     DatasetResponse,
     ProjectCreateRequest,
@@ -19,29 +19,25 @@ from src.models.schemas import (
     ProjectResponse,
     ProjectUpdateRequest,
 )
+from src.platform.models import Project, Workspace, WorkspaceMember
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
-
 
 # =============================================================================
 # Helper Functions
 # =============================================================================
 
-
 def _project_to_response(project: Project) -> ProjectResponse:
     """Convert Project ORM to ProjectResponse using Pydantic model_validate."""
     return ProjectResponse.model_validate(project)
-
 
 def _dataset_to_response(dataset: Dataset) -> DatasetResponse:
     """Convert Dataset ORM to DatasetResponse using Pydantic model_validate."""
     return DatasetResponse.model_validate(dataset)
 
-
 # =============================================================================
 # CRUD Endpoints
 # =============================================================================
-
 
 @router.post("", response_model=ProjectResponse, status_code=201)
 async def create_project(
@@ -55,7 +51,7 @@ async def create_project(
 
     Requires PROJECT_CREATE permission in the workspace.
     """
-    from src.core.permissions import Permission
+    from src.platform.core.permissions import Permission
     from src.services.authorization import AuthorizationService
 
     # Workspace_id is required for RBAC
@@ -81,7 +77,6 @@ async def create_project(
 
     return _project_to_response(project)
 
-
 @router.get("", response_model=ProjectListResponse)
 async def list_projects(
     db: DBSession,
@@ -97,8 +92,7 @@ async def list_projects(
     Requires PROJECT_READ permission.
     Automatically filtered by workspace membership (RLS).
     """
-    from src.core.permissions import Permission
-    from src.models.orm import Workspace, WorkspaceMember
+    from src.platform.core.permissions import Permission
     from src.services.authorization import AuthorizationService
 
     # Build query with RLS filtering (user's workspaces only)
@@ -149,7 +143,6 @@ async def list_projects(
         pages=max(1, (total + page_size - 1) // page_size) if total > 0 else 0,
     )
 
-
 @router.get("/{project_id}", response_model=ProjectDetailResponse)
 async def get_project(
     db: DBSession,
@@ -161,7 +154,7 @@ async def get_project(
 
     Requires PROJECT_READ permission in the workspace.
     """
-    from src.core.permissions import Permission
+    from src.platform.core.permissions import Permission
     from src.services.authorization import require_project_permission
 
     # Check permission (also validates project exists)
@@ -188,7 +181,6 @@ async def get_project(
         datasets=[_dataset_to_response(ds) for ds in datasets],
     )
 
-
 @router.put("/{project_id}", response_model=ProjectResponse)
 async def update_project(
     db: DBSession,
@@ -201,7 +193,7 @@ async def update_project(
 
     Requires PROJECT_UPDATE permission in the workspace.
     """
-    from src.core.permissions import Permission
+    from src.platform.core.permissions import Permission
     from src.services.authorization import require_project_permission
 
     # Check permission (also validates project exists)
@@ -223,7 +215,6 @@ async def update_project(
 
     return _project_to_response(project)
 
-
 @router.delete("/{project_id}", status_code=204)
 async def delete_project(
     db: DBSession,
@@ -238,7 +229,7 @@ async def delete_project(
 
     Requires PROJECT_DELETE permission in the workspace.
     """
-    from src.core.permissions import Permission
+    from src.platform.core.permissions import Permission
     from src.services.authorization import require_project_permission
 
     # Check permission (also validates project exists)
@@ -256,11 +247,9 @@ async def delete_project(
     await db.delete(project)
     await db.commit()
 
-
 # =============================================================================
 # File Management
 # =============================================================================
-
 
 @router.post("/{project_id}/files/{dataset_id}", response_model=ProjectDetailResponse)
 async def add_file_to_project(
@@ -274,7 +263,7 @@ async def add_file_to_project(
 
     Requires PROJECT_UPDATE permission in the workspace.
     """
-    from src.core.permissions import Permission
+    from src.platform.core.permissions import Permission
     from src.services.authorization import require_dataset_permission, require_project_permission
 
     # Check permission on project (also validates project exists)
@@ -301,7 +290,6 @@ async def add_file_to_project(
 
     return await get_project(db, project_id, user)
 
-
 @router.delete("/{project_id}/files/{dataset_id}", status_code=204)
 async def remove_file_from_project(
     db: DBSession,
@@ -314,7 +302,7 @@ async def remove_file_from_project(
 
     Requires PROJECT_UPDATE permission in the workspace.
     """
-    from src.core.permissions import Permission
+    from src.platform.core.permissions import Permission
     from src.services.authorization import require_dataset_permission, require_project_permission
 
     # Check permission on project (also validates project exists)

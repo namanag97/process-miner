@@ -19,8 +19,8 @@ from typing import Any
 from fastapi import APIRouter, Response
 from pydantic import BaseModel, Field
 
-from src.core.config import get_settings
-from src.core.logging_config import get_logger
+from src.platform.core.config import get_settings
+from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -119,7 +119,7 @@ async def check_database() -> ComponentHealth:
 async def check_cache() -> ComponentHealth:
     """Check cache connectivity."""
     try:
-        from src.infrastructure.cache import cache_service
+        from src.platform.infrastructure.cache import cache_service
 
         start = time.perf_counter()
         # Try to get a non-existent key (should return None quickly)
@@ -166,7 +166,7 @@ async def check_pm4py() -> ComponentHealth:
 async def check_circuit_breakers() -> ComponentHealth:
     """Check circuit breaker states."""
     try:
-        from src.infrastructure.circuit_breaker import get_all_circuit_statuses
+        from src.platform.infrastructure.circuit_breaker import get_all_circuit_statuses
 
         statuses = get_all_circuit_statuses()
         open_circuits = [s for s in statuses if s["state"] == "open"]
@@ -333,7 +333,7 @@ async def prometheus_metrics() -> Response:
     - Cache hit/miss rates
     """
     try:
-        from src.infrastructure.metrics import get_metrics
+        from src.platform.infrastructure.metrics import get_metrics
 
         metrics_data = get_metrics()
         return Response(content=metrics_data, media_type="text/plain; version=0.0.4")

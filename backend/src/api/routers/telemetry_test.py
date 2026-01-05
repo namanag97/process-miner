@@ -2,8 +2,8 @@
 
 from fastapi import APIRouter
 
-from src.core.logging_config import get_logger
-from src.infrastructure.tracing import create_span
+from src.platform.core.logging_config import get_logger
+from src.platform.infrastructure.tracing import create_span
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/test-telemetry", tags=["Test"])

@@ -9,15 +9,15 @@ from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 
 from src.api.dependencies import CurrentUser, DBSession
-from src.core.enums import MinerType
-from src.core.exceptions import (
+from src.features.process_mining.models import Dataset, ProcessModel
+from src.platform.core.enums import MinerType
+from src.platform.core.exceptions import (
     DiscoveryError,
     InvalidInputError,
     ModelNotFoundError,
     ProcessNotFoundError,
 )
-from src.core.logging_config import get_logger
-from src.models.orm import Dataset, ProcessModel
+from src.platform.core.logging_config import get_logger
 from src.models.schemas import (
     DiscoverRequest,
     MinerInfo,
@@ -91,7 +91,7 @@ async def discover_model(
         raise ProcessNotFoundError(request.dataset_id)
 
     # FIX: Validate dataset is ready for discovery (has completed ingestion)
-    from src.models.orm import DatasetStatus
+    from src.features.process_mining.models import DatasetStatus
 
     if event_log.status != DatasetStatus.READY.value:
         logger.warning("dataset_not_ready", dataset_id=request.dataset_id, status=event_log.status)
@@ -123,9 +123,9 @@ async def discover_model(
     if async_mode:
         import json
 
-        from src.core.enums import EntityType, JobStatus, JobType
-        from src.infrastructure.tasks import perform_discovery_task
-        from src.models.orm import AsyncJob
+        from src.platform.core.enums import EntityType, JobStatus, JobType
+        from src.platform.infrastructure.tasks import perform_discovery_task
+        from src.platform.models import AsyncJob
 
         # Create AsyncJob record first with job-centric fields
         async_job = AsyncJob(

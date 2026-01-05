@@ -14,11 +14,10 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from src.core.logging_config import get_logger
-from src.models.orm import Recommendation
+from src.platform.core.logging_config import get_logger
+from src.features.process_mining.models import Recommendation
 
 logger = get_logger(__name__)
-
 
 class ActionType(str, Enum):
     """Types of actions that can be recommended."""
@@ -28,14 +27,12 @@ class ActionType(str, Enum):
     SEND_NOTIFICATION = "send_notification"
     TRIGGER_WEBHOOK = "trigger_webhook"
 
-
 class SignalType(str, Enum):
     """Types of signals that trigger recommendations."""
 
     PREDICTED_DELAY = "predicted_delay"
     CONFORMANCE_VIOLATION = "conformance_violation"
     RESOURCE_OVERLOAD = "resource_overload"
-
 
 @dataclass
 class ActionRecommendation:
@@ -46,7 +43,6 @@ class ActionRecommendation:
     priority: str = "medium"
     reason: str = ""
 
-
 @dataclass
 class Rule:
     """A prescriptive rule."""
@@ -55,7 +51,6 @@ class Rule:
     signal_type: SignalType
     condition: Callable[[dict], bool]
     action_generator: Callable[[dict], ActionRecommendation]
-
 
 class RecommendationService:
     """
@@ -169,6 +164,5 @@ class RecommendationService:
         )
         result = await session.execute(stmt)
         return list(result.scalars().all())
-
 
 recommendation_service = RecommendationService()

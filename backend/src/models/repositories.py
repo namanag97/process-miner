@@ -18,12 +18,13 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Optional, Protocol, TypeVar
 
 if TYPE_CHECKING:
-    from src.models.orm import AsyncJob, Dataset, ProcessModel, Project
+    from src.features.process_mining.models import Dataset, ProcessModel
+    from src.platform.models import AsyncJob, Project
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.logging_config import get_logger
+from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -115,12 +116,12 @@ class SQLAlchemyDatasetRepository(DatasetRepository):
         self._session = session
 
     async def get_by_id(self, dataset_id: str) -> Optional["Dataset"]:
-        from src.models.orm import Dataset
+        from src.features.process_mining.models import Dataset
 
         return await self._session.get(Dataset, dataset_id)
 
     async def get_by_id_lightweight(self, dataset_id: str) -> Optional["Dataset"]:
-        from src.models.orm import Dataset
+        from src.features.process_mining.models import Dataset
 
         # Use a query that doesn't eager load relationships
         stmt = select(Dataset).where(Dataset.id == dataset_id)
@@ -142,7 +143,7 @@ class SQLAlchemyDatasetRepository(DatasetRepository):
         return False
 
     async def exists(self, dataset_id: str) -> bool:
-        from src.models.orm import Dataset
+        from src.features.process_mining.models import Dataset
 
         stmt = select(func.count()).where(Dataset.id == dataset_id)
         result = await self._session.execute(stmt)
@@ -154,7 +155,7 @@ class SQLAlchemyDatasetRepository(DatasetRepository):
         page_size: int = 20,
         source_format: str | None = None,
     ) -> tuple[list["Dataset"], int]:
-        from src.models.orm import Dataset
+        from src.features.process_mining.models import Dataset
 
         # Count query
         count_stmt = select(func.count()).select_from(Dataset)
@@ -176,7 +177,7 @@ class SQLAlchemyDatasetRepository(DatasetRepository):
         return datasets, total
 
     async def count(self) -> int:
-        from src.models.orm import Dataset
+        from src.features.process_mining.models import Dataset
 
         stmt = select(func.count()).select_from(Dataset)
         result = await self._session.execute(stmt)
@@ -215,7 +216,7 @@ class SQLAlchemyProjectRepository(ProjectRepository):
         self._session = session
 
     async def get_by_id(self, project_id: str) -> Optional["Project"]:
-        from src.models.orm import Project
+        from src.platform.models import Project
 
         return await self._session.get(Project, project_id)
 
@@ -234,7 +235,7 @@ class SQLAlchemyProjectRepository(ProjectRepository):
         return False
 
     async def list_all(self, page: int = 1, page_size: int = 20) -> tuple[list["Project"], int]:
-        from src.models.orm import Project
+        from src.platform.models import Project
 
         # Count
         count_stmt = select(func.count()).select_from(Project)
@@ -282,7 +283,7 @@ class SQLAlchemyProcessModelRepository(ProcessModelRepository):
         self._session = session
 
     async def get_by_id(self, model_id: str) -> Optional["ProcessModel"]:
-        from src.models.orm import ProcessModel
+        from src.features.process_mining.models import ProcessModel
 
         return await self._session.get(ProcessModel, model_id)
 
@@ -293,7 +294,7 @@ class SQLAlchemyProcessModelRepository(ProcessModelRepository):
         return model
 
     async def get_by_dataset_id(self, dataset_id: str) -> list["ProcessModel"]:
-        from src.models.orm import ProcessModel
+        from src.features.process_mining.models import ProcessModel
 
         stmt = (
             select(ProcessModel)
@@ -411,12 +412,12 @@ class SQLAlchemyAsyncJobRepository(AsyncJobRepository):
         self._session = session
 
     async def get_by_id(self, job_id: str) -> Optional["AsyncJob"]:
-        from src.models.orm import AsyncJob
+        from src.platform.models import AsyncJob
 
         return await self._session.get(AsyncJob, job_id)
 
     async def get_by_task_id(self, task_id: str) -> Optional["AsyncJob"]:
-        from src.models.orm import AsyncJob
+        from src.platform.models import AsyncJob
 
         stmt = select(AsyncJob).where(AsyncJob.task_id == task_id)
         result = await self._session.execute(stmt)
@@ -439,7 +440,7 @@ class SQLAlchemyAsyncJobRepository(AsyncJobRepository):
     async def update_progress(self, job_id: str, progress: int, stage: str | None = None) -> bool:
         from datetime import datetime
 
-        from src.models.orm import JobStatus
+        from src.platform.core.enums import JobStatus
 
         job = await self.get_by_id(job_id)
         if not job:
@@ -464,7 +465,7 @@ class SQLAlchemyAsyncJobRepository(AsyncJobRepository):
         import json
         from datetime import datetime
 
-        from src.models.orm import JobStatus
+        from src.platform.core.enums import JobStatus
 
         job = await self.get_by_id(job_id)
         if not job:
@@ -486,7 +487,7 @@ class SQLAlchemyAsyncJobRepository(AsyncJobRepository):
     async def fail(self, job_id: str, error: str) -> bool:
         from datetime import datetime
 
-        from src.models.orm import JobStatus
+        from src.platform.core.enums import JobStatus
 
         job = await self.get_by_id(job_id)
         if not job:
@@ -509,7 +510,7 @@ class SQLAlchemyAsyncJobRepository(AsyncJobRepository):
         status: str | None = None,
         entity_id: str | None = None,
     ) -> tuple[list["AsyncJob"], int]:
-        from src.models.orm import AsyncJob
+        from src.platform.models import AsyncJob
 
         # Build filter conditions
         conditions = [AsyncJob.user_id == user_id]
@@ -543,7 +544,7 @@ class SQLAlchemyAsyncJobRepository(AsyncJobRepository):
         entity_type: str,
         entity_id: str,
     ) -> list["AsyncJob"]:
-        from src.models.orm import AsyncJob
+        from src.platform.models import AsyncJob
 
         stmt = (
             select(AsyncJob)

@@ -11,9 +11,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_db
-from src.core.logging_config import get_logger
-from src.core.safe_unpickler import safe_loads
-from src.models.orm import Dataset, ProcessCase, ProcessEvent, ProcessModel
+from src.platform.core.logging_config import get_logger
+from src.platform.core.safe_unpickler import safe_loads
 from src.models.schemas import (
     PlayOutRequest,
     PlayOutResponse,
@@ -22,11 +21,11 @@ from src.models.schemas import (
 )
 from src.services.filtering import filtering_service
 from src.services.simulation import simulation_service
+from src.features.process_mining.models import Dataset, ProcessCase, ProcessEvent, ProcessModel
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/simulation", tags=["Simulation"])
-
 
 @router.post("/models/{model_id}/play-out", response_model=PlayOutResponse)
 async def play_out_model(
@@ -98,7 +97,6 @@ async def play_out_model(
         events_generated=new_log.total_events,
     )
 
-
 @router.post("/datasets/{dataset_id}/simulate", response_model=SimulationResponse)
 async def simulate_scenario(
     dataset_id: str,
@@ -125,7 +123,6 @@ async def simulate_scenario(
         simulated_metrics=simulation_result["simulated_metrics"],
         impact=simulation_result["impact"],
     )
-
 
 @router.post("/datasets/{dataset_id}/capacity-plan")
 async def estimate_capacity(

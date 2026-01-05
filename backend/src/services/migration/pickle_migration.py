@@ -17,14 +17,13 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from src.services.serializers import GraphStructureSerializer, PnmlExporter
+from src.features.process_mining.models import ProcessModel
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from src.models.orm import ProcessModel
-
+    
 logger = structlog.get_logger(__name__)
-
 
 @dataclass
 class MigrationResult:
@@ -36,7 +35,6 @@ class MigrationResult:
     graph_json: dict[str, Any] | None = None
     error: str | None = None
     duration_ms: float = 0.0
-
 
 @dataclass
 class MigrationReport:
@@ -70,7 +68,6 @@ class MigrationReport:
             "started_at": self.started_at.isoformat() if self.started_at else None,
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
         }
-
 
 class PickleMigrationService:
     """Migrate pickle blobs to standard formats.
@@ -119,8 +116,7 @@ class PickleMigrationService:
         """
         from sqlalchemy import select
 
-        from src.models.orm import ProcessModel
-
+        
         report = MigrationReport(started_at=datetime.utcnow())
 
         try:
@@ -456,13 +452,12 @@ class PickleMigrationService:
 
         logger.debug("pnml_file_saved", path=str(full_path))
 
-
 # CLI entry point for manual migration
 if __name__ == "__main__":
     import argparse
     import asyncio
 
-    from src.infrastructure.database import async_session_maker
+    from src.platform.infrastructure.database import async_session_maker
 
     async def run_migration(batch_size: int, dry_run: bool) -> None:
         """Run migration from CLI."""

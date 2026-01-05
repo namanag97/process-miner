@@ -15,16 +15,17 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, Request, Respon
 from sqlalchemy import func, select
 
 from src.api.dependencies import CurrentUser, DBSession
-from src.core.config import get_settings
-from src.core.exceptions import (
+from src.features.process_mining.models import Dataset, DatasetStatus, ProcessCase
+from src.platform.core.config import get_settings
+from src.platform.core.exceptions import (
     InvalidFileError,
     ProcessingError,
     ProcessNotFoundError,
     ValidationError,
 )
-from src.core.logging_config import get_logger
-from src.core.rate_limit import limiter
-from src.models.orm import Dataset, DatasetStatus, ProcessCase, Project
+from src.platform.core.logging_config import get_logger
+from src.platform.core.rate_limit import limiter
+from src.platform.models import Project
 
 # Repository imports from models layer (infrastructure)
 from src.models.repositories import SQLAlchemyDatasetRepository
@@ -253,7 +254,7 @@ async def get_presigned_upload_url(
     import uuid
     from datetime import datetime
 
-    from src.infrastructure.object_storage import get_storage_client
+    from src.platform.infrastructure.object_storage import get_storage_client
     from src.models.schemas import PresignedUploadResponse
 
     logger.info(
@@ -279,7 +280,7 @@ async def get_presigned_upload_url(
 
     # Validate file size (prevent storage quota attacks)
     logger.info("📏 [PRESIGNED] Step 2: Validating file size", file_size_bytes=body.file_size_bytes)
-    from src.core.config import get_settings
+    from src.platform.core.config import get_settings
     settings = get_settings()
     if body.file_size_bytes and body.file_size_bytes > settings.s3_max_file_size_bytes:
         logger.error(
@@ -296,7 +297,7 @@ async def get_presigned_upload_url(
     # Validate project exists and check permission
     logger.info("🔐 [PRESIGNED] Step 3: Checking project permissions", project_id=body.project_id)
     if body.project_id:
-        from src.core.permissions import Permission
+        from src.platform.core.permissions import Permission
         from src.services.authorization import require_project_permission
 
         try:
@@ -454,8 +455,8 @@ async def trigger_validation(
         NotFoundError: If dataset doesn't exist
         ValidationError: If dataset not in PENDING state
     """
-    from src.core.permissions import Permission
-    from src.infrastructure.tasks import validate_uploaded_file_task
+    from src.platform.core.permissions import Permission
+    from src.platform.infrastructure.tasks import validate_uploaded_file_task
     from src.services.authorization import require_dataset_permission
 
     # Check permission (also validates dataset exists)
@@ -518,7 +519,7 @@ async def handle_s3_upload_notification(
         NotFoundError: If dataset doesn't exist
     """
 
-    from src.infrastructure.tasks import validate_uploaded_file_task
+    from src.platform.infrastructure.tasks import validate_uploaded_file_task
 
     # Parse S3 event notification
     try:
@@ -667,7 +668,7 @@ async def upload_dataset(
 
     # Validate project exists and check permission
     if project_id:
-        from src.core.permissions import Permission
+        from src.platform.core.permissions import Permission
         from src.services.authorization import require_project_permission
 
         # Verify user has DATASET_CREATE permission in workspace
@@ -970,10 +971,10 @@ async def ingest_dataset(
 
     Requires DATASET_UPDATE permission in the workspace.
     """
-    from src.core.enums import EntityType, JobStatus, JobType
-    from src.core.permissions import Permission
-    from src.infrastructure.tasks import ingest_dataset_task
-    from src.models.orm import AsyncJob
+    from src.platform.core.enums import EntityType, JobStatus, JobType
+    from src.platform.core.permissions import Permission
+    from src.platform.infrastructure.tasks import ingest_dataset_task
+    from src.platform.models import AsyncJob
     from src.services.authorization import require_dataset_permission
 
     logger.info("ingest_dataset_started", dataset_id=dataset_id, user_id=user.id)
@@ -1068,7 +1069,7 @@ async def detect_columns_for_dataset(
 
     Requires DATASET_READ permission in the workspace.
     """
-    from src.core.permissions import Permission
+    from src.platform.core.permissions import Permission
     from src.services.authorization import require_dataset_permission
     from src.services.storage import storage_service
 
@@ -1147,7 +1148,7 @@ async def get_data_preview(
     import csv
     import io
 
-    from src.core.permissions import Permission
+    from src.platform.core.permissions import Permission
     from src.services.authorization import require_dataset_permission
     from src.services.storage import storage_service
 
@@ -1321,7 +1322,7 @@ async def get_sheets(
 
     Requires DATASET_READ permission in the workspace.
     """
-    from src.core.permissions import Permission
+    from src.platform.core.permissions import Permission
     from src.services.authorization import require_dataset_permission
     from src.services.storage import storage_service
 
@@ -1412,7 +1413,7 @@ async def list_datasets(
     Requires DATASET_READ permission.
     Automatically filtered by workspace membership (RLS).
     """
-    from src.models.orm import Workspace, WorkspaceMember
+    from src.platform.models import Workspace, WorkspaceMember
 
     logger.debug(
         "list_datasets",
@@ -1438,7 +1439,7 @@ async def list_datasets(
 
     if project_id:
         # Verify user has access to this project
-        from src.core.permissions import Permission
+        from src.platform.core.permissions import Permission
         from src.services.authorization import require_project_permission
 
         await require_project_permission(db, project_id, user, Permission.PROJECT_READ)
@@ -1491,7 +1492,7 @@ async def get_dataset(
 
     Requires DATASET_READ permission in the workspace.
     """
-    from src.core.permissions import Permission
+    from src.platform.core.permissions import Permission
     from src.services.authorization import require_dataset_permission
 
     logger.debug("get_dataset", dataset_id=dataset_id, user_id=user.id)
@@ -1534,7 +1535,7 @@ async def delete_dataset(
     BUG-052 FIX: Also deletes orphaned recommendations.
     SECURITY: Added authentication and permission check (Phase 6.2)
     """
-    from src.core.permissions import Permission
+    from src.platform.core.permissions import Permission
     from src.services.authorization import require_dataset_permission
 
     logger.info("delete_dataset_started", dataset_id=dataset_id, user_id=user.id)
@@ -1547,7 +1548,7 @@ async def delete_dataset(
     # BUG-052 FIX: Clean up recommendations before deleting dataset
     from sqlalchemy import delete
 
-    from src.models.orm import Recommendation
+    from src.features.process_mining.models import Recommendation
 
     await db.execute(delete(Recommendation).where(Recommendation.dataset_id == dataset_id))
 
@@ -1579,7 +1580,7 @@ async def get_statistics(
 
     Requires DATASET_READ permission in the workspace.
     """
-    from src.core.permissions import Permission
+    from src.platform.core.permissions import Permission
     from src.services.authorization import require_dataset_permission
 
     logger.info("get_statistics_started", dataset_id=dataset_id, user_id=user.id)
@@ -1673,7 +1674,7 @@ async def list_cases(
 
     Requires DATASET_READ permission in the workspace.
     """
-    from src.core.permissions import Permission
+    from src.platform.core.permissions import Permission
     from src.services.authorization import require_dataset_permission
 
     logger.debug("list_cases", dataset_id=dataset_id, page=page, page_size=page_size, user_id=user.id)
@@ -1690,7 +1691,7 @@ async def list_cases(
     total = await db.scalar(count_query) or 0
 
     # Paginate cases with event count via SQL subquery (avoid loading events)
-    from src.models.orm import ProcessEvent
+    from src.features.process_mining.models import ProcessEvent
 
     # Create a subquery to count events per case
     event_count_subq = (
@@ -1770,7 +1771,7 @@ async def get_variants(
 
     Requires DATASET_READ permission in the workspace.
     """
-    from src.core.permissions import Permission
+    from src.platform.core.permissions import Permission
     from src.services.authorization import require_dataset_permission
 
     logger.info(
@@ -1907,7 +1908,7 @@ async def get_activities(
 
     Requires DATASET_READ permission in the workspace.
     """
-    from src.core.permissions import Permission
+    from src.platform.core.permissions import Permission
     from src.services.authorization import require_dataset_permission
 
     logger.info("get_activities_started", dataset_id=dataset_id, sort_by=sort_by, user_id=user.id)
@@ -1968,7 +1969,7 @@ async def get_domain_analysis(
     """
     import pm4py
 
-    from src.core.permissions import Permission
+    from src.platform.core.permissions import Permission
     from src.services.authorization import require_dataset_permission
 
     logger.info("domain_analysis_started", dataset_id=dataset_id, user_id=user.id)

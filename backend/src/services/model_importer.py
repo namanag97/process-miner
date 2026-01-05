@@ -10,9 +10,9 @@ import pm4py
 from pm4py.objects.bpmn.obj import BPMN
 from pm4py.objects.petri_net.obj import Marking, PetriNet
 
-from src.core.enums import ModelFormat
-from src.core.exceptions import ValidationError
-from src.core.logging_config import get_logger
+from src.platform.core.enums import ModelFormat
+from src.platform.core.exceptions import ValidationError
+from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

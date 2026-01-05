@@ -41,10 +41,10 @@ from src.api.routers.health import router as health_router
 from src.api.routers.jobs import router as jobs_router
 from src.api.routers.telemetry_proxy import router as telemetry_proxy_router
 from src.api.routers.telemetry_test import router as telemetry_test_router
-from src.core.config import get_settings
-from src.core.exceptions import AppException
-from src.core.logging_config import configure_logging, get_logger
-from src.core.middleware import PerformanceLoggingMiddleware, RequestLoggingMiddleware
+from src.platform.core.config import get_settings
+from src.platform.core.exceptions import AppException
+from src.platform.core.logging_config import configure_logging, get_logger
+from src.platform.core.middleware import PerformanceLoggingMiddleware, RequestLoggingMiddleware
 from src.models.database import close_database, init_database
 
 settings = get_settings()
@@ -103,7 +103,7 @@ async def _seed_mvp_data() -> None:
     from sqlalchemy import select
 
     from src.models.database import async_session_maker
-    from src.models.orm import Organization, User, Workspace, WorkspaceMember
+    from src.platform.models import Organization, User, Workspace, WorkspaceMember
 
     try:
         async with async_session_maker() as db:
@@ -168,8 +168,8 @@ async def _seed_mvp_data() -> None:
 def _setup_observability(app: FastAPI) -> None:
     """Initialize optional observability components."""
     try:
-        from src.infrastructure.metrics import set_app_info
-        from src.infrastructure.tracing import setup_tracing
+        from src.platform.infrastructure.metrics import set_app_info
+        from src.platform.infrastructure.tracing import setup_tracing
 
         # Setup OpenTelemetry tracing
         setup_tracing(
@@ -324,7 +324,7 @@ JWT-based authentication with optional workspace context.
     from slowapi import _rate_limit_exceeded_handler
     from slowapi.errors import RateLimitExceeded
 
-    from src.core.rate_limit import limiter
+    from src.platform.core.rate_limit import limiter
 
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
@@ -427,7 +427,7 @@ JWT-based authentication with optional workspace context.
     async def prometheus_metrics() -> Response:
         """Prometheus metrics endpoint."""
         try:
-            from src.infrastructure.metrics import get_metrics
+            from src.platform.infrastructure.metrics import get_metrics
 
             return Response(
                 content=get_metrics(),

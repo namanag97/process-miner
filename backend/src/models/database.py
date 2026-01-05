@@ -5,8 +5,8 @@ from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from src.core.config import get_settings
-from src.core.logging_config import get_logger
+from src.platform.core.config import get_settings
+from src.platform.core.logging_config import get_logger
 
 settings = get_settings()
 logger = get_logger(__name__)
@@ -57,11 +57,16 @@ async def get_session_context() -> AsyncGenerator[AsyncSession, None]:
 
 async def init_database() -> None:
     """Initialize database - create all tables."""
-    from src.models.orm import Base
+    # Import both Base objects to register all models
+    from src.features.process_mining.models import Base as ProcessMiningBase
+    from src.platform.models import Base as PlatformBase
 
     logger.info("database_initializing", url=settings.database_url)
     async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        # Create all platform tables
+        await conn.run_sync(PlatformBase.metadata.create_all)
+        # Create all process mining tables
+        await conn.run_sync(ProcessMiningBase.metadata.create_all)
     logger.info("database_initialized")
 
 

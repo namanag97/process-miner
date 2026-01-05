@@ -16,11 +16,10 @@ import pyarrow as pa
 from pm4py.objects.log.obj import EventLog as PM4PyLog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.logging_config import get_logger
-from src.models.orm import Dataset, ProcessCase, ProcessEvent
+from src.platform.core.logging_config import get_logger
+from src.features.process_mining.models import Dataset, ProcessCase, ProcessEvent
 
 logger = get_logger(__name__)
-
 
 class DatasetWriter:
     """Unified service for all Case/Event persistence.
@@ -196,7 +195,6 @@ class DatasetWriter:
             total_events=total_events,
             duration_ms=round(duration_ms, 2),
         )
-
 
 # Singleton instance
 dataset_writer = DatasetWriter()

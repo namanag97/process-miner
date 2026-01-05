@@ -15,13 +15,11 @@ from uuid import uuid4
 
 from sqlalchemy import JSON, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from src.models.orm import Base
+from src.shared.database import Base
 
 # =============================================================================
 # OCEL 2.0 Core Tables
 # =============================================================================
-
 
 class OCEL2EventType(Base):
     """Event type definition in OCEL 2.0."""
@@ -36,7 +34,6 @@ class OCEL2EventType(Base):
 
     # Relationships
     events: Mapped[list["OCEL2Event"]] = relationship(back_populates="event_type", lazy="selectin")
-
 
 class OCEL2ObjectType(Base):
     """Object type definition in OCEL 2.0."""
@@ -53,7 +50,6 @@ class OCEL2ObjectType(Base):
     objects: Mapped[list["OCEL2Object"]] = relationship(
         back_populates="object_type", lazy="selectin"
     )
-
 
 class OCEL2Event(Base):
     """OCEL 2.0 compliant event.
@@ -92,7 +88,6 @@ class OCEL2Event(Base):
     object_relations: Mapped[list["E2ORelation"]] = relationship(
         back_populates="event", cascade="all, delete-orphan", lazy="selectin"
     )
-
 
 class OCEL2Object(Base):
     """OCEL 2.0 object instance.
@@ -135,7 +130,6 @@ class OCEL2Object(Base):
         lazy="selectin",
     )
 
-
 class E2ORelation(Base):
     """Event-to-Object relationship with qualifier.
 
@@ -160,7 +154,6 @@ class E2ORelation(Base):
     # Relationships
     event: Mapped["OCEL2Event"] = relationship(back_populates="object_relations")
     object: Mapped["OCEL2Object"] = relationship(back_populates="event_relations")
-
 
 class O2ORelation(Base):
     """Object-to-Object relationship with qualifier.
@@ -195,7 +188,6 @@ class O2ORelation(Base):
     target_object: Mapped["OCEL2Object"] = relationship(
         back_populates="target_relations", foreign_keys=[target_object_id]
     )
-
 
 class ObjectAttributeChange(Base):
     """Tracks dynamic attribute changes over time.

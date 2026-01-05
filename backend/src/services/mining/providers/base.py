@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
-from src.core.enums import MinerType, ModelFormat
+from src.platform.core.enums import MinerType, ModelFormat
 
 
 @dataclass

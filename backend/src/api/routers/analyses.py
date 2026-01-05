@@ -10,8 +10,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from src.api.dependencies import DBSession
-from src.core.logging_config import get_logger
-from src.models.orm import Analysis, AnalysisStatus, Dataset
+from src.features.process_mining.models import Analysis, AnalysisStatus, Dataset
+from src.platform.core.logging_config import get_logger
 from src.models.schemas import (
     AnalysisCreateRequest,
     AnalysisDetailResponse,
@@ -97,7 +97,7 @@ async def create_analysis(
     await db.flush()
 
     # Queue async background task
-    from src.infrastructure.tasks import perform_analysis_task
+    from src.platform.infrastructure.tasks import perform_analysis_task
 
     task = perform_analysis_task.delay(
         analysis_id=analysis.id,

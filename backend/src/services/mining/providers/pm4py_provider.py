@@ -10,8 +10,8 @@ from typing import Any
 import pm4py
 from pm4py.objects.log.obj import EventLog as PM4PyLog
 
-from src.core.enums import MinerType, ModelFormat
-from src.core.logging_config import get_logger, log_business_metric
+from src.platform.core.enums import MinerType, ModelFormat
+from src.platform.core.logging_config import get_logger, log_business_metric
 from src.services.mining.providers.base import ComplexityEstimate, MiningProvider
 
 logger = get_logger(__name__)

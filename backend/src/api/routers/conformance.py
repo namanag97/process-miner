@@ -12,9 +12,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_session
-from src.core.enums import ConformanceMethod
-from src.core.logging_config import get_logger
-from src.models.orm import ConformanceResult, Dataset, ProcessModel
+from src.features.process_mining.models import ConformanceResult, Dataset, ProcessModel
+from src.platform.core.enums import ConformanceMethod
+from src.platform.core.logging_config import get_logger
 from src.models.schemas import (
     AlignmentDiagnosticsResponse,
     ConformanceCheckRequest,
@@ -72,7 +72,7 @@ async def check_conformance(
         raise HTTPException(status_code=404, detail="Event log not found")
 
     # FIX: Validate dataset is ready for conformance checking
-    from src.models.orm import DatasetStatus
+    from src.features.process_mining.models import DatasetStatus
 
     if event_log.status != DatasetStatus.READY.value:
         logger.warning("dataset_not_ready", dataset_id=request.dataset_id, status=event_log.status)
@@ -610,8 +610,9 @@ async def import_reference_model(
     """
     from uuid import uuid4
 
-    from src.core.enums import ModelFormat
-    from src.models.orm import ProcessModel, Project
+    from src.features.process_mining.models import ProcessModel
+    from src.platform.core.enums import ModelFormat
+    from src.platform.models import Project
     from src.services.model_importer import model_importer
 
     logger.info(

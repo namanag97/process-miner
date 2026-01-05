@@ -9,9 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_session
-from src.core.enums import WorkflowStatus
-from src.core.logging_config import get_logger
-from src.models.orm import Dataset, Workflow, WorkflowRun
+from src.platform.core.enums import WorkflowStatus
+from src.platform.core.logging_config import get_logger
 from src.models.schemas import (
     WorkflowCreateRequest,
     WorkflowResponse,
@@ -20,11 +19,11 @@ from src.models.schemas import (
     WorkflowTemplate,
 )
 from src.services.workflow import workflow_service
+from src.features.process_mining.models import Dataset, Workflow, WorkflowRun
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/workflows", tags=["Workflows"])
-
 
 @router.get("/templates", response_model=list[WorkflowTemplate])
 async def list_templates():
@@ -39,7 +38,6 @@ async def list_templates():
         )
         for t in templates
     ]
-
 
 @router.post("", response_model=WorkflowResponse)
 async def create_workflow(
@@ -71,7 +69,6 @@ async def create_workflow(
         created_at=workflow.created_at,
     )
 
-
 @router.get("", response_model=list[WorkflowResponse])
 async def list_workflows(
     session: AsyncSession = Depends(get_session),
@@ -81,7 +78,6 @@ async def list_workflows(
     workflows = result.scalars().all()
 
     return [WorkflowResponse.model_validate(w) for w in workflows]
-
 
 @router.get("/{workflow_id}", response_model=WorkflowResponse)
 async def get_workflow(
@@ -96,7 +92,6 @@ async def get_workflow(
         raise HTTPException(status_code=404, detail="Workflow not found")
 
     return WorkflowResponse.model_validate(workflow)
-
 
 @router.delete("/{workflow_id}")
 async def delete_workflow(
@@ -113,7 +108,6 @@ async def delete_workflow(
     await session.delete(workflow)
     await session.commit()
     return {"status": "deleted", "workflow_id": workflow_id}
-
 
 @router.post("/{workflow_id}/run", response_model=WorkflowRunResponse)
 async def run_workflow(
@@ -204,7 +198,6 @@ async def run_workflow(
         error=run.error,
     )
 
-
 @router.get("/{workflow_id}/runs", response_model=list[WorkflowRunResponse])
 async def list_workflow_runs(
     workflow_id: str,
@@ -230,7 +223,6 @@ async def list_workflow_runs(
         )
         for r in runs
     ]
-
 
 @router.get("/runs/{run_id}", response_model=WorkflowRunResponse)
 async def get_workflow_run(
