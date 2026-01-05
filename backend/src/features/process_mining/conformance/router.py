@@ -12,6 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_session
+from src.features.process_mining.conformance.service import conformance_service
 from src.features.process_mining.enums import ConformanceMethod
 from src.features.process_mining.models import ConformanceResult, Dataset, ProcessModel
 from src.features.process_mining.schemas import (
@@ -23,7 +24,6 @@ from src.features.process_mining.schemas import (
     DiagnosticsResponse,
     QualityMetricsResponse,
 )
-from src.features.process_mining.services.conformance import conformance_service
 from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)

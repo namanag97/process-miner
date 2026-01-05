@@ -11,7 +11,7 @@ from pm4py.objects.petri_net.obj import Marking, PetriNet
 
 from src.features.process_mining.enums import ConformanceMethod, ModelFormat
 from src.features.process_mining.models import Dataset, ProcessModel
-from src.features.process_mining.services.mining import mining_service
+from src.features.process_mining.discovery.service import mining_service
 
 
 class ConformanceService:
