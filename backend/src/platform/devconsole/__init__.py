@@ -27,6 +27,7 @@ from .logging import (
     log_error,
     log_info,
     reset_metrics,
+    log_auth_event,
 )
 from .models import DevLogEntry, HeartbeatMessage, LogLevel, SystemMetrics
 
@@ -34,6 +35,7 @@ __all__ = [
     # Logging functions
     "log_info",
     "log_error",
+    "log_auth_event",
     "log_api_request",
     "log_api_response",
     # Metrics

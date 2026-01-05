@@ -8,7 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.platform.devtools.streaming import log_auth_event
+from src.platform.devconsole import log_auth_event
 from src.platform.infrastructure.database import get_session
 from src.platform.core.config import get_settings
 from src.platform.core.exceptions import AuthenticationError

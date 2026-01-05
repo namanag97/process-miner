@@ -24,11 +24,29 @@ if TYPE_CHECKING:
 
 
 class DatasetStatus(str, Enum):
-    """Dataset lifecycle states."""
+    """Dataset lifecycle states.
+    
+    4-Phase Flow:
+    1. PENDING → File upload initiated (presigned URL generated)
+    2. UPLOADED → File stored in S3, awaiting validation
+    3. VALIDATING → Background job validating file
+    4. AWAITING_MAPPING → Validation passed, needs column mapping
+    5. MAPPED → Column mapping confirmed, ready for ingestion
+    6. INGESTING → Background job parsing and storing events
+    7. READY → Dataset ready for analysis
+    
+    Error/Archive states:
+    - ERROR → Any phase failed
+    - ARCHIVED → Dataset archived by user
+    - UNSTRUCTURED → Legacy: file stored without parsing
+    - ANALYZING → Legacy: analysis in progress
+    """
 
     PENDING = "pending"
+    UPLOADED = "uploaded"  # NEW: File in S3, awaiting validation job
     VALIDATING = "validating"
     AWAITING_MAPPING = "awaiting_mapping"
+    MAPPED = "mapped"  # NEW: Mapping confirmed, ready for ingestion
     INGESTING = "ingesting"
     READY = "ready"
     ERROR = "error"
@@ -138,6 +156,17 @@ class Dataset(Base):
     )
     activity_mappings: Mapped[list["ActivityMapping"]] = relationship(
         back_populates="dataset", cascade="all, delete-orphan", lazy="select"
+    )
+    
+    # NEW: 4-Phase Upload Architecture relationships
+    columns: Mapped[list["DatasetColumn"]] = relationship(
+        back_populates="dataset", cascade="all, delete-orphan", lazy="select"
+    )
+    column_mapping: Mapped[Optional["DatasetColumnMapping"]] = relationship(
+        back_populates="dataset", uselist=False, cascade="all, delete-orphan", lazy="selectin"
+    )
+    metadata_record: Mapped[Optional["DatasetMetadata"]] = relationship(
+        back_populates="dataset", uselist=False, cascade="all, delete-orphan", lazy="selectin"
     )
 
 

@@ -8,7 +8,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import select
 
 from src.api.dependencies import CurrentUser, DBSession
@@ -43,16 +43,78 @@ class LoginRequest(BaseModel):
     """Login request with email and password."""
 
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=1, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        """Normalize email to lowercase for consistent matching."""
+        return v.lower().strip()
 
 
 class RegisterRequest(BaseModel):
-    """Registration request."""
+    """Registration request for new SaaS users.
+
+    Password Requirements:
+    - Minimum 8 characters
+    - At least one uppercase letter
+    - At least one lowercase letter
+    - At least one digit
+    """
 
     email: EmailStr
-    password: str
-    name: str
-    organization_name: str | None = None
+    password: str = Field(
+        ...,
+        min_length=8,
+        max_length=128,
+        description="Password (8-128 chars, must include uppercase, lowercase, and digit)",
+    )
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        description="User's display name",
+    )
+    organization_name: str | None = Field(
+        None,
+        min_length=1,
+        max_length=255,
+        description="Organization name (auto-generated if not provided)",
+    )
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        """Normalize email to lowercase for consistent matching."""
+        return v.lower().strip()
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        """Ensure password meets security requirements."""
+        errors = []
+
+        if len(v) < 8:
+            errors.append("at least 8 characters")
+        if not any(c.isupper() for c in v):
+            errors.append("at least one uppercase letter")
+        if not any(c.islower() for c in v):
+            errors.append("at least one lowercase letter")
+        if not any(c.isdigit() for c in v):
+            errors.append("at least one digit")
+
+        if errors:
+            raise ValueError(f"Password must contain: {', '.join(errors)}")
+        return v
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate and clean name."""
+        cleaned = v.strip()
+        if not cleaned:
+            raise ValueError("Name cannot be empty or whitespace-only")
+        return cleaned
 
 
 class TokenResponse(BaseModel):
@@ -68,7 +130,7 @@ class TokenResponse(BaseModel):
 class RefreshRequest(BaseModel):
     """Refresh token request."""
 
-    refresh_token: str
+    refresh_token: str = Field(..., min_length=1)
 
 
 # =============================================================================
@@ -122,22 +184,52 @@ async def register(
     request: RegisterRequest,
     db: DBSession,
 ) -> TokenResponse:
-    """Register a new user account.
+    """Register a new user account for the process mining SaaS platform.
 
-    Creates user, organization (if name provided), and default workspace.
+    Creates:
+    - User account with hashed password
+    - Organization (auto-named if not provided)
+    - Default workspace for collaboration
+    - Workspace membership with owner role
+
     Returns JWT tokens for immediate authentication.
     """
-    # Check if user already exists
+    # Check if user already exists (email already normalized by validator)
     existing = await db.execute(select(User).filter(User.email == request.email))
     if existing.scalar_one_or_none():
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered",
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "EMAIL_ALREADY_EXISTS",
+                "message": "An account with this email already exists",
+                "field": "email",
+            },
         )
 
-    # Create organization
+    # Create organization with unique slug
     org_name = request.organization_name or f"{request.name}'s Organization"
-    org_slug = org_name.lower().replace(" ", "-").replace("'", "")[:50]
+    base_slug = org_name.lower().replace(" ", "-").replace("'", "")[:50]
+
+    # Ensure slug uniqueness by checking and appending suffix if needed
+    org_slug = base_slug
+    suffix = 1
+    while True:
+        existing_org = await db.execute(
+            select(Organization).filter(Organization.slug == org_slug)
+        )
+        if not existing_org.scalar_one_or_none():
+            break
+        org_slug = f"{base_slug[:45]}-{suffix}"
+        suffix += 1
+        if suffix > 100:  # Safety limit
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "code": "ORG_SLUG_CONFLICT",
+                    "message": "Could not generate unique organization slug",
+                    "field": "organization_name",
+                },
+            )
 
     org = Organization(
         id=str(uuid4()),

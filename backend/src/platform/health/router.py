@@ -89,22 +89,32 @@ def get_uptime() -> float:
 
 
 async def check_database() -> ComponentHealth:
-    """Check database connectivity."""
+    """Check database connectivity with timeout."""
+    import asyncio
+
     from sqlalchemy import text
 
     from src.platform.infrastructure.database import async_engine
 
     start = time.perf_counter()
     try:
-        # Simple connectivity check
-        async with async_engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
+        # Simple connectivity check with 5-second timeout
+        async with asyncio.timeout(5.0):
+            async with async_engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
 
         latency = (time.perf_counter() - start) * 1000
         return ComponentHealth(
             name="database",
             status="healthy",
             latency_ms=round(latency, 2),
+        )
+    except asyncio.TimeoutError:
+        return ComponentHealth(
+            name="database",
+            status="unhealthy",
+            latency_ms=5000.0,
+            message="Database health check timed out (5s)",
         )
     except Exception as e:
         latency = (time.perf_counter() - start) * 1000

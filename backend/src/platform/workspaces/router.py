@@ -1,15 +1,29 @@
 """Workspaces Router.
 
 Endpoints for managing workspaces within an organization.
+Aligned with target SaaS architecture for multi-tenant process mining platform.
+
+Target Architecture Flow:
+1. Authorization Check → Member? → Permission? → Execute → Database
+
+Hardened with:
+- UUID validation for all path parameters
+- Typed exception handling (NotFoundError, ConflictError)
+- Proper authorization checks via AuthorizationService
+- Consistent error response structure
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import func, select
+from fastapi import APIRouter, Path, Query
+from sqlalchemy import delete, func, select
 
-from src.api.dependencies import DBSession
-from src.platform.models import Project, Workspace
+from src.api.dependencies import CurrentUser, DBSession
+from src.platform.core.exceptions import ConflictError, NotFoundError
+from src.platform.core.logging_config import get_logger
+from src.platform.core.permissions import Permission
+from src.platform.core.validation import calculate_total_pages, validate_uuid
+from src.platform.models import Organization, Project, Workspace, WorkspaceMember
 from src.platform.schemas import (
     ProjectResponse,
     WorkspaceCreateRequest,
@@ -18,6 +32,9 @@ from src.platform.schemas import (
     WorkspaceResponse,
     WorkspaceUpdateRequest,
 )
+from src.platform.workspaces.authorization import AuthorizationService
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/workspaces", tags=["Workspaces"])
 
@@ -52,30 +69,46 @@ def _project_to_response(project: Project) -> ProjectResponse:
 @router.get("", response_model=WorkspaceListResponse)
 async def list_workspaces(
     db: DBSession,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    user: CurrentUser,
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
     org_id: str | None = Query(None, description="Filter by organization ID"),
 ) -> WorkspaceListResponse:
     """
-    List all workspaces, optionally filtered by organization.
-    """
-    # Build base query
-    query = select(Workspace)
+    List workspaces accessible to the current user.
 
-    # Apply organization filter
+    In multi-tenant SaaS mode, returns only workspaces where user is a member.
+    Optionally filter by organization ID.
+    """
+    # Build query with user membership filter (Row-Level Security)
+    query = (
+        select(Workspace)
+        .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)
+        .filter(WorkspaceMember.user_id == user.id)
+    )
+
+    # Apply organization filter if provided
     if org_id:
+        validate_uuid(org_id, "org_id")
         query = query.filter(Workspace.org_id == org_id)
 
-    # Get total count
-    count_query = select(func.count()).select_from(Workspace)
+    # Get total count with same filters
+    count_query = (
+        select(func.count())
+        .select_from(Workspace)
+        .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)
+        .filter(WorkspaceMember.user_id == user.id)
+    )
     if org_id:
         count_query = count_query.filter(Workspace.org_id == org_id)
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
-    # Paginate
+    # Paginate results
     query = (
-        query.order_by(Workspace.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+        query.order_by(Workspace.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
     )
     result = await db.execute(query)
     workspaces = result.scalars().all()
@@ -85,26 +118,41 @@ async def list_workspaces(
         total=total,
         page=page,
         page_size=page_size,
-        pages=(total + page_size - 1) // page_size if total > 0 else 0,
+        pages=calculate_total_pages(total, page_size),
     )
 
 
 @router.get("/{workspace_id}", response_model=WorkspaceDetailResponse)
 async def get_workspace(
     db: DBSession,
-    workspace_id: str,
+    user: CurrentUser,
+    workspace_id: str = Path(..., description="Workspace ID (UUID format)"),
 ) -> WorkspaceDetailResponse:
     """
     Get a workspace by ID with its projects.
+
+    Requires WORKSPACE_READ permission (membership in the workspace).
     """
+    # Validate UUID format
+    validate_uuid(workspace_id, "workspace_id")
+
+    # Authorization: verify user has access to this workspace
+    auth_service = AuthorizationService(db)
+    await auth_service.verify_workspace_access(workspace_id, user, Permission.WORKSPACE_READ)
+
+    # Fetch workspace
     result = await db.execute(select(Workspace).filter(Workspace.id == workspace_id))
     workspace = result.scalar_one_or_none()
 
     if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
+        raise NotFoundError(resource="Workspace", resource_id=workspace_id)
 
     # Get projects for this workspace
-    projects_result = await db.execute(select(Project).filter(Project.workspace_id == workspace_id))
+    projects_result = await db.execute(
+        select(Project)
+        .filter(Project.workspace_id == workspace_id)
+        .order_by(Project.created_at.desc())
+    )
     projects = projects_result.scalars().all()
 
     return WorkspaceDetailResponse(
@@ -122,20 +170,56 @@ async def get_workspace(
 async def create_workspace(
     db: DBSession,
     request: WorkspaceCreateRequest,
+    user: CurrentUser,
     org_id: str = Query(..., description="Organization ID for the workspace"),
 ) -> WorkspaceResponse:
     """
     Create a new workspace within an organization.
+
+    The creating user automatically becomes the workspace owner.
+    Requires user to be a member of the organization.
     """
+    # Validate org_id format
+    validate_uuid(org_id, "org_id")
+
+    # Verify organization exists
+    org_result = await db.execute(select(Organization).filter(Organization.id == org_id))
+    org = org_result.scalar_one_or_none()
+    if not org:
+        raise NotFoundError(resource="Organization", resource_id=org_id)
+
+    # Verify user belongs to this organization
+    if user.org_id != org_id:
+        raise ConflictError(
+            message="Cannot create workspace in an organization you don't belong to"
+        )
+
+    # Create workspace
     workspace = Workspace(
         org_id=org_id,
         name=request.name,
         description=request.description,
+        created_at=datetime.now(timezone.utc),
     )
-
     db.add(workspace)
+    await db.flush()  # Get workspace.id
+
+    # Add creator as workspace owner
+    from uuid import uuid4
+
+    membership = WorkspaceMember(
+        id=str(uuid4()),
+        workspace_id=workspace.id,
+        user_id=user.id,
+        role="owner",
+        joined_at=datetime.now(timezone.utc),
+    )
+    db.add(membership)
+
     await db.commit()
     await db.refresh(workspace)
+
+    logger.info("workspace_created", workspace_id=workspace.id, user_id=user.id, org_id=org_id)
 
     return _workspace_to_response(workspace)
 
@@ -143,27 +227,41 @@ async def create_workspace(
 @router.put("/{workspace_id}", response_model=WorkspaceResponse)
 async def update_workspace(
     db: DBSession,
-    workspace_id: str,
     request: WorkspaceUpdateRequest,
+    user: CurrentUser,
+    workspace_id: str = Path(..., description="Workspace ID (UUID format)"),
 ) -> WorkspaceResponse:
     """
-    Update a workspace.
+    Update a workspace's name or description.
+
+    Requires WORKSPACE_UPDATE permission (admin or owner role).
     """
+    # Validate UUID format
+    validate_uuid(workspace_id, "workspace_id")
+
+    # Authorization: verify user has update permission
+    auth_service = AuthorizationService(db)
+    await auth_service.verify_workspace_access(workspace_id, user, Permission.WORKSPACE_UPDATE)
+
+    # Fetch workspace
     result = await db.execute(select(Workspace).filter(Workspace.id == workspace_id))
     workspace = result.scalar_one_or_none()
 
     if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
+        raise NotFoundError(resource="Workspace", resource_id=workspace_id)
 
+    # Apply updates
     if request.name is not None:
         workspace.name = request.name
     if request.description is not None:
         workspace.description = request.description
 
-    workspace.updated_at = datetime.utcnow()
+    workspace.updated_at = datetime.now(timezone.utc)
 
     await db.commit()
     await db.refresh(workspace)
+
+    logger.info("workspace_updated", workspace_id=workspace_id, user_id=user.id)
 
     return _workspace_to_response(workspace)
 
@@ -171,26 +269,40 @@ async def update_workspace(
 @router.delete("/{workspace_id}", status_code=204)
 async def delete_workspace(
     db: DBSession,
-    workspace_id: str,
+    user: CurrentUser,
+    workspace_id: str = Path(..., description="Workspace ID (UUID format)"),
 ) -> None:
     """
     Delete a workspace and all its projects.
 
-    BUG-036 FIX: Now deletes projects instead of orphaning them.
+    Requires WORKSPACE_DELETE permission (owner role only).
+    WARNING: This permanently deletes all projects in the workspace.
     """
+    # Validate UUID format
+    validate_uuid(workspace_id, "workspace_id")
+
+    # Authorization: verify user has delete permission (owner only)
+    auth_service = AuthorizationService(db)
+    await auth_service.verify_workspace_access(workspace_id, user, Permission.WORKSPACE_DELETE)
+
+    # Fetch workspace
     result = await db.execute(select(Workspace).filter(Workspace.id == workspace_id))
     workspace = result.scalar_one_or_none()
 
     if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
+        raise NotFoundError(resource="Workspace", resource_id=workspace_id)
 
-    # BUG-036 FIX: Delete projects instead of orphaning
-    from sqlalchemy import delete
-
+    # Delete all projects in this workspace
     await db.execute(delete(Project).where(Project.workspace_id == workspace_id))
 
+    # Delete all workspace memberships
+    await db.execute(delete(WorkspaceMember).where(WorkspaceMember.workspace_id == workspace_id))
+
+    # Delete workspace
     await db.delete(workspace)
     await db.commit()
+
+    logger.info("workspace_deleted", workspace_id=workspace_id, user_id=user.id)
 
 
 # =============================================================================
@@ -201,53 +313,92 @@ async def delete_workspace(
 @router.post("/{workspace_id}/projects/{project_id}", response_model=WorkspaceDetailResponse)
 async def add_project_to_workspace(
     db: DBSession,
-    workspace_id: str,
-    project_id: str,
+    user: CurrentUser,
+    workspace_id: str = Path(..., description="Workspace ID (UUID format)"),
+    project_id: str = Path(..., description="Project ID (UUID format)"),
 ) -> WorkspaceDetailResponse:
     """
-    Add an existing project to a workspace.
+    Move an existing project into this workspace.
+
+    Requires WORKSPACE_UPDATE permission on the target workspace
+    and PROJECT_UPDATE permission on the project.
     """
+    # Validate UUID formats
+    validate_uuid(workspace_id, "workspace_id")
+    validate_uuid(project_id, "project_id")
+
+    # Authorization: verify user has access to workspace
+    auth_service = AuthorizationService(db)
+    await auth_service.verify_workspace_access(workspace_id, user, Permission.WORKSPACE_UPDATE)
+
+    # Fetch workspace
     result = await db.execute(select(Workspace).filter(Workspace.id == workspace_id))
     workspace = result.scalar_one_or_none()
     if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
+        raise NotFoundError(resource="Workspace", resource_id=workspace_id)
 
+    # Fetch project
     project_result = await db.execute(select(Project).filter(Project.id == project_id))
     project = project_result.scalar_one_or_none()
     if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise NotFoundError(resource="Project", resource_id=project_id)
 
+    # Check if project is already in this workspace
+    if project.workspace_id == workspace_id:
+        raise ConflictError(message="Project is already in this workspace")
+
+    # Move project to workspace
     project.workspace_id = workspace_id
-    workspace.updated_at = datetime.utcnow()
+    workspace.updated_at = datetime.now(timezone.utc)
 
     await db.commit()
 
-    return await get_workspace(db, workspace_id)
+    logger.info("project_added_to_workspace", project_id=project_id, workspace_id=workspace_id)
+
+    return await get_workspace(db, user, workspace_id)
 
 
 @router.delete("/{workspace_id}/projects/{project_id}", status_code=204)
 async def remove_project_from_workspace(
     db: DBSession,
-    workspace_id: str,
-    project_id: str,
+    user: CurrentUser,
+    workspace_id: str = Path(..., description="Workspace ID (UUID format)"),
+    project_id: str = Path(..., description="Project ID (UUID format)"),
 ) -> None:
     """
     Remove a project from a workspace (doesn't delete the project).
+
+    The project becomes unassigned and can be re-associated with another workspace.
+    Requires WORKSPACE_UPDATE permission.
     """
+    # Validate UUID formats
+    validate_uuid(workspace_id, "workspace_id")
+    validate_uuid(project_id, "project_id")
+
+    # Authorization: verify user has access to workspace
+    auth_service = AuthorizationService(db)
+    await auth_service.verify_workspace_access(workspace_id, user, Permission.WORKSPACE_UPDATE)
+
+    # Fetch workspace
     result = await db.execute(select(Workspace).filter(Workspace.id == workspace_id))
     workspace = result.scalar_one_or_none()
     if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
+        raise NotFoundError(resource="Workspace", resource_id=workspace_id)
 
+    # Fetch project
     project_result = await db.execute(select(Project).filter(Project.id == project_id))
     project = project_result.scalar_one_or_none()
     if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise NotFoundError(resource="Project", resource_id=project_id)
 
+    # Verify project is in this workspace
     if project.workspace_id != workspace_id:
-        raise HTTPException(status_code=400, detail="Project is not in this workspace")
+        raise ConflictError(message="Project is not in this workspace")
 
+    # Remove project from workspace
     project.workspace_id = None
-    workspace.updated_at = datetime.utcnow()
+    workspace.updated_at = datetime.now(timezone.utc)
 
     await db.commit()
+
+    logger.info("project_removed_from_workspace", project_id=project_id, workspace_id=workspace_id)

@@ -1,20 +1,34 @@
 """Projects Router.
 
-Endpoints for managing projects (folders for organizing datasets).
+Endpoints for managing projects (folders for organizing datasets/event logs).
+Projects are organized within workspaces for multi-tenant collaboration.
+
+Hardened with:
+- UUID validation for all path parameters
+- Typed exception handling
+- Authorization via workspace permissions
+- Search query sanitization
+- Consistent error responses
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import func, select
+from fastapi import APIRouter, HTTPException, Path, Query
+from sqlalchemy import func, select, update
 
 from src.api.dependencies import CurrentUser, DBSession
 from src.features.process_mining.models import Dataset
-from src.features.process_mining.schemas import (
-    DatasetResponse,
+from src.features.process_mining.schemas import DatasetResponse
+from src.platform.core.exceptions import ConflictError, NotFoundError, ValidationError
+from src.platform.core.logging_config import get_logger
+from src.platform.core.permissions import Permission
+from src.platform.core.validation import (
+    calculate_total_pages,
+    sanitize_search_query,
+    validate_uuid,
 )
-from src.platform.models import Project
+from src.platform.models import Project, Workspace, WorkspaceMember
 from src.platform.schemas import (
     ProjectCreateRequest,
     ProjectDetailResponse,
@@ -22,6 +36,9 @@ from src.platform.schemas import (
     ProjectResponse,
     ProjectUpdateRequest,
 )
+from src.platform.workspaces.authorization import AuthorizationService
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
@@ -51,24 +68,24 @@ async def create_project(
     db: DBSession,
     request: ProjectCreateRequest,
     user: CurrentUser,
-    workspace_id: str | None = Query(None, description="Workspace ID to associate project with"),
+    workspace_id: str = Query(..., description="Workspace ID to associate project with (required)"),
 ) -> ProjectResponse:
     """
-    Create a new project, optionally within a workspace.
+    Create a new project within a workspace.
+
+    Projects are containers for organizing event logs (datasets) and their
+    process mining analyses. All projects must belong to a workspace.
 
     Requires PROJECT_CREATE permission in the workspace.
     """
-    from src.platform.core.permissions import Permission
-    from src.platform.workspaces.authorization import AuthorizationService
-
-    # Workspace_id is required for RBAC
-    if not workspace_id:
-        raise HTTPException(status_code=400, detail="workspace_id is required")
+    # Validate workspace_id format
+    validate_uuid(workspace_id, "workspace_id")
 
     # Verify user has PROJECT_CREATE permission in workspace
     auth_service = AuthorizationService(db)
     await auth_service.verify_workspace_access(workspace_id, user, Permission.PROJECT_CREATE)
 
+    # Create project
     project = Project(
         workspace_id=workspace_id,
         name=request.name,
@@ -76,11 +93,14 @@ async def create_project(
         tags_json=json.dumps(request.tags) if request.tags else None,
         total_files=0,
         total_analyses=0,
+        created_at=datetime.now(timezone.utc),
     )
 
     db.add(project)
     await db.commit()
     await db.refresh(project)
+
+    logger.info("project_created", project_id=project.id, workspace_id=workspace_id, user_id=user.id)
 
     return _project_to_response(project)
 
@@ -89,20 +109,28 @@ async def create_project(
 async def list_projects(
     db: DBSession,
     user: CurrentUser,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    search: str | None = Query(None, description="Search by project name"),
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
+    search: str | None = Query(None, max_length=255, description="Search by project name"),
     workspace_id: str | None = Query(None, description="Filter by workspace ID"),
 ) -> ProjectListResponse:
     """
-    List all projects with pagination, optionally filtered by workspace.
+    List projects accessible to the current user.
+
+    Projects are automatically filtered by workspace membership (row-level security).
+    Optionally filter by workspace or search by project name.
 
     Requires PROJECT_READ permission.
-    Automatically filtered by workspace membership (RLS).
     """
-    from src.platform.core.permissions import Permission
-    from src.platform.models import Workspace, WorkspaceMember
-    from src.platform.workspaces.authorization import AuthorizationService
+    # Validate and sanitize inputs
+    if workspace_id:
+        validate_uuid(workspace_id, "workspace_id")
+        # Verify user has access to this specific workspace
+        auth_service = AuthorizationService(db)
+        await auth_service.verify_workspace_access(workspace_id, user, Permission.PROJECT_READ)
+
+    # Sanitize search query to prevent SQL injection via LIKE
+    sanitized_search = sanitize_search_query(search)
 
     # Build query with RLS filtering (user's workspaces only)
     query = (
@@ -112,15 +140,13 @@ async def list_projects(
         .filter(WorkspaceMember.user_id == user.id)
     )
 
-    # Apply workspace filter (verify access if specified)
+    # Apply workspace filter
     if workspace_id:
-        auth_service = AuthorizationService(db)
-        await auth_service.verify_workspace_access(workspace_id, user, Permission.PROJECT_READ)
         query = query.filter(Project.workspace_id == workspace_id)
 
-    # Apply search filter (case-insensitive for all databases)
-    if search:
-        query = query.filter(func.lower(Project.name).contains(search.lower()))
+    # Apply search filter (case-insensitive, using sanitized input)
+    if sanitized_search:
+        query = query.filter(func.lower(Project.name).contains(sanitized_search.lower()))
 
     # Get total count with RLS
     count_query = (
@@ -132,8 +158,8 @@ async def list_projects(
     )
     if workspace_id:
         count_query = count_query.filter(Project.workspace_id == workspace_id)
-    if search:
-        count_query = count_query.filter(func.lower(Project.name).contains(search.lower()))
+    if sanitized_search:
+        count_query = count_query.filter(func.lower(Project.name).contains(sanitized_search.lower()))
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
@@ -149,23 +175,26 @@ async def list_projects(
         total=total,
         page=page,
         page_size=page_size,
-        pages=max(1, (total + page_size - 1) // page_size) if total > 0 else 0,
+        pages=calculate_total_pages(total, page_size),
     )
 
 
 @router.get("/{project_id}", response_model=ProjectDetailResponse)
 async def get_project(
     db: DBSession,
-    project_id: str,
     user: CurrentUser,
+    project_id: str = Path(..., description="Project ID (UUID format)"),
 ) -> ProjectDetailResponse:
     """
-    Get a project by ID with its datasets.
+    Get a project by ID with its datasets (event logs).
 
+    Returns project details including all associated datasets for process mining.
     Requires PROJECT_READ permission in the workspace.
     """
-    from src.platform.core.permissions import Permission
     from src.platform.workspaces.authorization import require_project_permission
+
+    # Validate UUID format
+    validate_uuid(project_id, "project_id")
 
     # Check permission (also validates project exists)
     _, project = await require_project_permission(db, project_id, user, Permission.PROJECT_READ)
@@ -193,21 +222,24 @@ async def get_project(
 @router.put("/{project_id}", response_model=ProjectResponse)
 async def update_project(
     db: DBSession,
-    project_id: str,
     request: ProjectUpdateRequest,
     user: CurrentUser,
+    project_id: str = Path(..., description="Project ID (UUID format)"),
 ) -> ProjectResponse:
     """
-    Update a project.
+    Update a project's name, description, or tags.
 
     Requires PROJECT_UPDATE permission in the workspace.
     """
-    from src.platform.core.permissions import Permission
     from src.platform.workspaces.authorization import require_project_permission
+
+    # Validate UUID format
+    validate_uuid(project_id, "project_id")
 
     # Check permission (also validates project exists)
     _, project = await require_project_permission(db, project_id, user, Permission.PROJECT_UPDATE)
 
+    # Apply updates
     if request.name is not None:
         project.name = request.name
     if request.description is not None:
@@ -215,10 +247,12 @@ async def update_project(
     if request.tags is not None:
         project.tags_json = json.dumps(request.tags)
 
-    project.updated_at = datetime.utcnow()
+    project.updated_at = datetime.now(timezone.utc)
 
     await db.commit()
     await db.refresh(project)
+
+    logger.info("project_updated", project_id=project_id, user_id=user.id)
 
     return _project_to_response(project)
 
@@ -226,32 +260,34 @@ async def update_project(
 @router.delete("/{project_id}", status_code=204)
 async def delete_project(
     db: DBSession,
-    project_id: str,
     user: CurrentUser,
+    project_id: str = Path(..., description="Project ID (UUID format)"),
 ) -> None:
     """
     Delete a project.
 
-    Note: Event logs in this project will have their project_id set to NULL
-    (they won't be deleted).
+    Datasets (event logs) in this project are unlinked but not deleted.
+    They can be re-associated with another project.
 
     Requires PROJECT_DELETE permission in the workspace.
     """
-    from src.platform.core.permissions import Permission
     from src.platform.workspaces.authorization import require_project_permission
+
+    # Validate UUID format
+    validate_uuid(project_id, "project_id")
 
     # Check permission (also validates project exists)
     _, project = await require_project_permission(db, project_id, user, Permission.PROJECT_DELETE)
 
     # Unlink datasets (they remain, just not in a project)
-    from sqlalchemy import update
-
     await db.execute(
         update(Dataset).where(Dataset.project_id == project_id).values(project_id=None)
     )
 
     await db.delete(project)
     await db.commit()
+
+    logger.info("project_deleted", project_id=project_id, user_id=user.id)
 
 
 # =============================================================================
@@ -262,24 +298,32 @@ async def delete_project(
 @router.post("/{project_id}/files/{dataset_id}", response_model=ProjectDetailResponse)
 async def add_file_to_project(
     db: DBSession,
-    project_id: str,
-    dataset_id: str,
     user: CurrentUser,
+    project_id: str = Path(..., description="Project ID (UUID format)"),
+    dataset_id: str = Path(..., description="Dataset ID (UUID format)"),
 ) -> ProjectDetailResponse:
     """
-    Add an existing dataset to a project.
+    Add an existing dataset (event log) to a project.
 
-    Requires PROJECT_UPDATE permission in the workspace.
+    Moves the dataset into this project for organization.
+    Requires PROJECT_UPDATE permission on the project
+    and DATASET_UPDATE permission on the dataset.
     """
-    from src.platform.core.permissions import Permission
     from src.platform.workspaces.authorization import require_dataset_permission, require_project_permission
+
+    # Validate UUID formats
+    validate_uuid(project_id, "project_id")
+    validate_uuid(dataset_id, "dataset_id")
 
     # Check permission on project (also validates project exists)
     _, project = await require_project_permission(db, project_id, user, Permission.PROJECT_UPDATE)
 
     # Check permission on dataset (user must have access to move it)
-    # Helper already fetches the dataset, so we reuse it
     _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_UPDATE)
+
+    # Check if already in this project
+    if dataset.project_id == project_id:
+        raise ConflictError(message="Dataset is already in this project")
 
     dataset.project_id = project_id
 
@@ -288,27 +332,35 @@ async def add_file_to_project(
         select(func.count(Dataset.id)).filter(Dataset.project_id == project_id)
     )
     project.total_files = count_result.scalar() or 0
-    project.updated_at = datetime.utcnow()
+    project.updated_at = datetime.now(timezone.utc)
 
     await db.commit()
 
-    return await get_project(db, project_id, user)
+    logger.info("dataset_added_to_project", dataset_id=dataset_id, project_id=project_id, user_id=user.id)
+
+    return await get_project(db, user, project_id)
 
 
 @router.delete("/{project_id}/files/{dataset_id}", status_code=204)
 async def remove_file_from_project(
     db: DBSession,
-    project_id: str,
-    dataset_id: str,
     user: CurrentUser,
+    project_id: str = Path(..., description="Project ID (UUID format)"),
+    dataset_id: str = Path(..., description="Dataset ID (UUID format)"),
 ) -> None:
     """
-    Remove a dataset from a project (doesn't delete the dataset).
+    Remove a dataset (event log) from a project.
+
+    The dataset is unlinked but not deleted - it can be re-associated
+    with another project later.
 
     Requires PROJECT_UPDATE permission in the workspace.
     """
-    from src.platform.core.permissions import Permission
     from src.platform.workspaces.authorization import require_dataset_permission, require_project_permission
+
+    # Validate UUID formats
+    validate_uuid(project_id, "project_id")
+    validate_uuid(dataset_id, "dataset_id")
 
     # Check permission on project (also validates project exists)
     _, project = await require_project_permission(db, project_id, user, Permission.PROJECT_UPDATE)
@@ -317,7 +369,7 @@ async def remove_file_from_project(
     _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_UPDATE)
 
     if dataset.project_id != project_id:
-        raise HTTPException(status_code=400, detail="Dataset is not in this project")
+        raise ConflictError(message="Dataset is not in this project")
 
     dataset.project_id = None
 
@@ -326,6 +378,8 @@ async def remove_file_from_project(
         select(func.count(Dataset.id)).filter(Dataset.project_id == project_id)
     )
     project.total_files = count_result.scalar() or 0
-    project.updated_at = datetime.utcnow()
+    project.updated_at = datetime.now(timezone.utc)
 
     await db.commit()
+
+    logger.info("dataset_removed_from_project", dataset_id=dataset_id, project_id=project_id, user_id=user.id)

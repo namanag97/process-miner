@@ -256,6 +256,16 @@ def _emit_log(entry: DevLogEntry) -> None:
         pass  # Don't let logging errors break the app
 
 
+def log_auth_event(event_type: str, **kwargs) -> None:
+    """Log authentication event.
+    
+    Args:
+        event_type: Type of auth event (login, logout, etc)
+        **kwargs: Additional details (user_id, success, reason)
+    """
+    log_info("Auth", f"Event: {event_type}", **kwargs)
+
+
 __all__ = [
     "log_info",
     "log_error",
@@ -265,4 +275,5 @@ __all__ = [
     "get_error_count",
     "get_slow_request_count",
     "reset_metrics",
+    "log_auth_event",
 ]
