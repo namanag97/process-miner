@@ -366,7 +366,7 @@ class DatasetAggregate:
             PM4Py EventLog object
         """
         if self._pm4py_cache is not None:
-            logger.debug("pm4py_cache_hit", log_id=self._id)
+            logger.debug("pm4py_cache_hit", dataset_id=self._id)
             return self._pm4py_cache
 
         start_time = time.perf_counter()
@@ -403,7 +403,7 @@ class DatasetAggregate:
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info(
             "pm4py_log_built",
-            log_id=self._id,
+            dataset_id=self._id,
             cases=self.total_cases,
             events=self.total_events,
             duration_ms=round(duration_ms, 2),
@@ -417,7 +417,7 @@ class DatasetAggregate:
         self._variants_cache = None
         self._statistics_cache = None
         self._activities_cache = None
-        logger.debug("cache_invalidated", log_id=self._id)
+        logger.debug("cache_invalidated", dataset_id=self._id)
 
     # --- Filtering (Returns New Aggregates) ---
 

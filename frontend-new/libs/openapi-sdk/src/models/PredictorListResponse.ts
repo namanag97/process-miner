@@ -7,7 +7,7 @@ import type { PredictorResponse } from './PredictorResponse';
  * List of prediction models.
  */
 export type PredictorListResponse = {
-    log_id: string;
+    dataset_id: string;
     predictors: Array<PredictorResponse>;
     total: number;
 };

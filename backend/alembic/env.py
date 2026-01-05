@@ -10,8 +10,12 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 # Import your Base and models
-from src.models.orm import Base
-from src.core.config import get_settings
+from src.shared.database import Base
+from src.platform.core.config import get_settings
+
+# Import all models to ensure they're registered with Base.metadata
+from src.platform.models import *  # noqa
+from src.features.process_mining.models import *  # noqa
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

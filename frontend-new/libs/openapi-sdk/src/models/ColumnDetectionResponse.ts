@@ -2,13 +2,24 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { ColumnTypeInfo } from './ColumnTypeInfo';
 /**
- * Column detection result.
+ * Column detection result for the mapping UI.
  */
 export type ColumnDetectionResponse = {
-    columns: Array<string>;
-    suggestions: Record<string, (string | null)>;
-    sample_rows: Array<Record<string, any>>;
-    row_count: number;
+    dataset_id: string;
+    /**
+     * Dataset status
+     */
+    status: string;
+    columns: Array<ColumnTypeInfo>;
+    /**
+     * Suggested mappings: {role: {column, confidence}}
+     */
+    suggestions?: Record<string, Record<string, any>>;
+    /**
+     * True if auto-mapping confidence is below threshold
+     */
+    requires_user_input?: boolean;
 };
 

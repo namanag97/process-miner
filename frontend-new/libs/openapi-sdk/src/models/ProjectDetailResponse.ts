@@ -15,6 +15,6 @@ export type ProjectDetailResponse = {
     total_analyses: number;
     created_at: string;
     updated_at: (string | null);
-    datasets: Array<DatasetResponse>;
+    datasets?: Array<DatasetResponse>;
 };
 

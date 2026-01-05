@@ -107,6 +107,7 @@ from src.features.process_mining.schemas.datasets import (
     FilterTemplateListResponse,
     FilterTemplateResponse,
     IngestRequest,
+    MappingUpdateRequest,
     ParseConfigRequest,
     PresignedUploadRequest,
     PresignedUploadResponse,

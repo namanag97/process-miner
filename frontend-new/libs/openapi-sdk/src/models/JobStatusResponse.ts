@@ -10,6 +10,7 @@ export type JobStatusResponse = {
     job_type: string;
     status: string;
     progress: number;
+    stage?: (string | null);
     result?: (Record<string, any> | null);
     error?: (string | null);
     created_at: string;

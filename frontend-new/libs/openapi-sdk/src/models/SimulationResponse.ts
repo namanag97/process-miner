@@ -6,7 +6,7 @@
  * Simulation result.
  */
 export type SimulationResponse = {
-    log_id: string;
+    dataset_id: string;
     scenario: string;
     original_metrics: Record<string, number>;
     simulated_metrics: Record<string, number>;

@@ -7,7 +7,7 @@
  */
 export type OCPetriNetResponse = {
     id: string;
-    log_id?: string;
+    dataset_id?: string;
     name: string;
     object_types?: Array<string>;
     created_at: string;

@@ -89,22 +89,32 @@ def get_uptime() -> float:
 
 
 async def check_database() -> ComponentHealth:
-    """Check database connectivity."""
+    """Check database connectivity with timeout."""
+    import asyncio
+
     from sqlalchemy import text
 
     from src.platform.infrastructure.database import async_engine
 
     start = time.perf_counter()
     try:
-        # Simple connectivity check
-        async with async_engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
+        # Simple connectivity check with 5-second timeout
+        async with asyncio.timeout(5.0):
+            async with async_engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
 
         latency = (time.perf_counter() - start) * 1000
         return ComponentHealth(
             name="database",
             status="healthy",
             latency_ms=round(latency, 2),
+        )
+    except asyncio.TimeoutError:
+        return ComponentHealth(
+            name="database",
+            status="unhealthy",
+            latency_ms=5000.0,
+            message="Database health check timed out (5s)",
         )
     except Exception as e:
         latency = (time.perf_counter() - start) * 1000
@@ -313,33 +323,3 @@ async def health_check() -> HealthStatus:
     return HealthStatus(status="healthy")
 
 
-# =============================================================================
-# Metrics Endpoint (Phase 7 - Observability)
-# =============================================================================
-
-
-@router.get("/metrics")
-async def prometheus_metrics() -> Response:
-    """Prometheus metrics endpoint.
-
-    Returns metrics in Prometheus text format for scraping.
-    Compatible with Prometheus, Grafana Cloud, Datadog, etc.
-
-    Metrics include:
-    - HTTP request latency and throughput
-    - PM4Py operation performance
-    - Business metrics (processes, analyses)
-    - Circuit breaker states
-    - Cache hit/miss rates
-    """
-    try:
-        from src.platform.infrastructure.metrics import get_metrics
-
-        metrics_data = get_metrics()
-        return Response(content=metrics_data, media_type="text/plain; version=0.0.4")
-    except ImportError:
-        # Prometheus client not installed
-        return Response(
-            content="# Prometheus client not installed\n# Install with: pip install prometheus-client\n",
-            media_type="text/plain",
-        )

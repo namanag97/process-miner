@@ -12,7 +12,7 @@ import type { VariantResponse } from './VariantResponse';
  * Combines DFG, variants, activities, and statistics in a single request.
  */
 export type ProcessExplorerDataResponse = {
-    log_id: string;
+    dataset_id: string;
     dfg: DFGResponse;
     variants: Array<VariantResponse>;
     activities: Array<ActivityDetailResponse>;

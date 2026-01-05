@@ -33,20 +33,20 @@ export class AnalysesService {
      * Create a new analysis for an event log.
      *
      * The analysis will be queued for processing and status updated when complete.
-     * @param logId
+     * @param datasetId
      * @param requestBody
      * @returns AnalysisResponse Successful Response
      * @throws ApiError
      */
     public createAnalysisApiV1AnalysesPost(
-        logId: string,
+        datasetId: string,
         requestBody: AnalysisCreateRequest,
     ): CancelablePromise<AnalysisResponse> {
         return this.httpRequest.request({
             method: 'POST',
             url: '/api/v1/analyses',
             query: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             body: requestBody,
             mediaType: 'application/json',
@@ -58,14 +58,14 @@ export class AnalysesService {
     /**
      * List Analyses
      * List analyses, optionally filtered by event log.
-     * @param logId Filter by event log ID
+     * @param datasetId Filter by event log ID
      * @param page
      * @param pageSize
      * @returns AnalysisListResponse Successful Response
      * @throws ApiError
      */
     public listAnalysesApiV1AnalysesGet(
-        logId?: (string | null),
+        datasetId?: (string | null),
         page: number = 1,
         pageSize: number = 20,
     ): CancelablePromise<AnalysisListResponse> {
@@ -73,7 +73,7 @@ export class AnalysesService {
             method: 'GET',
             url: '/api/v1/analyses',
             query: {
-                'log_id': logId,
+                'dataset_id': datasetId,
                 'page': page,
                 'page_size': pageSize,
             },
@@ -132,18 +132,18 @@ export class AnalysesService {
     /**
      * List Analyses For Log
      * Get all analyses for a specific event log.
-     * @param logId
+     * @param datasetId
      * @returns AnalysisResponse Successful Response
      * @throws ApiError
      */
-    public listAnalysesForLogApiV1AnalysesLogLogIdGet(
-        logId: string,
+    public listAnalysesForLogApiV1AnalysesLogDatasetIdGet(
+        datasetId: string,
     ): CancelablePromise<Array<AnalysisResponse>> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/analyses/log/{log_id}',
+            url: '/api/v1/analyses/log/{dataset_id}',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,

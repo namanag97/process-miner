@@ -42,9 +42,10 @@ dependencies = [
     "httpx>=0.26.0",
     "python-dateutil>=2.8.0",
 
-    # Logging
+    # Logging & Observability
     "structlog>=24.1.0",
     "asgi-correlation-id>=4.3.0",
+    "psutil>=5.9.0",  # System metrics for DevConsole
 
     # Infrastructure (Async Tasks & Caching)
     "celery[redis]>=5.3.0",
@@ -87,18 +88,10 @@ dev = [
     "pre-commit>=3.6.0",
 ]
 
-observability = [
-    # Prometheus metrics
-    "prometheus-client>=0.19.0",
-    # OpenTelemetry
-    "opentelemetry-api>=1.22.0",
-    "opentelemetry-sdk>=1.22.0",
-    "opentelemetry-instrumentation-fastapi>=0.43b0",
-    "opentelemetry-exporter-otlp>=1.22.0",
-]
+# Observability dependencies removed - using simple DevConsole + structlog instead
 
 all = [
-    "process-mining-saas[dev,observability]",
+    "process-mining-saas[dev]",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -158,45 +151,20 @@ exclude = [
     ".venv/",
 ]
 
-# Per-module overrides for service layer with heavy PM4py dynamic patterns
+# Per-module overrides for feature layer with heavy PM4py dynamic patterns
 [[tool.mypy.overrides]]
 module = [
-    "src.services.analytics",
-    "src.services.mining",
-    "src.services.llm",
-    "src.services.conformance",
-    "src.services.ocpm",
-    "src.services.ingestion",
-    "src.services.organizational",
-    "src.services.simulation",
-    "src.services.prediction",
-    "src.services.filtering",
-    "src.services.unified_ingestion",
-    "src.infrastructure.tasks",
-    "src.infrastructure.cache",
-    "src.infrastructure.devconsole_exporter",
-    "src.infrastructure.retry",
-    "src.infrastructure.circuit_breaker",
-    "src.infrastructure.tracing",
-    "src.infrastructure.log_broker",
-    "src.infrastructure.rate_limiter",
-    "src.infrastructure.duckdb",
-    "src.engine.miners",
-    "src.domain.entities",
-    "src.core.etag",
-    "src.core.exceptions",
-    "src.core.idempotency",
-    "src.core.middleware",
-    "src.core.logging_config",
-    "src.core.domain_events",
-    "src.api.routers.dev_logs_stream",
-    "src.api.routers.datasets",
-    "src.api.routers.telemetry_proxy",
-    "src.api.routers.ocpm",
-    "src.core.value_objects",
-    "src.services.analysis_registry",
-    "src.services.recommendation",
-    "src.models.repositories",
+    "src.features.process_mining.discovery.*",
+    "src.features.process_mining.analytics.*",
+    "src.features.process_mining.conformance.*",
+    "src.features.process_mining.organizational.*",
+    "src.features.process_mining.simulation.*",
+    "src.features.process_mining.predictions.*",
+    "src.features.process_mining.ingestion.*",
+    "src.features.process_mining.ocpm.*",
+    "src.features.process_mining.filtering.*",
+    "src.platform.infrastructure.*",
+    "src.domain.*",
 ]
 ignore_errors = true
 

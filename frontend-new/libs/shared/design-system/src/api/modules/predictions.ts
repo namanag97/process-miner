@@ -101,7 +101,7 @@ export function createPredictionsModule(client: ApiClient): PredictionsModule {
   return {
     async trainPredictor(datasetId: string, options: TrainOptions) {
       const response = await client.post<{ id?: string; job_id?: string; status?: string }>(
-        `/predictions/logs/${datasetId}/train`,
+        `/predictions/datasets/${datasetId}/train`,
         {
           target_type: options.targetType,
           algorithm: options.algorithm ?? 'random_forest',
@@ -116,7 +116,7 @@ export function createPredictionsModule(client: ApiClient): PredictionsModule {
 
     async listPredictors(datasetId: string) {
       const response = await client.get<PredictorListResponse>(
-        `/predictions/logs/${datasetId}/predictors`
+        `/predictions/datasets/${datasetId}/predictors`
       );
       return response.predictors.map(transformPredictor);
     },

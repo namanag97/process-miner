@@ -40,7 +40,7 @@ export function createOCPMModule(client: ApiClient): OCPMModule {
     },
 
     async getLog(id: string) {
-      const response = await client.get<OCELLogResponse>(`/ocpm/logs/${id}`);
+      const response = await client.get<OCELLogResponse>(`/ocpm/datasets/${id}`);
       return transformOCELLog(response);
     },
 
@@ -55,15 +55,15 @@ export function createOCPMModule(client: ApiClient): OCPMModule {
     },
 
     async deleteLog(id: string) {
-      await client.delete(`/ocpm/logs/${id}`);
+      await client.delete(`/ocpm/datasets/${id}`);
     },
 
     async getObjectTypes(datasetId: string) {
-      return client.get<OCELObjectTypeResponse[]>(`/ocpm/logs/${datasetId}/object-types`);
+      return client.get<OCELObjectTypeResponse[]>(`/ocpm/datasets/${datasetId}/object-types`);
     },
 
     async getStatistics(datasetId: string) {
-      const response = await client.get<OCELStatisticsResponse>(`/ocpm/logs/${datasetId}/statistics`);
+      const response = await client.get<OCELStatisticsResponse>(`/ocpm/datasets/${datasetId}/statistics`);
       return transformOCELStatistics(response);
     },
 
@@ -75,7 +75,7 @@ export function createOCPMModule(client: ApiClient): OCPMModule {
     },
 
     async getOCDFG(datasetId: string) {
-      return client.get<OCDFGResponse>(`/ocpm/logs/${datasetId}/oc-dfg`);
+      return client.get<OCDFGResponse>(`/ocpm/datasets/${datasetId}/oc-dfg`);
     },
   };
 }

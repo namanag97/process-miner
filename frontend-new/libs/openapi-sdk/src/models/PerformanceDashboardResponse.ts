@@ -9,7 +9,7 @@ import type { ThroughputResponse } from './ThroughputResponse';
  * Performance summary dashboard.
  */
 export type PerformanceDashboardResponse = {
-    log_id: string;
+    dataset_id: string;
     cycle_time: CycleTimeResponse;
     throughput: ThroughputResponse;
     top_bottlenecks: Array<BottleneckResponse>;

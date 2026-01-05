@@ -15,7 +15,7 @@ export class DevLogsService {
      * - `event: heartbeat` for system metrics every 5s
      *
      * BUG-034 FIX: Pass user_id to filter logs by tenant.
-     * Connect with: `new EventSource('/api/v1/dev/logs/stream?user_id=xxx')`
+     * Connect with: `new EventSource('/api/v1/dev/datasets/stream?user_id=xxx')`
      * @param includeRecent Include recent logs on connect
      * @param userId Optional user ID for tenant filtering (BUG-034)
      * @returns any Successful Response

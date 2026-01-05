@@ -219,6 +219,7 @@ class DatasetDetailResponse(DatasetResponse):
     source_file: str | None
     statistics: dict[str, Any] | None
     updated_at: datetime | None
+    error_message: str | None = None
 
 
 # =============================================================================
@@ -310,22 +311,33 @@ class StatisticsResponse(BaseModel):
 
 
 class ColumnDetectionResponse(BaseModel):
-    """Column detection result."""
+    """Column detection result for the mapping UI."""
 
-    columns: list[str]
-    suggestions: dict[str, str | None]
-    sample_rows: list[dict[str, Any]]
-    row_count: int
+    dataset_id: str
+    status: str = Field(..., description="Dataset status")
+    columns: list["ColumnTypeInfo"]
+    suggestions: dict[str, dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Suggested mappings: {role: {column, confidence}}"
+    )
+    requires_user_input: bool = Field(
+        False,
+        description="True if auto-mapping confidence is below threshold"
+    )
 
 
 class ColumnTypeInfo(BaseModel):
-    """Column type information for data preview."""
+    """Column type information with suggestion data."""
 
     name: str
-    detected_type: str  # STRING, INTEGER, DECIMAL, DATETIME, BOOLEAN
+    dtype: str = Field(..., description="Detected type: STRING, INTEGER, DATETIME, FLOAT")
+    position: int = 0
     sample_values: list[Any] = []
-    null_count: int = 0
-    date_format: str | None = None  # For DATETIME columns
+    null_percentage: float = 0.0
+    unique_count: int = 0
+    # Suggestion for process mining role
+    suggested_role: str | None = Field(None, description="case_id, activity, timestamp, resource")
+    confidence: float | None = Field(None, ge=0.0, le=1.0, description="Confidence score")
 
 
 class DataPreviewResponse(BaseModel):
@@ -509,3 +521,65 @@ class FilterTemplateListResponse(BaseModel):
     """List of available filter templates."""
 
     templates: list[FilterTemplateResponse]
+
+
+# =============================================================================
+# Export
+# =============================================================================
+
+
+class ExportRequest(BaseModel):
+    """Export request."""
+
+    format: str = Field("csv", pattern=r"^(csv|xes|parquet)$")
+    include_metadata: bool = Field(True, description="Include dataset metadata")
+
+
+class DownloadResponse(BaseModel):
+    """Download URL response."""
+
+    download_url: str
+    filename: str
+    expires_in: int = 3600
+
+
+# =============================================================================
+# Column Mapping
+# =============================================================================
+
+
+class MappingResponse(BaseModel):
+    """Current mapping response."""
+
+    dataset_id: str
+    case_id_column: str
+    activity_column: str
+    timestamp_column: str
+    resource_column: str | None = None
+    timestamp_format: str | None = None
+    additional_columns: list[str] = []
+    auto_mapped: bool = False
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class MappingUpdateRequest(BaseModel):
+    """Update mapping request."""
+
+    case_id_column: str = Field(..., description="Column for case ID")
+    activity_column: str = Field(..., description="Column for activity")
+    timestamp_column: str = Field(..., description="Column for timestamp")
+    resource_column: str | None = Field(None, description="Column for resource")
+    timestamp_format: str | None = Field(None, description="Timestamp format")
+    additional_columns: list[str] = Field(default_factory=list)
+
+
+class PreviewResponse(BaseModel):
+    """Preview response with sample mapped data."""
+
+    dataset_id: str
+    sample_events: list[dict]
+    total_rows: int
+    parse_errors: list[str] = []
+
+

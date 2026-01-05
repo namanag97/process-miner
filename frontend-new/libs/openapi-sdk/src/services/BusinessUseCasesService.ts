@@ -13,28 +13,28 @@ export class BusinessUseCasesService {
      * Mavericks are purchase orders that don't follow the approved process model.
      *
      * Args:
-     * log_id: Purchase order event log ID
+     * dataset_id: Purchase order event log ID
      * reference_model_id: Approved P2P process model ID
      * threshold: Fitness threshold (default 0.8). Cases below this are mavericks.
      *
      * Returns:
      * Maverick cases and statistics
-     * @param logId
+     * @param datasetId
      * @param referenceModelId
      * @param threshold Fitness threshold (0-1)
      * @returns any Successful Response
      * @throws ApiError
      */
-    public detectP2PMavericksApiV1BusinessP2PMavericksLogIdReferenceModelIdGet(
-        logId: string,
+    public detectP2PMavericksApiV1BusinessP2PMavericksDatasetIdReferenceModelIdGet(
+        datasetId: string,
         referenceModelId: string,
         threshold: number = 0.8,
     ): CancelablePromise<any> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/business/p2p/mavericks/{log_id}/{reference_model_id}',
+            url: '/api/v1/business/p2p/mavericks/{dataset_id}/{reference_model_id}',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
                 'reference_model_id': referenceModelId,
             },
             query: {
@@ -56,25 +56,25 @@ export class BusinessUseCasesService {
      * - Recommendations
      *
      * Args:
-     * log_id: Purchase order event log ID
+     * dataset_id: Purchase order event log ID
      * reference_model_id: Approved P2P process model ID
      *
      * Returns:
      * Comprehensive audit report
-     * @param logId
+     * @param datasetId
      * @param referenceModelId
      * @returns any Successful Response
      * @throws ApiError
      */
-    public generateP2PAuditReportApiV1BusinessP2PAuditReportLogIdReferenceModelIdGet(
-        logId: string,
+    public generateP2PAuditReportApiV1BusinessP2PAuditReportDatasetIdReferenceModelIdGet(
+        datasetId: string,
         referenceModelId: string,
     ): CancelablePromise<any> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/business/p2p/audit-report/{log_id}/{reference_model_id}',
+            url: '/api/v1/business/p2p/audit-report/{dataset_id}/{reference_model_id}',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
                 'reference_model_id': referenceModelId,
             },
             errors: {
@@ -89,28 +89,28 @@ export class BusinessUseCasesService {
      * Useful for comparing processes across regions, products, or customer segments.
      *
      * Args:
-     * log_id: Event log ID
+     * dataset_id: Event log ID
      * attribute: Attribute to split on
      * value: Specific value to filter for
      *
      * Returns:
      * Statistics about filtered subset
-     * @param logId
+     * @param datasetId
      * @param attribute Attribute to split on (e.g., region, product)
      * @param value Value to filter for
      * @returns any Successful Response
      * @throws ApiError
      */
-    public splitLogByAttributeApiV1BusinessO2CSplitLogLogIdGet(
-        logId: string,
+    public splitLogByAttributeApiV1BusinessO2CSplitLogDatasetIdGet(
+        datasetId: string,
         attribute: string,
         value: string,
     ): CancelablePromise<any> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/business/o2c/split-log/{log_id}',
+            url: '/api/v1/business/o2c/split-log/{dataset_id}',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             query: {
                 'attribute': attribute,
@@ -128,32 +128,32 @@ export class BusinessUseCasesService {
      * Useful for comparing performance across regions, before/after improvements, etc.
      *
      * Args:
-     * log_id1: First event log ID
-     * log_id2: Second event log ID
+     * dataset_id1: First event log ID
+     * dataset_id2: Second event log ID
      * log1_name: Display name for first group
      * log2_name: Display name for second group
      *
      * Returns:
      * Comparison metrics (durations, variants, differences)
-     * @param logId1
-     * @param logId2
+     * @param datasetId1
+     * @param datasetId2
      * @param log1Name Display name for first group
      * @param log2Name Display name for second group
      * @returns any Successful Response
      * @throws ApiError
      */
-    public compareProcessVariantsApiV1BusinessO2CCompareLogId1LogId2Get(
-        logId1: string,
-        logId2: string,
+    public compareProcessVariantsApiV1BusinessO2CCompareDatasetId1DatasetId2Get(
+        datasetId1: string,
+        datasetId2: string,
         log1Name: string = 'Group A',
         log2Name: string = 'Group B',
     ): CancelablePromise<any> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/business/o2c/compare/{log_id1}/{log_id2}',
+            url: '/api/v1/business/o2c/compare/{dataset_id1}/{dataset_id2}',
             path: {
-                'log_id1': logId1,
-                'log_id2': logId2,
+                'dataset_id1': datasetId1,
+                'dataset_id2': datasetId2,
             },
             query: {
                 'log1_name': log1Name,
@@ -171,31 +171,31 @@ export class BusinessUseCasesService {
      * Estimates impact of process improvements on cycle time and throughput.
      *
      * Args:
-     * log_id: Historical event log ID
+     * dataset_id: Historical event log ID
      * activity_duration_reduction: Percentage reduction in activity durations (0-1)
      * capacity_increase: Percentage increase in resource capacity (0-1)
      * num_simulations: Number of simulation runs (default 1000)
      *
      * Returns:
      * Simulation results with baseline, simulated metrics, and impact analysis
-     * @param logId
+     * @param datasetId
      * @param activityDurationReduction Activity duration reduction (0-1, e.g., 0.2 for 20% faster)
      * @param capacityIncrease Capacity increase (0-1, e.g., 0.3 for 30% more capacity)
      * @param numSimulations Number of Monte Carlo iterations
      * @returns any Successful Response
      * @throws ApiError
      */
-    public simulateProcessChangesApiV1BusinessSupplyChainSimulateLogIdPost(
-        logId: string,
+    public simulateProcessChangesApiV1BusinessSupplyChainSimulateDatasetIdPost(
+        datasetId: string,
         activityDurationReduction?: number,
         capacityIncrease?: number,
         numSimulations: number = 1000,
     ): CancelablePromise<any> {
         return this.httpRequest.request({
             method: 'POST',
-            url: '/api/v1/business/supply-chain/simulate/{log_id}',
+            url: '/api/v1/business/supply-chain/simulate/{dataset_id}',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             query: {
                 'activity_duration_reduction': activityDurationReduction,
@@ -214,25 +214,25 @@ export class BusinessUseCasesService {
      * Identifies at which stage customers are dropping out of the process.
      *
      * Args:
-     * log_id: Customer journey event log ID
+     * dataset_id: Customer journey event log ID
      * expected_path: Expected journey path (comma-separated), or None for auto-detect
      *
      * Returns:
      * Drop-off analysis by stage with completion rates
-     * @param logId
+     * @param datasetId
      * @param expectedPath Expected journey path (comma-separated activities). If None, uses most common path.
      * @returns any Successful Response
      * @throws ApiError
      */
-    public detectJourneyDropoffsApiV1BusinessCustomerJourneyDropoffsLogIdGet(
-        logId: string,
+    public detectJourneyDropoffsApiV1BusinessCustomerJourneyDropoffsDatasetIdGet(
+        datasetId: string,
         expectedPath?: (string | null),
     ): CancelablePromise<any> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/business/customer-journey/dropoffs/{log_id}',
+            url: '/api/v1/business/customer-journey/dropoffs/{dataset_id}',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             query: {
                 'expected_path': expectedPath,

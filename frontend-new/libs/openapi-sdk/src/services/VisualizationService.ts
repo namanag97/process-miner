@@ -20,20 +20,20 @@ export class VisualizationService {
      * - avg_duration_seconds: Mean time between activities
      * - min_duration_seconds: Minimum time between activities
      * - max_duration_seconds: Maximum time between activities
-     * @param logId
+     * @param datasetId
      * @param includePerformance Include performance metrics (avg/min/max duration) for edges
      * @returns DFGResponse Successful Response
      * @throws ApiError
      */
-    public getDfgApiV1VisualizationLogIdDfgGet(
-        logId: string,
+    public getDfgApiV1VisualizationDatasetIdDfgGet(
+        datasetId: string,
         includePerformance: boolean = false,
     ): CancelablePromise<DFGResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/visualization/{log_id}/dfg',
+            url: '/api/v1/visualization/{dataset_id}/dfg',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             query: {
                 'include_performance': includePerformance,
@@ -95,18 +95,18 @@ export class VisualizationService {
      * Get SVG visualization of DFG for an event log.
      *
      * Discovers DFG and returns SVG visualization.
-     * @param logId
+     * @param datasetId
      * @returns any Successful Response
      * @throws ApiError
      */
-    public getDfgSvgApiV1VisualizationLogIdDfgSvgGet(
-        logId: string,
+    public getDfgSvgApiV1VisualizationDatasetIdDfgSvgGet(
+        datasetId: string,
     ): CancelablePromise<any> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/visualization/{log_id}/dfg/svg',
+            url: '/api/v1/visualization/{dataset_id}/dfg/svg',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,
@@ -118,18 +118,18 @@ export class VisualizationService {
      * Get behavioral footprints for an event log.
      *
      * Shows sequence and parallel relations between activities.
-     * @param logId
+     * @param datasetId
      * @returns any Successful Response
      * @throws ApiError
      */
-    public getFootprintsApiV1VisualizationLogIdFootprintsGet(
-        logId: string,
+    public getFootprintsApiV1VisualizationDatasetIdFootprintsGet(
+        datasetId: string,
     ): CancelablePromise<any> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/visualization/{log_id}/footprints',
+            url: '/api/v1/visualization/{dataset_id}/footprints',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,
@@ -147,24 +147,24 @@ export class VisualizationService {
      * - statistics: Overall process statistics
      *
      * This endpoint is optimized for the frontend to reduce API calls.
-     * @param logId
+     * @param datasetId
      * @param includePerformance Include performance metrics in DFG edges
      * @param includeComplexity Include complexity metrics in variants
      * @param topVariants Number of top variants to include
      * @returns ProcessExplorerDataResponse Successful Response
      * @throws ApiError
      */
-    public getExplorerDataApiV1VisualizationLogIdExplorerDataGet(
-        logId: string,
+    public getExplorerDataApiV1VisualizationDatasetIdExplorerDataGet(
+        datasetId: string,
         includePerformance: boolean = true,
         includeComplexity: boolean = true,
         topVariants: number = 20,
     ): CancelablePromise<ProcessExplorerDataResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/visualization/{log_id}/explorer-data',
+            url: '/api/v1/visualization/{dataset_id}/explorer-data',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             query: {
                 'include_performance': includePerformance,

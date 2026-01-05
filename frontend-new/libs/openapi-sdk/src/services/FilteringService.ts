@@ -19,20 +19,20 @@ export class FilteringService {
      *
      * This creates a new event log that is a filtered version of the source log.
      * The original log is not modified.
-     * @param logId
+     * @param datasetId
      * @param requestBody
      * @returns FilteredLogResponse Successful Response
      * @throws ApiError
      */
-    public applyFiltersApiV1FilteringLogsLogIdApplyPost(
-        logId: string,
+    public applyFiltersApiV1FilteringDatasetsDatasetIdApplyPost(
+        datasetId: string,
         requestBody: FilterRequest,
     ): CancelablePromise<FilteredLogResponse> {
         return this.httpRequest.request({
             method: 'POST',
-            url: '/api/v1/filtering/logs/{log_id}/apply',
+            url: '/api/v1/filtering/datasets/{dataset_id}/apply',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             body: requestBody,
             mediaType: 'application/json',
@@ -46,20 +46,20 @@ export class FilteringService {
      * Preview the impact of filters without saving.
      *
      * Returns statistics on how many cases/events would be retained.
-     * @param logId
+     * @param datasetId
      * @param requestBody
      * @returns FilterPreviewResponse Successful Response
      * @throws ApiError
      */
-    public previewFiltersApiV1FilteringLogsLogIdPreviewPost(
-        logId: string,
+    public previewFiltersApiV1FilteringDatasetsDatasetIdPreviewPost(
+        datasetId: string,
         requestBody: FilterPreviewRequest,
     ): CancelablePromise<FilterPreviewResponse> {
         return this.httpRequest.request({
             method: 'POST',
-            url: '/api/v1/filtering/logs/{log_id}/preview',
+            url: '/api/v1/filtering/datasets/{dataset_id}/preview',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             body: requestBody,
             mediaType: 'application/json',
@@ -74,18 +74,18 @@ export class FilteringService {
      *
      * Returns activities, resources, time ranges, and other values
      * that can be used for filtering.
-     * @param logId
+     * @param datasetId
      * @returns FilterOptionsResponse Successful Response
      * @throws ApiError
      */
-    public getFilterOptionsApiV1FilteringLogsLogIdOptionsGet(
-        logId: string,
+    public getFilterOptionsApiV1FilteringDatasetsDatasetIdOptionsGet(
+        datasetId: string,
     ): CancelablePromise<FilterOptionsResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/filtering/logs/{log_id}/options',
+            url: '/api/v1/filtering/datasets/{dataset_id}/options',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,
@@ -95,18 +95,18 @@ export class FilteringService {
     /**
      * List Filtered Logs
      * List all filtered versions of an event log.
-     * @param logId
+     * @param datasetId
      * @returns FilteredLogListResponse Successful Response
      * @throws ApiError
      */
-    public listFilteredLogsApiV1FilteringLogsLogIdResultsGet(
-        logId: string,
+    public listFilteredLogsApiV1FilteringDatasetsDatasetIdResultsGet(
+        datasetId: string,
     ): CancelablePromise<FilteredLogListResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/filtering/logs/{log_id}/results',
+            url: '/api/v1/filtering/datasets/{dataset_id}/results',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,
@@ -116,20 +116,20 @@ export class FilteringService {
     /**
      * Delete Filtered Log
      * Delete a filtered log.
-     * @param logId
+     * @param datasetId
      * @param filteredId
      * @returns any Successful Response
      * @throws ApiError
      */
-    public deleteFilteredLogApiV1FilteringLogsLogIdResultsFilteredIdDelete(
-        logId: string,
+    public deleteFilteredLogApiV1FilteringDatasetsDatasetIdResultsFilteredIdDelete(
+        datasetId: string,
         filteredId: string,
     ): CancelablePromise<Record<string, any>> {
         return this.httpRequest.request({
             method: 'DELETE',
-            url: '/api/v1/filtering/logs/{log_id}/results/{filtered_id}',
+            url: '/api/v1/filtering/datasets/{dataset_id}/results/{filtered_id}',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
                 'filtered_id': filteredId,
             },
             errors: {

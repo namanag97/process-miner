@@ -6,7 +6,7 @@
  * Cycle time statistics.
  */
 export type CycleTimeResponse = {
-    log_id: string;
+    dataset_id: string;
     min_seconds: number;
     max_seconds: number;
     avg_seconds: number;

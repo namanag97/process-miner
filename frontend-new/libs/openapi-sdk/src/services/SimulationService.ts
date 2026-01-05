@@ -38,20 +38,20 @@ export class SimulationService {
     /**
      * Simulate Scenario
      * Run what-if simulation on an event log.
-     * @param logId
+     * @param datasetId
      * @param requestBody
      * @returns SimulationResponse Successful Response
      * @throws ApiError
      */
-    public simulateScenarioApiV1SimulationLogsLogIdSimulatePost(
-        logId: string,
+    public simulateScenarioApiV1SimulationDatasetsDatasetIdSimulatePost(
+        datasetId: string,
         requestBody: SimulationRequest,
     ): CancelablePromise<SimulationResponse> {
         return this.httpRequest.request({
             method: 'POST',
-            url: '/api/v1/simulation/logs/{log_id}/simulate',
+            url: '/api/v1/simulation/datasets/{dataset_id}/simulate',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             body: requestBody,
             mediaType: 'application/json',
@@ -63,20 +63,20 @@ export class SimulationService {
     /**
      * Estimate Capacity
      * Estimate resource requirements for target throughput.
-     * @param logId
+     * @param datasetId
      * @param targetThroughput
      * @returns any Successful Response
      * @throws ApiError
      */
-    public estimateCapacityApiV1SimulationLogsLogIdCapacityPlanPost(
-        logId: string,
+    public estimateCapacityApiV1SimulationDatasetsDatasetIdCapacityPlanPost(
+        datasetId: string,
         targetThroughput: number,
     ): CancelablePromise<Record<string, any>> {
         return this.httpRequest.request({
             method: 'POST',
-            url: '/api/v1/simulation/logs/{log_id}/capacity-plan',
+            url: '/api/v1/simulation/datasets/{dataset_id}/capacity-plan',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             query: {
                 'target_throughput': targetThroughput,

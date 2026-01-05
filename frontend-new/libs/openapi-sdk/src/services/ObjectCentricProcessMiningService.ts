@@ -2,7 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { Body_flatten_ocel_to_dataset_api_v1_ocpm_logs__log_id__flatten_post } from '../models/Body_flatten_ocel_to_dataset_api_v1_ocpm_logs__log_id__flatten_post';
+import type { Body_flatten_ocel_to_dataset_api_v1_ocpm_datasets__dataset_id__flatten_post } from '../models/Body_flatten_ocel_to_dataset_api_v1_ocpm_datasets__dataset_id__flatten_post';
 import type { Body_upload_ocel_api_v1_ocpm_upload_post } from '../models/Body_upload_ocel_api_v1_ocpm_upload_post';
 import type { DiscoverOCPNRequest } from '../models/DiscoverOCPNRequest';
 import type { OCDFGResponse } from '../models/OCDFGResponse';
@@ -66,18 +66,18 @@ export class ObjectCentricProcessMiningService {
      * Get OCEL log details.
      *
      * Returns detailed information about a specific object-centric event log.
-     * @param logId
+     * @param datasetId
      * @returns OCELLogResponse Successful Response
      * @throws ApiError
      */
-    public getOcelLogApiV1OcpmLogsLogIdGet(
-        logId: string,
+    public getOcelLogApiV1OcpmDatasetsDatasetIdGet(
+        datasetId: string,
     ): CancelablePromise<OCELLogResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/ocpm/logs/{log_id}',
+            url: '/api/v1/ocpm/datasets/{dataset_id}',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,
@@ -89,18 +89,18 @@ export class ObjectCentricProcessMiningService {
      * Delete an OCEL log.
      *
      * Removes the log and all associated data (object types, models).
-     * @param logId
+     * @param datasetId
      * @returns any Successful Response
      * @throws ApiError
      */
-    public deleteOcelLogApiV1OcpmLogsLogIdDelete(
-        logId: string,
+    public deleteOcelLogApiV1OcpmDatasetsDatasetIdDelete(
+        datasetId: string,
     ): CancelablePromise<any> {
         return this.httpRequest.request({
             method: 'DELETE',
-            url: '/api/v1/ocpm/logs/{log_id}',
+            url: '/api/v1/ocpm/datasets/{dataset_id}',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,
@@ -112,18 +112,18 @@ export class ObjectCentricProcessMiningService {
      * Get object types in an OCEL log.
      *
      * Returns all object types (e.g., Order, Item, Package) with their counts.
-     * @param logId
+     * @param datasetId
      * @returns OCELObjectTypeResponse Successful Response
      * @throws ApiError
      */
-    public getObjectTypesApiV1OcpmLogsLogIdObjectTypesGet(
-        logId: string,
+    public getObjectTypesApiV1OcpmDatasetsDatasetIdObjectTypesGet(
+        datasetId: string,
     ): CancelablePromise<Array<OCELObjectTypeResponse>> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/ocpm/logs/{log_id}/object-types',
+            url: '/api/v1/ocpm/datasets/{dataset_id}/object-types',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,
@@ -136,18 +136,18 @@ export class ObjectCentricProcessMiningService {
      *
      * Returns comprehensive statistics including event counts, object counts,
      * activities, and objects per type.
-     * @param logId
+     * @param datasetId
      * @returns OCELStatisticsResponse Successful Response
      * @throws ApiError
      */
-    public getOcelStatisticsApiV1OcpmLogsLogIdStatisticsGet(
-        logId: string,
+    public getOcelStatisticsApiV1OcpmDatasetsDatasetIdStatisticsGet(
+        datasetId: string,
     ): CancelablePromise<OCELStatisticsResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/ocpm/logs/{log_id}/statistics',
+            url: '/api/v1/ocpm/datasets/{dataset_id}/statistics',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,
@@ -243,18 +243,18 @@ export class ObjectCentricProcessMiningService {
      *
      * Shows how many events and cases are associated with each object type.
      * This is stored metadata from the upload - actual graph requires re-parsing.
-     * @param logId
+     * @param datasetId
      * @returns any Successful Response
      * @throws ApiError
      */
-    public getObjectRelationshipsApiV1OcpmLogsLogIdRelationshipsGet(
-        logId: string,
+    public getObjectRelationshipsApiV1OcpmDatasetsDatasetIdRelationshipsGet(
+        datasetId: string,
     ): CancelablePromise<Record<string, any>> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/ocpm/logs/{log_id}/relationships',
+            url: '/api/v1/ocpm/datasets/{dataset_id}/relationships',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,
@@ -270,18 +270,18 @@ export class ObjectCentricProcessMiningService {
      * relate to each other within the context of different object types.
      *
      * This endpoint requires the OCEL data to be stored (uploaded after Phase 2.1).
-     * @param logId
+     * @param datasetId
      * @returns OCDFGResponse Successful Response
      * @throws ApiError
      */
-    public getOcDfgApiV1OcpmLogsLogIdOcDfgGet(
-        logId: string,
+    public getOcDfgApiV1OcpmDatasetsDatasetIdOcDfgGet(
+        datasetId: string,
     ): CancelablePromise<OCDFGResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/ocpm/logs/{log_id}/oc-dfg',
+            url: '/api/v1/ocpm/datasets/{dataset_id}/oc-dfg',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,
@@ -313,20 +313,20 @@ export class ObjectCentricProcessMiningService {
      *
      * Example: Flattening an e-commerce OCEL on 'Order' creates a traditional
      * event log where each Order becomes a case.
-     * @param logId
+     * @param datasetId
      * @param formData
      * @returns any Successful Response
      * @throws ApiError
      */
-    public flattenOcelToDatasetApiV1OcpmLogsLogIdFlattenPost(
-        logId: string,
-        formData: Body_flatten_ocel_to_dataset_api_v1_ocpm_logs__log_id__flatten_post,
+    public flattenOcelToDatasetApiV1OcpmDatasetsDatasetIdFlattenPost(
+        datasetId: string,
+        formData: Body_flatten_ocel_to_dataset_api_v1_ocpm_datasets__dataset_id__flatten_post,
     ): CancelablePromise<any> {
         return this.httpRequest.request({
             method: 'POST',
-            url: '/api/v1/ocpm/logs/{log_id}/flatten',
+            url: '/api/v1/ocpm/datasets/{dataset_id}/flatten',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             formData: formData,
             mediaType: 'application/x-www-form-urlencoded',

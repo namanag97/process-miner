@@ -9,6 +9,8 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, select
 
 from src.api.dependencies import DBSession
+from src.platform.core.logging_config import get_logger
+from src.platform.devconsole import log_error, log_info
 from src.platform.models import Project, Workspace
 from src.platform.schemas import (
     ProjectResponse,
@@ -19,6 +21,7 @@ from src.platform.schemas import (
     WorkspaceUpdateRequest,
 )
 
+logger = get_logger(__name__)
 router = APIRouter(prefix="/workspaces", tags=["Workspaces"])
 
 # =============================================================================
@@ -96,15 +99,46 @@ async def get_workspace(
     """
     Get a workspace by ID with its projects.
     """
+    logger.info("fetching_workspace", workspace_id=workspace_id)
+
     result = await db.execute(select(Workspace).filter(Workspace.id == workspace_id))
     workspace = result.scalar_one_or_none()
 
     if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
+        logger.warning("workspace_not_found", workspace_id=workspace_id)
+        log_error(
+            "Workspace",
+            "Workspace not found",
+            error_code="WS_NOT_FOUND",
+            workspace_id=workspace_id,
+        )
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "Workspace not found",
+                "error_code": "WS_NOT_FOUND",
+                "workspace_id": workspace_id,
+                "suggestion": "Check that the workspace ID is correct and the workspace exists"
+            }
+        )
 
     # Get projects for this workspace
     projects_result = await db.execute(select(Project).filter(Project.workspace_id == workspace_id))
     projects = projects_result.scalars().all()
+
+    logger.info(
+        "workspace_fetched",
+        workspace_id=workspace_id,
+        workspace_name=workspace.name,
+        project_count=len(projects),
+    )
+    log_info(
+        "Workspace",
+        "Workspace fetched successfully",
+        workspace_id=workspace_id,
+        name=workspace.name,
+        projects=len(projects),
+    )
 
     return WorkspaceDetailResponse(
         id=workspace.id,
@@ -126,17 +160,53 @@ async def create_workspace(
     """
     Create a new workspace within an organization.
     """
+    logger.info("creating_workspace", org_id=org_id, name=request.name)
+
     workspace = Workspace(
         org_id=org_id,
         name=request.name,
         description=request.description,
     )
 
-    db.add(workspace)
-    await db.commit()
-    await db.refresh(workspace)
+    try:
+        db.add(workspace)
+        await db.commit()
+        await db.refresh(workspace)
 
-    return _workspace_to_response(workspace)
+        logger.info(
+            "workspace_created",
+            workspace_id=workspace.id,
+            org_id=org_id,
+            name=workspace.name,
+        )
+        log_info(
+            "Workspace",
+            "Workspace created successfully",
+            workspace_id=workspace.id,
+            name=workspace.name,
+            org_id=org_id,
+        )
+
+        return _workspace_to_response(workspace)
+    except Exception as e:
+        logger.error("workspace_creation_failed", org_id=org_id, error=str(e), exc_info=True)
+        log_error(
+            "Workspace",
+            "Failed to create workspace",
+            error_code="WS_CREATE_FAILED",
+            org_id=org_id,
+            name=request.name,
+            reason=str(e),
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Failed to create workspace",
+                "error_code": "WS_CREATE_FAILED",
+                "reason": str(e),
+                "suggestion": "Check database connectivity and ensure the organization exists"
+            }
+        )
 
 
 @router.put("/{workspace_id}", response_model=WorkspaceResponse)
@@ -148,11 +218,28 @@ async def update_workspace(
     """
     Update a workspace.
     """
+    logger.info("updating_workspace", workspace_id=workspace_id, updates=request.model_dump(exclude_unset=True))
+
     result = await db.execute(select(Workspace).filter(Workspace.id == workspace_id))
     workspace = result.scalar_one_or_none()
 
     if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
+        logger.warning("workspace_not_found_for_update", workspace_id=workspace_id)
+        log_error(
+            "Workspace",
+            "Cannot update - workspace not found",
+            error_code="WS_NOT_FOUND",
+            workspace_id=workspace_id,
+        )
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "Workspace not found",
+                "error_code": "WS_NOT_FOUND",
+                "workspace_id": workspace_id,
+                "suggestion": "Verify the workspace ID exists before updating"
+            }
+        )
 
     if request.name is not None:
         workspace.name = request.name
@@ -161,10 +248,42 @@ async def update_workspace(
 
     workspace.updated_at = datetime.utcnow()
 
-    await db.commit()
-    await db.refresh(workspace)
+    try:
+        await db.commit()
+        await db.refresh(workspace)
 
-    return _workspace_to_response(workspace)
+        logger.info(
+            "workspace_updated",
+            workspace_id=workspace_id,
+            name=workspace.name,
+        )
+        log_info(
+            "Workspace",
+            "Workspace updated successfully",
+            workspace_id=workspace_id,
+            name=workspace.name,
+        )
+
+        return _workspace_to_response(workspace)
+    except Exception as e:
+        logger.error("workspace_update_failed", workspace_id=workspace_id, error=str(e), exc_info=True)
+        log_error(
+            "Workspace",
+            "Failed to update workspace",
+            error_code="WS_UPDATE_FAILED",
+            workspace_id=workspace_id,
+            reason=str(e),
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Failed to update workspace",
+                "error_code": "WS_UPDATE_FAILED",
+                "workspace_id": workspace_id,
+                "reason": str(e),
+                "suggestion": "Check database connectivity and retry"
+            }
+        )
 
 
 @router.delete("/{workspace_id}", status_code=204)
@@ -177,19 +296,73 @@ async def delete_workspace(
 
     BUG-036 FIX: Now deletes projects instead of orphaning them.
     """
+    logger.info("deleting_workspace", workspace_id=workspace_id)
+
     result = await db.execute(select(Workspace).filter(Workspace.id == workspace_id))
     workspace = result.scalar_one_or_none()
 
     if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
+        logger.warning("workspace_not_found_for_deletion", workspace_id=workspace_id)
+        log_error(
+            "Workspace",
+            "Cannot delete - workspace not found",
+            error_code="WS_NOT_FOUND",
+            workspace_id=workspace_id,
+        )
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "Workspace not found",
+                "error_code": "WS_NOT_FOUND",
+                "workspace_id": workspace_id,
+                "suggestion": "Verify the workspace ID before attempting deletion"
+            }
+        )
 
     # BUG-036 FIX: Delete projects instead of orphaning
     from sqlalchemy import delete
 
-    await db.execute(delete(Project).where(Project.workspace_id == workspace_id))
+    # Get project count for logging
+    projects_result = await db.execute(select(func.count()).select_from(Project).where(Project.workspace_id == workspace_id))
+    project_count = projects_result.scalar() or 0
 
-    await db.delete(workspace)
-    await db.commit()
+    try:
+        await db.execute(delete(Project).where(Project.workspace_id == workspace_id))
+        await db.delete(workspace)
+        await db.commit()
+
+        logger.info(
+            "workspace_deleted",
+            workspace_id=workspace_id,
+            workspace_name=workspace.name,
+            projects_deleted=project_count,
+        )
+        log_info(
+            "Workspace",
+            "Workspace and projects deleted successfully",
+            workspace_id=workspace_id,
+            name=workspace.name,
+            projects_deleted=project_count,
+        )
+    except Exception as e:
+        logger.error("workspace_deletion_failed", workspace_id=workspace_id, error=str(e), exc_info=True)
+        log_error(
+            "Workspace",
+            "Failed to delete workspace",
+            error_code="WS_DELETE_FAILED",
+            workspace_id=workspace_id,
+            reason=str(e),
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Failed to delete workspace",
+                "error_code": "WS_DELETE_FAILED",
+                "workspace_id": workspace_id,
+                "reason": str(e),
+                "suggestion": "Check database connectivity and ensure no foreign key constraints are blocking deletion"
+            }
+        )
 
 
 # =============================================================================

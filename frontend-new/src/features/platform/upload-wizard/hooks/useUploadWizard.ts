@@ -495,7 +495,7 @@ export function useUploadWizard(_projectId: string, initialDatasetId?: string) {
                     status: uploadRes.status,
                     statusText: uploadRes.statusText,
                     ok: uploadRes.ok,
-                    headers: Object.fromEntries(uploadRes.headers.entries())
+                    headers: Object.fromEntries((uploadRes.headers as any).entries())
                 };
                 console.log('[UploadWizard:uploadFilePresigned] Storage upload response', storageResData);
                 devLog.info('UploadWizard', 'Storage upload response received', storageResData);
@@ -506,7 +506,7 @@ export function useUploadWizard(_projectId: string, initialDatasetId?: string) {
                         status: uploadRes.status,
                         statusText: uploadRes.statusText,
                         errorText,
-                        headers: Object.fromEntries(uploadRes.headers.entries())
+                        headers: Object.fromEntries((uploadRes.headers as any).entries())
                     };
                     console.error('[UploadWizard:uploadFilePresigned] Storage upload failed', errorData);
                     devLog.error('UploadWizard', `Storage upload failed (${uploadRes.status})`, errorData);

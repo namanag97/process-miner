@@ -7,7 +7,7 @@ import type { BottleneckResponse } from './BottleneckResponse';
  * List of detected bottlenecks.
  */
 export type BottleneckListResponse = {
-    log_id: string;
+    dataset_id: string;
     bottlenecks: Array<BottleneckResponse>;
     total_bottlenecks: number;
 };

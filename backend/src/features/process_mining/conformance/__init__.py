@@ -2,12 +2,14 @@
 
 Components:
 - service.py: ConformanceService for fitness, precision, diagnostics
-- router.py: API router (not used in DDD - routers stay in api layer)
+- router.py: API router for conformance checking endpoints
 """
 
+from .router import router
 from .service import ConformanceService, conformance_service
 
 __all__ = [
+    "router",
     "ConformanceService",
     "conformance_service",
 ]

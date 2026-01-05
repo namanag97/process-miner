@@ -17,18 +17,18 @@ export class AnalyticsService {
     /**
      * Get Bottlenecks
      * Detect process bottlenecks based on waiting times.
-     * @param logId
+     * @param datasetId
      * @returns BottleneckListResponse Successful Response
      * @throws ApiError
      */
-    public getBottlenecksApiV1AnalyticsLogsLogIdBottlenecksGet(
-        logId: string,
+    public getBottlenecksApiV1AnalyticsDatasetsDatasetIdBottlenecksGet(
+        datasetId: string,
     ): CancelablePromise<BottleneckListResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/analytics/logs/{log_id}/bottlenecks',
+            url: '/api/v1/analytics/datasets/{dataset_id}/bottlenecks',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,
@@ -38,18 +38,18 @@ export class AnalyticsService {
     /**
      * Get Rework
      * Analyze rework (repeated activities) in cases.
-     * @param logId
+     * @param datasetId
      * @returns ReworkListResponse Successful Response
      * @throws ApiError
      */
-    public getReworkApiV1AnalyticsLogsLogIdReworkGet(
-        logId: string,
+    public getReworkApiV1AnalyticsDatasetsDatasetIdReworkGet(
+        datasetId: string,
     ): CancelablePromise<ReworkListResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/analytics/logs/{log_id}/rework',
+            url: '/api/v1/analytics/datasets/{dataset_id}/rework',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,
@@ -59,18 +59,18 @@ export class AnalyticsService {
     /**
      * Get Service Times
      * Get service time statistics per activity.
-     * @param logId
+     * @param datasetId
      * @returns ServiceTimeResponse Successful Response
      * @throws ApiError
      */
-    public getServiceTimesApiV1AnalyticsLogsLogIdServiceTimesGet(
-        logId: string,
+    public getServiceTimesApiV1AnalyticsDatasetsDatasetIdServiceTimesGet(
+        datasetId: string,
     ): CancelablePromise<Array<ServiceTimeResponse>> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/analytics/logs/{log_id}/service-times',
+            url: '/api/v1/analytics/datasets/{dataset_id}/service-times',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,
@@ -80,18 +80,18 @@ export class AnalyticsService {
     /**
      * Get Cycle Time
      * Get cycle time (case duration) statistics.
-     * @param logId
+     * @param datasetId
      * @returns CycleTimeResponse Successful Response
      * @throws ApiError
      */
-    public getCycleTimeApiV1AnalyticsLogsLogIdCycleTimeGet(
-        logId: string,
+    public getCycleTimeApiV1AnalyticsDatasetsDatasetIdCycleTimeGet(
+        datasetId: string,
     ): CancelablePromise<CycleTimeResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/analytics/logs/{log_id}/cycle-time',
+            url: '/api/v1/analytics/datasets/{dataset_id}/cycle-time',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,
@@ -101,18 +101,18 @@ export class AnalyticsService {
     /**
      * Get Throughput
      * Get throughput metrics (cases per day/week/month).
-     * @param logId
+     * @param datasetId
      * @returns ThroughputResponse Successful Response
      * @throws ApiError
      */
-    public getThroughputApiV1AnalyticsLogsLogIdThroughputGet(
-        logId: string,
+    public getThroughputApiV1AnalyticsDatasetsDatasetIdThroughputGet(
+        datasetId: string,
     ): CancelablePromise<ThroughputResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/analytics/logs/{log_id}/throughput',
+            url: '/api/v1/analytics/datasets/{dataset_id}/throughput',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,
@@ -122,20 +122,20 @@ export class AnalyticsService {
     /**
      * Get Patterns
      * Get frequent activity patterns/subsequences.
-     * @param logId
+     * @param datasetId
      * @param minSupport
      * @returns PatternResponse Successful Response
      * @throws ApiError
      */
-    public getPatternsApiV1AnalyticsLogsLogIdPatternsGet(
-        logId: string,
+    public getPatternsApiV1AnalyticsDatasetsDatasetIdPatternsGet(
+        datasetId: string,
         minSupport: number = 0.1,
     ): CancelablePromise<Array<PatternResponse>> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/analytics/logs/{log_id}/patterns',
+            url: '/api/v1/analytics/datasets/{dataset_id}/patterns',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             query: {
                 'min_support': minSupport,
@@ -157,18 +157,18 @@ export class AnalyticsService {
      * - chains: List of detected rework chains with frequency and duration
      * - most_problematic_activity: Activity with the most chains
      * - cases_with_chains: Number of cases containing chains
-     * @param logId
+     * @param datasetId
      * @returns ReworkChainListResponse Successful Response
      * @throws ApiError
      */
-    public getReworkChainsApiV1AnalyticsLogsLogIdReworkChainsGet(
-        logId: string,
+    public getReworkChainsApiV1AnalyticsDatasetsDatasetIdReworkChainsGet(
+        datasetId: string,
     ): CancelablePromise<ReworkChainListResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/analytics/logs/{log_id}/rework-chains',
+            url: '/api/v1/analytics/datasets/{dataset_id}/rework-chains',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,
@@ -178,18 +178,18 @@ export class AnalyticsService {
     /**
      * Get Performance Dashboard
      * Get comprehensive performance dashboard.
-     * @param logId
+     * @param datasetId
      * @returns PerformanceDashboardResponse Successful Response
      * @throws ApiError
      */
-    public getPerformanceDashboardApiV1AnalyticsLogsLogIdPerformanceGet(
-        logId: string,
+    public getPerformanceDashboardApiV1AnalyticsDatasetsDatasetIdPerformanceGet(
+        datasetId: string,
     ): CancelablePromise<PerformanceDashboardResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/analytics/logs/{log_id}/performance',
+            url: '/api/v1/analytics/datasets/{dataset_id}/performance',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,

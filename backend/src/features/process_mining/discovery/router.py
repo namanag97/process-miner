@@ -9,6 +9,7 @@ from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 
 from src.api.dependencies import CurrentUser, DBSession
+from src.features.process_mining.discovery.service import mining_service
 from src.features.process_mining.enums import MinerType
 from src.features.process_mining.models import Dataset, ProcessModel
 from src.features.process_mining.schemas import (
@@ -17,7 +18,6 @@ from src.features.process_mining.schemas import (
     ModelListResponse,
     ModelResponse,
 )
-from src.features.process_mining.services.mining import mining_service
 from src.platform.core.exceptions import (
     DiscoveryError,
     InvalidInputError,

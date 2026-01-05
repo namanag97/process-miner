@@ -10,7 +10,7 @@ import type { FilterStatistics } from './FilterStatistics';
 export type FilteredLogResponse = {
     id: string;
     name: string;
-    source_log_id?: string;
+    source_dataset_id?: string;
     is_filtered?: boolean;
     filter_config?: Array<FilterConfig>;
     total_events: number;

@@ -8,7 +8,7 @@ import type { NetworkNode } from './NetworkNode';
  * Social network response.
  */
 export type SocialNetworkResponse = {
-    log_id: string;
+    dataset_id: string;
     network_type: string;
     nodes: Array<NetworkNode>;
     edges: Array<NetworkEdge>;

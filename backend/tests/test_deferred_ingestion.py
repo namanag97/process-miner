@@ -28,210 +28,133 @@ class TestDeferredIngestion:
 2,End,2024-01-01 11:30:00,Bob
 """
 
+
     @pytest.mark.asyncio
-    async def test_upload_async_store_creates_unstructured_dataset(
-        self, client, sample_csv_content
+    async def test_direct_upload_creates_uploaded_dataset(
+        self, client, sample_csv_content, default_project
     ):
-        """Test that async_store=True creates dataset with UNSTRUCTURED status."""
-        response = client.post(
-            "/api/v1/datasets/upload",
+        """Test that direct upload creates dataset with UPLOADED status."""
+        response = await client.post(
+            "/api/v1/datasets/",
             files={"file": ("test.csv", sample_csv_content, "text/csv")},
-            data={"async_store": "true", "name": "Test Dataset"},
+            data={"name": "Test Dataset", "project_id": default_project},
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "unstructured"
-        assert data["total_events"] == 0
-        assert data["total_cases"] == 0
+        assert data["status"] == "uploaded"
+        assert data["source_file"] == "test.csv"
 
     @pytest.mark.asyncio
-    async def test_upload_without_async_store_creates_ready_dataset(
-        self, client, sample_csv_content
-    ):
-        """Test that default upload (async_store=False) processes immediately."""
-        response = client.post(
-            "/api/v1/datasets/upload",
-            files={"file": ("test.csv", sample_csv_content, "text/csv")},
-            data={"name": "Test Dataset"},
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        # Should be ready (processed immediately)
-        assert data["total_events"] > 0
-
-    @pytest.mark.asyncio
-    async def test_ingest_endpoint_rejects_analyzing_dataset(self, client, db_session):
-        """Test that /ingest rejects dataset already being analyzed (idempotency)."""
-        # Create dataset in ANALYZING state
+    async def test_ingest_endpoint_requires_mapped_status(self, client, db_session, default_project):
+        """Test that /ingest rejects dataset not in MAPPED state."""
+        # Create dataset in UPLOADED state
         dataset = Dataset(
             name="Test",
             source_file="test.csv",
             source_format="csv",
-            status=DatasetStatus.ANALYZING.value,
+            status=DatasetStatus.UPLOADED.value,
+            project_id=default_project,
         )
         db_session.add(dataset)
         await db_session.flush()
 
-        response = client.post(
+        response = await client.post(
             f"/api/v1/datasets/{dataset.id}/ingest",
-            json={
-                "case_id_column": "case_id",
-                "activity_column": "activity",
-                "timestamp_column": "timestamp",
-            },
         )
 
         assert response.status_code == 400
-        assert "already being analyzed" in response.json()["detail"]
+        assert "MAPPED or ERROR" in response.json()["detail"]
 
     @pytest.mark.asyncio
-    async def test_ingest_endpoint_rejects_ready_dataset(self, client, db_session):
-        """Test that /ingest rejects already ready dataset."""
+    async def test_ingest_endpoint_requires_mapping(self, client, db_session, default_project):
+        """Test that /ingest fails if no mapping exists."""
         dataset = Dataset(
             name="Test",
             source_file="test.csv",
             source_format="csv",
-            status=DatasetStatus.READY.value,
+            status=DatasetStatus.MAPPED.value,
+            project_id=default_project,
         )
         db_session.add(dataset)
         await db_session.flush()
 
-        response = client.post(
+        # No mapping set
+        response = await client.post(
             f"/api/v1/datasets/{dataset.id}/ingest",
-            json={
+        )
+
+        assert response.status_code == 422
+        assert "mapping" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_ingest_endpoint_success(self, client, db_session, default_project):
+        """Test successful ingestion trigger."""
+        # Create dataset in MAPPED state with mapping
+        dataset = Dataset(
+            name="Test",
+            source_file="test.csv",
+            source_format="csv",
+            status=DatasetStatus.MAPPED.value,
+            project_id=default_project,
+            mapping_json=json.dumps({
                 "case_id_column": "case_id",
                 "activity_column": "activity",
-                "timestamp_column": "timestamp",
-            },
-        )
-
-        assert response.status_code == 400
-        assert "UNSTRUCTURED or ERROR" in response.json()["detail"]
-
-    @pytest.mark.asyncio
-    async def test_ingest_endpoint_allows_error_retry(self, client, db_session):
-        """Test that /ingest allows retry for ERROR datasets."""
-        # Create dataset in ERROR state (failed previous attempt)
-        dataset = Dataset(
-            name="Test",
-            source_file="test.csv",
-            source_format="csv",
-            status=DatasetStatus.ERROR.value,
-            error_message="Previous attempt failed",
+                "timestamp_column": "timestamp"
+            })
         )
         db_session.add(dataset)
-
-        # Add uploaded file
-        uploaded_file = UploadedFile(
-            dataset_id=dataset.id,
-            filename="test.csv",
-            storage_path="/tmp/test.csv",
-            size_bytes=100,
-        )
-        db_session.add(uploaded_file)
         await db_session.flush()
 
-        with patch("src.infrastructure.tasks.ingest_dataset_task.delay") as mock_delay:
+        with patch("src.features.process_mining.api.datasets.ingest.ingest_dataset_task.delay") as mock_delay:
             mock_delay.return_value = MagicMock(id="task-123")
 
-            response = client.post(
+            response = await client.post(
                 f"/api/v1/datasets/{dataset.id}/ingest",
-                json={
-                    "case_id_column": "case_id",
-                    "activity_column": "activity",
-                    "timestamp_column": "timestamp",
-                },
             )
 
             assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "pending"
+            assert data["job_type"] == "ingest_dataset"
             mock_delay.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_ingest_stores_mapping(self, client, db_session):
-        """Test that /ingest stores the column mapping."""
-        dataset = Dataset(
-            name="Test",
-            source_file="test.csv",
-            source_format="csv",
-            status=DatasetStatus.UNSTRUCTURED.value,
-        )
-        db_session.add(dataset)
-
-        uploaded_file = UploadedFile(
-            dataset_id=dataset.id,
-            filename="test.csv",
-            storage_path="/tmp/test.csv",
-            size_bytes=100,
-        )
-        db_session.add(uploaded_file)
-        await db_session.flush()
-
-        with patch("src.infrastructure.tasks.ingest_dataset_task.delay") as mock_delay:
-            mock_delay.return_value = MagicMock(id="task-123")
-
-            response = client.post(
-                f"/api/v1/datasets/{dataset.id}/ingest",
-                json={
-                    "case_id_column": "CaseID",
-                    "activity_column": "Action",
-                    "timestamp_column": "Time",
-                    "resource_column": "User",
-                },
-            )
-
-            assert response.status_code == 200
-
-        # Verify mapping was stored
-        await db_session.refresh(dataset)
-        mapping = json.loads(dataset.mapping_json)
-        assert mapping["case_id_column"] == "CaseID"
-        assert mapping["activity_column"] == "Action"
-        assert mapping["timestamp_column"] == "Time"
-        assert mapping["resource_column"] == "User"
-
 
 class TestDatasetStatusTransitions:
     """Test dataset status state machine."""
 
     def test_status_enum_values(self):
         """Verify status enum has correct values."""
-        assert DatasetStatus.UNSTRUCTURED.value == "unstructured"
-        assert DatasetStatus.ANALYZING.value == "analyzing"
+        assert DatasetStatus.UPLOADED.value == "uploaded"
+        assert DatasetStatus.MAPPED.value == "mapped"
+        assert DatasetStatus.INGESTING.value == "ingesting" 
         assert DatasetStatus.READY.value == "ready"
         assert DatasetStatus.ERROR.value == "error"
 
     @pytest.mark.asyncio
-    async def test_status_transitions(self, db_session):
+    async def test_status_transitions(self, db_session, default_project):
         """Test valid status transitions."""
         dataset = Dataset(
             name="Test",
             source_file="test.csv",
             source_format="csv",
-            status=DatasetStatus.UNSTRUCTURED.value,
+            status=DatasetStatus.UPLOADED.value,
+            project_id=default_project,
         )
         db_session.add(dataset)
         await db_session.flush()
 
-        # UNSTRUCTURED -> ANALYZING
-        dataset.status = DatasetStatus.ANALYZING.value
+        # UPLOADED -> MAPPED
+        dataset.status = DatasetStatus.MAPPED.value
         await db_session.flush()
-        assert dataset.status == "analyzing"
+        assert dataset.status == "mapped"
 
-        # ANALYZING -> READY
+        # MAPPED -> INGESTING
+        dataset.status = DatasetStatus.INGESTING.value
+        await db_session.flush()
+        assert dataset.status == "ingesting"
+
+        # INGESTING -> READY
         dataset.status = DatasetStatus.READY.value
         await db_session.flush()
         assert dataset.status == "ready"
 
-        # READY -> ERROR (edge case)
-        dataset.status = DatasetStatus.ERROR.value
-        dataset.error_message = "Something went wrong"
-        await db_session.flush()
-        assert dataset.status == "error"
-
-        # ERROR -> ANALYZING (retry)
-        dataset.status = DatasetStatus.ANALYZING.value
-        dataset.error_message = None
-        await db_session.flush()
-        assert dataset.status == "analyzing"

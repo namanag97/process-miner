@@ -7,7 +7,7 @@
  */
 export type PredictorResponse = {
     id: string;
-    log_id?: string;
+    dataset_id?: string;
     target_type: string;
     algorithm: string;
     metrics?: Record<string, any>;

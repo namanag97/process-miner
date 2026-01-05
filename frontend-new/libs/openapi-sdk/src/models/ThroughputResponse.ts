@@ -6,7 +6,7 @@
  * Throughput metrics.
  */
 export type ThroughputResponse = {
-    log_id: string;
+    dataset_id: string;
     total_cases: number;
     completed_cases: number;
     cases_per_day: number;

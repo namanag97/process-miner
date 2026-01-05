@@ -7,7 +7,7 @@ import type { OCDFGTypeGraph } from './OCDFGTypeGraph';
  * Object-Centric DFG response.
  */
 export type OCDFGResponse = {
-    log_id: string;
+    dataset_id: string;
     object_types: Array<string>;
     activities: Array<string>;
     graphs_by_type: Record<string, OCDFGTypeGraph>;

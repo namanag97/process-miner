@@ -217,42 +217,42 @@ export function createOrganizationalModule(client: ApiClient): OrganizationalMod
   return {
     async getHandoverNetwork(datasetId: string) {
       const response = await client.get<SocialNetworkResponse>(
-        `/organizational/logs/${datasetId}/handover-network`
+        `/organizational/datasets/${datasetId}/handover-network`
       );
       return transformNetwork(response);
     },
 
     async getCollaborationNetwork(datasetId: string) {
       const response = await client.get<SocialNetworkResponse>(
-        `/organizational/logs/${datasetId}/collaboration-network`
+        `/organizational/datasets/${datasetId}/collaboration-network`
       );
       return transformNetwork(response);
     },
 
     async getResourceSimilarity(datasetId: string) {
       const response = await client.get<SocialNetworkResponse>(
-        `/organizational/logs/${datasetId}/resource-similarity`
+        `/organizational/datasets/${datasetId}/resource-similarity`
       );
       return transformNetwork(response);
     },
 
     async getRoles(datasetId: string) {
       const response = await client.get<ResourceRoleResponse[]>(
-        `/organizational/logs/${datasetId}/roles`
+        `/organizational/datasets/${datasetId}/roles`
       );
       return response.map(transformRole);
     },
 
     async getResourceProfile(datasetId: string, resource: string) {
       const response = await client.get<ResourceProfileResponse>(
-        `/organizational/logs/${datasetId}/resources/${encodeURIComponent(resource)}/profile`
+        `/organizational/datasets/${datasetId}/resources/${encodeURIComponent(resource)}/profile`
       );
       return transformProfile(response);
     },
 
     async getWorkload(datasetId: string) {
       const response = await client.get<WorkloadResponse>(
-        `/organizational/logs/${datasetId}/workload`
+        `/organizational/datasets/${datasetId}/workload`
       );
       return transformWorkload(response);
     },

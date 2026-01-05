@@ -81,7 +81,7 @@ class OCEL2Event(Base):
     attributes: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     # Source log reference (for imports from traditional logs)
-    source_log_id: Mapped[str | None] = mapped_column(
+    source_dataset_id: Mapped[str | None] = mapped_column(
         ForeignKey("datasets.id", ondelete="SET NULL"), nullable=True
     )
 

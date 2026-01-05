@@ -8,9 +8,9 @@ import type { MinerType } from './MinerType';
  */
 export type DiscoverRequest = {
     /**
-     * Dataset/log ID to mine
+     * Dataset ID to mine
      */
-    log_id: string;
+    dataset_id: string;
     miner_type?: MinerType;
     model_name?: (string | null);
 };

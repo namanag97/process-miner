@@ -12,6 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_session
+from src.features.process_mining.conformance.service import conformance_service
 from src.features.process_mining.enums import ConformanceMethod
 from src.features.process_mining.models import ConformanceResult, Dataset, ProcessModel
 from src.features.process_mining.schemas import (
@@ -23,7 +24,6 @@ from src.features.process_mining.schemas import (
     DiagnosticsResponse,
     QualityMetricsResponse,
 )
-from src.features.process_mining.services.conformance import conformance_service
 from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -175,11 +175,11 @@ async def list_conformance_results(
     """
     List conformance check results.
 
-    Optionally filter by log_id or model_id.
+    Optionally filter by dataset_id or model_id.
     """
     query = select(ConformanceResult)
 
-    if log_id:
+    if dataset_id:
         query = query.where(ConformanceResult.dataset_id == dataset_id)  # BUG-001 FIX
     if model_id:
         query = query.where(ConformanceResult.model_id == model_id)
@@ -279,7 +279,7 @@ async def delete_conformance_result(
     return {"status": "deleted", "result_id": result_id}
 
 
-@router.get("/diagnostics/{log_id}/{model_id}", response_model=DiagnosticsResponse)
+@router.get("/diagnostics/{dataset_id}/{model_id}", response_model=DiagnosticsResponse)
 async def get_conformance_diagnostics(
     dataset_id: str,
     model_id: str,
@@ -334,7 +334,7 @@ async def get_conformance_diagnostics(
         )
 
 
-@router.get("/deviations/{log_id}/{model_id}", response_model=list[DeviationResponse])
+@router.get("/deviations/{dataset_id}/{model_id}", response_model=list[DeviationResponse])
 async def get_deviations(
     dataset_id: str,
     model_id: str,
@@ -386,7 +386,7 @@ async def get_deviations(
         )
 
 
-@router.get("/alignments/{log_id}/{model_id}", response_model=AlignmentDiagnosticsResponse)
+@router.get("/alignments/{dataset_id}/{model_id}", response_model=AlignmentDiagnosticsResponse)
 async def get_alignment_diagnostics(
     dataset_id: str,
     model_id: str,
@@ -491,7 +491,7 @@ async def list_conformance_methods():
     ]
 
 
-@router.get("/quality/{log_id}/{model_id}", response_model=QualityMetricsResponse)
+@router.get("/quality/{dataset_id}/{model_id}", response_model=QualityMetricsResponse)
 async def get_quality_metrics(
     dataset_id: str,
     model_id: str,
@@ -705,7 +705,7 @@ async def import_reference_model(
 # =============================================================================
 
 
-@router.get("/root-cause/{log_id}/{model_id}")
+@router.get("/root-cause/{dataset_id}/{model_id}")
 async def get_root_cause_analysis(
     dataset_id: str,
     model_id: str,
@@ -728,7 +728,7 @@ async def get_root_cause_analysis(
     Use this to identify patterns in conformance violations.
 
     Args:
-        log_id: Event log ID
+        dataset_id: Event log ID
         model_id: Process model ID
         attributes: Comma-separated attributes to analyze (default: "resource")
 
@@ -790,7 +790,7 @@ async def get_root_cause_analysis(
         raise HTTPException(status_code=500, detail=f"Failed to analyze root causes: {e!s}") from e
 
 
-@router.get("/deviations/by-activity/{log_id}/{model_id}")
+@router.get("/deviations/by-activity/{dataset_id}/{model_id}")
 async def get_deviations_by_activity(
     dataset_id: str,
     model_id: str,
@@ -825,7 +825,7 @@ async def get_deviations_by_activity(
         raise HTTPException(status_code=500, detail=f"Failed to aggregate deviations: {e!s}") from e
 
 
-@router.get("/deviations/by-position/{log_id}/{model_id}")
+@router.get("/deviations/by-position/{dataset_id}/{model_id}")
 async def get_deviations_by_position(
     dataset_id: str,
     model_id: str,
@@ -860,7 +860,7 @@ async def get_deviations_by_position(
         raise HTTPException(status_code=500, detail=f"Failed to aggregate deviations: {e!s}") from e
 
 
-@router.get("/deviations/attribute-correlation/{log_id}/{model_id}")
+@router.get("/deviations/attribute-correlation/{dataset_id}/{model_id}")
 async def get_attribute_correlation(
     dataset_id: str,
     model_id: str,

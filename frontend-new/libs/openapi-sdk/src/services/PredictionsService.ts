@@ -18,31 +18,31 @@ export class PredictionsService {
      * Train a prediction model for an event log.
      *
      * Args:
-     * log_id: Event log ID
+     * dataset_id: Event log ID
      * request: Training request with target_type and algorithm
      * async_mode: If True, train asynchronously via Celery (default)
      *
      * Returns:
      * - If async_mode=True: {"job_id": "...", "status": "pending"}
      * - If async_mode=False: PredictorResponse with trained model
-     * @param logId
+     * @param datasetId
      * @param requestBody
      * @param asyncMode
      * @param userId
      * @returns any Successful Response
      * @throws ApiError
      */
-    public trainPredictorApiV1PredictionsLogsLogIdTrainPost(
-        logId: string,
+    public trainPredictorApiV1PredictionsDatasetsDatasetIdTrainPost(
+        datasetId: string,
         requestBody: TrainPredictorRequest,
         asyncMode: boolean = true,
         userId?: (string | null),
     ): CancelablePromise<Record<string, any>> {
         return this.httpRequest.request({
             method: 'POST',
-            url: '/api/v1/predictions/logs/{log_id}/train',
+            url: '/api/v1/predictions/datasets/{dataset_id}/train',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             query: {
                 'async_mode': asyncMode,
@@ -91,18 +91,18 @@ export class PredictionsService {
     /**
      * List Predictors
      * List all predictors for an event log.
-     * @param logId
+     * @param datasetId
      * @returns PredictorListResponse Successful Response
      * @throws ApiError
      */
-    public listPredictorsApiV1PredictionsLogsLogIdPredictorsGet(
-        logId: string,
+    public listPredictorsApiV1PredictionsDatasetsDatasetIdPredictorsGet(
+        datasetId: string,
     ): CancelablePromise<PredictorListResponse> {
         return this.httpRequest.request({
             method: 'GET',
-            url: '/api/v1/predictions/logs/{log_id}/predictors',
+            url: '/api/v1/predictions/datasets/{dataset_id}/predictors',
             path: {
-                'log_id': logId,
+                'dataset_id': datasetId,
             },
             errors: {
                 422: `Validation Error`,

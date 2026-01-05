@@ -1,0 +1,151 @@
+"""Simulation Router - Process Simulation API.
+
+Provides endpoints for model play-out, what-if simulation, and capacity planning.
+"""
+
+import json
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.api.dependencies import get_db
+from src.features.process_mining.models import Dataset, ProcessCase, ProcessEvent, ProcessModel
+from src.features.process_mining.schemas import (
+    PlayOutRequest,
+    PlayOutResponse,
+    SimulationRequest,
+    SimulationResponse,
+)
+from src.features.process_mining.filtering.service import filtering_service
+from src.features.process_mining.simulation.service import simulation_service
+from src.platform.core.logging_config import get_logger
+from src.platform.core.safe_unpickler import safe_loads
+
+logger = get_logger(__name__)
+
+router = APIRouter(prefix="/simulation", tags=["Simulation"])
+
+
+@router.post("/models/{model_id}/play-out", response_model=PlayOutResponse)
+async def play_out_model(
+    model_id: str,
+    request: PlayOutRequest,
+    db: AsyncSession = Depends(get_db),
+) -> PlayOutResponse:
+    """Generate synthetic event log from a process model."""
+    logger.info("playing_out_model", model_id=model_id, num_traces=request.num_traces)
+
+    query = select(ProcessModel).where(ProcessModel.id == model_id)
+    result = await db.execute(query)
+    model = result.scalar_one_or_none()
+
+    if not model:
+        raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
+
+    if not model.serialized_model:
+        raise HTTPException(status_code=400, detail="Model has no serialized data")
+
+    # BUG-028 FIX: Use safe_loads instead of pickle.loads to prevent RCE
+    model_data = safe_loads(model.serialized_model)
+    pm4py_log = simulation_service.play_out(model_data, model.model_format, request.num_traces)
+
+    activities = set()
+    for trace in pm4py_log:
+        for event in trace:
+            activities.add(event.get("concept:name", ""))
+
+    new_log = Dataset(
+        name=f"Simulated from {model.name}",
+        source_format="simulated",
+        total_cases=len(pm4py_log),
+        total_events=sum(len(t) for t in pm4py_log),
+        total_activities=len(activities),
+        activities_json=json.dumps(sorted(activities)),
+    )
+    db.add(new_log)
+    await db.flush()
+
+    # BUG-029 FIX: Batch all cases and events, then flush once (not per-loop)
+    cases = []
+    for trace in pm4py_log:
+        case_id = trace.attributes.get("concept:name", f"case_{hash(str(trace))}")
+        case = ProcessCase(dataset_id=new_log.id, case_id=case_id)
+        cases.append(case)
+
+    db.add_all(cases)
+    await db.flush()  # Single flush for all cases
+
+    # Now create events with the flushed case IDs
+    events = []
+    for case, trace in zip(cases, pm4py_log, strict=False):
+        for event in trace:
+            process_event = ProcessEvent(
+                case_ref_id=case.id,
+                activity=event.get("concept:name", ""),
+                timestamp=event.get("time:timestamp"),
+            )
+            events.append(process_event)
+
+    db.add_all(events)  # Single add_all for all events
+    await db.commit()
+
+    return PlayOutResponse(
+        model_id=model_id,
+        generated_dataset_id=new_log.id,
+        traces_generated=new_log.total_cases,
+        events_generated=new_log.total_events,
+    )
+
+
+@router.post("/datasets/{dataset_id}/simulate", response_model=SimulationResponse)
+async def simulate_scenario(
+    dataset_id: str,
+    request: SimulationRequest,
+    db: AsyncSession = Depends(get_db),
+) -> SimulationResponse:
+    """Run what-if simulation on an event log."""
+    logger.info(
+        "simulating_scenario", dataset_id=dataset_id, modifications=len(request.modifications)
+    )
+
+    query = select(Dataset).where(Dataset.id == dataset_id)
+    result = await db.execute(query)
+    event_log = result.scalar_one_or_none()
+
+    if not event_log:
+        raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+
+    pm4py_log = filtering_service.to_pm4py_log(event_log)
+    simulation_result = simulation_service.simulate_scenario(pm4py_log, request.modifications)
+
+    return SimulationResponse(
+        dataset_id=dataset_id,
+        scenario=simulation_result["scenario"],
+        original_metrics=simulation_result["original_metrics"],
+        simulated_metrics=simulation_result["simulated_metrics"],
+        impact=simulation_result["impact"],
+    )
+
+
+@router.post("/datasets/{dataset_id}/capacity-plan")
+async def estimate_capacity(
+    dataset_id: str,
+    target_throughput: float,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Estimate resource requirements for target throughput."""
+    logger.info("estimating_capacity", dataset_id=dataset_id, target_throughput=target_throughput)
+
+    query = select(Dataset).where(Dataset.id == dataset_id)
+    result = await db.execute(query)
+    event_log = result.scalar_one_or_none()
+
+    if not event_log:
+        raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+
+    pm4py_log = filtering_service.to_pm4py_log(event_log)
+    capacity_result = simulation_service.estimate_capacity(pm4py_log, target_throughput)
+
+    return {"dataset_id": dataset_id, **capacity_result}

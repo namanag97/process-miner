@@ -12,7 +12,7 @@
  * - Simplicity: How simple/understandable the model is
  */
 export type QualityMetricsResponse = {
-    log_id: string;
+    dataset_id: string;
     model_id: string;
     fitness: number;
     precision?: (number | null);
