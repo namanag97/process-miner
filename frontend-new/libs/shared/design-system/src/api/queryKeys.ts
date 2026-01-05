@@ -76,66 +76,66 @@ export const queryKeys = {
   // Discovery (DFG, Variants, Activities)
   // ----------------------------------------
   dfg: {
-    data: (logId: string, options?: DFGOptions) => ['dfg', logId, options] as const,
+    data: (datasetId: string, options?: DFGOptions) => ['dfg', datasetId, options] as const,
   },
 
   variants: {
-    list: (logId: string, options?: VariantOptions) => ['variants', logId, options] as const,
+    list: (datasetId: string, options?: VariantOptions) => ['variants', datasetId, options] as const,
   },
 
   activities: {
-    list: (logId: string) => ['activities', logId] as const,
-    detail: (logId: string, activityId: string) => ['activities', logId, activityId] as const,
+    list: (datasetId: string) => ['activities', datasetId] as const,
+    detail: (datasetId: string, activityId: string) => ['activities', datasetId, activityId] as const,
   },
 
   // ----------------------------------------
   // Explorer (unified data)
   // ----------------------------------------
   explorer: {
-    data: (logId: string, options?: { includePerformance?: boolean; topVariants?: number }) =>
-      ['explorer', logId, options] as const,
+    data: (datasetId: string, options?: { includePerformance?: boolean; topVariants?: number }) =>
+      ['explorer', datasetId, options] as const,
   },
 
   // ----------------------------------------
   // Analytics
   // ----------------------------------------
   analytics: {
-    performance: (logId: string) => ['analytics', 'performance', logId] as const,
-    rework: (logId: string) => ['analytics', 'rework', logId] as const,
-    bottlenecks: (logId: string) => ['analytics', 'bottlenecks', logId] as const,
-    cycleTime: (logId: string) => ['analytics', 'cycleTime', logId] as const,
-    throughput: (logId: string) => ['analytics', 'throughput', logId] as const,
-    patterns: (logId: string, minSupport?: number) =>
-      ['analytics', 'patterns', logId, minSupport] as const,
-    summary: (logId: string) => ['analytics', 'summary', logId] as const,
+    performance: (datasetId: string) => ['analytics', 'performance', datasetId] as const,
+    rework: (datasetId: string) => ['analytics', 'rework', datasetId] as const,
+    bottlenecks: (datasetId: string) => ['analytics', 'bottlenecks', datasetId] as const,
+    cycleTime: (datasetId: string) => ['analytics', 'cycleTime', datasetId] as const,
+    throughput: (datasetId: string) => ['analytics', 'throughput', datasetId] as const,
+    patterns: (datasetId: string, minSupport?: number) =>
+      ['analytics', 'patterns', datasetId, minSupport] as const,
+    summary: (datasetId: string) => ['analytics', 'summary', datasetId] as const,
     // KPI page tabs
-    deadlines: (logId: string) => ['analytics', 'deadlines', logId] as const,
-    automation: (logId: string) => ['analytics', 'automation', logId] as const,
-    unwantedActivities: (logId: string) => ['analytics', 'unwantedActivities', logId] as const,
+    deadlines: (datasetId: string) => ['analytics', 'deadlines', datasetId] as const,
+    automation: (datasetId: string) => ['analytics', 'automation', datasetId] as const,
+    unwantedActivities: (datasetId: string) => ['analytics', 'unwantedActivities', datasetId] as const,
   },
 
   // ----------------------------------------
   // Conformance
   // ----------------------------------------
   conformance: {
-    check: (logId: string, modelId?: string) => ['conformance', logId, modelId] as const,
-    diagnostics: (logId: string, modelId?: string) =>
-      ['conformance', 'diagnostics', logId, modelId] as const,
+    check: (datasetId: string, modelId?: string) => ['conformance', datasetId, modelId] as const,
+    diagnostics: (datasetId: string, modelId?: string) =>
+      ['conformance', 'diagnostics', datasetId, modelId] as const,
   },
 
   // ----------------------------------------
   // Organizational Mining
   // ----------------------------------------
   organizational: {
-    handover: (logId: string) => ['organizational', 'handover', logId] as const,
-    collaboration: (logId: string) => ['organizational', 'collaboration', logId] as const,
-    similarity: (logId: string) => ['organizational', 'similarity', logId] as const,
-    socialNetwork: (logId: string) => ['organizational', 'socialNetwork', logId] as const,
-    roles: (logId: string) => ['organizational', 'roles', logId] as const,
-    profiles: (logId: string) => ['organizational', 'profiles', logId] as const,
-    workload: (logId: string) => ['organizational', 'workload', logId] as const,
-    resourceProfile: (logId: string, resource: string) =>
-      ['organizational', 'profile', logId, resource] as const,
+    handover: (datasetId: string) => ['organizational', 'handover', datasetId] as const,
+    collaboration: (datasetId: string) => ['organizational', 'collaboration', datasetId] as const,
+    similarity: (datasetId: string) => ['organizational', 'similarity', datasetId] as const,
+    socialNetwork: (datasetId: string) => ['organizational', 'socialNetwork', datasetId] as const,
+    roles: (datasetId: string) => ['organizational', 'roles', datasetId] as const,
+    profiles: (datasetId: string) => ['organizational', 'profiles', datasetId] as const,
+    workload: (datasetId: string) => ['organizational', 'workload', datasetId] as const,
+    resourceProfile: (datasetId: string, resource: string) =>
+      ['organizational', 'profile', datasetId, resource] as const,
   },
 
   // ----------------------------------------
@@ -143,7 +143,7 @@ export const queryKeys = {
   // ----------------------------------------
   predictions: {
     all: () => ['predictions'] as const,
-    list: (logId?: string) => ['predictions', 'list', logId] as const,
+    list: (datasetId?: string) => ['predictions', 'list', datasetId] as const,
     detail: (predictorId: string) => ['predictions', predictorId] as const,
     results: (predictorId: string, caseId: string) =>
       ['predictions', predictorId, 'results', caseId] as const,
@@ -151,7 +151,7 @@ export const queryKeys = {
   },
 
   ai: {
-    insights: (logId: string) => ['ai', 'insights', logId] as const,
+    insights: (datasetId: string) => ['ai', 'insights', datasetId] as const,
     predictors: () => ['ai', 'predictors'] as const,
     predictor: (id: string) => ['ai', 'predictors', id] as const,
   },
@@ -161,9 +161,9 @@ export const queryKeys = {
   // ----------------------------------------
   simulation: {
     playOut: (modelId: string) => ['simulation', 'playOut', modelId] as const,
-    result: (logId: string) => ['simulation', logId] as const,
-    results: (logId: string) => ['simulation', 'results', logId] as const,
-    capacity: (logId: string) => ['simulation', 'capacity', logId] as const,
+    result: (datasetId: string) => ['simulation', datasetId] as const,
+    results: (datasetId: string) => ['simulation', 'results', datasetId] as const,
+    capacity: (datasetId: string) => ['simulation', 'capacity', datasetId] as const,
   },
 
   // ----------------------------------------
@@ -242,20 +242,20 @@ export function getInvalidationKey(domain: QueryKeyPrefix): readonly [QueryKeyPr
  */
 export const invalidationKeys = {
   /** Invalidate all process-related data for a log */
-  allProcessData: (logId: string) => [
-    queryKeys.processes.detail(logId),
-    queryKeys.dfg.data(logId),
-    queryKeys.variants.list(logId),
-    queryKeys.activities.list(logId),
-    queryKeys.analytics.summary(logId),
+  allProcessData: (datasetId: string) => [
+    queryKeys.processes.detail(datasetId),
+    queryKeys.dfg.data(datasetId),
+    queryKeys.variants.list(datasetId),
+    queryKeys.activities.list(datasetId),
+    queryKeys.analytics.summary(datasetId),
   ],
 
   /** Invalidate analytics data after re-analysis */
-  analyticsData: (logId: string) => [
-    queryKeys.analytics.performance(logId),
-    queryKeys.analytics.rework(logId),
-    queryKeys.analytics.bottlenecks(logId),
-    queryKeys.analytics.summary(logId),
+  analyticsData: (datasetId: string) => [
+    queryKeys.analytics.performance(datasetId),
+    queryKeys.analytics.rework(datasetId),
+    queryKeys.analytics.bottlenecks(datasetId),
+    queryKeys.analytics.summary(datasetId),
   ],
 
   /** Invalidate project and its processes */

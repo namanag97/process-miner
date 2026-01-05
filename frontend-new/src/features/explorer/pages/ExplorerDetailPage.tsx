@@ -41,8 +41,8 @@ import { CaseCoverageGauge } from '../components/CaseCoverageGauge';
 import { ActivitiesPanel } from '../components/ActivitiesPanel';
 import type { ActivityItem } from '../components/ActivitiesPanel';
 
-// Import hooks - using individual hooks until unified endpoint is verified
-import { useDFG, useVariants, useActivities, useLogDetail } from '../hooks';
+// Import hooks - using unified useExplorerData for optimal performance
+import { useExplorerData, useLogDetail } from '../hooks';
 
 // Import types
 import type {
@@ -74,9 +74,8 @@ const log = createLogger('ExplorerDetailPage');
 
 export function ExplorerDetailPage() {
   // IMPORTANT: Route uses :datasetId (standard naming)
-  // Alias as logId for backwards compatibility with hooks
+  // Alias as datasetId for backwards compatibility with hooks
   const { datasetId, projectId } = useParams<{ datasetId: string; projectId: string }>();
-  const logId = datasetId; // Alias for hooks that still use logId
   const navigate = useNavigate();
 
   // Navigate back to project
@@ -105,55 +104,57 @@ export function ExplorerDetailPage() {
   // DATA FETCHING
   // =============================================================================
 
-  const { data: logInfo, isLoading: logLoading } = useLogDetail(logId || '');
+  const { data: logInfo, isLoading: logLoading } = useLogDetail(datasetId || '');
 
+  // Use unified explorer data hook for better performance (replaces 3 separate API calls)
   const {
-    data: dfgData,
-    isLoading: dfgLoading,
-    error: dfgError,
-  } = useDFG({ logId: logId || '', options: { includePerformance: true } });
+    data: explorerData,
+    isLoading: explorerLoading,
+    error: explorerError,
+  } = useExplorerData({
+    datasetId: datasetId || '',
+    options: { includePerformance: true, topVariants: 50 }
+  });
 
-  const {
-    data: variants,
-    isLoading: variantsLoading,
-    error: variantsError,
-  } = useVariants({ logId: logId || '', options: { topN: 50 } });
+  // Extract individual data from unified response
+  const dfgData = explorerData?.dfg;
+  const variants = explorerData?.variants;
+  const activities = explorerData?.activities;
 
-  const {
-    data: activities,
-    isLoading: activitiesLoading,
-    error: activitiesError,
-  } = useActivities(logId || '');
+  // Combine errors (prefer explorerError, but keep individual names for backward compat)
+  const dfgError = explorerError;
+  const variantsError = explorerError;
+  const activitiesError = explorerError;
 
-  const loading = logLoading || dfgLoading || variantsLoading || activitiesLoading;
+  const loading = logLoading || explorerLoading;
 
   // Apply fallbacks - Re-enabled for graceful degradation when backend is unavailable
   const logInfoWithFallback = useFallbackData(
     logInfo,
     null,
     mockOrderToCashLogInfo,
-    { source: 'ExplorerDetailPage', hookType: 'useLogDetail', logId: logId || '', disableFallback: false }
+    { source: 'ExplorerDetailPage', hookType: 'useLogDetail', datasetId: datasetId || '', disableFallback: false }
   );
 
   const dfgDataWithFallback = useFallbackData(
     dfgData,
     dfgError,
     mockOrderToCashDFG,
-    { source: 'ExplorerDetailPage', hookType: 'useDFG', logId: logId || '', endpoint: '/api/visualization/dfg', disableFallback: false }
+    { source: 'ExplorerDetailPage', hookType: 'useDFG', datasetId: datasetId || '', endpoint: '/api/visualization/dfg', disableFallback: false }
   );
 
   const variantsWithFallback = useFallbackData(
     variants,
     variantsError,
     mockOrderToCashVariants,
-    { source: 'ExplorerDetailPage', hookType: 'useVariants', logId: logId || '', endpoint: '/api/datasets/variants', disableFallback: false }
+    { source: 'ExplorerDetailPage', hookType: 'useVariants', datasetId: datasetId || '', endpoint: '/api/datasets/variants', disableFallback: false }
   );
 
   const activitiesWithFallback = useFallbackData<ActivityDetail[]>(
     activities,
     activitiesError,
     mockOrderToCashActivities,
-    { source: 'ExplorerDetailPage', hookType: 'useActivities', logId: logId || '', endpoint: '/api/discovery/activities', disableFallback: false }
+    { source: 'ExplorerDetailPage', hookType: 'useActivities', datasetId: datasetId || '', endpoint: '/api/discovery/activities', disableFallback: false }
   );
 
   // Determine if we're using fallback data
@@ -162,7 +163,7 @@ export function ExplorerDetailPage() {
     getFallbackStatus(activitiesError).usingFallback;
 
   log.debug('Rendering ExplorerDetailPage', {
-    logId,
+    datasetId,
     selectedNodeId,
     selectedEdgeId,
     selectedVariantKey,
@@ -310,7 +311,7 @@ export function ExplorerDetailPage() {
       maxDurationSeconds: activity.maxDuration ?? 0,
       resources: Array.isArray(activity.resources) ? activity.resources : [],
     };
-  }, [selectedNodeId, activities]);
+  }, [selectedNodeId, activitiesWithFallback]);
 
   // Get edge detail for selected edge
   const selectedEdge = useMemo((): EdgeDetail | null => {
@@ -452,6 +453,11 @@ export function ExplorerDetailPage() {
     toast.info('All filters cleared');
   }, [appliedFilters.length]);
 
+  const handleCompareVariants = useCallback((variantKeys: string[]) => {
+    toast.info(`Comparing ${variantKeys.length} variants - feature coming soon`);
+    logAction('ExplorerDetailPage', 'compare_variants', { count: variantKeys.length, keys: variantKeys });
+  }, []);
+
   const handleExportPNG = useCallback(() => {
     log.info('Exporting PNG');
 
@@ -575,8 +581,10 @@ export function ExplorerDetailPage() {
       label: 'Filter',
       children: (
         <div style={{ padding: tokens.spacing[3], display: 'flex', flexDirection: 'column', gap: tokens.spacing[4] }}>
+          {/* TODO: Replace with real filtered case count when filter backend is implemented
+              See Task 2.1 in bug fix task list for backend filter endpoint spec */}
           <CaseCoverageGauge
-            percent={100 - (appliedFilters.length * 10)} /* placeholder calculation */
+            percent={appliedFilters.length === 0 ? 100 : Math.max(10, 100 - appliedFilters.length * 15)}
             visibleCases={kpis.totalCases}
             totalCases={kpis.totalCases}
             size={90}
@@ -605,7 +613,7 @@ export function ExplorerDetailPage() {
             />
           }
           onError={(_error) => {
-            logError('VariantPanel', { logId: logId || '', componentCrash: true });
+            logError('VariantPanel', { datasetId: datasetId || '', componentCrash: true });
           }}
         >
           <VariantPanel
@@ -613,6 +621,7 @@ export function ExplorerDetailPage() {
             selectedVariantKey={selectedVariantKey}
             onSelectVariant={handleSelectVariant}
             onFilterToVariant={handleFilterToVariant}
+            onCompareVariants={handleCompareVariants}
           />
         </ErrorBoundary>
       ),
@@ -813,7 +822,7 @@ export function ExplorerDetailPage() {
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => {
-              logAction('ExplorerDetailPage', 'create_exploration_clicked', { logId });
+              logAction('ExplorerDetailPage', 'create_exploration_clicked', { datasetId });
               toast.info('New exploration feature coming soon!');
             }}
           >
@@ -824,7 +833,7 @@ export function ExplorerDetailPage() {
               type="text"
               icon={<QuestionCircleOutlined />}
               onClick={() => {
-                logAction('ExplorerDetailPage', 'help_clicked', { logId });
+                logAction('ExplorerDetailPage', 'help_clicked', { datasetId });
                 toast.info('Documentation coming soon!');
               }}
             />
@@ -959,7 +968,7 @@ export function ExplorerDetailPage() {
                 />
               }
               onError={(_error) => {
-                logError('CytoscapeCanvas', { logId: logId || '', componentCrash: true });
+                logError('CytoscapeCanvas', { datasetId: datasetId || '', componentCrash: true });
               }}
             >
               <CytoscapeCanvas

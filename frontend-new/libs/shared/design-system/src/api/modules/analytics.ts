@@ -19,7 +19,7 @@ import {
 
 // Process Summary type for LLM context
 export interface ProcessSummaryData {
-  logId: string;
+  datasetId: string;
   cycleTime: {
     minSeconds: number;
     maxSeconds: number;
@@ -62,55 +62,55 @@ export interface PatternResponse {
 }
 
 export interface AnalyticsModule {
-  getPerformance: (logId: string) => Promise<PerformanceData>;
-  getRework: (logId: string) => Promise<ReworkData>;
-  getBottlenecks: (logId: string) => Promise<{ log_id: string; bottlenecks: BottleneckResponse[]; total_bottlenecks: number }>;
-  getCycleTime: (logId: string) => Promise<CycleTimeResponse>;
-  getThroughput: (logId: string) => Promise<ThroughputResponse>;
-  getPatterns: (logId: string, minSupport?: number) => Promise<PatternResponse[]>;
-  getProcessSummary: (logId: string) => Promise<ProcessSummaryData>;
+  getPerformance: (datasetId: string) => Promise<PerformanceData>;
+  getRework: (datasetId: string) => Promise<ReworkData>;
+  getBottlenecks: (datasetId: string) => Promise<{ dataset_id: string; bottlenecks: BottleneckResponse[]; total_bottlenecks: number }>;
+  getCycleTime: (datasetId: string) => Promise<CycleTimeResponse>;
+  getThroughput: (datasetId: string) => Promise<ThroughputResponse>;
+  getPatterns: (datasetId: string, minSupport?: number) => Promise<PatternResponse[]>;
+  getProcessSummary: (datasetId: string) => Promise<ProcessSummaryData>;
 }
 
 export function createAnalyticsModule(client: ApiClient): AnalyticsModule {
   return {
-    async getPerformance(logId: string) {
+    async getPerformance(datasetId: string) {
       const response = await client.get<PerformanceDashboardResponse>(
-        `/analytics/logs/${logId}/performance`
+        `/analytics/logs/${datasetId}/performance`
       );
       return transformPerformance(response);
     },
 
-    async getRework(logId: string) {
+    async getRework(datasetId: string) {
       const response = await client.get<ReworkListResponse>(
-        `/analytics/logs/${logId}/rework`
+        `/analytics/logs/${datasetId}/rework`
       );
       return transformRework(response);
     },
 
-    async getBottlenecks(logId: string) {
-      return client.get(`/analytics/logs/${logId}/bottlenecks`);
+    async getBottlenecks(datasetId: string) {
+      return client.get(`/analytics/logs/${datasetId}/bottlenecks`);
     },
 
-    async getCycleTime(logId: string) {
-      return client.get(`/analytics/logs/${logId}/cycle-time`);
+    async getCycleTime(datasetId: string) {
+      return client.get(`/analytics/logs/${datasetId}/cycle-time`);
     },
 
-    async getThroughput(logId: string) {
-      return client.get(`/analytics/logs/${logId}/throughput`);
+    async getThroughput(datasetId: string) {
+      return client.get(`/analytics/logs/${datasetId}/throughput`);
     },
 
-    async getPatterns(logId: string, minSupport = 0.1) {
-      return client.get(`/analytics/logs/${logId}/patterns`, { min_support: minSupport });
+    async getPatterns(datasetId: string, minSupport = 0.1) {
+      return client.get(`/analytics/logs/${datasetId}/patterns`, { min_support: minSupport });
     },
 
-    async getProcessSummary(logId: string): Promise<ProcessSummaryData> {
+    async getProcessSummary(datasetId: string): Promise<ProcessSummaryData> {
       // Aggregate multiple analytics endpoints into a unified summary
       const [cycleTimeRes, throughputRes, bottlenecksRes, reworkRes, patternsRes] = await Promise.allSettled([
-        client.get<CycleTimeResponse>(`/analytics/logs/${logId}/cycle-time`),
-        client.get<ThroughputResponse>(`/analytics/logs/${logId}/throughput`),
-        client.get<{ bottlenecks: BottleneckResponse[] }>(`/analytics/logs/${logId}/bottlenecks`),
-        client.get<ReworkListResponse>(`/analytics/logs/${logId}/rework`),
-        client.get<PatternResponse[]>(`/analytics/logs/${logId}/patterns`, { min_support: 0.1 }),
+        client.get<CycleTimeResponse>(`/analytics/logs/${datasetId}/cycle-time`),
+        client.get<ThroughputResponse>(`/analytics/logs/${datasetId}/throughput`),
+        client.get<{ bottlenecks: BottleneckResponse[] }>(`/analytics/logs/${datasetId}/bottlenecks`),
+        client.get<ReworkListResponse>(`/analytics/logs/${datasetId}/rework`),
+        client.get<PatternResponse[]>(`/analytics/logs/${datasetId}/patterns`, { min_support: 0.1 }),
       ]);
 
       // Extract data with fallbacks for failed requests
@@ -121,7 +121,7 @@ export function createAnalyticsModule(client: ApiClient): AnalyticsModule {
       const patterns = patternsRes.status === 'fulfilled' ? patternsRes.value : [];
 
       return {
-        logId,
+        datasetId,
         cycleTime: {
           minSeconds: cycleTime?.min_seconds ?? 0,
           maxSeconds: cycleTime?.max_seconds ?? 0,

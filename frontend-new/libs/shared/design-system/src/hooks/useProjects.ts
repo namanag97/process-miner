@@ -106,8 +106,8 @@ export function useAddFileToProject() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ projectId, logId }: { projectId: string; logId: string }) =>
-      sdk.projects.addFile(projectId, logId),
+    mutationFn: ({ projectId, datasetId }: { projectId: string; datasetId: string }) =>
+      sdk.projects.addFile(projectId, datasetId),
     onSuccess: (updatedProject) => {
       // Invalidate project detail to show new file
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(updatedProject.id) });
@@ -127,8 +127,8 @@ export function useRemoveFileFromProject() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ projectId, logId }: { projectId: string; logId: string }) =>
-      sdk.projects.removeFile(projectId, logId),
+    mutationFn: ({ projectId, datasetId }: { projectId: string; datasetId: string }) =>
+      sdk.projects.removeFile(projectId, datasetId),
     onSuccess: (_, { projectId }) => {
       // Invalidate project detail
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });

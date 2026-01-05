@@ -170,33 +170,99 @@ class ObjectStorageClient:
             ObjectStorageError: If URL generation fails
             ValueError: If bucket_type is invalid
         """
+        logger.info(
+            "🔧 [STORAGE] get_presigned_upload_url called",
+            bucket_type=bucket_type,
+            key=key,
+            content_type=content_type,
+        )
+
         bucket = self._get_bucket(bucket_type)
         expires_in = expires_in or self.settings.s3_presigned_url_expiry
+
+        logger.info(
+            "🪣 [STORAGE] Bucket resolved and expiry set",
+            bucket=bucket,
+            expires_in=expires_in,
+            s3_endpoint=self.settings.s3_endpoint_url,
+            s3_region=self.settings.s3_region,
+        )
+
+        params = {
+            "Bucket": bucket,
+            "Key": key,
+            "ContentType": content_type,
+        }
+
+        logger.info(
+            "📋 [STORAGE] Generating presigned URL with params",
+            params=params,
+            http_method="PUT",
+            client_method="put_object",
+        )
 
         try:
             url = self.client.generate_presigned_url(
                 ClientMethod="put_object",
-                Params={
-                    "Bucket": bucket,
-                    "Key": key,
-                    "ContentType": content_type,
-                },
+                Params=params,
                 ExpiresIn=expires_in,
                 HttpMethod="PUT",
             )
 
             logger.info(
-                "presigned_upload_url_generated",
+                "✅ [STORAGE] Presigned upload URL generated successfully",
                 bucket=bucket,
                 key=key,
                 expires_in=expires_in,
+                url_length=len(url),
+                url_starts_with=url[:50] if url else None,
             )
 
             return url
 
-        except (BotoCoreError, ClientError) as e:
+        except BotoCoreError as e:
+            logger.error(
+                "❌ [STORAGE] BotoCoreError generating presigned URL",
+                bucket=bucket,
+                key=key,
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
+            )
             raise ObjectStorageError(
-                f"Failed to generate presigned upload URL: {e}",
+                f"Failed to generate presigned upload URL (BotoCoreError): {e}",
+                bucket=bucket,
+                key=key,
+            )
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code") if hasattr(e, "response") else "Unknown"
+            error_message = e.response.get("Error", {}).get("Message") if hasattr(e, "response") else str(e)
+            logger.error(
+                "❌ [STORAGE] ClientError generating presigned URL",
+                bucket=bucket,
+                key=key,
+                error_code=error_code,
+                error_message=error_message,
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
+            )
+            raise ObjectStorageError(
+                f"Failed to generate presigned upload URL (ClientError): {e}",
+                bucket=bucket,
+                key=key,
+            )
+        except Exception as e:
+            logger.error(
+                "❌ [STORAGE] Unexpected error generating presigned URL",
+                bucket=bucket,
+                key=key,
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
+            )
+            raise ObjectStorageError(
+                f"Failed to generate presigned upload URL (Unexpected): {e}",
                 bucket=bucket,
                 key=key,
             )

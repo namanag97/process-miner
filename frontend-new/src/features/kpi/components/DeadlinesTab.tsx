@@ -12,15 +12,15 @@ import {
 const { Text } = Typography;
 
 interface DeadlinesTabProps {
-  logId: string;
+  datasetId: string;
 }
 
 /**
  * DeadlinesTab - SLA compliance and deadline tracking
  * Shows on-time delivery rates and SLA violations
  */
-export function DeadlinesTab({ logId }: DeadlinesTabProps) {
-  const { data: deadlines, isLoading, error, refetch } = useDeadlines(logId);
+export function DeadlinesTab({ datasetId }: DeadlinesTabProps) {
+  const { data: deadlines, isLoading, error, refetch } = useDeadlines(datasetId);
 
   if (isLoading) {
     return <LoadingState type="card" rows={2} />;

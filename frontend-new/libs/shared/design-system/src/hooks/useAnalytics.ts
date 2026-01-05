@@ -9,13 +9,13 @@ import { queryKeys } from '../api/queryKeys';
 /**
  * Get performance dashboard data (cycle time, throughput, bottlenecks)
  */
-export function usePerformance(logId: string) {
+export function usePerformance(datasetId: string) {
   const sdk = useSDK();
   
   return useQuery({
-    queryKey: queryKeys.analytics.performance(logId),
-    queryFn: () => sdk.analytics.getPerformance(logId),
-    enabled: !!logId,
+    queryKey: queryKeys.analytics.performance(datasetId),
+    queryFn: () => sdk.analytics.getPerformance(datasetId),
+    enabled: !!datasetId,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -23,13 +23,13 @@ export function usePerformance(logId: string) {
 /**
  * Get rework analysis data
  */
-export function useRework(logId: string) {
+export function useRework(datasetId: string) {
   const sdk = useSDK();
   
   return useQuery({
-    queryKey: queryKeys.analytics.rework(logId),
-    queryFn: () => sdk.analytics.getRework(logId),
-    enabled: !!logId,
+    queryKey: queryKeys.analytics.rework(datasetId),
+    queryFn: () => sdk.analytics.getRework(datasetId),
+    enabled: !!datasetId,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -37,13 +37,13 @@ export function useRework(logId: string) {
 /**
  * Get bottleneck analysis
  */
-export function useBottlenecks(logId: string) {
+export function useBottlenecks(datasetId: string) {
   const sdk = useSDK();
   
   return useQuery({
-    queryKey: queryKeys.analytics.bottlenecks(logId),
-    queryFn: () => sdk.analytics.getBottlenecks(logId),
-    enabled: !!logId,
+    queryKey: queryKeys.analytics.bottlenecks(datasetId),
+    queryFn: () => sdk.analytics.getBottlenecks(datasetId),
+    enabled: !!datasetId,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -51,13 +51,13 @@ export function useBottlenecks(logId: string) {
 /**
  * Get cycle time statistics
  */
-export function useCycleTime(logId: string) {
+export function useCycleTime(datasetId: string) {
   const sdk = useSDK();
   
   return useQuery({
-    queryKey: queryKeys.analytics.cycleTime(logId),
-    queryFn: () => sdk.analytics.getCycleTime(logId),
-    enabled: !!logId,
+    queryKey: queryKeys.analytics.cycleTime(datasetId),
+    queryFn: () => sdk.analytics.getCycleTime(datasetId),
+    enabled: !!datasetId,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -65,13 +65,13 @@ export function useCycleTime(logId: string) {
 /**
  * Get throughput statistics
  */
-export function useThroughput(logId: string) {
+export function useThroughput(datasetId: string) {
   const sdk = useSDK();
   
   return useQuery({
-    queryKey: queryKeys.analytics.throughput(logId),
-    queryFn: () => sdk.analytics.getThroughput(logId),
-    enabled: !!logId,
+    queryKey: queryKeys.analytics.throughput(datasetId),
+    queryFn: () => sdk.analytics.getThroughput(datasetId),
+    enabled: !!datasetId,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -79,13 +79,13 @@ export function useThroughput(logId: string) {
 /**
  * Get pattern mining results
  */
-export function usePatterns(logId: string, minSupport?: number) {
+export function usePatterns(datasetId: string, minSupport?: number) {
   const sdk = useSDK();
   
   return useQuery({
-    queryKey: queryKeys.analytics.patterns(logId),
-    queryFn: () => sdk.analytics.getPatterns(logId, minSupport),
-    enabled: !!logId,
+    queryKey: queryKeys.analytics.patterns(datasetId),
+    queryFn: () => sdk.analytics.getPatterns(datasetId, minSupport),
+    enabled: !!datasetId,
     staleTime: 10 * 60 * 1000,
   });
 }
@@ -93,13 +93,13 @@ export function usePatterns(logId: string, minSupport?: number) {
 /**
  * Get full process summary (aggregated analytics for LLM context)
  */
-export function useProcessSummary(logId: string) {
+export function useProcessSummary(datasetId: string) {
   const sdk = useSDK();
   
   return useQuery({
-    queryKey: queryKeys.analytics.summary(logId),
-    queryFn: () => sdk.analytics.getProcessSummary(logId),
-    enabled: !!logId,
+    queryKey: queryKeys.analytics.summary(datasetId),
+    queryFn: () => sdk.analytics.getProcessSummary(datasetId),
+    enabled: !!datasetId,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -108,16 +108,16 @@ export function useProcessSummary(logId: string) {
  * Get deadline metrics (placeholder - may need backend endpoint)
  * TODO: Connect to real endpoint when available
  */
-export function useDeadlines(logId: string) {
+export function useDeadlines(datasetId: string) {
   const sdk = useSDK();
   
   return useQuery({
-    queryKey: queryKeys.analytics.deadlines(logId),
+    queryKey: queryKeys.analytics.deadlines(datasetId),
     queryFn: async () => {
       // For now, derive from throughput data
-      const throughput = await sdk.analytics.getThroughput(logId);
+      const throughput = await sdk.analytics.getThroughput(datasetId);
       return {
-        logId,
+        datasetId,
         onTimeRate: 0.85, // Placeholder
         lateRate: 0.15,
         avgDelayDays: 2.3,
@@ -125,7 +125,7 @@ export function useDeadlines(logId: string) {
         completedCases: throughput.completed_cases,
       };
     },
-    enabled: !!logId,
+    enabled: !!datasetId,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -134,16 +134,16 @@ export function useDeadlines(logId: string) {
  * Get automation metrics (placeholder - may need backend endpoint)
  * TODO: Connect to real endpoint when available
  */
-export function useAutomation(logId: string) {
+export function useAutomation(datasetId: string) {
   const sdk = useSDK();
   
   return useQuery({
-    queryKey: queryKeys.analytics.automation(logId),
+    queryKey: queryKeys.analytics.automation(datasetId),
     queryFn: async () => {
       // For now, derive from performance data
-      const performance = await sdk.analytics.getPerformance(logId);
+      const performance = await sdk.analytics.getPerformance(datasetId);
       return {
-        logId,
+        datasetId,
         automationRate: 0.42, // Placeholder
         manualActivities: 12,
         automatedActivities: 8,
@@ -151,7 +151,7 @@ export function useAutomation(logId: string) {
         cycleTimeData: performance.cycleTime,
       };
     },
-    enabled: !!logId,
+    enabled: !!datasetId,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -159,10 +159,10 @@ export function useAutomation(logId: string) {
 /**
  * Combined hook for KPI page data
  */
-export function useKPIData(logId: string) {
-  const performanceQuery = usePerformance(logId);
-  const reworkQuery = useRework(logId);
-  const bottlenecksQuery = useBottlenecks(logId);
+export function useKPIData(datasetId: string) {
+  const performanceQuery = usePerformance(datasetId);
+  const reworkQuery = useRework(datasetId);
+  const bottlenecksQuery = useBottlenecks(datasetId);
   
   return {
     performance: performanceQuery.data,

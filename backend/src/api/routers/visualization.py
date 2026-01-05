@@ -40,7 +40,7 @@ router = APIRouter(prefix="/visualization", tags=["Visualization"])
 @router.get("/{log_id}/dfg", response_model=DFGResponse)
 async def get_dfg(
     db: DBSession,
-    log_id: str,
+    dataset_id: str,
     include_performance: bool = Query(
         False, description="Include performance metrics (avg/min/max duration) for edges"
     ),
@@ -56,23 +56,23 @@ async def get_dfg(
     - min_duration_seconds: Minimum time between activities
     - max_duration_seconds: Maximum time between activities
     """
-    logger.info("get_dfg_started", log_id=log_id, include_performance=include_performance)
+    logger.info("get_dfg_started", dataset_id=dataset_id, include_performance=include_performance)
     start_time = time.perf_counter()
 
     # BUG-038 FIX: Load only Dataset metadata, not cases (mining_service uses DuckDB path)
-    query = select(Dataset).where(Dataset.id == log_id)
+    query = select(Dataset).where(Dataset.id == dataset_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
 
     if not event_log:
-        logger.warning("log_not_found", log_id=log_id)
+        logger.warning("log_not_found", dataset_id=dataset_id)
         raise HTTPException(status_code=404, detail=f"Event log not found: {log_id}")
 
     # FIX: Validate dataset is ready for visualization
     from src.models.orm import DatasetStatus
 
     if event_log.status != DatasetStatus.READY.value:
-        logger.warning("dataset_not_ready", log_id=log_id, status=event_log.status)
+        logger.warning("dataset_not_ready", dataset_id=dataset_id, status=event_log.status)
         raise HTTPException(
             status_code=409,
             detail=f"Dataset not ready (status: {event_log.status}). Complete ingestion first.",
@@ -88,7 +88,7 @@ async def get_dfg(
 
     logger.info(
         "get_dfg_completed",
-        log_id=log_id,
+        dataset_id=dataset_id,
         include_performance=include_performance,
         nodes_count=len(dfg_data["nodes"]),
         edges_count=len(dfg_data["edges"]),
@@ -230,7 +230,7 @@ async def get_model_svg(
 @router.get("/{log_id}/dfg/svg")
 async def get_dfg_svg(
     db: DBSession,
-    log_id: str,
+    dataset_id: str,
 ):
     """
     Get SVG visualization of DFG for an event log.
@@ -239,7 +239,7 @@ async def get_dfg_svg(
     """
     # BUG-060 FIX: Remove eager load of cases/events (OOM risk)
     # mining_service methods below use DuckDB path which is memory efficient
-    query = select(Dataset).where(Dataset.id == log_id)
+    query = select(Dataset).where(Dataset.id == dataset_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
 
@@ -270,7 +270,7 @@ async def get_dfg_svg(
 @router.get("/{log_id}/footprints")
 async def get_footprints(
     db: DBSession,
-    log_id: str,
+    dataset_id: str,
 ):
     """
     Get behavioral footprints for an event log.
@@ -278,7 +278,7 @@ async def get_footprints(
     Shows sequence and parallel relations between activities.
     """
     # BUG-060 FIX: Remove eager load (OOM risk)
-    query = select(Dataset).where(Dataset.id == log_id)
+    query = select(Dataset).where(Dataset.id == dataset_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
 
@@ -301,7 +301,7 @@ async def get_footprints(
 @router.get("/{log_id}/explorer-data", response_model=ProcessExplorerDataResponse)
 async def get_explorer_data(
     db: DBSession,
-    log_id: str,
+    dataset_id: str,
     include_performance: bool = Query(True, description="Include performance metrics in DFG edges"),
     include_complexity: bool = Query(True, description="Include complexity metrics in variants"),
     top_variants: int = Query(20, ge=1, le=100, description="Number of top variants to include"),
@@ -321,7 +321,7 @@ async def get_explorer_data(
 
     logger.info(
         "get_explorer_data_started",
-        log_id=log_id,
+        dataset_id=dataset_id,
         include_performance=include_performance,
         include_complexity=include_complexity,
         top_variants=top_variants,
@@ -331,19 +331,19 @@ async def get_explorer_data(
     # BUG-060 FIX: Remove eager loading of cases/events (Severe OOM risk)
     # mining_service methods below (get_dfg_data, get_variants_fast, etc.)
     # all leverage DuckDB for vectorized/streaming calculation.
-    query = select(Dataset).where(Dataset.id == log_id)
+    query = select(Dataset).where(Dataset.id == dataset_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
 
     if not event_log:
-        logger.warning("log_not_found", log_id=log_id)
+        logger.warning("log_not_found", dataset_id=dataset_id)
         raise HTTPException(status_code=404, detail=f"Event log not found: {log_id}")
 
     # FIX: Validate dataset is ready for visualization
     from src.models.orm import DatasetStatus
 
     if event_log.status != DatasetStatus.READY.value:
-        logger.warning("dataset_not_ready", log_id=log_id, status=event_log.status)
+        logger.warning("dataset_not_ready", dataset_id=dataset_id, status=event_log.status)
         raise HTTPException(
             status_code=409,
             detail=f"Dataset not ready (status: {event_log.status}). Complete ingestion first.",
@@ -364,7 +364,7 @@ async def get_explorer_data(
     )
 
     # BUG-060 FIX: Use vectorized variant computation (DuckDB) instead of ORM loop
-    variants_data = mining_service.get_variants_fast(log_id, top_n=top_variants)
+    variants_data = mining_service.get_variants_fast(dataset_id, top_n=top_variants)
 
     variants = []
     for v in variants_data.get("top_variants", []):
@@ -430,7 +430,7 @@ async def get_explorer_data(
     duration_ms = (time.perf_counter() - start_time) * 1000
     logger.info(
         "get_explorer_data_completed",
-        log_id=log_id,
+        dataset_id=dataset_id,
         nodes_count=len(dfg_response.nodes),
         edges_count=len(dfg_response.edges),
         variants_count=len(variants),
@@ -439,7 +439,7 @@ async def get_explorer_data(
     )
 
     return ProcessExplorerDataResponse(
-        dataset_id=log_id,
+        dataset_id=dataset_id,
         dfg=dfg_response,
         variants=variants,
         activities=activities,

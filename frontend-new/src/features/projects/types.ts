@@ -74,6 +74,7 @@ export interface DataSourceInfo {
 export interface CreateProjectInput {
   name: string;
   description?: string;
+  workspaceId?: string;
 }
 
 export interface UpdateProjectInput {

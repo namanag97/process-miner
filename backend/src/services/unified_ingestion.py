@@ -8,8 +8,10 @@ services, leading to inconsistent column detection and parsing.
 """
 
 import os
+import time
 from typing import Any
 
+from src.api.routers.dev_logs_stream import log_validation
 from src.core.logging_config import get_logger
 from src.services.duckdb_ingestion import duckdb_ingestion_service
 from src.services.ingestion import ingestion_service
@@ -41,31 +43,61 @@ class UnifiedIngestionService:
             dict with keys: columns, suggestions, sample_rows, row_count
             All keys use snake_case for consistency.
         """
+        start_time = time.perf_counter()
         ext = os.path.splitext(filename)[1].lower()
 
-        logger.info("unified_detect_columns", filename=filename, extension=ext)
+        logger.info("unified_detect_columns_start", filename=filename, extension=ext, size_kb=len(file_content) / 1024)
 
-        if ext == ".csv":
-            # Use DuckDB for CSV (10x faster)
-            result = self.duckdb_service.detect_columns_fast(file_content)
+        try:
+            if ext == ".csv":
+                # Use DuckDB for CSV (10x faster)
+                result = self.duckdb_service.detect_columns_fast(file_content)
 
-            # Standardize response format
-            return {
-                "columns": [c["name"] for c in result["columns"]],
-                "suggestions": self._standardize_suggestions(result["suggestions"]),
-                "sample_rows": [],  # DuckDB doesn't return sample rows yet
-                "row_count": result["row_count"],
-            }
-        # Use PM4Py for XES and other formats
-        result = self.pm4py_service.detect_columns(file_content)
+                # Standardize response format
+                response = {
+                    "columns": [c["name"] for c in result["columns"]],
+                    "suggestions": self._standardize_suggestions(result["suggestions"]),
+                    "sample_rows": [],  # DuckDB doesn't return sample rows yet
+                    "row_count": result["row_count"],
+                }
+            else:
+                # Use PM4Py for XES and other formats
+                result = self.pm4py_service.detect_columns(file_content)
 
-        # Ensure suggestions use snake_case
-        return {
-            "columns": result.get("columns", []),
-            "suggestions": self._standardize_suggestions(result.get("suggestions", {})),
-            "sample_rows": result.get("sample_rows", []),
-            "row_count": result.get("row_count", 0),
-        }
+                # Ensure suggestions use snake_case
+                response = {
+                    "columns": result.get("columns", []),
+                    "suggestions": self._standardize_suggestions(result.get("suggestions", {})),
+                    "sample_rows": result.get("sample_rows", []),
+                    "row_count": result.get("row_count", 0),
+                }
+
+            duration_ms = int((time.perf_counter() - start_time) * 1000)
+
+            # Validate detected columns
+            has_suggestions = bool(response.get("suggestions"))
+            log_validation(
+                entity=f"file_{ext.lstrip('.')}",
+                is_valid=has_suggestions,
+                errors=[] if has_suggestions else ["No column suggestions found"],
+                field_count=len(response.get("columns", [])),
+            )
+
+            logger.info(
+                "unified_detect_columns_complete",
+                filename=filename,
+                extension=ext,
+                columns_found=len(response.get("columns", [])),
+                row_count=response.get("row_count", 0),
+                duration_ms=duration_ms,
+            )
+
+            return response
+
+        except Exception as e:
+            duration_ms = int((time.perf_counter() - start_time) * 1000)
+            logger.error("unified_detect_columns_failed", filename=filename, error=str(e), duration_ms=duration_ms)
+            raise
 
     def parse(
         self,
@@ -92,53 +124,89 @@ class UnifiedIngestionService:
         Returns:
             dict with standardized keys (statistics, cases_arrow, events_arrow, etc.)
         """
+        start_time = time.perf_counter()
         ext = os.path.splitext(filename)[1].lower()
 
         logger.info(
-            "unified_parse",
+            "unified_parse_start",
             filename=filename,
             extension=ext,
+            size_kb=len(file_content) / 1024,
             case_id_col=case_id_col,
             activity_col=activity_col,
         )
 
-        if ext == ".csv":
-            # Use DuckDB for CSV (vectorized, fast)
-            return self.duckdb_service.parse_csv_fast(
-                file_content=file_content,
-                case_id_col=case_id_col,
-                activity_col=activity_col,
-                timestamp_col=timestamp_col,
-                resource_col=resource_col,
+        # Validate column mappings
+        required_cols = [case_id_col, activity_col, timestamp_col]
+        missing_cols = [c for c in required_cols if not c]
+        if missing_cols:
+            log_validation(
+                entity="column_mapping",
+                is_valid=False,
+                errors=[f"Missing required columns: {', '.join(['case_id', 'activity', 'timestamp'][i] for i, c in enumerate(required_cols) if not c)}"],
             )
-        # Use PM4Py for XES (standard library)
-        # Parse using PM4Py service and return standardized format
-        events_data = self.pm4py_service._parse_xes(file_content)
+            raise ValueError("Missing required column mappings")
 
-        # Compute statistics manually from events
-        cases = {}
-        activities = set()
-        for event in events_data:
-            case_id = event.get("case_id")
-            if case_id not in cases:
-                cases[case_id] = {"events": [], "start_time": None, "end_time": None}
-            cases[case_id]["events"].append(event)
-            activities.add(event.get("activity"))
+        log_validation(entity="column_mapping", is_valid=True, field_count=len(required_cols))
 
-        # Build statistics
-        statistics = {
-            "total_cases": len(cases),
-            "total_events": len(events_data),
-            "total_activities": len(activities),
-            "activities": list(activities),
-        }
+        try:
+            if ext == ".csv":
+                # Use DuckDB for CSV (vectorized, fast)
+                result = self.duckdb_service.parse_csv_fast(
+                    file_content=file_content,
+                    case_id_col=case_id_col,
+                    activity_col=activity_col,
+                    timestamp_col=timestamp_col,
+                    resource_col=resource_col,
+                )
+            else:
+                # Use PM4Py for XES (standard library)
+                # Parse using PM4Py service and return standardized format
+                events_data = self.pm4py_service._parse_xes(file_content)
 
-        return {
-            "statistics": statistics,
-            "events_data": events_data,  # Raw events for DB insert
-            "cases_arrow": None,  # XES doesn't use Arrow path
-            "events_arrow": None,
-        }
+                # Compute statistics manually from events
+                cases = {}
+                activities = set()
+                for event in events_data:
+                    case_id = event.get("case_id")
+                    if case_id not in cases:
+                        cases[case_id] = {"events": [], "start_time": None, "end_time": None}
+                    cases[case_id]["events"].append(event)
+                    activities.add(event.get("activity"))
+
+                # Build statistics
+                statistics = {
+                    "total_cases": len(cases),
+                    "total_events": len(events_data),
+                    "total_activities": len(activities),
+                    "activities": list(activities),
+                }
+
+                result = {
+                    "statistics": statistics,
+                    "events_data": events_data,  # Raw events for DB insert
+                    "cases_arrow": None,  # XES doesn't use Arrow path
+                    "events_arrow": None,
+                }
+
+            duration_ms = int((time.perf_counter() - start_time) * 1000)
+
+            logger.info(
+                "unified_parse_complete",
+                filename=filename,
+                extension=ext,
+                total_cases=result.get("statistics", {}).get("total_cases", 0),
+                total_events=result.get("statistics", {}).get("total_events", 0),
+                total_activities=result.get("statistics", {}).get("total_activities", 0),
+                duration_ms=duration_ms,
+            )
+
+            return result
+
+        except Exception as e:
+            duration_ms = int((time.perf_counter() - start_time) * 1000)
+            logger.error("unified_parse_failed", filename=filename, error=str(e), duration_ms=duration_ms)
+            raise
 
     def _standardize_suggestions(self, suggestions: dict[str, Any]) -> dict[str, Any]:
         """Standardize suggestion keys to use snake_case.

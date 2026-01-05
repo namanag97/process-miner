@@ -57,7 +57,7 @@ export function PredictionsPage() {
 
   const handleTrainNew = () => {
     log.debug('Opening train predictor modal');
-    form.setFieldsValue({ logId: selectedLogId });
+    form.setFieldsValue({ datasetId: selectedLogId });
     setIsModalOpen(true);
   };
 
@@ -66,12 +66,12 @@ export function PredictionsPage() {
     form.resetFields();
   };
 
-  const handleTrain = async (values: { name: string; logId: string; type: string }) => {
+  const handleTrain = async (values: { name: string; datasetId: string; type: string }) => {
     log.info('Training new predictor', values);
 
     // trainPredictor.mutate(
     //   {
-    //     logId: values.logId,
+    //     datasetId: values.datasetId,
     //     request: {
     //       targetType: values.type,
     //       // Default algorithm for now, could add to form
@@ -83,8 +83,8 @@ export function PredictionsPage() {
     //       setIsModalOpen(false);
     //       form.resetFields();
     //       // Ideally we'd switch view to the log we just trained on
-    //       if (values.logId !== selectedLogId) {
-    //         setSelectedLogId(values.logId);
+    //       if (values.datasetId !== selectedLogId) {
+    //         setSelectedLogId(values.datasetId);
     //       }
     //     }
     //   }
@@ -290,7 +290,7 @@ export function PredictionsPage() {
       >
         <Form form={form} layout="vertical" onFinish={handleTrain}>
           <Form.Item
-            name="logId"
+            name="datasetId"
             label="Event Log"
             rules={[{ required: true, message: 'Please select an event log' }]}
           >

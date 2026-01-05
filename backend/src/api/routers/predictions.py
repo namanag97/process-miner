@@ -32,19 +32,19 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/predictions", tags=["Predictions"])
 
 
-async def _get_pm4py_log(log_id: str, db: AsyncSession):
-    """Helper to get PM4Py log from log_id."""
-    query = select(Dataset).where(Dataset.id == log_id)
+async def _get_pm4py_log(dataset_id: str, db: AsyncSession):
+    """Helper to get PM4Py log from dataset_id."""
+    query = select(Dataset).where(Dataset.id == dataset_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
     if not event_log:
-        raise HTTPException(status_code=404, detail=f"Event log {log_id} not found")
+        raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
     return filtering_service.to_pm4py_log(event_log), event_log
 
 
-@router.post("/logs/{log_id}/train")
+@router.post("/datasets/{dataset_id}/train")
 async def train_predictor(
-    log_id: str,
+    dataset_id: str,
     request: TrainPredictorRequest,
     db: AsyncSession = Depends(get_db),
     async_mode: bool = True,
@@ -63,23 +63,23 @@ async def train_predictor(
     """
     logger.info(
         "training_predictor",
-        log_id=log_id,
+        dataset_id=dataset_id,
         target=request.target_type,
         algorithm=request.algorithm,
         async_mode=async_mode,
     )
 
     # Verify log exists
-    query = select(Dataset).where(Dataset.id == log_id)
+    query = select(Dataset).where(Dataset.id == dataset_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
     if not event_log:
-        raise HTTPException(status_code=404, detail=f"Event log {log_id} not found")
+        raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
 
     if async_mode:
         # Train asynchronously via Celery
         task = train_prediction_model_task.delay(
-            log_id=log_id,
+            dataset_id=dataset_id,
             target_type=request.target_type,
             algorithm=request.algorithm,
         )
@@ -92,7 +92,7 @@ async def train_predictor(
             user_id=user_id,  # BUG-046: Track job owner for security
             parameters_json=json.dumps(
                 {
-                    "log_id": log_id,
+                    "dataset_id": dataset_id,
                     "target_type": request.target_type,
                     "algorithm": request.algorithm,
                 }
@@ -101,7 +101,7 @@ async def train_predictor(
         db.add(async_job)
         await db.commit()
 
-        logger.info("async_training_started", job_id=task.id, log_id=log_id)
+        logger.info("async_training_started", job_id=task.id, dataset_id=dataset_id)
 
         return {
             "job_id": task.id,
@@ -128,7 +128,7 @@ async def train_predictor(
     metrics["activities"] = activities
 
     prediction_model = PredictionModel(
-        dataset_id=log_id,  # BUG-001 FIX
+        dataset_id=dataset_id,  # BUG-001 FIX
         target_type=request.target_type,
         algorithm=request.algorithm,
         model_binary=model_bytes,
@@ -141,7 +141,7 @@ async def train_predictor(
 
     return {
         "id": prediction_model.id,
-        "log_id": log_id,
+        "dataset_id": dataset_id,
         "target_type": request.target_type,
         "algorithm": request.algorithm,
         "metrics": metrics,
@@ -191,18 +191,18 @@ async def get_job_status(
     return task_status
 
 
-@router.get("/logs/{log_id}/predictors", response_model=PredictorListResponse)
-async def list_predictors(log_id: str, db: AsyncSession = Depends(get_db)) -> PredictorListResponse:
+@router.get("/datasets/{dataset_id}/predictors", response_model=PredictorListResponse)
+async def list_predictors(dataset_id: str, db: AsyncSession = Depends(get_db)) -> PredictorListResponse:
     """List all predictors for an event log."""
-    logger.info("listing_predictors", log_id=log_id)
+    logger.info("listing_predictors", dataset_id=dataset_id)
 
-    query = select(PredictionModel).where(PredictionModel.dataset_id == log_id)  # BUG-001 FIX
+    query = select(PredictionModel).where(PredictionModel.dataset_id == dataset_id)  # BUG-001 FIX
     result = await db.execute(query)
     predictors = result.scalars().all()
 
     items = [PredictorResponse.model_validate(p) for p in predictors]
 
-    return PredictorListResponse(dataset_id=log_id, predictors=items, total=len(items))
+    return PredictorListResponse(dataset_id=dataset_id, predictors=items, total=len(items))
 
 
 @router.get("/predictors/{predictor_id}", response_model=PredictorResponse)

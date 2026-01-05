@@ -195,7 +195,7 @@ export function mapProcessToEventLog(be: BEProcessResponse): FEEventLog {
 
 /**
  * Maps BE DFG Response to FE format
- * @param logId - Must be injected from request context
+ * @param datasetId - Must be injected from request context
  */
 export function mapDFGResponse(be: BEDFGResponse, datasetId: string): FEDFGResponse {
   return {

@@ -14,7 +14,7 @@ const KPIPage = lazy(() => import('./pages/KPIPage'));
  */
 export const kpiRouteConfig: RouteObject[] = [
   {
-    path: '/workspace/:projectId/data/:logId/kpi',
+    path: '/workspace/:projectId/data/:datasetId/kpi',
     element: <KPIPage />,
   },
 ];

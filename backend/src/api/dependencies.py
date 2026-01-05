@@ -8,6 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.routers.dev_logs_stream import log_auth_event
 from src.core.config import get_settings
 from src.core.exceptions import AuthenticationError
 from src.core.logging_config import get_logger
@@ -67,15 +68,22 @@ async def get_current_user(
 
     # If auth is disabled, return mock user for development
     if not settings.auth_enabled:
-        return await _get_mock_user(db)
+        mock_user = await _get_mock_user(db)
+        log_auth_event("mock_auth", user_id=mock_user.id, success=True, reason="Auth disabled")
+        return mock_user
 
     # Auth is enabled - require valid token
     if not credentials:
+        log_auth_event("login", success=False, reason="Missing token")
         raise AuthenticationError(
             message="Missing authentication token",
         )
 
-    token_data = decode_token(credentials.credentials)
+    try:
+        token_data = decode_token(credentials.credentials)
+    except Exception as e:
+        log_auth_event("login", success=False, reason=f"Invalid token: {str(e)}")
+        raise
 
     # Fetch user from database
     result = await db.execute(select(User).filter(User.id == token_data.sub))
@@ -83,6 +91,7 @@ async def get_current_user(
 
     if not user:
         logger.warning("user_not_found", user_id=token_data.sub)
+        log_auth_event("login", user_id=token_data.sub, success=False, reason="User not found")
         raise AuthenticationError(
             message="User not found",
         )
@@ -95,10 +104,12 @@ async def get_current_user(
             user_org=user.org_id,
             requested_org=x_org_id,
         )
+        log_auth_event("permission_check", user_id=user.id, success=False, reason="Org mismatch")
         raise AuthenticationError(
             message="Organization access denied",
         )
 
+    log_auth_event("login", user_id=user.id, success=True)
     return user
 
 
@@ -125,45 +136,68 @@ async def get_current_user_optional(
 
 
 async def _get_mock_user(db: AsyncSession) -> "User":
-    """Get or create mock user for development when auth is disabled."""
+    """Get the seeded MVP user for development when auth is disabled.
+    
+    This function returns the pre-seeded MVP user (analyst@company.local)
+    which has access to mvp-ws-001 - the workspace the frontend is hardcoded to use.
+    
+    The seeding happens in main.py's _seed_mvp_data() during application startup.
+    """
     from datetime import datetime
-    from uuid import uuid4
 
     from src.models.orm import Organization, User, Workspace, WorkspaceMember
 
-    # Try to find existing demo user
+    # First, try to find the seeded MVP user (preferred)
     result = await db.execute(
-        select(User).filter(User.email == "demo@processminer.io")
+        select(User).filter(User.email == "analyst@company.local")
     )
     user = result.scalar_one_or_none()
 
     if user:
         return user
 
-    # Create demo setup
-    org = Organization(
-        id=str(uuid4()),
-        name="Demo Organization",
-        slug="demo-org",
-        plan="free",
-        created_at=datetime.utcnow(),
+    # Fallback: If MVP user doesn't exist yet (rare edge case), create it
+    # This matches the seeding in main.py's _seed_mvp_data()
+    logger.warning("mvp_user_not_found", msg="Creating MVP user on-demand - seed may have failed")
+    
+    # Check if org exists
+    org_result = await db.execute(
+        select(Organization).filter(Organization.id == "mvp-org-001")
     )
-    db.add(org)
+    org = org_result.scalar_one_or_none()
+    
+    if not org:
+        org = Organization(
+            id="mvp-org-001",
+            name="Demo Organization",
+            slug="demo-org",
+            plan="free",
+            created_at=datetime.utcnow(),
+        )
+        db.add(org)
 
-    workspace = Workspace(
-        id=str(uuid4()),
-        org_id=org.id,
-        name="Default Workspace",
-        description="Demo workspace",
-        created_at=datetime.utcnow(),
+    # Check if workspace exists
+    ws_result = await db.execute(
+        select(Workspace).filter(Workspace.id == "mvp-ws-001")
     )
-    db.add(workspace)
+    workspace = ws_result.scalar_one_or_none()
+    
+    if not workspace:
+        workspace = Workspace(
+            id="mvp-ws-001",
+            org_id="mvp-org-001",
+            name="Default Workspace",
+            description="Your default process mining workspace",
+            created_at=datetime.utcnow(),
+        )
+        db.add(workspace)
 
+    # Create MVP user
     user = User(
-        id=str(uuid4()),
-        org_id=org.id,
-        email="demo@processminer.io",
-        name="Demo User",
+        id="mvp-user-001",
+        org_id="mvp-org-001",
+        email="analyst@company.local",
+        name="Process Analyst",
         auth_provider="local",
         role="admin",
         created_at=datetime.utcnow(),
@@ -171,10 +205,11 @@ async def _get_mock_user(db: AsyncSession) -> "User":
     )
     db.add(user)
 
+    # Add workspace membership
     membership = WorkspaceMember(
-        id=str(uuid4()),
-        workspace_id=workspace.id,
-        user_id=user.id,
+        id="mvp-member-001",
+        workspace_id="mvp-ws-001",
+        user_id="mvp-user-001",
         role="owner",
         joined_at=datetime.utcnow(),
     )

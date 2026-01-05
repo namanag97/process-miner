@@ -19,7 +19,7 @@ export const FEATURE_CONFIG = {
   name: 'KPI Dashboard',
   version: '1.0.0',
   icon: 'DashboardOutlined',
-  navPath: '/workspace/:projectId/data/:logId/kpi',
+  navPath: '/workspace/:projectId/data/:datasetId/kpi',
   navOrder: 4,
 };
 

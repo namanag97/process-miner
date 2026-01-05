@@ -35,7 +35,7 @@ export interface SimulationMetrics {
 }
 
 export interface SimulationResult {
-  logId: string;
+  datasetId: string;
   scenario: string;
   originalMetrics: SimulationMetrics;
   simulatedMetrics: SimulationMetrics;
@@ -46,7 +46,7 @@ export interface SimulationResult {
 }
 
 export interface CapacityEstimate {
-  logId: string;
+  datasetId: string;
   targetThroughput: number;
   currentThroughput: number;
   resourcesRequired: Record<string, number>;
@@ -56,20 +56,20 @@ export interface CapacityEstimate {
 
 export interface SimulationModule {
   playOut: (modelId: string, options: PlayOutOptions) => Promise<PlayOutResult>;
-  simulate: (logId: string, modifications: SimulationModification[]) => Promise<SimulationResult>;
-  estimateCapacity: (logId: string, targetThroughput: number) => Promise<CapacityEstimate>;
+  simulate: (datasetId: string, modifications: SimulationModification[]) => Promise<SimulationResult>;
+  estimateCapacity: (datasetId: string, targetThroughput: number) => Promise<CapacityEstimate>;
 }
 
 // Backend response types (snake_case)
 interface PlayOutResponse {
   model_id: string;
-  generated_log_id: string;
+  generated_dataset_id: string;
   traces_generated: number;
   events_generated: number;
 }
 
 interface SimulationResponse {
-  log_id: string;
+  dataset_id: string;
   scenario: string;
   original_metrics: {
     avg_cycle_time: number;
@@ -90,7 +90,7 @@ interface SimulationResponse {
 function transformPlayOut(be: PlayOutResponse): PlayOutResult {
   return {
     modelId: be.model_id,
-    generatedLogId: be.generated_log_id,
+    generatedLogId: be.generated_dataset_id,
     tracesGenerated: be.traces_generated,
     eventsGenerated: be.events_generated,
   };
@@ -98,7 +98,7 @@ function transformPlayOut(be: PlayOutResponse): PlayOutResult {
 
 function transformSimulationResult(be: SimulationResponse): SimulationResult {
   return {
-    logId: be.log_id,
+    datasetId: be.dataset_id,
     scenario: be.scenario,
     originalMetrics: {
       avgCycleTime: be.original_metrics.avg_cycle_time,
@@ -127,9 +127,9 @@ export function createSimulationModule(client: ApiClient): SimulationModule {
       return transformPlayOut(response);
     },
 
-    async simulate(logId: string, modifications: SimulationModification[]) {
+    async simulate(datasetId: string, modifications: SimulationModification[]) {
       const response = await client.post<SimulationResponse>(
-        `/simulation/logs/${logId}/simulate`,
+        `/simulation/logs/${datasetId}/simulate`,
         {
           modifications: modifications.map((m) => ({
             type: m.type,
@@ -142,20 +142,20 @@ export function createSimulationModule(client: ApiClient): SimulationModule {
       return transformSimulationResult(response);
     },
 
-    async estimateCapacity(logId: string, targetThroughput: number) {
+    async estimateCapacity(datasetId: string, targetThroughput: number) {
       const result = await client.post<{
-        log_id: string;
+        dataset_id: string;
         target_throughput: number;
         current_throughput: number;
         resources_required: Record<string, number>;
         bottlenecks: string[];
         recommendations: string[];
-      }>(`/simulation/logs/${logId}/capacity-plan`, {
+      }>(`/simulation/logs/${datasetId}/capacity-plan`, {
         target_throughput: targetThroughput,
       });
 
       return {
-        logId: result.log_id,
+        datasetId: result.dataset_id,
         targetThroughput: result.target_throughput,
         currentThroughput: result.current_throughput,
         resourcesRequired: result.resources_required,

@@ -1,5 +1,7 @@
 /**
  * Discovery Zod Schemas - DFG, Variants, Activities
+ * 
+ * FIXED: Standardized on dataset_id (was dataset_id)
  */
 import { z } from 'zod';
 
@@ -46,6 +48,7 @@ export type DFGResponse = z.infer<typeof DFGResponseSchema>;
 export const VariantResponseSchema = z.object({
   variant_key: z.string(),
   activity_trace: z.string(),
+  activities: z.array(z.string()).default([]), // Pre-parsed activities array
   case_count: z.number(),
   frequency_percent: z.number(),
   avg_duration_seconds: z.number().optional(),
@@ -96,7 +99,7 @@ export type ActivityListResponse = z.infer<typeof ActivityListResponseSchema>;
 
 export const DiscoveryModelResponseSchema = z.object({
   model_id: z.string(),
-  log_id: z.string(),
+  dataset_id: z.string(), // FIXED: was dataset_id
   miner_type: z.string(),
   model_name: z.string().optional(),
   created_at: z.string(),

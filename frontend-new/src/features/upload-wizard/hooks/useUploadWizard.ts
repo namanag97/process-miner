@@ -24,6 +24,13 @@ import type {
     ColumnMapping
 } from '../types';
 
+interface PresignedUploadResponse {
+    upload_url: string;
+    storage_key: string;
+    dataset_id: string;
+    expires_in: number;
+}
+
 const API_BASE = env.API_BASE_URL;
 
 // API helpers (using instrumentedFetch for DevConsole logging)
@@ -54,6 +61,32 @@ async function checkJobStatus(jobId: string): Promise<{ id: string; status: stri
     if (!res.ok) throw new Error('Failed to check job status');
     const data = await res.json();
     return { id: jobId, ...data };
+}
+
+async function getPresignedUrl(filename: string, fileSize: number, projectId: string, contentType: string = 'text/csv'): Promise<PresignedUploadResponse> {
+    const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/upload/presigned`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            filename,
+            file_size_bytes: fileSize,
+            project_id: projectId,
+            content_type: contentType
+        }),
+    });
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Failed to get upload URL');
+    }
+    return res.json();
+}
+
+async function triggerValidation(datasetId: string): Promise<{ task_id: string }> {
+    const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/${datasetId}/trigger-validation`, {
+        method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to trigger validation');
+    return res.json();
 }
 
 const STEP_ORDER: WizardStep[] = ['upload', 'sheets', 'configure', 'mapping', 'finalize'];
@@ -200,6 +233,55 @@ export function useUploadWizard(_projectId: string, initialDatasetId?: string) {
         setUploadResult,
         selectSheet,
         setMapping,
+
+        // New Presigned Upload Method
+        uploadFilePresigned: useCallback(async (file: File) => {
+            try {
+                setState(prev => ({ ...prev, isLoading: true, error: null }));
+
+                // 1. Get Presigned URL
+                const { upload_url, dataset_id } = await getPresignedUrl(
+                    file.name,
+                    file.size,
+                    _projectId,
+                    file.type || 'text/csv' // Fallback for some browsers
+                );
+
+                // 2. Upload directly to storage (PUT)
+                // Note: We don't use instrumentedFetch here to avoid adding auth headers to S3/MinIO request
+                // which would cause signature mismatch
+                const uploadRes = await fetch(upload_url, {
+                    method: 'PUT',
+                    body: file,
+                    headers: {
+                        'Content-Type': file.type || 'text/csv',
+                    },
+                });
+
+                if (!uploadRes.ok) {
+                    throw new Error('Failed to upload file to storage');
+                }
+
+                // 3. Trigger Validation
+                await triggerValidation(dataset_id);
+
+                // Update state
+                setState(prev => ({
+                    ...prev,
+                    datasetId: dataset_id,
+                    filename: file.name,
+                    fileSize: file.size,
+                    currentStep: 'sheets',
+                    isLoading: false,
+                }));
+
+                return dataset_id;
+            } catch (err: any) {
+                const msg = err.message || 'Upload failed';
+                setState(prev => ({ ...prev, error: msg, isLoading: false }));
+                throw err;
+            }
+        }, [_projectId]),
         startAnalysis,
 
         // Helpers

@@ -57,7 +57,7 @@ async def check_conformance(
     """
     logger.info(
         "conformance_check_started",
-        log_id=request.dataset_id,
+        dataset_id=request.dataset_id,
         model_id=request.model_id,
         method=str(request.method),
     )
@@ -68,14 +68,14 @@ async def check_conformance(
     event_log = log_result.scalar_one_or_none()
 
     if not event_log:
-        logger.warning("log_not_found", log_id=request.dataset_id)
+        logger.warning("log_not_found", dataset_id=request.dataset_id)
         raise HTTPException(status_code=404, detail="Event log not found")
 
     # FIX: Validate dataset is ready for conformance checking
     from src.models.orm import DatasetStatus
 
     if event_log.status != DatasetStatus.READY.value:
-        logger.warning("dataset_not_ready", log_id=request.dataset_id, status=event_log.status)
+        logger.warning("dataset_not_ready", dataset_id=request.dataset_id, status=event_log.status)
         raise HTTPException(
             status_code=409,
             detail=f"Dataset not ready (status: {event_log.status}). Complete ingestion first.",
@@ -153,7 +153,7 @@ async def check_conformance(
     except Exception as e:
         logger.error(
             "conformance_check_failed",
-            log_id=request.dataset_id,
+            dataset_id=request.dataset_id,
             model_id=request.model_id,
             error=str(e),
             exc_info=True,
@@ -166,7 +166,7 @@ async def check_conformance(
 
 @router.get("/results", response_model=ConformanceListResponse)
 async def list_conformance_results(
-    log_id: str | None = Query(None, description="Filter by event log ID"),
+    dataset_id: str | None = Query(None, description="Filter by event log ID"),
     model_id: str | None = Query(None, description="Filter by model ID"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -180,7 +180,7 @@ async def list_conformance_results(
     query = select(ConformanceResult)
 
     if log_id:
-        query = query.where(ConformanceResult.dataset_id == log_id)  # BUG-001 FIX
+        query = query.where(ConformanceResult.dataset_id == dataset_id)  # BUG-001 FIX
     if model_id:
         query = query.where(ConformanceResult.model_id == model_id)
 
@@ -281,7 +281,7 @@ async def delete_conformance_result(
 
 @router.get("/diagnostics/{log_id}/{model_id}", response_model=DiagnosticsResponse)
 async def get_conformance_diagnostics(
-    log_id: str,
+    dataset_id: str,
     model_id: str,
     session: AsyncSession = Depends(get_session),
 ):
@@ -291,7 +291,7 @@ async def get_conformance_diagnostics(
     Returns trace-level analysis including deviations.
     """
     # Get the event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
+    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     event_log = log_result.scalar_one_or_none()
 
     if not event_log:
@@ -336,7 +336,7 @@ async def get_conformance_diagnostics(
 
 @router.get("/deviations/{log_id}/{model_id}", response_model=list[DeviationResponse])
 async def get_deviations(
-    log_id: str,
+    dataset_id: str,
     model_id: str,
     threshold: float = Query(0.8, ge=0.0, le=1.0),
     session: AsyncSession = Depends(get_session),
@@ -347,7 +347,7 @@ async def get_deviations(
     Returns case-level deviation information.
     """
     # Get the event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
+    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     event_log = log_result.scalar_one_or_none()
 
     if not event_log:
@@ -388,7 +388,7 @@ async def get_deviations(
 
 @router.get("/alignments/{log_id}/{model_id}", response_model=AlignmentDiagnosticsResponse)
 async def get_alignment_diagnostics(
-    log_id: str,
+    dataset_id: str,
     model_id: str,
     max_cases: int = Query(100, ge=1, le=1000, description="Max cases to include"),
     session: AsyncSession = Depends(get_session),
@@ -406,14 +406,14 @@ async def get_alignment_diagnostics(
     """
     logger.info(
         "alignment_diagnostics_started",
-        log_id=log_id,
+        dataset_id=dataset_id,
         model_id=model_id,
         max_cases=max_cases,
     )
     start_time = time.perf_counter()
 
     # Get the event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
+    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     event_log = log_result.scalar_one_or_none()
 
     if not event_log:
@@ -439,7 +439,7 @@ async def get_alignment_diagnostics(
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info(
             "alignment_diagnostics_completed",
-            log_id=log_id,
+            dataset_id=dataset_id,
             model_id=model_id,
             total_cases=diagnostics["total_cases"],
             fitting_cases=diagnostics["fitting_cases"],
@@ -448,7 +448,7 @@ async def get_alignment_diagnostics(
         )
 
         return AlignmentDiagnosticsResponse(
-            dataset_id=log_id,
+            dataset_id=dataset_id,
             model_id=model_id,
             total_cases=diagnostics["total_cases"],
             fitting_cases=diagnostics["fitting_cases"],
@@ -459,7 +459,7 @@ async def get_alignment_diagnostics(
     except Exception as e:
         logger.error(
             "alignment_diagnostics_failed",
-            log_id=log_id,
+            dataset_id=dataset_id,
             model_id=model_id,
             error=str(e),
             exc_info=True,
@@ -493,7 +493,7 @@ async def list_conformance_methods():
 
 @router.get("/quality/{log_id}/{model_id}", response_model=QualityMetricsResponse)
 async def get_quality_metrics(
-    log_id: str,
+    dataset_id: str,
     model_id: str,
     session: AsyncSession = Depends(get_session),
 ):
@@ -511,13 +511,13 @@ async def get_quality_metrics(
     """
     logger.info(
         "quality_metrics_started",
-        log_id=log_id,
+        dataset_id=dataset_id,
         model_id=model_id,
     )
     start_time = time.perf_counter()
 
     # Get the event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
+    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     event_log = log_result.scalar_one_or_none()
 
     if not event_log:
@@ -543,7 +543,7 @@ async def get_quality_metrics(
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info(
             "quality_metrics_completed",
-            log_id=log_id,
+            dataset_id=dataset_id,
             model_id=model_id,
             fitness=metrics["fitness"],
             precision=metrics.get("precision"),
@@ -554,7 +554,7 @@ async def get_quality_metrics(
         )
 
         return QualityMetricsResponse(
-            dataset_id=log_id,
+            dataset_id=dataset_id,
             model_id=model_id,
             fitness=metrics["fitness"],
             precision=metrics.get("precision"),
@@ -566,7 +566,7 @@ async def get_quality_metrics(
     except Exception as e:
         logger.error(
             "quality_metrics_failed",
-            log_id=log_id,
+            dataset_id=dataset_id,
             model_id=model_id,
             error=str(e),
             exc_info=True,
@@ -710,7 +710,7 @@ async def import_reference_model(
 
 @router.get("/root-cause/{log_id}/{model_id}")
 async def get_root_cause_analysis(
-    log_id: str,
+    dataset_id: str,
     model_id: str,
     attributes: str = Query(
         "resource",
@@ -742,14 +742,14 @@ async def get_root_cause_analysis(
 
     logger.info(
         "root_cause_analysis_started",
-        log_id=log_id,
+        dataset_id=dataset_id,
         model_id=model_id,
         attributes=attributes,
     )
     start_time = time.perf_counter()
 
     # Get event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
+    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     event_log = log_result.scalar_one_or_none()
     if not event_log:
         raise HTTPException(status_code=404, detail="Event log not found")
@@ -775,7 +775,7 @@ async def get_root_cause_analysis(
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info(
             "root_cause_analysis_completed",
-            log_id=log_id,
+            dataset_id=dataset_id,
             model_id=model_id,
             duration_ms=round(duration_ms, 2),
         )
@@ -785,7 +785,7 @@ async def get_root_cause_analysis(
     except Exception as e:
         logger.error(
             "root_cause_analysis_failed",
-            log_id=log_id,
+            dataset_id=dataset_id,
             model_id=model_id,
             error=str(e),
             exc_info=True,
@@ -797,7 +797,7 @@ async def get_root_cause_analysis(
 
 @router.get("/deviations/by-activity/{log_id}/{model_id}")
 async def get_deviations_by_activity(
-    log_id: str,
+    dataset_id: str,
     model_id: str,
     session: AsyncSession = Depends(get_session),
 ):
@@ -808,10 +808,10 @@ async def get_deviations_by_activity(
     """
     from src.services.root_cause_analysis import root_cause_analyzer
 
-    logger.info("deviations_by_activity_started", log_id=log_id, model_id=model_id)
+    logger.info("deviations_by_activity_started", dataset_id=dataset_id, model_id=model_id)
 
     # Get event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
+    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     event_log = log_result.scalar_one_or_none()
     if not event_log:
         raise HTTPException(status_code=404, detail="Event log not found")
@@ -834,7 +834,7 @@ async def get_deviations_by_activity(
 
 @router.get("/deviations/by-position/{log_id}/{model_id}")
 async def get_deviations_by_position(
-    log_id: str,
+    dataset_id: str,
     model_id: str,
     session: AsyncSession = Depends(get_session),
 ):
@@ -845,10 +845,10 @@ async def get_deviations_by_position(
     """
     from src.services.root_cause_analysis import root_cause_analyzer
 
-    logger.info("deviations_by_position_started", log_id=log_id, model_id=model_id)
+    logger.info("deviations_by_position_started", dataset_id=dataset_id, model_id=model_id)
 
     # Get event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
+    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     event_log = log_result.scalar_one_or_none()
     if not event_log:
         raise HTTPException(status_code=404, detail="Event log not found")
@@ -871,7 +871,7 @@ async def get_deviations_by_position(
 
 @router.get("/deviations/attribute-correlation/{log_id}/{model_id}")
 async def get_attribute_correlation(
-    log_id: str,
+    dataset_id: str,
     model_id: str,
     attribute: str = Query("resource", description="Attribute to analyze (e.g., resource, department)"),
     session: AsyncSession = Depends(get_session),
@@ -886,13 +886,13 @@ async def get_attribute_correlation(
 
     logger.info(
         "attribute_correlation_started",
-        log_id=log_id,
+        dataset_id=dataset_id,
         model_id=model_id,
         attribute=attribute,
     )
 
     # Get event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
+    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     event_log = log_result.scalar_one_or_none()
     if not event_log:
         raise HTTPException(status_code=404, detail="Event log not found")

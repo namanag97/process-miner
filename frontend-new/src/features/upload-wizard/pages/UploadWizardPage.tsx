@@ -56,6 +56,7 @@ export function UploadWizardPage() {
         setUploadResult,
         setMapping,
         startAnalysis,
+        uploadFilePresigned, // New function from hook
     } = useUploadWizard(projectId!, resumeDatasetId || undefined);
 
     // Log wizard initialization
@@ -66,6 +67,8 @@ export function UploadWizardPage() {
             initialStep: currentStep,
         });
         logAction('UploadWizard', 'wizard_opened', { projectId, resumeDatasetId });
+    // This should only run once on mount to log initial wizard state
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Log step changes
@@ -76,6 +79,8 @@ export function UploadWizardPage() {
             hasMapping: !!mapping,
             jobId,
         });
+    // Only trigger when step changes; other values are for logging context only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentStep]);
 
     const handleBackToProject = () => {
@@ -122,6 +127,7 @@ export function UploadWizardPage() {
                             setUploadResult(id, name, size);
                         }}
                         isLoading={isLoading}
+                        uploadFilePresigned={uploadFilePresigned}
                     />
                 );
 

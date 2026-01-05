@@ -26,7 +26,7 @@ router = APIRouter(prefix="/business", tags=["Business Use Cases"])
 
 @router.get("/p2p/mavericks/{log_id}/{reference_model_id}")
 async def detect_p2p_mavericks(
-    log_id: str,
+    dataset_id: str,
     reference_model_id: str,
     threshold: float = Query(0.8, description="Fitness threshold (0-1)"),
     session: AsyncSession = Depends(get_session),
@@ -46,13 +46,13 @@ async def detect_p2p_mavericks(
     """
     logger.info(
         "p2p_maverick_detection_started",
-        log_id=log_id,
+        dataset_id=dataset_id,
         model_id=reference_model_id,
         threshold=threshold,
     )
 
     # Get event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
+    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     event_log = log_result.scalar_one_or_none()
     if not event_log:
         raise HTTPException(status_code=404, detail="Event log not found")
@@ -77,7 +77,7 @@ async def detect_p2p_mavericks(
 
 @router.get("/p2p/audit-report/{log_id}/{reference_model_id}")
 async def generate_p2p_audit_report(
-    log_id: str,
+    dataset_id: str,
     reference_model_id: str,
     session: AsyncSession = Depends(get_session),
 ):
@@ -99,13 +99,13 @@ async def generate_p2p_audit_report(
     """
     logger.info(
         "p2p_audit_report_started",
-        log_id=log_id,
+        dataset_id=dataset_id,
         model_id=reference_model_id,
     )
     start_time = time.perf_counter()
 
     # Get event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
+    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     event_log = log_result.scalar_one_or_none()
     if not event_log:
         raise HTTPException(status_code=404, detail="Event log not found")
@@ -143,7 +143,7 @@ async def generate_p2p_audit_report(
 
 @router.get("/o2c/split-log/{log_id}")
 async def split_log_by_attribute(
-    log_id: str,
+    dataset_id: str,
     attribute: str = Query(..., description="Attribute to split on (e.g., region, product)"),
     value: str = Query(..., description="Value to filter for"),
     session: AsyncSession = Depends(get_session),
@@ -161,10 +161,10 @@ async def split_log_by_attribute(
     Returns:
         Statistics about filtered subset
     """
-    logger.info("log_split_started", log_id=log_id, attribute=attribute, value=value)
+    logger.info("log_split_started", dataset_id=dataset_id, attribute=attribute, value=value)
 
     # Get event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
+    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     event_log = log_result.scalar_one_or_none()
     if not event_log:
         raise HTTPException(status_code=404, detail="Event log not found")
@@ -206,12 +206,12 @@ async def compare_process_variants(
     )
 
     # Get both event logs
-    log1_result = await session.execute(select(Dataset).where(Dataset.id == log_id1))
+    log1_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id1))
     event_log1 = log1_result.scalar_one_or_none()
     if not event_log1:
         raise HTTPException(status_code=404, detail=f"Event log {log_id1} not found")
 
-    log2_result = await session.execute(select(Dataset).where(Dataset.id == log_id2))
+    log2_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id2))
     event_log2 = log2_result.scalar_one_or_none()
     if not event_log2:
         raise HTTPException(status_code=404, detail=f"Event log {log_id2} not found")
@@ -235,7 +235,7 @@ async def compare_process_variants(
 
 @router.post("/supply-chain/simulate/{log_id}")
 async def simulate_process_changes(
-    log_id: str,
+    dataset_id: str,
     activity_duration_reduction: float = Query(
         0, description="Activity duration reduction (0-1, e.g., 0.2 for 20% faster)"
     ),
@@ -261,13 +261,13 @@ async def simulate_process_changes(
     """
     logger.info(
         "simulation_started",
-        log_id=log_id,
+        dataset_id=dataset_id,
         activity_duration_reduction=activity_duration_reduction,
         capacity_increase=capacity_increase,
     )
 
     # Get event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
+    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     event_log = log_result.scalar_one_or_none()
     if not event_log:
         raise HTTPException(status_code=404, detail="Event log not found")
@@ -296,7 +296,7 @@ async def simulate_process_changes(
 
 @router.get("/customer-journey/dropoffs/{log_id}")
 async def detect_journey_dropoffs(
-    log_id: str,
+    dataset_id: str,
     expected_path: str | None = Query(
         None,
         description="Expected journey path (comma-separated activities). If None, uses most common path.",
@@ -315,10 +315,10 @@ async def detect_journey_dropoffs(
     Returns:
         Drop-off analysis by stage with completion rates
     """
-    logger.info("journey_dropoff_detection_started", log_id=log_id)
+    logger.info("journey_dropoff_detection_started", dataset_id=dataset_id)
 
     # Get event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == log_id))
+    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     event_log = log_result.scalar_one_or_none()
     if not event_log:
         raise HTTPException(status_code=404, detail="Event log not found")

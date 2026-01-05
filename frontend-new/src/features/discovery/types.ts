@@ -77,7 +77,7 @@ export type ModelFormat =
     | 'batches';
 
 export interface DiscoveryRequest {
-    logId: string;
+    datasetId: string;
     minerType: MinerType;
     modelName?: string;
     parameters?: Record<string, unknown>;

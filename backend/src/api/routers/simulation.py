@@ -71,7 +71,7 @@ async def play_out_model(
     cases = []
     for trace in pm4py_log:
         case_id = trace.attributes.get("concept:name", f"case_{hash(str(trace))}")
-        case = ProcessCase(log_id=new_log.id, case_id=case_id)
+        case = ProcessCase(dataset_id=new_log.id, case_id=case_id)
         cases.append(case)
 
     db.add_all(cases)
@@ -99,27 +99,27 @@ async def play_out_model(
     )
 
 
-@router.post("/logs/{log_id}/simulate", response_model=SimulationResponse)
+@router.post("/datasets/{dataset_id}/simulate", response_model=SimulationResponse)
 async def simulate_scenario(
-    log_id: str,
+    dataset_id: str,
     request: SimulationRequest,
     db: AsyncSession = Depends(get_db),
 ) -> SimulationResponse:
     """Run what-if simulation on an event log."""
-    logger.info("simulating_scenario", log_id=log_id, modifications=len(request.modifications))
+    logger.info("simulating_scenario", dataset_id=dataset_id, modifications=len(request.modifications))
 
-    query = select(Dataset).where(Dataset.id == log_id)
+    query = select(Dataset).where(Dataset.id == dataset_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
 
     if not event_log:
-        raise HTTPException(status_code=404, detail=f"Event log {log_id} not found")
+        raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
 
     pm4py_log = filtering_service.to_pm4py_log(event_log)
     simulation_result = simulation_service.simulate_scenario(pm4py_log, request.modifications)
 
     return SimulationResponse(
-        dataset_id=log_id,
+        dataset_id=dataset_id,
         scenario=simulation_result["scenario"],
         original_metrics=simulation_result["original_metrics"],
         simulated_metrics=simulation_result["simulated_metrics"],
@@ -127,23 +127,23 @@ async def simulate_scenario(
     )
 
 
-@router.post("/logs/{log_id}/capacity-plan")
+@router.post("/datasets/{dataset_id}/capacity-plan")
 async def estimate_capacity(
-    log_id: str,
+    dataset_id: str,
     target_throughput: float,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Estimate resource requirements for target throughput."""
-    logger.info("estimating_capacity", log_id=log_id, target_throughput=target_throughput)
+    logger.info("estimating_capacity", dataset_id=dataset_id, target_throughput=target_throughput)
 
-    query = select(Dataset).where(Dataset.id == log_id)
+    query = select(Dataset).where(Dataset.id == dataset_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
 
     if not event_log:
-        raise HTTPException(status_code=404, detail=f"Event log {log_id} not found")
+        raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
 
     pm4py_log = filtering_service.to_pm4py_log(event_log)
     capacity_result = simulation_service.estimate_capacity(pm4py_log, target_throughput)
 
-    return {"log_id": log_id, **capacity_result}
+    return {"dataset_id": dataset_id, **capacity_result}

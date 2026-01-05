@@ -1,565 +1,588 @@
-import { useState, useEffect } from 'react';
-import { Tabs, Card, Row, Col, Button, Typography, Space, Alert, Input, message, Divider, Collapse, Select, Descriptions, Table, Progress, Tag, Switch } from 'antd';
+/**
+ * AnalysisShowcasePage - On-Demand Process Mining Analysis
+ * 
+ * Key features:
+ * - Each analysis runs on-demand when user clicks "Run Analysis"
+ * - Single shared Cytoscape graph for all graph-based analyses
+ * - Highlights what's unique about each analysis type
+ * - Calls real backend APIs
+ */
+
+import { useState, useCallback } from 'react';
+import { Tabs, Typography, Space, Alert, Card, Row, Col, Button, Spin, Empty, Tag, Tooltip } from 'antd';
 import {
-  FolderOutlined,
-  InboxOutlined,
-  ThunderboltOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  LoadingOutlined,
-  PlayCircleOutlined,
-  DeleteOutlined,
+  SearchOutlined,
+  BranchesOutlined,
   BarChartOutlined,
+  ThunderboltOutlined,
   TeamOutlined,
+  CheckCircleOutlined,
+  FileTextOutlined as _FileTextOutlined,
   ExperimentOutlined,
-  NodeIndexOutlined,
-  ClockCircleOutlined,
+  PlayCircleOutlined,
+  InfoCircleOutlined,
   ReloadOutlined,
-  ApiOutlined,
 } from '@ant-design/icons';
-import {
-  PageHeader,
-  MetricCard,
-  EmptyState,
-  SkeletonCard,
-  useSDK,
-  tokens,
-} from '@lumina/design-system';
+import { PageHeader, useSDK, tokens } from '@lumina/design-system';
+import { CytoscapeCanvas, type ProcessGraphData } from '../../explorer/components/CytoscapeCanvas';
 
-const { Title, Text, Paragraph } = Typography;
-const { Panel } = Collapse;
+const { Text } = Typography;
 
-type RequestStatus = 'idle' | 'loading' | 'success' | 'error';
+// =============================================================================
+// Types
+// =============================================================================
 
-interface ApiTestResult {
-  status: RequestStatus;
+type AnalysisCategory = 'Discovery' | 'Variants' | 'Statistics' | 'Performance' | 'Organizational' | 'Conformance';
+
+interface AnalysisType {
+  id: string;
+  name: string;
+  category: AnalysisCategory;
+  description: string;
+  uniqueFeature: string; // What makes this analysis unique
+  resultType: 'graph' | 'table' | 'metrics' | 'json';
+  apiMethod: string;
+  requiresModel?: boolean;
+}
+
+interface AnalysisState {
+  status: 'idle' | 'loading' | 'success' | 'error';
   data?: unknown;
   error?: string;
   duration?: number;
 }
 
+// =============================================================================
+// Analysis Definitions - What makes each unique
+// =============================================================================
+
+const ANALYSIS_TYPES: AnalysisType[] = [
+  // Discovery
+  {
+    id: 'dfg',
+    name: 'Directly-Follows Graph',
+    category: 'Discovery',
+    description: 'Shows direct transitions between activities',
+    uniqueFeature: '📊 Frequency-based: Edge thickness = transition count',
+    resultType: 'graph',
+    apiMethod: 'discovery.buildDFG',
+  },
+  {
+    id: 'alpha',
+    name: 'Alpha Miner',
+    category: 'Discovery',
+    description: 'Classic Petri net discovery algorithm',
+    uniqueFeature: '🔬 Formal: Guarantees footprint-related correctness',
+    resultType: 'graph',
+    apiMethod: 'discovery.discover',
+  },
+  {
+    id: 'inductive',
+    name: 'Inductive Miner',
+    category: 'Discovery',
+    description: 'Block-structured process tree discovery',
+    uniqueFeature: '✅ Sound: Guarantees deadlock-free, terminating models',
+    resultType: 'graph',
+    apiMethod: 'discovery.discover',
+  },
+  {
+    id: 'heuristic',
+    name: 'Heuristics Miner',
+    category: 'Discovery',
+    description: 'Handles noisy and incomplete logs',
+    uniqueFeature: '🔇 Noise-tolerant: Statistical thresholds filter outliers',
+    resultType: 'graph',
+    apiMethod: 'discovery.discover',
+  },
+
+  // Variants
+  {
+    id: 'variants',
+    name: 'Process Variants',
+    category: 'Variants',
+    description: 'Unique execution paths through the process',
+    uniqueFeature: '🔀 Coverage analysis: See which paths are most/least common',
+    resultType: 'table',
+    apiMethod: 'discovery.getVariants',
+  },
+
+  // Statistics  
+  {
+    id: 'statistics',
+    name: 'Basic Statistics',
+    category: 'Statistics',
+    description: 'Key process metrics and distributions',
+    uniqueFeature: '📈 Overview: Cases, events, activities, durations at a glance',
+    resultType: 'metrics',
+    apiMethod: 'processes.analyze',
+  },
+
+  // Performance
+  {
+    id: 'bottlenecks',
+    name: 'Bottleneck Analysis',
+    category: 'Performance',
+    description: 'Identify activities causing delays',
+    uniqueFeature: '⏱️ Time-based: Ranks activities by waiting time impact',
+    resultType: 'table',
+    apiMethod: 'analytics.getBottlenecks',
+  },
+
+  // Organizational
+  {
+    id: 'handover',
+    name: 'Handover of Work',
+    category: 'Organizational',
+    description: 'Work handover patterns between resources',
+    uniqueFeature: '👥 Social network: Who passes work to whom',
+    resultType: 'graph',
+    apiMethod: 'organizational.getHandoverNetwork',
+  },
+  {
+    id: 'resource_util',
+    name: 'Resource Utilization',
+    category: 'Organizational',
+    description: 'Workload distribution across resources',
+    uniqueFeature: '📊 Workload: Events per resource, activity assignments',
+    resultType: 'table',
+    apiMethod: 'organizational.getWorkload',
+  },
+
+  // Conformance
+  {
+    id: 'token_replay',
+    name: 'Token Replay',
+    category: 'Conformance',
+    description: 'Check conformance using token-based replay',
+    uniqueFeature: '🎯 Fitness: How well does the log fit the model',
+    resultType: 'metrics',
+    apiMethod: 'conformance.check',
+    requiresModel: true,
+  },
+];
+
+const CATEGORY_ORDER: AnalysisCategory[] = ['Discovery', 'Variants', 'Statistics', 'Performance', 'Organizational', 'Conformance'];
+
+const CATEGORY_ICONS: Record<AnalysisCategory, React.ReactNode> = {
+  Discovery: <SearchOutlined />,
+  Variants: <BranchesOutlined />,
+  Statistics: <BarChartOutlined />,
+  Performance: <ThunderboltOutlined />,
+  Organizational: <TeamOutlined />,
+  Conformance: <CheckCircleOutlined />,
+};
+
+const CATEGORY_COLORS: Record<AnalysisCategory, string> = {
+  Discovery: 'blue',
+  Variants: 'purple',
+  Statistics: 'cyan',
+  Performance: 'orange',
+  Organizational: 'green',
+  Conformance: 'gold',
+};
+
+// =============================================================================
+// Components
+// =============================================================================
+
 /**
- * TestBenchPage - Comprehensive testing environment for FE components and BE API endpoints
- * 
- * Features:
- * - All design-system components with various states
- * - All SDK API endpoints with interactive testing
- * - Real-time response display with timing
+ * Single shared graph visualization panel
  */
+function SharedGraphPanel({ data, title }: { data: ProcessGraphData | null; title: string }) {
+  if (!data) {
+    return (
+      <Card style={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Empty description="Run an analysis to see results" />
+      </Card>
+    );
+  }
+
+  return (
+    <Card
+      title={<Space><SearchOutlined /> {title}</Space>}
+      size="small"
+      style={{ height: 400 }}
+      bodyStyle={{ height: 'calc(100% - 40px)', padding: 0 }}
+    >
+      <CytoscapeCanvas data={data} layout="dagre" showLabels colorByFrequency />
+    </Card>
+  );
+}
+
+/**
+ * Analysis Card with Run button
+ */
+function AnalysisTypeCard({
+  analysis,
+  state,
+  onRun,
+  datasetId,
+}: {
+  analysis: AnalysisType;
+  state: AnalysisState;
+  onRun: () => void;
+  datasetId: string | null;
+}) {
+  const isDisabled = !datasetId || (analysis.requiresModel && !datasetId);
+  const isLoading = state.status === 'loading';
+
+  return (
+    <Card
+      size="small"
+      style={{ marginBottom: 12 }}
+      bodyStyle={{ padding: 12 }}
+    >
+      <Row justify="space-between" align="middle">
+        <Col flex="auto">
+          <Space direction="vertical" size={4} style={{ width: '100%' }}>
+            <Space>
+              <Text strong>{analysis.name}</Text>
+              <Tag color={CATEGORY_COLORS[analysis.category]}>{analysis.category}</Tag>
+              {state.status === 'success' && (
+                <Tag color="success" icon={<CheckCircleOutlined />}>
+                  {state.duration}ms
+                </Tag>
+              )}
+              {state.status === 'error' && (
+                <Tag color="error">Failed</Tag>
+              )}
+            </Space>
+            <Text type="secondary" style={{ fontSize: 12 }}>{analysis.description}</Text>
+            <Tooltip title="What makes this analysis unique">
+              <Text style={{ fontSize: 11, color: tokens.colors.primary[500] }}>
+                <InfoCircleOutlined style={{ marginRight: 4 }} />
+                {analysis.uniqueFeature}
+              </Text>
+            </Tooltip>
+          </Space>
+        </Col>
+        <Col>
+          <Button
+            type={state.status === 'success' ? 'default' : 'primary'}
+            icon={state.status === 'success' ? <ReloadOutlined /> : <PlayCircleOutlined />}
+            loading={isLoading}
+            disabled={isDisabled}
+            onClick={onRun}
+          >
+            {state.status === 'success' ? 'Rerun' : 'Run'}
+          </Button>
+        </Col>
+      </Row>
+
+      {state.status === 'error' && (
+        <Alert
+          message={state.error}
+          type="error"
+          showIcon
+          style={{ marginTop: 8 }}
+          closable
+        />
+      )}
+    </Card>
+  );
+}
+
+/**
+ * Results Panel - Shows results based on type
+ */
+function ResultsPanel({
+  analysis,
+  state
+}: {
+  analysis: AnalysisType | null;
+  state: AnalysisState;
+}) {
+  if (!analysis || state.status === 'idle') {
+    return (
+      <Card style={{ minHeight: 300 }}>
+        <Empty description="Select and run an analysis to see results" />
+      </Card>
+    );
+  }
+
+  if (state.status === 'loading') {
+    return (
+      <Card style={{ minHeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Spin size="large" tip={`Running ${analysis.name}...`} />
+      </Card>
+    );
+  }
+
+  if (state.status === 'error') {
+    return (
+      <Card style={{ minHeight: 300 }}>
+        <Empty description={`Failed to run ${analysis.name}`} />
+      </Card>
+    );
+  }
+
+  // Render based on result type
+  if (analysis.resultType === 'graph' && state.data) {
+    return <SharedGraphPanel data={state.data as ProcessGraphData} title={analysis.name} />;
+  }
+
+  // For other types, show JSON for now
+  return (
+    <Card title={analysis.name} size="small">
+      <pre style={{
+        background: '#f5f5f5',
+        padding: 12,
+        borderRadius: 8,
+        maxHeight: 400,
+        overflow: 'auto',
+        fontSize: 11,
+      }}>
+        {JSON.stringify(state.data, null, 2)}
+      </pre>
+    </Card>
+  );
+}
+
+// =============================================================================
+// Main Page
+// =============================================================================
+
 export function TestBenchPage() {
   const sdk = useSDK();
-  const [activeTab, setActiveTab] = useState('components');
-  const [logIdInput, setLogIdInput] = useState('');
-  const [modelIdInput, setModelIdInput] = useState('');
-  const [predictorIdInput, setPredictorIdInput] = useState('');
-  const [resourceInput, setResourceInput] = useState('');
-  const [apiResults, setApiResults] = useState<Record<string, ApiTestResult>>({});
-  const [logs, setLogs] = useState<Array<{ id: string; name: string }>>([]);
-  const [expandResults, setExpandResults] = useState(true);
+  const [activeCategory, setActiveCategory] = useState<AnalysisCategory>('Discovery');
+  const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(null);
+  const [datasets, setDatasets] = useState<Array<{ id: string; name: string }>>([]);
+  const [analysisStates, setAnalysisStates] = useState<Record<string, AnalysisState>>({});
+  const [lastRunAnalysis, setLastRunAnalysis] = useState<AnalysisType | null>(null);
 
-  // Fetch logs on mount for selector
-  useEffect(() => {
+  // Load datasets on mount
+  useState(() => {
     sdk.processes.list({ pageSize: 20 }).then(res => {
-      setLogs(res.items.map(i => ({ id: i.id, name: i.name })));
-      if (res.items.length > 0 && !logIdInput) {
-        setLogIdInput(res.items[0].id);
+      const items = res.items.map(i => ({ id: i.id, name: i.name }));
+      setDatasets(items);
+      if (items.length > 0) {
+        setSelectedDatasetId(items[0].id);
       }
-    }).catch(() => { /* Ignore initial load errors */ });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- Only run on mount
-  }, []);
+    }).catch(() => { });
+  });
 
-  // Helper to run API tests
-  const runApiTest = async (key: string, apiFn: () => Promise<unknown>) => {
-    setApiResults((prev) => ({ ...prev, [key]: { status: 'loading' } }));
+  // Run an analysis
+  const runAnalysis = useCallback(async (analysis: AnalysisType) => {
+    if (!selectedDatasetId) return;
+
+    setAnalysisStates(prev => ({
+      ...prev,
+      [analysis.id]: { status: 'loading' },
+    }));
+    setLastRunAnalysis(analysis);
+
     const startTime = Date.now();
+
     try {
-      const data = await apiFn();
-      setApiResults((prev) => ({
+      let data: unknown;
+
+      // Call appropriate API based on analysis type
+      switch (analysis.id) {
+        case 'dfg':
+          data = await sdk.discovery.buildDFG(selectedDatasetId);
+          // Transform to graph format
+          data = transformToGraphData(data);
+          break;
+        case 'variants':
+          data = await sdk.discovery.getVariants(selectedDatasetId, { topN: 20 });
+          break;
+        case 'statistics':
+          data = await sdk.processes.analyze(selectedDatasetId);
+          break;
+        case 'bottlenecks':
+          data = await sdk.analytics.getBottlenecks(selectedDatasetId);
+          break;
+        case 'handover':
+          data = await sdk.organizational.getHandoverNetwork(selectedDatasetId);
+          data = transformToGraphData(data);
+          break;
+        case 'resource_util':
+          data = await sdk.organizational.getWorkload(selectedDatasetId);
+          break;
+        case 'alpha':
+        case 'inductive':
+        case 'heuristic':
+          // These return a model ID, then we'd need to visualize
+          const result = await sdk.discovery.discover({
+            datasetId: selectedDatasetId,
+            minerType: analysis.id === 'heuristic' ? 'heuristics' : analysis.id,
+          });
+          data = { modelId: result.modelId, message: `Model created: ${result.modelId}` };
+          break;
+        default:
+          throw new Error(`Unknown analysis type: ${analysis.id}`);
+      }
+
+      setAnalysisStates(prev => ({
         ...prev,
-        [key]: { status: 'success', data, duration: Date.now() - startTime },
+        [analysis.id]: {
+          status: 'success',
+          data,
+          duration: Date.now() - startTime,
+        },
       }));
-      message.success(`${key} — ${Date.now() - startTime}ms`);
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setApiResults((prev) => ({
+    } catch (err) {
+      setAnalysisStates(prev => ({
         ...prev,
-        [key]: { status: 'error', error: errorMessage, duration: Date.now() - startTime },
+        [analysis.id]: {
+          status: 'error',
+          error: err instanceof Error ? err.message : 'Unknown error',
+          duration: Date.now() - startTime,
+        },
       }));
-      message.error(`${key} failed`);
     }
-  };
+  }, [sdk, selectedDatasetId]);
 
-  const getStatusIcon = (status: RequestStatus) => {
-    switch (status) {
-      case 'loading':
-        return <LoadingOutlined spin style={{ color: '#1890ff' }} />;
-      case 'success':
-        return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
-      case 'error':
-        return <CloseCircleOutlined style={{ color: '#ff4d4f' }} />;
-      default:
-        return <ApiOutlined style={{ color: '#d9d9d9' }} />;
-    }
-  };
-
-  const renderResult = (key: string) => {
-    const result = apiResults[key];
-    if (!result || result.status === 'idle') return null;
-
-    const renderData = () => {
-      if (result.status !== 'success' || result.data === undefined) return null;
-      if (!expandResults) return <Text type="secondary">Result hidden. Toggle to show.</Text>;
-      return (
-        <pre
-          style={{
-            background: '#f5f5f5',
-            padding: 12,
-            borderRadius: 8,
-            marginTop: 8,
-            maxHeight: 250,
-            overflow: 'auto',
-            fontSize: 11,
-          }}
-        >
-          {JSON.stringify(result.data, null, 2)}
-        </pre>
-      );
-    };
-
-    return (
-      <div style={{ marginTop: 8 }}>
+  const tabItems = CATEGORY_ORDER.map(category => {
+    const analyses = ANALYSIS_TYPES.filter(a => a.category === category);
+    return {
+      key: category,
+      label: (
         <Space>
-          {getStatusIcon(result.status)}
-          {result.duration && <Tag>{result.duration}ms</Tag>}
+          {CATEGORY_ICONS[category]}
+          <span>{category}</span>
+          <Text type="secondary" style={{ fontSize: 12 }}>({analyses.length})</Text>
         </Space>
-        {renderData()}
-        {result.status === 'error' && result.error && (
-          <Alert message={result.error} type="error" style={{ marginTop: 8 }} showIcon />
-        )}
-      </div>
-    );
-  };
-
-  // === COMPONENTS TAB ===
-  const componentsTab = (
-    <div>
-      <Title level={4}>Design System Components</Title>
-      <Paragraph type="secondary">
-        Interactive showcase of all reusable UI components with various states.
-      </Paragraph>
-
-      {/* MetricCard Section */}
-      <Divider orientation="left">MetricCard (6 variants)</Divider>
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} md={6}>
-          <MetricCard title="Default" value="1,234" suffix="items" />
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <MetricCard
-            title="Success + Trend Up"
-            value="89.5"
-            suffix="%"
-            status="success"
-            trend={{ value: 12.5, isPositive: true, label: 'vs last month' }}
-          />
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <MetricCard
-            title="Warning + Trend Down"
-            value="3.2"
-            suffix="hrs"
-            status="warning"
-            trend={{ value: 5.3, isPositive: false }}
-          />
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <MetricCard
-            title="Error Status"
-            value="15"
-            status="error"
-            trend={{ value: 28, isPositive: false, label: 'critical' }}
-          />
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <MetricCard title="Loading State" value="—" loading />
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <MetricCard
-            title="Clickable"
-            value="Click Me!"
-            onClick={() => message.info('MetricCard clicked!')}
-          />
-        </Col>
-      </Row>
-
-      {/* EmptyState Section */}
-      <Divider orientation="left">EmptyState</Divider>
-      <Card>
-        <EmptyState
-          icon={<InboxOutlined />}
-          title="No Data Found"
-          description="Upload your first event log to start exploring process insights."
-          actionLabel="Upload File"
-          onAction={() => message.info('Upload action triggered!')}
-        />
-      </Card>
-
-      {/* PageHeader Section */}
-      <Divider orientation="left">PageHeader</Divider>
-      <Card>
-        <PageHeader
-          title="Sample Page Title"
-          description="This is a sample page header with breadcrumb and actions."
-          breadcrumb={[
-            { label: 'Home', onClick: () => message.info('Home clicked') },
-            { label: 'Section', onClick: () => message.info('Section clicked') },
-            { label: 'Current Page' },
-          ]}
-          showBack
-          onBack={() => message.info('Back clicked!')}
-          actions={
-            <Space>
-              <Button>Secondary</Button>
-              <Button type="primary">Primary</Button>
-            </Space>
-          }
-        />
-      </Card>
-
-      {/* SkeletonCard Section */}
-      <Divider orientation="left">SkeletonCard (3 variants)</Divider>
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} md={8}>
-          <SkeletonCard lines={2} />
-        </Col>
-        <Col xs={24} sm={12} md={8}>
-          <SkeletonCard lines={4} avatar />
-        </Col>
-        <Col xs={24} sm={12} md={8}>
-          <SkeletonCard lines={3} height={180} />
-        </Col>
-      </Row>
-
-      {/* Tables Section */}
-      <Divider orientation="left">Ant Design Table</Divider>
-      <Card>
-        <Table
-          dataSource={[
-            { key: '1', activity: 'Order Received', frequency: 1250, avgDuration: '2.5 hrs' },
-            { key: '2', activity: 'Processing', frequency: 1180, avgDuration: '4.2 hrs' },
-            { key: '3', activity: 'Quality Check', frequency: 980, avgDuration: '1.8 hrs' },
-          ]}
-          columns={[
-            { title: 'Activity', dataIndex: 'activity', key: 'activity' },
-            { title: 'Frequency', dataIndex: 'frequency', key: 'frequency', render: (v: number) => <Tag color="blue">{v}</Tag> },
-            { title: 'Avg Duration', dataIndex: 'avgDuration', key: 'avgDuration' },
-          ]}
-          pagination={false}
-          size="small"
-        />
-      </Card>
-
-      {/* Progress Indicators */}
-      <Divider orientation="left">Progress Indicators</Divider>
-      <Card>
-        <Space direction="vertical" style={{ width: '100%' }} size={16}>
-          <div>
-            <Text>Linear Progress</Text>
-            <Progress percent={75} status="active" />
-          </div>
-          <Row gutter={24}>
-            <Col span={8}>
-              <Progress type="circle" percent={87} strokeColor={tokens.colors.success[500]} />
-              <Text style={{ display: 'block', textAlign: 'center', marginTop: 8 }}>Fitness</Text>
-            </Col>
-            <Col span={8}>
-              <Progress type="circle" percent={92} strokeColor={tokens.colors.primary[500]} />
-              <Text style={{ display: 'block', textAlign: 'center', marginTop: 8 }}>Precision</Text>
-            </Col>
-            <Col span={8}>
-              <Progress type="circle" percent={78} strokeColor={tokens.colors.warning[500]} />
-              <Text style={{ display: 'block', textAlign: 'center', marginTop: 8 }}>Generalization</Text>
-            </Col>
-          </Row>
-        </Space>
-      </Card>
-
-      {/* Tags & Badges */}
-      <Divider orientation="left">Tags & Status Indicators</Divider>
-      <Card>
-        <Space wrap size={12}>
-          <Tag color="success">Completed</Tag>
-          <Tag color="processing">In Progress</Tag>
-          <Tag color="warning">Pending</Tag>
-          <Tag color="error">Failed</Tag>
-          <Tag color="default">Default</Tag>
-          <Tag icon={<CheckCircleOutlined />} color="success">Conformant</Tag>
-          <Tag icon={<CloseCircleOutlined />} color="error">Deviation</Tag>
-        </Space>
-      </Card>
-    </div>
-  );
-
-  // === API ENDPOINTS TAB ===
-  const apiEndpointsTab = (
-    <div>
-      <Title level={4}>API Endpoint Tester</Title>
-      <Paragraph type="secondary">
-        Test all {8} SDK modules against the live backend. Select a log to use for endpoint testing.
-      </Paragraph>
-
-      {/* Configuration Card */}
-      <Card style={{ marginBottom: 16 }}>
-        <Row gutter={16}>
-          <Col xs={24} md={8}>
-            <Text strong>Log ID:</Text>
-            <Select
-              style={{ width: '100%', marginTop: 4 }}
-              placeholder="Select a log"
-              value={logIdInput || undefined}
-              onChange={setLogIdInput}
-              options={logs.map(l => ({ value: l.id, label: `${l.name} (${l.id.slice(0, 8)}...)` }))}
-              notFoundContent="No logs found. Run List Processes first."
-            />
+      ),
+      children: (
+        <Row gutter={24}>
+          {/* Left: Analysis list */}
+          <Col xs={24} lg={10}>
+            {analyses.map(analysis => (
+              <AnalysisTypeCard
+                key={analysis.id}
+                analysis={analysis}
+                state={analysisStates[analysis.id] || { status: 'idle' }}
+                datasetId={selectedDatasetId}
+                onRun={() => runAnalysis(analysis)}
+              />
+            ))}
           </Col>
-          <Col xs={24} md={8}>
-            <Text strong>Model ID (for conformance/sim):</Text>
-            <Input
-              style={{ marginTop: 4 }}
-              placeholder="Model ID"
-              value={modelIdInput}
-              onChange={(e) => setModelIdInput(e.target.value)}
-            />
-          </Col>
-          <Col xs={24} md={8}>
-            <Text strong>Predictor ID:</Text>
-            <Input
-              style={{ marginTop: 4 }}
-              placeholder="Predictor ID"
-              value={predictorIdInput}
-              onChange={(e) => setPredictorIdInput(e.target.value)}
+
+          {/* Right: Results panel */}
+          <Col xs={24} lg={14}>
+            <ResultsPanel
+              analysis={lastRunAnalysis?.category === category ? lastRunAnalysis : null}
+              state={lastRunAnalysis?.category === category ? (analysisStates[lastRunAnalysis.id] || { status: 'idle' }) : { status: 'idle' }}
             />
           </Col>
         </Row>
-        <div style={{ marginTop: 12 }}>
-          <Space>
-            <Text>Show Results:</Text>
-            <Switch checked={expandResults} onChange={setExpandResults} />
-          </Space>
-        </div>
-      </Card>
-
-      <Collapse defaultActiveKey={['processes', 'discovery']}>
-        {/* PROCESSES MODULE */}
-        <Panel header={<><FolderOutlined /> <strong>Processes</strong> — 6 endpoints</>} key="processes">
-          <Space wrap style={{ marginBottom: 12 }}>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('processes.list', () => sdk.processes.list())} loading={apiResults['processes.list']?.status === 'loading'}>
-              list()
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('processes.get', () => sdk.processes.get(logIdInput))} loading={apiResults['processes.get']?.status === 'loading'} disabled={!logIdInput}>
-              get(logId)
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('processes.analyze', () => sdk.processes.analyze(logIdInput))} loading={apiResults['processes.analyze']?.status === 'loading'} disabled={!logIdInput}>
-              analyze(logId)
-            </Button>
-            <Button icon={<DeleteOutlined />} danger onClick={() => { if (window.confirm('Delete this log?')) runApiTest('processes.delete', () => sdk.processes.delete(logIdInput)); }} loading={apiResults['processes.delete']?.status === 'loading'} disabled={!logIdInput}>
-              delete(logId)
-            </Button>
-          </Space>
-          <Alert message="ingest() and detectColumns() require file upload — test via Upload Wizard" type="info" showIcon style={{ marginBottom: 8 }} />
-          {renderResult('processes.list')}
-          {renderResult('processes.get')}
-          {renderResult('processes.analyze')}
-          {renderResult('processes.delete')}
-        </Panel>
-
-        {/* DISCOVERY MODULE */}
-        <Panel header={<><ThunderboltOutlined /> <strong>Discovery</strong> — 4 endpoints</>} key="discovery">
-          <Space wrap style={{ marginBottom: 12 }}>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('discovery.buildDFG', () => sdk.discovery.buildDFG(logIdInput))} loading={apiResults['discovery.buildDFG']?.status === 'loading'} disabled={!logIdInput}>
-              buildDFG(logId)
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('discovery.getVariants', () => sdk.discovery.getVariants(logIdInput))} loading={apiResults['discovery.getVariants']?.status === 'loading'} disabled={!logIdInput}>
-              getVariants(logId)
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('discovery.getActivities', () => sdk.discovery.getActivities(logIdInput))} loading={apiResults['discovery.getActivities']?.status === 'loading'} disabled={!logIdInput}>
-              getActivities(logId)
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('discovery.discover', () => sdk.discovery.discover({ logId: logIdInput }))} loading={apiResults['discovery.discover']?.status === 'loading'} disabled={!logIdInput}>
-              discover(logId)
-            </Button>
-          </Space>
-          {renderResult('discovery.buildDFG')}
-          {renderResult('discovery.getVariants')}
-          {renderResult('discovery.getActivities')}
-          {renderResult('discovery.discover')}
-        </Panel>
-
-        {/* ANALYTICS MODULE */}
-        <Panel header={<><BarChartOutlined /> <strong>Analytics</strong> — 4 endpoints</>} key="analytics">
-          <Space wrap style={{ marginBottom: 12 }}>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('analytics.getPerformance', () => sdk.analytics.getPerformance(logIdInput))} loading={apiResults['analytics.getPerformance']?.status === 'loading'} disabled={!logIdInput}>
-              getPerformance(logId)
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('analytics.getRework', () => sdk.analytics.getRework(logIdInput))} loading={apiResults['analytics.getRework']?.status === 'loading'} disabled={!logIdInput}>
-              getRework(logId)
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('analytics.getBottlenecks', () => sdk.analytics.getBottlenecks(logIdInput))} loading={apiResults['analytics.getBottlenecks']?.status === 'loading'} disabled={!logIdInput}>
-              getBottlenecks(logId)
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('analytics.getCycleTime', () => sdk.analytics.getCycleTime(logIdInput))} loading={apiResults['analytics.getCycleTime']?.status === 'loading'} disabled={!logIdInput}>
-              getCycleTime(logId)
-            </Button>
-          </Space>
-          {renderResult('analytics.getPerformance')}
-          {renderResult('analytics.getRework')}
-          {renderResult('analytics.getBottlenecks')}
-          {renderResult('analytics.getCycleTime')}
-        </Panel>
-
-        {/* CONFORMANCE MODULE */}
-        <Panel header={<><CheckCircleOutlined /> <strong>Conformance</strong> — 2 endpoints</>} key="conformance">
-          <Space wrap style={{ marginBottom: 12 }}>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('conformance.check', () => sdk.conformance.check({ logId: logIdInput, modelId: modelIdInput }))} loading={apiResults['conformance.check']?.status === 'loading'} disabled={!logIdInput || !modelIdInput}>
-              check(logId, modelId)
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('conformance.getDiagnostics', () => sdk.conformance.getDiagnostics(logIdInput, modelIdInput))} loading={apiResults['conformance.getDiagnostics']?.status === 'loading'} disabled={!logIdInput || !modelIdInput}>
-              getDiagnostics(logId, modelId)
-            </Button>
-          </Space>
-          <Alert message="Requires a Model ID — run discovery.discover() first to get one" type="info" showIcon style={{ marginBottom: 8 }} />
-          {renderResult('conformance.check')}
-          {renderResult('conformance.getDiagnostics')}
-        </Panel>
-
-        {/* AI MODULE */}
-        <Panel header={<><ExperimentOutlined /> <strong>AI</strong> — 3 endpoints</>} key="ai">
-          <Space wrap style={{ marginBottom: 12 }}>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('ai.listPredictors', () => sdk.ai.listPredictors(logIdInput))} loading={apiResults['ai.listPredictors']?.status === 'loading'} disabled={!logIdInput}>
-              listPredictors()
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('ai.getInsights', () => sdk.ai.getInsights(logIdInput))} loading={apiResults['ai.getInsights']?.status === 'loading'} disabled={!logIdInput}>
-              getInsights(logId)
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('ai.getPredictorDetail', () => sdk.ai.getPredictorDetail(predictorIdInput))} loading={apiResults['ai.getPredictorDetail']?.status === 'loading'} disabled={!predictorIdInput}>
-              getPredictorDetail(predictorId)
-            </Button>
-          </Space>
-          {renderResult('ai.listPredictors')}
-          {renderResult('ai.getInsights')}
-          {renderResult('ai.getPredictorDetail')}
-        </Panel>
-
-        {/* PREDICTIONS MODULE */}
-        <Panel header={<><NodeIndexOutlined /> <strong>Predictions</strong> — 7 endpoints</>} key="predictions">
-          <Space wrap style={{ marginBottom: 12 }}>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('predictions.listPredictors', () => sdk.predictions.listPredictors(logIdInput))} loading={apiResults['predictions.listPredictors']?.status === 'loading'} disabled={!logIdInput}>
-              listPredictors(logId)
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('predictions.trainPredictor', () => sdk.predictions.trainPredictor(logIdInput, { targetType: 'next_activity' }))} loading={apiResults['predictions.trainPredictor']?.status === 'loading'} disabled={!logIdInput}>
-              trainPredictor(logId, next_activity)
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('predictions.getPredictor', () => sdk.predictions.getPredictor(predictorIdInput))} loading={apiResults['predictions.getPredictor']?.status === 'loading'} disabled={!predictorIdInput}>
-              getPredictor(predictorId)
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('predictions.predict', () => sdk.predictions.predict(predictorIdInput, ['Activity A', 'Activity B']))} loading={apiResults['predictions.predict']?.status === 'loading'} disabled={!predictorIdInput}>
-              predict(predictorId, [A, B])
-            </Button>
-            <Button icon={<DeleteOutlined />} danger onClick={() => { if (window.confirm('Delete this predictor?')) runApiTest('predictions.deletePredictor', () => sdk.predictions.deletePredictor(predictorIdInput)); }} loading={apiResults['predictions.deletePredictor']?.status === 'loading'} disabled={!predictorIdInput}>
-              deletePredictor(predictorId)
-            </Button>
-          </Space>
-          {renderResult('predictions.listPredictors')}
-          {renderResult('predictions.trainPredictor')}
-          {renderResult('predictions.getPredictor')}
-          {renderResult('predictions.predict')}
-          {renderResult('predictions.deletePredictor')}
-        </Panel>
-
-        {/* ORGANIZATIONAL MODULE */}
-        <Panel header={<><TeamOutlined /> <strong>Organizational</strong> — 6 endpoints</>} key="organizational">
-          <div style={{ marginBottom: 8 }}>
-            <Text strong>Resource Name (for profile):</Text>
-            <Input placeholder="e.g., John Smith" value={resourceInput} onChange={(e) => setResourceInput(e.target.value)} style={{ width: 200, marginLeft: 8 }} />
-          </div>
-          <Space wrap style={{ marginBottom: 12 }}>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('organizational.getHandoverNetwork', () => sdk.organizational.getHandoverNetwork(logIdInput))} loading={apiResults['organizational.getHandoverNetwork']?.status === 'loading'} disabled={!logIdInput}>
-              getHandoverNetwork(logId)
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('organizational.getCollaborationNetwork', () => sdk.organizational.getCollaborationNetwork(logIdInput))} loading={apiResults['organizational.getCollaborationNetwork']?.status === 'loading'} disabled={!logIdInput}>
-              getCollaborationNetwork(logId)
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('organizational.getResourceSimilarity', () => sdk.organizational.getResourceSimilarity(logIdInput))} loading={apiResults['organizational.getResourceSimilarity']?.status === 'loading'} disabled={!logIdInput}>
-              getResourceSimilarity(logId)
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('organizational.getRoles', () => sdk.organizational.getRoles(logIdInput))} loading={apiResults['organizational.getRoles']?.status === 'loading'} disabled={!logIdInput}>
-              getRoles(logId)
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('organizational.getResourceProfile', () => sdk.organizational.getResourceProfile(logIdInput, resourceInput))} loading={apiResults['organizational.getResourceProfile']?.status === 'loading'} disabled={!logIdInput || !resourceInput}>
-              getResourceProfile(logId, resource)
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('organizational.getWorkload', () => sdk.organizational.getWorkload(logIdInput))} loading={apiResults['organizational.getWorkload']?.status === 'loading'} disabled={!logIdInput}>
-              getWorkload(logId)
-            </Button>
-          </Space>
-          {renderResult('organizational.getHandoverNetwork')}
-          {renderResult('organizational.getCollaborationNetwork')}
-          {renderResult('organizational.getResourceSimilarity')}
-          {renderResult('organizational.getRoles')}
-          {renderResult('organizational.getResourceProfile')}
-          {renderResult('organizational.getWorkload')}
-        </Panel>
-
-        {/* SIMULATION MODULE */}
-        <Panel header={<><ClockCircleOutlined /> <strong>Simulation</strong> — 3 endpoints</>} key="simulation">
-          <Space wrap style={{ marginBottom: 12 }}>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('simulation.playOut', () => sdk.simulation.playOut(modelIdInput, { numTraces: 100 }))} loading={apiResults['simulation.playOut']?.status === 'loading'} disabled={!modelIdInput}>
-              playOut(modelId, 100 traces)
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('simulation.simulate', () => sdk.simulation.simulate(logIdInput, [{ type: 'remove_activity', activity: 'Test' }]))} loading={apiResults['simulation.simulate']?.status === 'loading'} disabled={!logIdInput}>
-              simulate(logId, modifications)
-            </Button>
-            <Button icon={<PlayCircleOutlined />} onClick={() => runApiTest('simulation.estimateCapacity', () => sdk.simulation.estimateCapacity(logIdInput, 100))} loading={apiResults['simulation.estimateCapacity']?.status === 'loading'} disabled={!logIdInput}>
-              estimateCapacity(logId, 100)
-            </Button>
-          </Space>
-          <Alert message="playOut requires a Model ID — run discovery.discover() first" type="info" showIcon style={{ marginBottom: 8 }} />
-          {renderResult('simulation.playOut')}
-          {renderResult('simulation.simulate')}
-          {renderResult('simulation.estimateCapacity')}
-        </Panel>
-      </Collapse>
-
-      {/* Summary */}
-      <Card style={{ marginTop: 16 }}>
-        <Descriptions title="API Summary" bordered size="small">
-          <Descriptions.Item label="Total Modules">8</Descriptions.Item>
-          <Descriptions.Item label="Total Endpoints">35</Descriptions.Item>
-          <Descriptions.Item label="Selected Log">{logIdInput ? `${logIdInput.slice(0, 12)}...` : 'None'}</Descriptions.Item>
-        </Descriptions>
-      </Card>
-    </div>
-  );
-
-  const items = [
-    { key: 'components', label: 'Components', children: componentsTab },
-    { key: 'api', label: 'API Endpoints', children: apiEndpointsTab },
-  ];
+      ),
+    };
+  });
 
   return (
     <div>
       <PageHeader
-        title="Test Bench"
-        description="Comprehensive testing environment for all frontend components and backend API endpoints"
+        title="Process Mining Analysis Showcase"
+        description="Run analyses on-demand against your uploaded datasets"
         actions={
-          <Button icon={<ReloadOutlined />} onClick={() => window.location.reload()}>
-            Reset
-          </Button>
+          <Space>
+            <ExperimentOutlined style={{ fontSize: 20, color: tokens.colors.primary[500] }} />
+          </Space>
         }
       />
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={items} size="large" />
+
+      {/* Dataset Selector */}
+      <Card style={{ marginBottom: 16 }}>
+        <Row gutter={16} align="middle">
+          <Col>
+            <Text strong>Dataset:</Text>
+          </Col>
+          <Col flex="auto">
+            <select
+              value={selectedDatasetId || ''}
+              onChange={e => setSelectedDatasetId(e.target.value)}
+              style={{
+                width: '100%',
+                maxWidth: 400,
+                padding: '8px 12px',
+                borderRadius: 6,
+                border: '1px solid #d9d9d9',
+              }}
+            >
+              <option value="" disabled>Select a dataset...</option>
+              {datasets.map(d => (
+                <option key={d.id} value={d.id}>{d.name} ({d.id.slice(0, 8)}...)</option>
+              ))}
+            </select>
+          </Col>
+          <Col>
+            {!selectedDatasetId && (
+              <Text type="secondary">Upload a dataset first to run analyses</Text>
+            )}
+          </Col>
+        </Row>
+      </Card>
+
+      {/* Sample Dataset Info */}
+      {datasets.length === 0 && (
+        <Alert
+          message="Need a Test Dataset?"
+          description={
+            <span>
+              Download our sample <a href="/sample-data/order-to-cash-event-log.csv" download>Order-to-Cash Event Log</a> (25 cases, 10 activities, 8 resources) —
+              designed to work with all analysis types. Upload it via the Upload Wizard first.
+            </span>
+          }
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      {/* Info Alert */}
+      <Alert
+        message="On-Demand Analysis"
+        description="Click 'Run' on any analysis to execute it against the selected dataset. Results will appear on the right."
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+      />
+
+      {/* Category Tabs */}
+      <Tabs
+        activeKey={activeCategory}
+        onChange={(k) => setActiveCategory(k as AnalysisCategory)}
+        items={tabItems}
+        size="large"
+      />
     </div>
   );
+}
+
+// =============================================================================
+// Helpers
+// =============================================================================
+
+function transformToGraphData(data: unknown): ProcessGraphData {
+  // Transform SDK response to Cytoscape format
+  const dfgData = data as {
+    nodes?: Array<{ id: string; label: string; frequency?: number }>;
+    edges?: Array<{ source: string; target: string; frequency?: number }>;
+  };
+
+  if (!dfgData.nodes || !dfgData.edges) {
+    // If data doesn't have expected structure, create placeholder
+    return {
+      nodes: [{ id: 'placeholder', label: 'No graph data', frequency: 1 }],
+      edges: [],
+    };
+  }
+
+  return {
+    nodes: dfgData.nodes.map(n => ({
+      id: n.id,
+      label: n.label || n.id,
+      frequency: n.frequency || 1,
+    })),
+    edges: dfgData.edges.map((e, i) => ({
+      id: `e${i}`,
+      source: e.source,
+      target: e.target,
+      frequency: e.frequency || 1,
+    })),
+  };
 }
 
 export default TestBenchPage;

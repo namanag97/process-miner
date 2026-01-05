@@ -33,10 +33,17 @@ export function ExplorerIndexPage() {
     return logs.filter((logItem) => logItem.name.toLowerCase().includes(lower));
   }, [logs, searchText]);
 
-  const handleExplore = (logItem: { id: string; name: string }) => {
-    logAction('ExplorerIndexPage', 'explore_clicked', { logId: logItem.id, name: logItem.name });
-    log.info('Exploring log', { logId: logItem.id, name: logItem.name });
-    navigate(`/explorer/${logItem.id}`);
+  const handleExplore = (logItem: any) => {
+    logAction('ExplorerIndexPage', 'explore_clicked', { datasetId: logItem.id, name: logItem.name });
+    log.info('Exploring log', { datasetId: logItem.id, name: logItem.name });
+    // Navigate to workspace-scoped route if projectId is available
+    if (logItem.projectId) {
+      navigate(`/workspace/${logItem.projectId}/data/${logItem.id}/explorer`);
+    } else {
+      // Fallback to workspace root if no project association
+      log.warn('Dataset has no projectId, redirecting to workspace', { datasetId: logItem.id });
+      navigate('/workspace');
+    }
   };
 
   return (

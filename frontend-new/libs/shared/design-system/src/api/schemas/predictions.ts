@@ -9,7 +9,7 @@ import { z } from 'zod';
 
 export const PredictorResponseSchema = z.object({
   id: z.string(),
-  log_id: z.string(),
+  dataset_id: z.string(),
   target_type: z.string(),
   algorithm: z.string(),
   metrics: z.record(z.string(), z.number()).optional(),
@@ -51,7 +51,7 @@ export type PredictionResponse = z.infer<typeof PredictionResponseSchema>;
 // ============================================
 
 export const TrainPredictorRequestSchema = z.object({
-  log_id: z.string(),
+  dataset_id: z.string(),
   target_type: z.enum(['next_activity', 'remaining_time', 'outcome']),
   algorithm: z.enum(['lstm', 'random_forest', 'xgboost']).optional(),
 });
@@ -64,7 +64,7 @@ export type TrainPredictorRequest = z.infer<typeof TrainPredictorRequestSchema>;
 
 export const ConformanceResponseSchema = z.object({
   id: z.string(),
-  log_id: z.string(),
+  dataset_id: z.string(),
   model_id: z.string(),
   fitness: z.number(),
   precision: z.number().optional(),
@@ -125,7 +125,7 @@ export const InsightSchema = z.object({
 export type Insight = z.infer<typeof InsightSchema>;
 
 export const InsightsResponseSchema = z.object({
-  log_id: z.string(),
+  dataset_id: z.string(),
   predictions: z.array(PredictionResponseSchema).optional(),
   insights: z.array(InsightSchema),
   generated_at: z.string(),

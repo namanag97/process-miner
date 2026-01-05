@@ -51,7 +51,7 @@ export function useDiscoveryMutation() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    dataset_id: request.logId,  // API now uses dataset_id
+                    dataset_id: request.datasetId,  // API now uses dataset_id
                     miner_type: request.minerType,
                     model_name: request.modelName || `${request.minerType} Model`,
                     parameters: request.parameters,
@@ -68,7 +68,7 @@ export function useDiscoveryMutation() {
         onSuccess: (_data, variables) => {
             // Invalidate models list after discovery
             queryClient.invalidateQueries({
-                queryKey: discoveryQueryKeys.models(variables.logId)
+                queryKey: discoveryQueryKeys.models(variables.datasetId)
             });
         },
     });

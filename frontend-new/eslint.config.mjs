@@ -41,7 +41,7 @@ export default [
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
     rules: {
       // React hooks - catch missing dependencies
-      'react-hooks/exhaustive-deps': 'warn',
+      'react-hooks/exhaustive-deps': 'error',
       'react-hooks/rules-of-hooks': 'error',
 
       // No console.log in production

@@ -65,7 +65,7 @@ def _analysis_to_response(analysis: Analysis) -> AnalysisResponse:
 @router.post("", response_model=AnalysisResponse, status_code=202)
 async def create_analysis(
     db: DBSession,
-    log_id: str,
+    dataset_id: str,
     request: AnalysisCreateRequest,
 ) -> AnalysisResponse:
     """
@@ -75,19 +75,19 @@ async def create_analysis(
     """
     logger.info(
         "create_analysis_started",
-        log_id=log_id,
+        dataset_id=dataset_id,
         name=request.name,
         analysis_type=request.analysis_type,
     )
 
     # Verify log exists
-    log_result = await db.execute(select(Dataset).where(Dataset.id == log_id))
+    log_result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
     event_log = log_result.scalar_one_or_none()
     if not event_log:
         raise HTTPException(status_code=404, detail=f"Event log not found: {log_id}")
 
     analysis = Analysis(
-        dataset_id=log_id,  # BUG-001 FIX: ORM uses dataset_id
+        dataset_id=dataset_id,  # BUG-001 FIX: ORM uses dataset_id
         name=request.name,
         analysis_type=request.analysis_type,
         config_json=json.dumps(request.config) if request.config else None,
@@ -101,7 +101,7 @@ async def create_analysis(
 
     task = perform_analysis_task.delay(
         analysis_id=analysis.id,
-        log_id=log_id,
+        dataset_id=dataset_id,
         analysis_type=request.analysis_type,
         config=request.config or {},
     )
@@ -110,7 +110,7 @@ async def create_analysis(
         "analysis_task_queued",
         analysis_id=analysis.id,
         task_id=task.id,
-        log_id=log_id,
+        dataset_id=dataset_id,
     )
 
     await db.commit()
@@ -128,7 +128,7 @@ async def create_analysis(
 @router.get("", response_model=AnalysisListResponse)
 async def list_analyses(
     db: DBSession,
-    log_id: str | None = Query(None, description="Filter by event log ID"),
+    dataset_id: str | None = Query(None, description="Filter by event log ID"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ) -> AnalysisListResponse:
@@ -138,12 +138,12 @@ async def list_analyses(
     query = select(Analysis).order_by(Analysis.created_at.desc())
 
     if log_id:
-        query = query.where(Analysis.dataset_id == log_id)  # BUG-001 FIX
+        query = query.where(Analysis.dataset_id == dataset_id)  # BUG-001 FIX
 
     # Count total
     count_query = select(func.count()).select_from(Analysis)
     if log_id:
-        count_query = count_query.where(Analysis.dataset_id == log_id)  # BUG-001 FIX
+        count_query = count_query.where(Analysis.dataset_id == dataset_id)  # BUG-001 FIX
     total = await db.scalar(count_query) or 0
 
     # Paginate
@@ -265,19 +265,19 @@ async def delete_analysis(
 @router.get("/log/{log_id}", response_model=list[AnalysisResponse])
 async def list_analyses_for_log(
     db: DBSession,
-    log_id: str,
+    dataset_id: str,
 ) -> list[AnalysisResponse]:
     """
     Get all analyses for a specific event log.
     """
     # Verify log exists
-    log_result = await db.execute(select(Dataset).where(Dataset.id == log_id))
+    log_result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
     if not log_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail=f"Event log not found: {log_id}")
 
     result = await db.execute(
         select(Analysis)
-        .where(Analysis.dataset_id == log_id)  # BUG-001 FIX
+        .where(Analysis.dataset_id == dataset_id)  # BUG-001 FIX
         .order_by(Analysis.created_at.desc())
     )
     analyses = result.scalars().all()

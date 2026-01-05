@@ -32,26 +32,26 @@ const { Title, Text } = Typography;
  * - For 'error' status: shows error with retry option
  */
 export function ProcessQuestionsPage() {
-  const { projectId, logId } = useParams<{ projectId: string; logId: string }>();
+  const { projectId, datasetId } = useParams<{ projectId: string; datasetId: string }>();
   const navigate = useNavigate();
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
   const auditLog = useAuditLogger();
 
-  const { data: process, isLoading, error, refetch } = useProcess(logId || '');
+  const { data: process, isLoading, error, refetch } = useProcess(datasetId || '');
 
   // Log page view for audit
   useEffect(() => {
-    if (process && logId && projectId) {
-      auditLog('explorer.viewed', { processId: logId, projectId, page: 'questions' });
+    if (process && datasetId && projectId) {
+      auditLog('explorer.viewed', { processId: datasetId, projectId, page: 'questions' });
     }
-  }, [process, logId, projectId, auditLog]);
+  }, [process, datasetId, projectId, auditLog]);
 
   const handleQuestionClick = (question: typeof PROCESS_QUESTIONS[0]) => {
     if (question.action === 'feedback') {
       setFeedbackModalOpen(true);
-    } else if (question.route && projectId && logId) {
-      navigate(question.route(projectId, logId));
+    } else if (question.route && projectId && datasetId) {
+      navigate(question.route(projectId, datasetId));
     }
   };
 

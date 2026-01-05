@@ -59,11 +59,15 @@ __all__ = [
     "_create_log_entry",
     "log_api_request",
     "log_api_response",
+    "log_auth_event",
+    "log_cache_operation",
     "log_circuit_breaker",
+    "log_database_query",
     "log_error",
     "log_perf_warning",
     "log_pm4py_operation",
     "log_trace_span",
+    "log_validation",
 ]
 
 
@@ -127,6 +131,8 @@ def log_api_request(
     ):
         tags.append("background")
 
+    importance = 4 if "user-action" in tags else 1  # User actions are important
+
     _create_log_entry(
         level=LogLevel.API_REQ,
         source=f"BE {method} {path}",
@@ -134,6 +140,7 @@ def log_api_request(
         data=data if data else None,
         request_id=request_id,
         tags=tags,
+        importance=importance,
     )
 
 
@@ -206,6 +213,18 @@ def log_api_response(
     if timing:
         data["timing_breakdown"] = timing
 
+    # Determine importance based on status and speed
+    if status >= 500:
+        importance = 5  # Server errors are critical
+    elif status >= 400:
+        importance = 4  # Client errors are high
+    elif duration_ms > 3000:
+        importance = 4  # Very slow requests are high
+    elif "user-action" in tags:
+        importance = 3  # User actions are medium
+    else:
+        importance = 1  # Background requests are low
+
     _create_log_entry(
         level=LogLevel.API_RES,
         source=f"BE {method} {path}",
@@ -216,6 +235,7 @@ def log_api_response(
         data=data if data else None,
         tags=tags,
         timing=timing,
+        importance=importance,
     )
 
 
@@ -244,6 +264,7 @@ def log_error(
         message=f"⚠ {message}",
         data=data if data else None,
         tags=["error", error_code] if error_code else ["error"],
+        importance=5,  # Errors are always critical
     )
 
 
@@ -268,13 +289,16 @@ def log_pm4py_operation(
     if result_summary:
         data["result"] = result_summary
 
+    importance = 4 if status == "success" else 5  # Failed PM4Py operations are critical
+
     _create_log_entry(
-        level=LogLevel.ACTION,
+        level=LogLevel.PM4PY,
         source=f"BE PM4Py/{miner_type}",
         message=f"{emoji} {operation}: {status}",
         duration=duration_ms,
         data=data,
         tags=["pm4py", operation, miner_type, status],
+        importance=importance,
     )
 
 
@@ -291,6 +315,8 @@ def log_circuit_breaker(
         "half_open": "🟡",
     }
 
+    importance = 5 if to_state == "open" else 4  # Circuit opening is critical
+
     _create_log_entry(
         level=LogLevel.CIRCUIT,
         source=f"BE Circuit:{circuit}",
@@ -302,6 +328,7 @@ def log_circuit_breaker(
             "failure_count": failure_count,
         },
         tags=["circuit", circuit, to_state],
+        importance=importance,
     )
 
 
@@ -323,10 +350,143 @@ def log_perf_warning(
             **(details or {}),
         },
         tags=["perf", "slow"],
+        importance=4,  # Performance warnings are high importance
     )
 
 
 # Note: log_trace_span is imported from src.infrastructure.devconsole_types and re-exported
+
+
+def log_database_query(
+    query_type: str,
+    table: str,
+    duration_ms: int,
+    row_count: int | None = None,
+    is_slow: bool = False,
+) -> None:
+    """Log database query with timing and row count."""
+    emoji = "⚡" if is_slow else "🗄"
+    tags = ["db", query_type.lower(), table]
+    if is_slow:
+        tags.append("slow")
+
+    data = {
+        "query_type": query_type,
+        "table": table,
+    }
+    if row_count is not None:
+        data["row_count"] = row_count
+
+    importance = 2 if not is_slow else 4  # Slow queries are more important
+
+    _create_log_entry(
+        level=LogLevel.DB_QUERY,
+        source=f"BE DB/{table}",
+        message=f"{emoji} {query_type} ({duration_ms}ms)",
+        duration=duration_ms,
+        data=data,
+        tags=tags,
+        importance=importance,
+    )
+
+
+def log_cache_operation(
+    operation: str,
+    key: str,
+    hit: bool | None = None,
+    ttl: int | None = None,
+) -> None:
+    """Log cache operation (get, set, delete, hit, miss)."""
+    emoji_map = {
+        "hit": "✓",
+        "miss": "✗",
+        "set": "→",
+        "delete": "🗑",
+    }
+
+    emoji = emoji_map.get(operation, "💾")
+    tags = ["cache", operation]
+
+    data = {"operation": operation, "key": key}
+    if hit is not None:
+        data["hit"] = hit
+    if ttl is not None:
+        data["ttl"] = ttl
+
+    importance = 1 if hit else 2  # Cache hits are low importance
+
+    _create_log_entry(
+        level=LogLevel.CACHE,
+        source="BE Cache",
+        message=f"{emoji} {operation}: {key}",
+        data=data,
+        tags=tags,
+        importance=importance,
+    )
+
+
+def log_validation(
+    entity: str,
+    is_valid: bool,
+    errors: list[str] | None = None,
+    field_count: int | None = None,
+) -> None:
+    """Log input validation result."""
+    emoji = "✓" if is_valid else "✗"
+    tags = ["validation", entity, "valid" if is_valid else "invalid"]
+
+    data = {"entity": entity, "is_valid": is_valid}
+    if errors:
+        data["errors"] = errors
+    if field_count is not None:
+        data["field_count"] = field_count
+
+    importance = 2 if is_valid else 4  # Failed validation is important
+
+    _create_log_entry(
+        level=LogLevel.VALIDATION,
+        source=f"BE Validation/{entity}",
+        message=f"{emoji} {'Valid' if is_valid else f'Invalid ({len(errors or [])} errors)'}",
+        data=data,
+        tags=tags,
+        importance=importance,
+    )
+
+
+def log_auth_event(
+    event_type: str,
+    user_id: str | None = None,
+    success: bool = True,
+    reason: str | None = None,
+) -> None:
+    """Log authentication/authorization event."""
+    emoji_map = {
+        "login": "🔓",
+        "logout": "🔒",
+        "permission_check": "🔑",
+        "token_refresh": "🔄",
+        "access_denied": "🚫",
+    }
+
+    emoji = emoji_map.get(event_type, "🔐")
+    tags = ["auth", event_type, "success" if success else "failure"]
+
+    data = {"event_type": event_type, "success": success}
+    if user_id:
+        data["user_id"] = user_id
+    if reason:
+        data["reason"] = reason
+
+    importance = 4 if not success else 3  # Failed auth is high importance
+
+    _create_log_entry(
+        level=LogLevel.AUTH,
+        source="BE Auth",
+        message=f"{emoji} {event_type}" + (f": {reason}" if reason else ""),
+        data=data,
+        tags=tags,
+        importance=importance,
+    )
 
 
 # =============================================================================

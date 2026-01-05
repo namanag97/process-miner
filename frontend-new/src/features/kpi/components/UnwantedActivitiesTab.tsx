@@ -12,7 +12,7 @@ import {
 const { Text } = Typography;
 
 interface UnwantedActivitiesTabProps {
-  logId: string;
+  datasetId: string;
 }
 
 interface ReworkActivity {
@@ -26,8 +26,8 @@ interface ReworkActivity {
  * UnwantedActivitiesTab - Rework and exception analysis
  * Shows activities with high rework rates and their impact
  */
-export function UnwantedActivitiesTab({ logId }: UnwantedActivitiesTabProps) {
-  const { data: rework, isLoading, error, refetch } = useRework(logId);
+export function UnwantedActivitiesTab({ datasetId }: UnwantedActivitiesTabProps) {
+  const { data: rework, isLoading, error, refetch } = useRework(datasetId);
 
   if (isLoading) {
     return <LoadingState type="card" rows={2} />;

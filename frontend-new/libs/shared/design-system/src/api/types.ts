@@ -129,7 +129,7 @@ export interface DFGResponse {
  * Combines DFG, variants, activities, and statistics in a single response
  */
 export interface ProcessExplorerDataResponse {
-  log_id: string;
+  dataset_id: string;
   dfg: DFGResponse;
   variants: VariantResponse[];
   activities: ActivityDetailResponse[];
@@ -189,14 +189,14 @@ export interface ReworkResponse {
 }
 
 export interface ReworkListResponse {
-  log_id: string;
+  dataset_id: string;
   rework_activities: ReworkResponse[];
   total_rework_cases: number;
   rework_percentage: number;
 }
 
 export interface CycleTimeResponse {
-  log_id: string;
+  dataset_id: string;
   min_seconds: number;
   max_seconds: number;
   avg_seconds: number;
@@ -207,7 +207,7 @@ export interface CycleTimeResponse {
 }
 
 export interface ThroughputResponse {
-  log_id: string;
+  dataset_id: string;
   total_cases: number;
   completed_cases: number;
   cases_per_day: number;
@@ -217,7 +217,7 @@ export interface ThroughputResponse {
 }
 
 export interface PerformanceDashboardResponse {
-  log_id: string;
+  dataset_id: string;
   cycle_time: CycleTimeResponse;
   throughput: ThroughputResponse;
   top_bottlenecks: BottleneckResponse[];
@@ -230,7 +230,7 @@ export interface PerformanceDashboardResponse {
 
 export interface ConformanceResponse {
   id: string;
-  log_id: string;
+  dataset_id: string;
   model_id: string;
   fitness: number;
   precision?: number;
@@ -270,7 +270,7 @@ export interface DiagnosticsResponse {
 
 export interface PredictorResponse {
   id: string;
-  log_id: string;
+  dataset_id: string;
   target_type: string;
   algorithm: string;
   metrics?: Record<string, number>;
@@ -314,7 +314,7 @@ export interface OCELObjectTypeResponse {
 }
 
 export interface OCELStatisticsResponse {
-  log_id: string;
+  dataset_id: string;
   total_events: number;
   total_objects: number;
   total_object_types: number;
@@ -326,7 +326,7 @@ export interface OCELStatisticsResponse {
 
 export interface OCPetriNetResponse {
   id: string;
-  log_id: string;
+  dataset_id: string;
   name: string;
   object_types: string[];
   created_at: string;
@@ -355,7 +355,7 @@ export interface OCDFGTypeGraph {
 }
 
 export interface OCDFGResponse {
-  log_id: string;
+  dataset_id: string;
   object_types: string[];
   activities: string[];
   graphs_by_type: Record<string, OCDFGTypeGraph>;

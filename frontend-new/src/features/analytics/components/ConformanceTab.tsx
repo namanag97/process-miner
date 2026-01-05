@@ -42,39 +42,42 @@ function FitnessGauge({ value, label }: { value: number; label: string }) {
 }
 
 interface ConformanceTabProps {
-  logId: string | null;
+  datasetId: string | null;
+  projectId?: string;
 }
 
-export function ConformanceTab({ logId }: ConformanceTabProps) {
+export function ConformanceTab({ datasetId, projectId }: ConformanceTabProps) {
   const navigate = useNavigate();
   const sdk = useSDK();
 
   // Try to fetch conformance data from the backend
   // Note: This requires a model to be discovered first
+  // The backend will auto-select a model if one exists, or fail gracefully
   const { data: conformanceData, isLoading } = useQuery({
-    queryKey: queryKeys.conformance.check(logId ?? '', undefined),
+    queryKey: queryKeys.conformance.check(datasetId ?? '', undefined),
     queryFn: async () => {
-      if (!logId) return null;
+      if (!datasetId) return null;
       try {
-        // Attempt to get conformance data - this may fail if no model exists
+        // Attempt to get conformance data
+        // Note: Using 'default' as modelId - if no model exists, this will fail gracefully
         const result = await sdk.conformance.check({
-          logId,
-          modelId: 'default', // Use default model if exists
+          datasetId,
+          modelId: 'default',
           method: 'token_replay',
         });
         return result;
       } catch (e) {
         // If conformance check fails (no model), return null and show placeholder
-        log.warn('Conformance check not available', { logId: e });
+        log.warn('Conformance check not available', { datasetId, error: e });
         return null;
       }
     },
-    enabled: !!logId,
+    enabled: !!datasetId,
     retry: false, // Don't retry if model doesn't exist
     staleTime: 5 * 60 * 1000,
   });
 
-  log.debug('Rendering ConformanceTab', { logId, hasData: !!conformanceData });
+  log.debug('Rendering ConformanceTab', { datasetId, hasData: !!conformanceData });
 
   // Loading state
   if (isLoading) {
@@ -85,8 +88,8 @@ export function ConformanceTab({ logId }: ConformanceTabProps) {
     );
   }
 
-  // No logId selected
-  if (!logId) {
+  // No datasetId selected
+  if (!datasetId) {
     return (
       <Card>
         <Empty
@@ -205,7 +208,10 @@ export function ConformanceTab({ logId }: ConformanceTabProps) {
         title="Conformance Analysis Not Available"
         description="Conformance checking requires a process model. Discover a model from the Process Explorer to enable conformance analysis."
         actionLabel="Go to Explorer"
-        onAction={() => navigate(`/explorer/${logId}`)}
+        onAction={() => navigate(projectId
+          ? `/workspace/${projectId}/data/${datasetId}/explorer`
+          : '/workspace'
+        )}
       />
     </Card>
   );

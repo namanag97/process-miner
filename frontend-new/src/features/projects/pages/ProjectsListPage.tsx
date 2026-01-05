@@ -75,15 +75,24 @@ export function ProjectsListPage() {
   ];
 
   const handleCreateProject = async (values: CreateProjectInput) => {
-    logAction('ProjectsListPage', 'create_project_clicked', { name: values.name });
+    const workspaceId = workspace?.id;
+    logAction('ProjectsListPage', 'create_project_clicked', {
+      name: values.name,
+      workspaceId: workspaceId || 'none'
+    });
+    console.debug('[ProjectsListPage] Creating project:', { ...values, workspaceId });
+
     try {
-      const newProject = await createProject.mutateAsync(values);
+      const newProject = await createProject.mutateAsync({
+        ...values,
+        workspaceId,
+      });
       logAction('ProjectsListPage', 'project_created', { projectId: newProject.id, name: newProject.name });
       setIsCreateModalOpen(false);
       form.resetFields();
       navigate(`/workspace/${newProject.id}`);
     } catch (error) {
-      logAction('ProjectsListPage', 'create_project_failed', { error: String(error) });
+      logAction('ProjectsListPage', 'create_project_failed', { error: String(error), workspaceId: workspaceId || 'none' });
       console.error('Failed to create project:', error);
     }
   };

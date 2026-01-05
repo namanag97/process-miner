@@ -139,24 +139,24 @@ export function ProjectDetailPage() {
     }
 
     // Navigate to appropriate analysis page (project-scoped)
-    const logId = dataSources[0].id;  // Use first data source
-    logAction('ProjectDetailPage', 'run_analysis_clicked', { projectId, analysisType, logId });
+    const datasetId = dataSources[0].id;  // Use first data source
+    logAction('ProjectDetailPage', 'run_analysis_clicked', { projectId, analysisType, datasetId });
 
     switch (analysisType) {
       case 'discovery':
-        navigate(`/workspace/${projectId}/data/${logId}/explorer`);
+        navigate(`/workspace/${projectId}/data/${datasetId}/explorer`);
         break;
       case 'conformance':
-        navigate(`/workspace/${projectId}/analytics/conformance?logId=${logId}`);
+        navigate(`/workspace/${projectId}/analytics/conformance?datasetId=${datasetId}`);
         break;
       case 'variants':
-        navigate(`/workspace/${projectId}/data/${logId}/explorer?tab=variants`);
+        navigate(`/workspace/${projectId}/data/${datasetId}/explorer?tab=variants`);
         break;
       case 'performance':
-        navigate(`/workspace/${projectId}/analytics/performance?logId=${logId}`);
+        navigate(`/workspace/${projectId}/analytics/performance?datasetId=${datasetId}`);
         break;
       default:
-        navigate(`/workspace/${projectId}/data/${logId}/explorer`);
+        navigate(`/workspace/${projectId}/data/${datasetId}/explorer`);
     }
   };
 

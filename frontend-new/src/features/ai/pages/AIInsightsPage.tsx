@@ -146,9 +146,9 @@ export function AIInsightsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [nlQuery, setNlQuery] = useState('');
 
-  const handleLogChange = (logId: string) => {
-    log.info('Log selection changed', { logId });
-    setSelectedLogId(logId);
+  const handleLogChange = (datasetId: string) => {
+    log.info('Log selection changed', { datasetId });
+    setSelectedLogId(datasetId);
     setIsLoading(true);
     setTimeout(() => setIsLoading(false), 800);
   };

@@ -118,13 +118,13 @@ export function useDetectColumns() {
 /**
  * Get process statistics
  */
-export function useProcessStatistics(logId: string) {
+export function useProcessStatistics(datasetId: string) {
   const sdk = useSDK();
   
   return useQuery({
-    queryKey: queryKeys.processes.statistics(logId),
-    queryFn: () => sdk.processes.analyze(logId),
-    enabled: !!logId,
+    queryKey: queryKeys.processes.statistics(datasetId),
+    queryFn: () => sdk.processes.analyze(datasetId),
+    enabled: !!datasetId,
     staleTime: 5 * 60 * 1000,
   });
 }

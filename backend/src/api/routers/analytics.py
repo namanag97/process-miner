@@ -36,22 +36,22 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 
-async def _get_pm4py_log(log_id: str, db: AsyncSession):
-    """Helper to get PM4Py log from log_id."""
-    query = select(Dataset).where(Dataset.id == log_id)
+async def _get_pm4py_log(dataset_id: str, db: AsyncSession):
+    """Helper to get PM4Py log from dataset_id."""
+    query = select(Dataset).where(Dataset.id == dataset_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
     if not event_log:
-        raise ProcessNotFoundError(log_id)
+        raise ProcessNotFoundError(dataset_id)
     return filtering_service.to_pm4py_log(event_log), event_log
 
 
-@router.get("/logs/{log_id}/bottlenecks", response_model=BottleneckListResponse)
+@router.get("/datasets/{dataset_id}/bottlenecks", response_model=BottleneckListResponse)
 async def get_bottlenecks(
-    log_id: str, db: AsyncSession = Depends(get_db)
+    dataset_id: str, db: AsyncSession = Depends(get_db)
 ) -> BottleneckListResponse:
     """Detect process bottlenecks based on waiting times."""
-    logger.info("getting_bottlenecks", log_id=log_id)
+    logger.info("getting_bottlenecks", dataset_id=dataset_id)
 
     # Try cache first
     cache_key = f"bottlenecks:{log_id}"
@@ -59,10 +59,10 @@ async def get_bottlenecks(
     if cached:
         return cast(BottleneckListResponse, cached)
 
-    pm4py_log, _ = await _get_pm4py_log(log_id, db)
+    pm4py_log, _ = await _get_pm4py_log(dataset_id, db)
     result = analytics_service.detect_bottlenecks(pm4py_log)
     response = BottleneckListResponse(
-        dataset_id=log_id,
+        dataset_id=dataset_id,
         bottlenecks=[BottleneckResponse(**b) for b in result["bottlenecks"]],
         total_bottlenecks=result["total_bottlenecks"],
     )
@@ -72,10 +72,10 @@ async def get_bottlenecks(
     return response
 
 
-@router.get("/logs/{log_id}/rework", response_model=ReworkListResponse)
-async def get_rework(log_id: str, db: AsyncSession = Depends(get_db)) -> ReworkListResponse:
+@router.get("/datasets/{dataset_id}/rework", response_model=ReworkListResponse)
+async def get_rework(dataset_id: str, db: AsyncSession = Depends(get_db)) -> ReworkListResponse:
     """Analyze rework (repeated activities) in cases."""
-    logger.info("getting_rework", log_id=log_id)
+    logger.info("getting_rework", dataset_id=dataset_id)
 
     # Try cache first
     cache_key = f"rework:{log_id}"
@@ -83,10 +83,10 @@ async def get_rework(log_id: str, db: AsyncSession = Depends(get_db)) -> ReworkL
     if cached:
         return cast(ReworkListResponse, cached)
 
-    pm4py_log, _ = await _get_pm4py_log(log_id, db)
+    pm4py_log, _ = await _get_pm4py_log(dataset_id, db)
     result = analytics_service.analyze_rework(pm4py_log)
     response = ReworkListResponse(
-        dataset_id=log_id,
+        dataset_id=dataset_id,
         rework_activities=[ReworkResponse(**r) for r in result["rework_activities"]],
         total_rework_cases=result["total_rework_cases"],
         rework_percentage=result["rework_percentage"],
@@ -97,12 +97,12 @@ async def get_rework(log_id: str, db: AsyncSession = Depends(get_db)) -> ReworkL
     return response
 
 
-@router.get("/logs/{log_id}/service-times")
+@router.get("/datasets/{dataset_id}/service-times")
 async def get_service_times(
-    log_id: str, db: AsyncSession = Depends(get_db)
+    dataset_id: str, db: AsyncSession = Depends(get_db)
 ) -> list[ServiceTimeResponse]:
     """Get service time statistics per activity."""
-    logger.info("getting_service_times", log_id=log_id)
+    logger.info("getting_service_times", dataset_id=dataset_id)
 
     # Try cache first
     cache_key = f"service_times:{log_id}"
@@ -110,7 +110,7 @@ async def get_service_times(
     if cached:
         return cast(list[ServiceTimeResponse], cached)
 
-    pm4py_log, _ = await _get_pm4py_log(log_id, db)
+    pm4py_log, _ = await _get_pm4py_log(dataset_id, db)
     result = analytics_service.get_service_times(pm4py_log)
     response = [ServiceTimeResponse(**s) for s in result]
 
@@ -119,38 +119,38 @@ async def get_service_times(
     return response
 
 
-@router.get("/logs/{log_id}/cycle-time", response_model=CycleTimeResponse)
-async def get_cycle_time(log_id: str, db: AsyncSession = Depends(get_db)) -> CycleTimeResponse:
+@router.get("/datasets/{dataset_id}/cycle-time", response_model=CycleTimeResponse)
+async def get_cycle_time(dataset_id: str, db: AsyncSession = Depends(get_db)) -> CycleTimeResponse:
     """Get cycle time (case duration) statistics."""
-    logger.info("getting_cycle_time", log_id=log_id)
-    pm4py_log, _ = await _get_pm4py_log(log_id, db)
+    logger.info("getting_cycle_time", dataset_id=dataset_id)
+    pm4py_log, _ = await _get_pm4py_log(dataset_id, db)
     result = analytics_service.get_cycle_time(pm4py_log)
-    return CycleTimeResponse(dataset_id=log_id, **result)
+    return CycleTimeResponse(dataset_id=dataset_id, **result)
 
 
-@router.get("/logs/{log_id}/throughput", response_model=ThroughputResponse)
-async def get_throughput(log_id: str, db: AsyncSession = Depends(get_db)) -> ThroughputResponse:
+@router.get("/datasets/{dataset_id}/throughput", response_model=ThroughputResponse)
+async def get_throughput(dataset_id: str, db: AsyncSession = Depends(get_db)) -> ThroughputResponse:
     """Get throughput metrics (cases per day/week/month)."""
-    logger.info("getting_throughput", log_id=log_id)
-    pm4py_log, _ = await _get_pm4py_log(log_id, db)
+    logger.info("getting_throughput", dataset_id=dataset_id)
+    pm4py_log, _ = await _get_pm4py_log(dataset_id, db)
     result = analytics_service.get_throughput(pm4py_log)
-    return ThroughputResponse(dataset_id=log_id, **result)
+    return ThroughputResponse(dataset_id=dataset_id, **result)
 
 
-@router.get("/logs/{log_id}/patterns")
+@router.get("/datasets/{dataset_id}/patterns")
 async def get_patterns(
-    log_id: str, min_support: float = 0.1, db: AsyncSession = Depends(get_db)
+    dataset_id: str, min_support: float = 0.1, db: AsyncSession = Depends(get_db)
 ) -> list[PatternResponse]:
     """Get frequent activity patterns/subsequences."""
-    logger.info("getting_patterns", log_id=log_id, min_support=min_support)
-    pm4py_log, _ = await _get_pm4py_log(log_id, db)
+    logger.info("getting_patterns", dataset_id=dataset_id, min_support=min_support)
+    pm4py_log, _ = await _get_pm4py_log(dataset_id, db)
     result = analytics_service.get_frequent_patterns(pm4py_log, min_support)
     return [PatternResponse(**p) for p in result]
 
 
-@router.get("/logs/{log_id}/rework-chains", response_model=ReworkChainListResponse)
+@router.get("/datasets/{dataset_id}/rework-chains", response_model=ReworkChainListResponse)
 async def get_rework_chains(
-    log_id: str, db: AsyncSession = Depends(get_db)
+    dataset_id: str, db: AsyncSession = Depends(get_db)
 ) -> ReworkChainListResponse:
     """Detect rework chains - consecutive repetitions of the same activity.
 
@@ -163,7 +163,7 @@ async def get_rework_chains(
         - most_problematic_activity: Activity with the most chains
         - cases_with_chains: Number of cases containing chains
     """
-    logger.info("getting_rework_chains", log_id=log_id)
+    logger.info("getting_rework_chains", dataset_id=dataset_id)
 
     # Try cache first
     cache_key = f"rework_chains:{log_id}"
@@ -171,11 +171,11 @@ async def get_rework_chains(
     if cached:
         return cast(ReworkChainListResponse, cached)
 
-    pm4py_log, _ = await _get_pm4py_log(log_id, db)
+    pm4py_log, _ = await _get_pm4py_log(dataset_id, db)
     result = analytics_service.detect_rework_chains(pm4py_log)
 
     response = ReworkChainListResponse(
-        dataset_id=log_id,
+        dataset_id=dataset_id,
         chains=[ReworkChain(**c) for c in result["chains"]],
         total_chains=result["total_chains"],
         most_problematic_activity=result["most_problematic_activity"],
@@ -188,18 +188,18 @@ async def get_rework_chains(
     return response
 
 
-@router.get("/logs/{log_id}/performance", response_model=PerformanceDashboardResponse)
+@router.get("/datasets/{dataset_id}/performance", response_model=PerformanceDashboardResponse)
 async def get_performance_dashboard(
-    log_id: str, db: AsyncSession = Depends(get_db)
+    dataset_id: str, db: AsyncSession = Depends(get_db)
 ) -> PerformanceDashboardResponse:
     """Get comprehensive performance dashboard."""
-    logger.info("getting_performance_dashboard", log_id=log_id)
-    pm4py_log, _ = await _get_pm4py_log(log_id, db)
+    logger.info("getting_performance_dashboard", dataset_id=dataset_id)
+    pm4py_log, _ = await _get_pm4py_log(dataset_id, db)
     result = analytics_service.get_performance_dashboard(pm4py_log)
     return PerformanceDashboardResponse(
-        dataset_id=log_id,
-        cycle_time=CycleTimeResponse(dataset_id=log_id, **result["cycle_time"]),
-        throughput=ThroughputResponse(dataset_id=log_id, **result["throughput"]),
+        dataset_id=dataset_id,
+        cycle_time=CycleTimeResponse(dataset_id=dataset_id, **result["cycle_time"]),
+        throughput=ThroughputResponse(dataset_id=dataset_id, **result["throughput"]),
         top_bottlenecks=[BottleneckResponse(**b) for b in result["top_bottlenecks"]],
         rework_summary=result["rework_summary"],
     )

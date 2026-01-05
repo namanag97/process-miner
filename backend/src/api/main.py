@@ -72,6 +72,9 @@ async def lifespan(app: FastAPI):
 
     await init_database()
 
+    # Seed MVP data (org, workspace, user) for development
+    await _seed_mvp_data()
+
     # Setup observability (optional dependencies)
     _setup_observability(app)
 
@@ -85,6 +88,81 @@ async def lifespan(app: FastAPI):
     logger.info("application_shutting_down")
     await close_database()
     logger.info("application_stopped")
+
+
+async def _seed_mvp_data() -> None:
+    """Seed MVP development data if not exists.
+
+    Creates:
+    - mvp-org-001: Demo Organization
+    - mvp-ws-001: Default Workspace
+    - mvp-user-001: Process Analyst user
+
+    This ensures the frontend's hardcoded IDs work out of the box.
+    """
+    from sqlalchemy import select
+
+    from src.models.database import async_session_maker
+    from src.models.orm import Organization, User, Workspace, WorkspaceMember
+
+    try:
+        async with async_session_maker() as db:
+            # Check if MVP org already exists
+            result = await db.execute(
+                select(Organization).where(Organization.id == "mvp-org-001")
+            )
+            if result.scalar_one_or_none():
+                logger.debug("mvp_seed_data_exists", msg="Skipping seeding")
+                return
+
+            # Create organization
+            org = Organization(
+                id="mvp-org-001",
+                name="Demo Organization",
+                slug="demo-org",
+                plan="free",
+            )
+            db.add(org)
+
+            # Create workspace
+            workspace = Workspace(
+                id="mvp-ws-001",
+                org_id="mvp-org-001",
+                name="Default Workspace",
+                description="Your default process mining workspace",
+            )
+            db.add(workspace)
+
+            # Create user
+            user = User(
+                id="mvp-user-001",
+                org_id="mvp-org-001",
+                email="analyst@company.local",
+                name="Process Analyst",
+                role="admin",
+            )
+            db.add(user)
+
+            # Add user to workspace as owner
+            membership = WorkspaceMember(
+                workspace_id="mvp-ws-001",
+                user_id="mvp-user-001",
+                role="owner",
+            )
+            db.add(membership)
+
+            await db.commit()
+            logger.info(
+                "mvp_seed_data_created",
+                org_id="mvp-org-001",
+                workspace_id="mvp-ws-001",
+                user_id="mvp-user-001",
+            )
+
+    except Exception as e:
+        logger.warning("mvp_seed_data_failed", error=str(e))
+
+
 
 
 def _setup_observability(app: FastAPI) -> None:
@@ -261,12 +339,15 @@ JWT-based authentication with optional workspace context.
             correlation_id = request.headers.get("X-Request-ID")
 
         logger.warning(
-            "application_exception",
+            "⚠️ [APP EXCEPTION] Application exception caught",
             exception_type=type(exc).__name__,
+            exception_module=type(exc).__module__,
             error_code=exc.error_code.value if hasattr(exc, "error_code") else None,
             message=exc.message,
             status_code=exc.status_code,
             path=str(request.url.path),
+            method=request.method,
+            client_host=request.client.host if request.client else None,
             correlation_id=correlation_id,
         )
 
@@ -307,12 +388,18 @@ JWT-based authentication with optional workspace context.
         """
         correlation_id = request.headers.get("X-Request-ID")
 
+        # Enhanced logging for debugging
         logger.error(
-            "unhandled_exception",
+            "🔥 [GLOBAL EXCEPTION] Unhandled exception caught",
             exception_type=type(exc).__name__,
+            exception_module=type(exc).__module__,
             message=str(exc),
             path=str(request.url.path),
+            method=request.method,
             correlation_id=correlation_id,
+            client_host=request.client.host if request.client else None,
+            headers=dict(request.headers),
+            query_params=dict(request.query_params),
             exc_info=True,
         )
 

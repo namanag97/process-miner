@@ -11,7 +11,7 @@ import tempfile
 import time
 
 import aiofiles
-from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, Request, Response, UploadFile
 from sqlalchemy import func, select
 
 from src.api.dependencies import CurrentUser, DBSession
@@ -222,8 +222,9 @@ async def _stream_upload_to_temp(file: UploadFile) -> tuple[str, int]:
 @router.post("/upload/presigned", response_model=PresignedUploadResponse)
 @limiter.limit("10/minute")  # Max 10 presigned URLs per minute per IP
 async def get_presigned_upload_url(
-    http_request: Request,
-    request: PresignedUploadRequest,
+    request: Request,
+    response: Response,
+    body: PresignedUploadRequest,
     db: DBSession,
     current_user: CurrentUser,
 ) -> PresignedUploadResponse:
@@ -256,90 +257,174 @@ async def get_presigned_upload_url(
     from src.models.schemas import PresignedUploadResponse
 
     logger.info(
-        "presigned_upload_requested",
-        filename=request.filename,
-        content_type=request.content_type,
-        file_size=request.file_size_bytes,
-        project_id=request.project_id,
+        "🚀 [PRESIGNED] Request received",
+        filename=body.filename,
+        content_type=body.content_type,
+        file_size_bytes=body.file_size_bytes,
+        project_id=body.project_id,
         user_id=current_user.id,
+        user_email=current_user.email,
+        request_headers=dict(request.headers),
+        client_host=request.client.host if request.client else None,
     )
 
     # Validate file extension
-    validate_file_upload_extension(request.filename)
+    logger.info("📋 [PRESIGNED] Step 1: Validating file extension", filename=body.filename)
+    try:
+        validate_file_upload_extension(body.filename)
+        logger.info("✅ [PRESIGNED] File extension validated", filename=body.filename)
+    except Exception as e:
+        logger.error("❌ [PRESIGNED] File extension validation failed", filename=body.filename, error=str(e))
+        raise
 
     # Validate file size (prevent storage quota attacks)
+    logger.info("📏 [PRESIGNED] Step 2: Validating file size", file_size_bytes=body.file_size_bytes)
     from src.core.config import get_settings
     settings = get_settings()
-    if request.file_size_bytes and request.file_size_bytes > settings.s3_max_file_size_bytes:
+    if body.file_size_bytes and body.file_size_bytes > settings.s3_max_file_size_bytes:
+        logger.error(
+            "❌ [PRESIGNED] File size exceeds limit",
+            file_size_bytes=body.file_size_bytes,
+            max_size_bytes=settings.s3_max_file_size_bytes,
+        )
         raise ValidationError(
-            f"File size ({request.file_size_bytes} bytes) exceeds maximum allowed "
+            f"File size ({body.file_size_bytes} bytes) exceeds maximum allowed "
             f"({settings.s3_max_file_size_bytes} bytes / {settings.s3_max_file_size_bytes // (1024**3)} GB)"
         )
+    logger.info("✅ [PRESIGNED] File size validated", file_size_bytes=body.file_size_bytes)
 
     # Validate project exists and check permission
-    if request.project_id:
+    logger.info("🔐 [PRESIGNED] Step 3: Checking project permissions", project_id=body.project_id)
+    if body.project_id:
         from src.core.permissions import Permission
         from src.services.authorization import require_project_permission
 
-        # Verify user has DATASET_CREATE permission in workspace
-        _, _project = await require_project_permission(
-            db, request.project_id, current_user, Permission.DATASET_CREATE
-        )
+        try:
+            # Verify user has DATASET_CREATE permission in workspace
+            _, _project = await require_project_permission(
+                db, body.project_id, current_user, Permission.DATASET_CREATE
+            )
+            logger.info(
+                "✅ [PRESIGNED] Project permissions validated",
+                project_id=body.project_id,
+                user_id=current_user.id,
+            )
+        except Exception as e:
+            logger.error(
+                "❌ [PRESIGNED] Project permission check failed",
+                project_id=body.project_id,
+                user_id=current_user.id,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            raise
     else:
         # No project specified - user must provide one for RBAC
+        logger.error("❌ [PRESIGNED] No project_id provided")
         raise ValidationError("project_id is required for dataset upload")
 
     # Generate unique storage key with UUID to prevent overwrites
     # Format: {dataset_id}/{uuid}.{extension}
+    logger.info("🔑 [PRESIGNED] Step 4: Generating storage key")
     dataset_id = str(uuid.uuid4())
-    file_extension = os.path.splitext(request.filename)[1]
+    file_extension = os.path.splitext(body.filename)[1]
     file_uuid = str(uuid.uuid4())
     storage_key = f"{dataset_id}/{file_uuid}{file_extension}"
+    logger.info(
+        "✅ [PRESIGNED] Storage key generated",
+        dataset_id=dataset_id,
+        storage_key=storage_key,
+        file_extension=file_extension,
+    )
 
     # Generate presigned upload URL FIRST (fail fast if S3 unavailable)
+    logger.info("☁️ [PRESIGNED] Step 5: Generating presigned URL from storage client")
     storage_client = get_storage_client()
+    logger.info(
+        "📦 [PRESIGNED] Storage client initialized",
+        storage_type=type(storage_client).__name__,
+        bucket_type="raw",
+    )
     try:
         upload_url = storage_client.get_presigned_upload_url(
             bucket_type="raw",
             key=storage_key,
-            content_type=request.content_type,
+            content_type=body.content_type,
+        )
+        logger.info(
+            "✅ [PRESIGNED] Presigned URL generated successfully",
+            storage_key=storage_key,
+            url_length=len(upload_url),
+            content_type=body.content_type,
         )
     except Exception as e:
         logger.error(
-            "presigned_url_generation_failed",
+            "❌ [PRESIGNED] Presigned URL generation failed",
+            storage_key=storage_key,
             error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True,
         )
         raise ProcessingError(f"Failed to generate upload URL: {e}")
 
     # Create dataset record AFTER successful URL generation (transaction-safe)
-    dataset_name = os.path.splitext(request.filename)[0]
+    logger.info("💾 [PRESIGNED] Step 6: Creating dataset record in database")
+    dataset_name = os.path.splitext(body.filename)[0]
     dataset = Dataset(
         id=dataset_id,
         name=dataset_name,
-        project_id=request.project_id,
+        project_id=body.project_id,
         source_format=file_extension.lstrip(".").upper(),
         status=DatasetStatus.PENDING.value,  # Waiting for client upload
-        file_size_bytes=request.file_size_bytes,
-        source_file=request.filename,
+        file_size_bytes=body.file_size_bytes,
+        source_file=body.filename,
         storage_key=storage_key,  # Store for validation trigger
         created_at=datetime.utcnow(),
     )
-    db.add(dataset)
-    await db.commit()
+    logger.info(
+        "📝 [PRESIGNED] Dataset object created",
+        dataset_id=dataset_id,
+        dataset_name=dataset_name,
+        status=DatasetStatus.PENDING.value,
+    )
+
+    try:
+        db.add(dataset)
+        await db.commit()
+        logger.info("✅ [PRESIGNED] Dataset record committed to database", dataset_id=dataset_id)
+    except Exception as e:
+        logger.error(
+            "❌ [PRESIGNED] Database commit failed",
+            dataset_id=dataset_id,
+            error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True,
+        )
+        raise
 
     logger.info(
-        "presigned_upload_url_generated",
+        "🎉 [PRESIGNED] SUCCESS - Presigned upload flow completed",
         dataset_id=dataset_id,
         storage_key=storage_key,
         expires_in=settings.s3_presigned_url_expiry,
+        upload_url_preview=upload_url[:100] + "..." if len(upload_url) > 100 else upload_url,
     )
 
-    return PresignedUploadResponse(
+    response = PresignedUploadResponse(
         upload_url=upload_url,
         storage_key=storage_key,
         dataset_id=dataset_id,
         expires_in=settings.s3_presigned_url_expiry,
     )
+
+    logger.info(
+        "📤 [PRESIGNED] Returning response to client",
+        dataset_id=response.dataset_id,
+        has_upload_url=bool(response.upload_url),
+        expires_in=response.expires_in,
+    )
+
+    return response
 
 
 @router.post("/{dataset_id}/trigger-validation")

@@ -7,7 +7,6 @@ import { Upload, Card, Typography, Space, Alert, Progress } from 'antd';
 import { InboxOutlined, FileTextOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import { tokens } from '@lumina/design-system';
-import { env } from '../../../../config/env';
 
 const { Dragger } = Upload;
 const { Title, Text } = Typography;
@@ -16,12 +15,13 @@ interface UploadStepProps {
     projectId: string;
     onUploadComplete: (datasetId: string, filename: string, fileSize: number) => void;
     isLoading?: boolean;
+    uploadFilePresigned: (file: File) => Promise<string>;
 }
 
 const MAX_FILE_SIZE_MB = 100;
 const ACCEPTED_FORMATS = '.csv,.xlsx,.xls,.xes';
 
-export function UploadStep({ projectId, onUploadComplete, isLoading }: UploadStepProps) {
+export function UploadStep({ onUploadComplete, isLoading, uploadFilePresigned }: UploadStepProps) {
     const [uploadProgress, setUploadProgress] = useState(0);
     const [error, setError] = useState<string | null>(null);
 
@@ -29,12 +29,27 @@ export function UploadStep({ projectId, onUploadComplete, isLoading }: UploadSte
         name: 'file',
         multiple: false,
         accept: ACCEPTED_FORMATS,
-        action: `${env.API_BASE_URL}/api/v1/datasets/upload`,
-        data: {
-            project_id: projectId,
-            async_store: 'true', // Deferred ingestion - preserves file for return visits
-        },
         showUploadList: false,
+        customRequest: async (options) => {
+            const { file, onSuccess, onError } = options;
+            const fileObj = file as File;
+
+            try {
+                setUploadProgress(10); // Start progress
+
+                // Use the custom presigned upload flow
+                const datasetId = await uploadFilePresigned(fileObj);
+
+                setUploadProgress(100);
+                onSuccess?.({ id: datasetId, source_file: fileObj.name });
+                onUploadComplete(datasetId, fileObj.name, fileObj.size);
+            } catch (err: any) {
+                const error = new Error(err.message || 'Upload failed');
+                onError?.(error);
+                setError(err.message || 'Upload failed');
+                setUploadProgress(0);
+            }
+        },
         beforeUpload: (file) => {
             setError(null);
 
@@ -42,34 +57,17 @@ export function UploadStep({ projectId, onUploadComplete, isLoading }: UploadSte
             const sizeMB = file.size / (1024 * 1024);
             if (sizeMB > MAX_FILE_SIZE_MB) {
                 setError(`File too large (${sizeMB.toFixed(1)}MB). Maximum: ${MAX_FILE_SIZE_MB}MB`);
-                return false;
+                return Upload.LIST_IGNORE;
             }
 
             // Validate format
             const ext = file.name.split('.').pop()?.toLowerCase();
             if (!['csv', 'xlsx', 'xls', 'xes'].includes(ext || '')) {
                 setError('Invalid file format. Accepted: CSV, XLSX, XLS, XES');
-                return false;
+                return Upload.LIST_IGNORE;
             }
 
             return true;
-        },
-        onChange: (info) => {
-            const { status, percent, response } = info.file;
-
-            if (status === 'uploading' && percent) {
-                setUploadProgress(Math.round(percent));
-            }
-
-            if (status === 'done' && response) {
-                setUploadProgress(100);
-                onUploadComplete(response.id, response.source_file || info.file.name, info.file.size || 0);
-            }
-
-            if (status === 'error') {
-                setError(response?.detail || 'Upload failed. Please try again.');
-                setUploadProgress(0);
-            }
         },
     };
 

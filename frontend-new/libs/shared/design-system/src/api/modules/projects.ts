@@ -33,6 +33,7 @@ export interface CreateProjectData {
   name: string;
   description?: string;
   tags?: string[];
+  workspaceId?: string;
 }
 
 export interface UpdateProjectData {
@@ -144,7 +145,9 @@ export function createProjectsModule(client: ApiClient): ProjectsModule {
     },
 
     async create(data: CreateProjectData) {
-      const response = await client.post<ProjectApiResponse>('/projects', data);
+      const { workspaceId, ...body } = data;
+      const path = workspaceId ? `/projects?workspace_id=${workspaceId}` : '/projects';
+      const response = await client.post<ProjectApiResponse>(path, body);
       return transformProject(response);
     },
 

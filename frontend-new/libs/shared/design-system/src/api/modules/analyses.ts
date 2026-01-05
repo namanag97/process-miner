@@ -17,7 +17,7 @@ export interface AnalysisCreateRequest {
 
 export interface Analysis {
   id: string;
-  logId: string;
+  datasetId: string;
   name: string;
   analysisType: string;
   status: 'pending' | 'running' | 'completed' | 'failed';
@@ -49,7 +49,7 @@ export interface AnalysisDetail extends Analysis {
 
 interface AnalysisResponse {
   id: string;
-  log_id: string;
+  dataset_id: string;
   name: string;
   analysis_type: string;
   status: string;
@@ -64,7 +64,7 @@ interface AnalysisResponse {
 function transformAnalysis(response: AnalysisResponse): Analysis {
   return {
     id: response.id,
-    logId: response.log_id,
+    datasetId: response.dataset_id,
     name: response.name,
     analysisType: response.analysis_type,
     status: response.status as Analysis['status'],
@@ -78,17 +78,17 @@ function transformAnalysis(response: AnalysisResponse): Analysis {
 }
 
 export interface AnalysesModule {
-  create: (logId: string, request: AnalysisCreateRequest) => Promise<Analysis>;
+  create: (datasetId: string, request: AnalysisCreateRequest) => Promise<Analysis>;
   get: (id: string, includeResults?: boolean) => Promise<AnalysisDetail>;
-  list: (logId?: string) => Promise<Analysis[]>;
+  list: (datasetId?: string) => Promise<Analysis[]>;
   delete: (id: string) => Promise<void>;
 }
 
 export function createAnalysesModule(client: ApiClient): AnalysesModule {
   return {
-    async create(logId: string, request: AnalysisCreateRequest) {
+    async create(datasetId: string, request: AnalysisCreateRequest) {
       const response = await client.post<AnalysisResponse>(
-        `/analyses?log_id=${encodeURIComponent(logId)}`,
+        `/analyses?dataset_id=${encodeURIComponent(datasetId)}`,
         request
       );
       return transformAnalysis(response);
@@ -107,9 +107,9 @@ export function createAnalysesModule(client: ApiClient): AnalysesModule {
       } as AnalysisDetail;
     },
 
-    async list(logId?: string) {
+    async list(datasetId?: string) {
       const params: Record<string, string> = {};
-      if (logId) params.log_id = logId;
+      if (datasetId) params.dataset_id = datasetId;
       
       const response = await client.get<{ items: AnalysisResponse[] }>('/analyses', params);
       return response.items.map(transformAnalysis);

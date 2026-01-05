@@ -11,13 +11,13 @@ import type { DFGOptions, VariantOptions } from '../api/modules/discovery';
 /**
  * Get DFG (Directly Follows Graph) for a process
  */
-export function useDFG(logId: string, options?: DFGOptions) {
+export function useDFG(datasetId: string, options?: DFGOptions) {
   const sdk = useSDK();
 
   return useQuery({
-    queryKey: queryKeys.dfg.data(logId, options),
-    queryFn: () => sdk.discovery.buildDFG(logId, options),
-    enabled: !!logId,
+    queryKey: queryKeys.dfg.data(datasetId, options),
+    queryFn: () => sdk.discovery.buildDFG(datasetId, options),
+    enabled: !!datasetId,
     staleTime: 10 * 60 * 1000, // 10 minutes - DFG is expensive to compute
   });
 }
@@ -25,13 +25,13 @@ export function useDFG(logId: string, options?: DFGOptions) {
 /**
  * Get process variants
  */
-export function useVariants(logId: string, options?: VariantOptions) {
+export function useVariants(datasetId: string, options?: VariantOptions) {
   const sdk = useSDK();
 
   return useQuery({
-    queryKey: queryKeys.variants.list(logId, options as Parameters<typeof queryKeys.variants.list>[1]),
-    queryFn: () => sdk.discovery.getVariants(logId, options),
-    enabled: !!logId,
+    queryKey: queryKeys.variants.list(datasetId, options as Parameters<typeof queryKeys.variants.list>[1]),
+    queryFn: () => sdk.discovery.getVariants(datasetId, options),
+    enabled: !!datasetId,
     staleTime: 10 * 60 * 1000,
   });
 }
@@ -39,13 +39,13 @@ export function useVariants(logId: string, options?: VariantOptions) {
 /**
  * Get activity details for a process
  */
-export function useActivities(logId: string, sortBy?: string) {
+export function useActivities(datasetId: string, sortBy?: string) {
   const sdk = useSDK();
 
   return useQuery({
-    queryKey: queryKeys.activities.list(logId),
-    queryFn: () => sdk.discovery.getActivities(logId, sortBy),
-    enabled: !!logId,
+    queryKey: queryKeys.activities.list(datasetId),
+    queryFn: () => sdk.discovery.getActivities(datasetId, sortBy),
+    enabled: !!datasetId,
     staleTime: 10 * 60 * 1000,
   });
 }
@@ -58,11 +58,11 @@ export function useDiscoverProcess() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (options: { logId: string; minerType?: string; modelName?: string }) =>
+    mutationFn: (options: { datasetId: string; minerType?: string; modelName?: string }) =>
       sdk.discovery.discover(options),
     onSuccess: (_result, variables) => {
       // Invalidate DFG to show new model
-      queryClient.invalidateQueries({ queryKey: queryKeys.dfg.data(variables.logId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dfg.data(variables.datasetId) });
       toast.success('Process model discovered successfully');
     },
     onError: (error: Error) => {
@@ -75,10 +75,10 @@ export function useDiscoverProcess() {
  * Combined hook for all explorer data (DFG, variants, activities)
  * Fetches in parallel for better performance
  */
-export function useExplorerData(logId: string, options?: { includePerformance?: boolean }) {
-  const dfgQuery = useDFG(logId, { includePerformance: options?.includePerformance });
-  const variantsQuery = useVariants(logId);
-  const activitiesQuery = useActivities(logId);
+export function useExplorerData(datasetId: string, options?: { includePerformance?: boolean }) {
+  const dfgQuery = useDFG(datasetId, { includePerformance: options?.includePerformance });
+  const variantsQuery = useVariants(datasetId);
+  const activitiesQuery = useActivities(datasetId);
 
   return {
     dfg: dfgQuery.data,

@@ -102,5 +102,5 @@ export interface AutomationResponse {
 // ============================================
 
 export interface KPITabProps {
-  logId: string;
+  datasetId: string;
 }

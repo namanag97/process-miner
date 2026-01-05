@@ -23,7 +23,7 @@ export type AuditEventType =
 interface AuditEventData {
   projectId?: string;
   processId?: string;
-  logId?: string;
+  datasetId?: string;
   fileName?: string;
   filterType?: string;
   filterValue?: unknown;
@@ -46,7 +46,7 @@ interface AuditEventData {
  * auditLog('explorer.viewed', { projectId: '123', processId: 'abc' });
  * 
  * // Log filter application
- * auditLog('filter.applied', { logId: 'abc', filterType: 'frequency', filterValue: 10 });
+ * auditLog('filter.applied', { datasetId: 'abc', filterType: 'frequency', filterValue: 10 });
  * ```
  */
 export function useAuditLogger() {
@@ -105,12 +105,12 @@ export function useExplorerAuditLogger() {
   return {
     logView: (processId: string, projectId?: string) =>
       log('explorer.viewed', { processId, projectId }),
-    logFilter: (logId: string, filterType: string, filterValue: unknown) =>
-      log('filter.applied', { logId, filterType, filterValue }),
-    logVariantSelect: (logId: string, variantKey: string) =>
-      log('variant.selected', { logId, variantKey }),
-    logExport: (logId: string, format: string) =>
-      log('export.generated', { logId, format }),
+    logFilter: (datasetId: string, filterType: string, filterValue: unknown) =>
+      log('filter.applied', { datasetId, filterType, filterValue }),
+    logVariantSelect: (datasetId: string, variantKey: string) =>
+      log('variant.selected', { datasetId, variantKey }),
+    logExport: (datasetId: string, format: string) =>
+      log('export.generated', { datasetId, format }),
   };
 }
 

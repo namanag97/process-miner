@@ -1531,7 +1531,13 @@ class MiningService:
 
         return {
             "top_variants": [
-                {"variant": v["activity_trace"], "count": v["case_count"]} for v in variants
+                {
+                    "variant_key": v["activity_trace"],
+                    "case_count": v["case_count"],
+                    "frequency_percent": v.get("frequency_percent", 0.0),
+                    "avg_duration_seconds": v.get("avg_duration_seconds"),
+                }
+                for v in variants
             ],
             "total_variants": len(variants),  # Note: this is capped by top_n
         }

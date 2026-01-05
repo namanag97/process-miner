@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Card, Typography, Space, Tag, Button, Input } from 'antd';
+import { Table, Card, Typography, Space, Tag, Button, Input, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
     SearchOutlined,
@@ -66,7 +66,9 @@ export function ExploreProcessesPage() {
         if (record.projectId) {
             navigate(`/workspace/${record.projectId}/data/${record.id}/explorer`);
         } else {
-            navigate(`/explorer/${record.id}`);
+            // Show warning instead of navigating to broken route
+            message.warning('Cannot explore: this dataset is not associated with a project');
+            log.warn('Dataset has no projectId', { datasetId: record.id });
         }
     };
 

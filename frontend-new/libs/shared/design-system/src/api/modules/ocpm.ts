@@ -23,10 +23,10 @@ export interface OCPMModule {
   getLog: (id: string) => Promise<OCELLog>;
   uploadLog: (file: File, name?: string) => Promise<OCELLog>;
   deleteLog: (id: string) => Promise<void>;
-  getObjectTypes: (logId: string) => Promise<OCELObjectTypeResponse[]>;
-  getStatistics: (logId: string) => Promise<OCELStatistics>;
-  discoverOCPN: (logId: string, modelName?: string) => Promise<OCPetriNetResponse>;
-  getOCDFG: (logId: string) => Promise<OCDFGResponse>;
+  getObjectTypes: (datasetId: string) => Promise<OCELObjectTypeResponse[]>;
+  getStatistics: (datasetId: string) => Promise<OCELStatistics>;
+  discoverOCPN: (datasetId: string, modelName?: string) => Promise<OCPetriNetResponse>;
+  getOCDFG: (datasetId: string) => Promise<OCDFGResponse>;
 }
 
 export function createOCPMModule(client: ApiClient): OCPMModule {
@@ -58,24 +58,24 @@ export function createOCPMModule(client: ApiClient): OCPMModule {
       await client.delete(`/ocpm/logs/${id}`);
     },
 
-    async getObjectTypes(logId: string) {
-      return client.get<OCELObjectTypeResponse[]>(`/ocpm/logs/${logId}/object-types`);
+    async getObjectTypes(datasetId: string) {
+      return client.get<OCELObjectTypeResponse[]>(`/ocpm/logs/${datasetId}/object-types`);
     },
 
-    async getStatistics(logId: string) {
-      const response = await client.get<OCELStatisticsResponse>(`/ocpm/logs/${logId}/statistics`);
+    async getStatistics(datasetId: string) {
+      const response = await client.get<OCELStatisticsResponse>(`/ocpm/logs/${datasetId}/statistics`);
       return transformOCELStatistics(response);
     },
 
-    async discoverOCPN(logId: string, modelName?: string) {
+    async discoverOCPN(datasetId: string, modelName?: string) {
       return client.post<OCPetriNetResponse>('/ocpm/discover', {
-        log_id: logId,
+        dataset_id: datasetId,
         model_name: modelName,
       });
     },
 
-    async getOCDFG(logId: string) {
-      return client.get<OCDFGResponse>(`/ocpm/logs/${logId}/oc-dfg`);
+    async getOCDFG(datasetId: string) {
+      return client.get<OCDFGResponse>(`/ocpm/logs/${datasetId}/oc-dfg`);
     },
   };
 }

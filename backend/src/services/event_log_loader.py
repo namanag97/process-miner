@@ -368,7 +368,10 @@ class EventLogLoader:
         top_k: int | None = None,
     ) -> list[dict[str, Any]]:
         """
-        Get process variants using SQL aggregation.
+        Get process variants using optimized SQL aggregation on variant_key.
+
+        Now uses the indexed `variant_key` column from `process_cases` instead of
+        slowly re-aggregating thousands of events per case.
 
         Note: This is synchronous because DuckDB operations are sync.
 
@@ -385,39 +388,45 @@ class EventLogLoader:
             # BUG-032 FIX: parameterized query (limit_clause handled separately as it's an int)
             limit_clause = f"LIMIT {int(top_k)}" if top_k else ""
 
-            # Note: limit_clause is safe as we cast top_k to int above
+            # OPTIMIZED: Group by pre-computed variant_key (O(Cases)) instead of aggregating events (O(Events))
             query = f"""
-                WITH case_variants AS (
+                WITH variants_agg AS (
                     SELECT
-                        pc.case_id,
-                        STRING_AGG(pe.activity, ' -> ' ORDER BY pe.timestamp) as variant
-                    FROM db.process_events pe
-                    INNER JOIN db.process_cases pc
-                        ON pe.case_ref_id = pc.id
-                    WHERE pc.dataset_id = ?
-                    GROUP BY pc.case_id
+                        variant_key,
+                        COUNT(*) as case_count
+                    FROM db.process_cases
+                    WHERE dataset_id = ?
+                      AND variant_key IS NOT NULL
+                    GROUP BY variant_key
+                    ORDER BY case_count DESC
+                    {limit_clause}
                 )
                 SELECT
-                    variant,
-                    COUNT(*) as case_count,
-                    ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) as frequency_percent
-                FROM case_variants
-                GROUP BY variant
+                    variant_key,
+                    case_count,
+                    ROUND(case_count * 100.0 / SUM(case_count) OVER (), 2) as frequency_percent
+                FROM variants_agg
                 ORDER BY case_count DESC
-                {limit_clause}
             """
             variants = conn.execute(query, [dataset_id]).fetchall()
 
-            return [
-                {
-                    "variant_key": f"v{i}",
-                    "activity_trace": row[0],
-                    "activities": row[0].split(" -> "),
+            result = []
+            for _i, row in enumerate(variants):
+                # Parse variant key back to activity list if needed
+                # variant_key format: "Activity A -> Activity B"
+                v_key = row[0]
+                if not v_key:
+                    continue
+
+                result.append({
+                    "variant_key": v_key, # Dictionary key (hash)
+                    "activity_trace": v_key, # Display string
+                    "activities": v_key.split(" -> "), # List for FE
                     "case_count": row[1],
                     "frequency_percent": row[2],
-                }
-                for i, row in enumerate(variants)
-            ]
+                })
+
+            return result
 
         finally:
             conn.close()

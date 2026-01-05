@@ -45,9 +45,9 @@ class LogBroker:
     def __init__(self):
         self._redis: redis.Redis | None = None
         self._connected = False
-        # Per-worker buffer capped at 200 logs to prevent RAM creep
-        # With typical 4 workers, total memory usage stays under 800 logs
-        self._local_buffer: deque = deque(maxlen=200)
+        # Per-worker buffer capped at 1000 logs to support comprehensive logging
+        # With typical 4 workers, total memory usage stays under 4000 logs (~2MB)
+        self._local_buffer: deque = deque(maxlen=1000)
         self._log_id_counter = 0
 
     async def connect(self):

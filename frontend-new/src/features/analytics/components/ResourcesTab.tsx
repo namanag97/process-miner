@@ -27,29 +27,29 @@ interface HandoverData {
 }
 
 interface ResourcesTabProps {
-  logId: string | null;
+  datasetId: string | null;
 }
 
-export function ResourcesTab({ logId }: ResourcesTabProps) {
+export function ResourcesTab({ datasetId }: ResourcesTabProps) {
   const sdk = useSDK();
 
   // Fetch workload distribution
   const { data: workloadData, isLoading: workloadLoading } = useQuery({
-    queryKey: ['organizational', 'workload', logId],
-    queryFn: () => sdk.organizational.getWorkload(logId!),
-    enabled: !!logId,
+    queryKey: ['organizational', 'workload', datasetId],
+    queryFn: () => sdk.organizational.getWorkload(datasetId!),
+    enabled: !!datasetId,
   });
 
   // Fetch handover network
   const { data: handoverData, isLoading: handoverLoading } = useQuery({
-    queryKey: ['organizational', 'handover', logId],
-    queryFn: () => sdk.organizational.getHandoverNetwork(logId!),
-    enabled: !!logId,
+    queryKey: ['organizational', 'handover', datasetId],
+    queryFn: () => sdk.organizational.getHandoverNetwork(datasetId!),
+    enabled: !!datasetId,
   });
 
   const isLoading = workloadLoading || handoverLoading;
 
-  log.debug('Rendering ResourcesTab', { logId, hasWorkload: !!workloadData, hasHandover: !!handoverData });
+  log.debug('Rendering ResourcesTab', { datasetId, hasWorkload: !!workloadData, hasHandover: !!handoverData });
 
   if (isLoading) {
     return (
@@ -59,7 +59,7 @@ export function ResourcesTab({ logId }: ResourcesTabProps) {
     );
   }
 
-  if (!logId) {
+  if (!datasetId) {
     return (
       <Card>
         <Text type="secondary">Select an event log to view resource analytics</Text>

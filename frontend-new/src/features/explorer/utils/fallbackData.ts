@@ -76,7 +76,7 @@ export function logDataError(
   context: {
     usingFallback: boolean;
     hookType?: string;
-    logId?: string;
+    datasetId?: string;
     endpoint?: string;
   }
 ): void {
@@ -108,7 +108,7 @@ export interface UseFallbackDataOptions {
   /** Hook type for logging context */
   hookType?: string;
   /** Log ID for logging context */
-  logId?: string;
+  datasetId?: string;
   /** Endpoint being called */
   endpoint?: string;
   /** Disable fallback even on error */
@@ -120,11 +120,11 @@ export interface UseFallbackDataOptions {
  * and logs the error to DevConsole
  *
  * @example
- * const { data, error } = useDFG({ logId });
+ * const { data, error } = useDFG({ datasetId });
  * const dfgData = useFallbackData(data, error, mockOrderToCashDFG, {
  *   source: 'ExplorerDetailPage',
  *   hookType: 'useDFG',
- *   logId,
+ *   datasetId,
  * });
  */
 export function useFallbackData<T>(
@@ -133,7 +133,7 @@ export function useFallbackData<T>(
   mockData: T,
   options: UseFallbackDataOptions
 ): T {
-  const { source, hookType, logId, endpoint, disableFallback = false } = options;
+  const { source, hookType, datasetId, endpoint, disableFallback = false } = options;
 
   // Determine if we should use fallback
   const useFallback = !disableFallback && shouldUseFallback(error);
@@ -144,7 +144,7 @@ export function useFallbackData<T>(
       logDataError(source, error, {
         usingFallback: true,
         hookType,
-        logId,
+        datasetId,
         endpoint,
       });
     } else if (error && !useFallback) {
@@ -152,11 +152,11 @@ export function useFallbackData<T>(
       logDataError(source, error, {
         usingFallback: false,
         hookType,
-        logId,
+        datasetId,
         endpoint,
       });
     }
-  }, [error, useFallback, source, hookType, logId, endpoint]);
+  }, [error, useFallback, source, hookType, datasetId, endpoint]);
 
   // Return real data if available, otherwise mock data if fallback is enabled
   return useMemo(() => {

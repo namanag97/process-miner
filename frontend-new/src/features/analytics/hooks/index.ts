@@ -15,12 +15,12 @@ import { createQueryHook } from '../../../core/hooks/createFeatureHook';
  * Hook to fetch performance analytics data
  */
 export const useAnalyticsPerformance = createQueryHook({
-  queryKey: (logId: string) => queryKeys.analytics.performance(logId),
-  queryFn: async (sdk, logId: string) => {
-    const result = await sdk.analytics.getPerformance(logId);
+  queryKey: (datasetId: string) => queryKeys.analytics.performance(datasetId),
+  queryFn: async (sdk, datasetId: string) => {
+    const result = await sdk.analytics.getPerformance(datasetId);
     return result;
   },
-  enabled: (logId: string) => !!logId,
+  enabled: (datasetId: string) => !!datasetId,
   staleTime: 5 * 60 * 1000,
 });
 
@@ -28,12 +28,12 @@ export const useAnalyticsPerformance = createQueryHook({
  * Hook to fetch rework analytics data
  */
 export const useAnalyticsRework = createQueryHook({
-  queryKey: (logId: string) => queryKeys.analytics.rework(logId),
-  queryFn: async (sdk, logId: string) => {
-    const result = await sdk.analytics.getRework(logId);
+  queryKey: (datasetId: string) => queryKeys.analytics.rework(datasetId),
+  queryFn: async (sdk, datasetId: string) => {
+    const result = await sdk.analytics.getRework(datasetId);
     return result;
   },
-  enabled: (logId: string) => !!logId,
+  enabled: (datasetId: string) => !!datasetId,
   staleTime: 5 * 60 * 1000,
 });
 

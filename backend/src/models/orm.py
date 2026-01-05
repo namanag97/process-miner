@@ -372,9 +372,9 @@ class Analysis(Base):
 
     # Cached results
     result_summary_json: Mapped[str | None] = mapped_column(Text, nullable=True)
-    result_json: Mapped[str | None] = mapped_column(
+    result_json: Mapped[str | None] = deferred(mapped_column(
         Text, nullable=True
-    )  # Full DFG/variants/statistics
+    ))  # Full DFG/variants/statistics
 
     # Link to ProcessModel for discovery analyses
     model_id: Mapped[str | None] = mapped_column(
@@ -401,7 +401,7 @@ class ProcessCase(Base):
     case_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
 
     # Variant (activity sequence hash for grouping)
-    variant_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    variant_key: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
 
     # Case-level timestamps
     start_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -458,7 +458,7 @@ class ProcessModel(Base):
     # Contains actual PM4Py model object (Petri net, DFG, Process tree, etc.)
     # Used for conformance checking, enhancement, and other algorithmic operations
     # Format: joblib binary (new models), pickle binary (legacy models - auto-converted on read)
-    serialized_model: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    serialized_model: Mapped[bytes | None] = deferred(mapped_column(LargeBinary, nullable=True))
 
     # Standard format storage (Phase 1 architecture)
     # PNML files for Petri nets stored in object storage (S3/MinIO)

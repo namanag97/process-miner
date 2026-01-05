@@ -35,7 +35,7 @@ export function ExplorerRoutes() {
   return (
     <Routes>
       <Route index element={<ExplorerIndexPage />} />
-      <Route path=":logId/*" element={<ExplorerDetailPage />} />
+      <Route path=":datasetId/*" element={<ExplorerDetailPage />} />
       <Route path="*" element={<Navigate to="/explorer" replace />} />
     </Routes>
   );

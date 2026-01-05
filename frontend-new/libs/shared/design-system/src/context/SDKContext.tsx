@@ -42,7 +42,7 @@ interface ProcessMiningSdk {
   audit: AuditModule;
   ocpm: OCPMModule;
   visualization: {
-    getDFG: (logId: string) => Promise<unknown>;
+    getDFG: (datasetId: string) => Promise<unknown>;
   };
   /** Check backend health */
   checkHealth: () => Promise<boolean>;
@@ -185,7 +185,7 @@ export function SDKProvider({
       ocpm: ocpmModule,
       // Visualization is an alias to discovery.buildDFG for backward compatibility
       visualization: {
-        getDFG: (logId: string) => discoveryModule.buildDFG(logId),
+        getDFG: (datasetId: string) => discoveryModule.buildDFG(datasetId),
       },
       // Health check methods
       checkHealth: () => client.checkHealth(),

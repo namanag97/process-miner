@@ -42,9 +42,9 @@ router = APIRouter(prefix="/filtering", tags=["Filtering"])
 # =============================================================================
 
 
-@router.post("/logs/{log_id}/apply", response_model=FilteredLogResponse)
+@router.post("/datasets/{dataset_id}/apply", response_model=FilteredLogResponse)
 async def apply_filters(
-    log_id: str,
+    dataset_id: str,
     request: FilterRequest,
     db: AsyncSession = Depends(get_db),
 ) -> FilteredLogResponse:
@@ -54,15 +54,15 @@ async def apply_filters(
     This creates a new event log that is a filtered version of the source log.
     The original log is not modified.
     """
-    logger.info("applying_filters", log_id=log_id, filter_count=len(request.filters))
+    logger.info("applying_filters", dataset_id=dataset_id, filter_count=len(request.filters))
 
     # Get source log with cases and events
-    query = select(Dataset).where(Dataset.id == log_id)
+    query = select(Dataset).where(Dataset.id == dataset_id)
     result = await db.execute(query)
     source_log = result.scalar_one_or_none()
 
     if not source_log:
-        raise HTTPException(status_code=404, detail=f"Event log {log_id} not found")
+        raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
 
     # Convert to PM4Py log
     pm4py_log = filtering_service.to_pm4py_log(source_log)
@@ -80,7 +80,7 @@ async def apply_filters(
         return FilteredLogResponse(
             id="preview",
             name=request.name or f"Filtered {source_log.name}",
-            source_dataset_id=log_id,
+            source_dataset_id=dataset_id,
             is_filtered=True,
             filter_config=request.filters,
             total_events=stats["filtered_events"],
@@ -107,7 +107,7 @@ async def apply_filters(
         total_events=sum(len(trace) for trace in filtered_pm4py),
         total_activities=len(activities),
         activities_json=json.dumps(sorted(activities)),
-        source_log_id=log_id,
+        source_dataset_id=dataset_id,
         filter_config_json=json.dumps(filters_config),
         is_filtered=True,
         filter_stats_json=json.dumps(stats),
@@ -129,7 +129,7 @@ async def apply_filters(
         variant_key = " -> ".join(activity_sequence)
 
         case = ProcessCase(
-            log_id=new_log.id,
+            dataset_id=new_log.id,
             case_id=case_id,
             variant_key=variant_key,
             start_time=start_time,
@@ -159,8 +159,8 @@ async def apply_filters(
 
     logger.info(
         "filters_applied",
-        log_id=log_id,
-        new_log_id=new_log.id,
+        dataset_id=dataset_id,
+        new_dataset_id=new_log.id,
         original_cases=stats["original_cases"],
         filtered_cases=stats["filtered_cases"],
     )
@@ -168,7 +168,7 @@ async def apply_filters(
     return FilteredLogResponse(
         id=new_log.id,
         name=new_log.name,
-        source_dataset_id=log_id,
+        source_dataset_id=dataset_id,
         is_filtered=True,
         filter_config=request.filters,
         total_events=new_log.total_events,
@@ -184,9 +184,9 @@ async def apply_filters(
 # =============================================================================
 
 
-@router.post("/logs/{log_id}/preview", response_model=FilterPreviewResponse)
+@router.post("/datasets/{dataset_id}/preview", response_model=FilterPreviewResponse)
 async def preview_filters(
-    log_id: str,
+    dataset_id: str,
     request: FilterPreviewRequest,
     db: AsyncSession = Depends(get_db),
 ) -> FilterPreviewResponse:
@@ -195,15 +195,15 @@ async def preview_filters(
 
     Returns statistics on how many cases/events would be retained.
     """
-    logger.info("previewing_filters", log_id=log_id, filter_count=len(request.filters))
+    logger.info("previewing_filters", dataset_id=dataset_id, filter_count=len(request.filters))
 
     # Get source log
-    query = select(Dataset).where(Dataset.id == log_id)
+    query = select(Dataset).where(Dataset.id == dataset_id)
     result = await db.execute(query)
     source_log = result.scalar_one_or_none()
 
     if not source_log:
-        raise HTTPException(status_code=404, detail=f"Event log {log_id} not found")
+        raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
 
     # Convert to PM4Py log
     pm4py_log = filtering_service.to_pm4py_log(source_log)
@@ -218,7 +218,7 @@ async def preview_filters(
 
     logger.info(
         "filter_preview_completed",
-        log_id=log_id,
+        dataset_id=dataset_id,
         would_retain_cases=stats["filtered_cases"],
     )
 
@@ -235,9 +235,9 @@ async def preview_filters(
 # =============================================================================
 
 
-@router.get("/logs/{log_id}/options", response_model=FilterOptionsResponse)
+@router.get("/datasets/{dataset_id}/options", response_model=FilterOptionsResponse)
 async def get_filter_options(
-    log_id: str,
+    dataset_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> FilterOptionsResponse:
     """
@@ -246,15 +246,15 @@ async def get_filter_options(
     Returns activities, resources, time ranges, and other values
     that can be used for filtering.
     """
-    logger.info("getting_filter_options", log_id=log_id)
+    logger.info("getting_filter_options", dataset_id=dataset_id)
 
     # Get source log
-    query = select(Dataset).where(Dataset.id == log_id)
+    query = select(Dataset).where(Dataset.id == dataset_id)
     result = await db.execute(query)
     source_log = result.scalar_one_or_none()
 
     if not source_log:
-        raise HTTPException(status_code=404, detail=f"Event log {log_id} not found")
+        raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
 
     # Convert to PM4Py log
     pm4py_log = filtering_service.to_pm4py_log(source_log)
@@ -270,28 +270,28 @@ async def get_filter_options(
 # =============================================================================
 
 
-@router.get("/logs/{log_id}/results", response_model=FilteredLogListResponse)
+@router.get("/datasets/{dataset_id}/results", response_model=FilteredLogListResponse)
 async def list_filtered_logs(
-    log_id: str,
+    dataset_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> FilteredLogListResponse:
     """
     List all filtered versions of an event log.
     """
-    logger.info("listing_filtered_logs", source_log_id=log_id)
+    logger.info("listing_filtered_logs", source_dataset_id=dataset_id)
 
     # Get source log
-    query = select(Dataset).where(Dataset.id == log_id)
+    query = select(Dataset).where(Dataset.id == dataset_id)
     result = await db.execute(query)
     source_log = result.scalar_one_or_none()
 
     if not source_log:
-        raise HTTPException(status_code=404, detail=f"Event log {log_id} not found")
+        raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
 
     # Get filtered logs
     query = (
         select(Dataset)
-        .where(Dataset.source_dataset_id == log_id)
+        .where(Dataset.source_dataset_id == dataset_id)
         .where(Dataset.is_filtered.is_(True))
         .order_by(Dataset.created_at.desc())
     )
@@ -320,7 +320,7 @@ async def list_filtered_logs(
             FilteredLogResponse(
                 id=log.id,
                 name=log.name,
-                source_dataset_id=log_id,
+                source_dataset_id=dataset_id,
                 is_filtered=True,
                 filter_config=filter_config,
                 total_events=log.total_events,
@@ -332,7 +332,7 @@ async def list_filtered_logs(
         )
 
     return FilteredLogListResponse(
-        source_dataset_id=log_id,
+        source_dataset_id=dataset_id,
         source_dataset_name=source_log.name,
         filtered_logs=items,
         total=len(items),
@@ -344,22 +344,22 @@ async def list_filtered_logs(
 # =============================================================================
 
 
-@router.delete("/logs/{log_id}/results/{filtered_id}")
+@router.delete("/datasets/{dataset_id}/results/{filtered_id}")
 async def delete_filtered_log(
-    log_id: str,
+    dataset_id: str,
     filtered_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """
     Delete a filtered log.
     """
-    logger.info("deleting_filtered_log", source_log_id=log_id, filtered_id=filtered_id)
+    logger.info("deleting_filtered_log", source_dataset_id=dataset_id, filtered_id=filtered_id)
 
     # Verify the filtered log exists and belongs to the source log
     query = (
         select(Dataset)
         .where(Dataset.id == filtered_id)
-        .where(Dataset.source_dataset_id == log_id)
+        .where(Dataset.source_dataset_id == dataset_id)
         .where(Dataset.is_filtered.is_(True))
     )
     result = await db.execute(query)

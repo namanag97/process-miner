@@ -12,8 +12,8 @@
  * ```tsx
  * // Create a simple query hook
  * export const useVariants = createQueryHook({
- *   queryKey: (logId: string) => queryKeys.variants.list(logId),
- *   queryFn: (sdk, logId: string) => sdk.discovery.getVariants(logId),
+ *   queryKey: (datasetId: string) => queryKeys.variants.list(datasetId),
+ *   queryFn: (sdk, datasetId: string) => sdk.discovery.getVariants(datasetId),
  * });
  *
  * // Create a mutation hook with cache invalidation

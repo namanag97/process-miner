@@ -44,7 +44,7 @@ export interface ProcessesModule {
   ) => Promise<{ id: string }>;
   delete: (id: string) => Promise<void>;
   detectColumns: (file: File) => Promise<ColumnDetection>;
-  analyze: (logId: string) => Promise<Record<string, unknown>>;
+  analyze: (datasetId: string) => Promise<Record<string, unknown>>;
 }
 
 export function createProcessesModule(client: ApiClient): ProcessesModule {
@@ -146,9 +146,9 @@ export function createProcessesModule(client: ApiClient): ProcessesModule {
       return transformColumnDetection(response);
     },
 
-    async analyze(logId: string) {
+    async analyze(datasetId: string) {
       // Get statistics for a log
-      return client.get<Record<string, unknown>>(`/datasets/${logId}/statistics`);
+      return client.get<Record<string, unknown>>(`/datasets/${datasetId}/statistics`);
     },
   };
 }

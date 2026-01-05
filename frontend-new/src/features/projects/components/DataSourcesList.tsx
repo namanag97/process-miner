@@ -73,7 +73,7 @@ export function DataSourcesList({
 
   const handleDelete = async (sourceId: string) => {
     if (!projectId) return;
-    await removeFile.mutateAsync({ projectId, logId: sourceId });
+    await removeFile.mutateAsync({ projectId, datasetId: sourceId });
   };
 
   if (!loading && sources.length === 0) {

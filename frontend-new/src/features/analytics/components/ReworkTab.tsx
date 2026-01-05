@@ -10,13 +10,13 @@ const { Text } = Typography;
 const log = createLogger('ReworkTab');
 
 interface ReworkTabProps {
-  logId: string | null;
+  datasetId: string | null;
   data?: ReworkData;
   loading?: boolean;
 }
 
-export function ReworkTab({ logId, data, loading }: ReworkTabProps) {
-  log.debug('Rendering ReworkTab', { logId, hasData: !!data });
+export function ReworkTab({ datasetId, data, loading }: ReworkTabProps) {
+  log.debug('Rendering ReworkTab', { datasetId, hasData: !!data });
 
   if (loading) {
     return (

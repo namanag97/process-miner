@@ -28,7 +28,7 @@ export interface NetworkEdge {
 }
 
 export interface SocialNetwork {
-  logId: string;
+  datasetId: string;
   networkType: 'handover' | 'collaboration' | 'similarity';
   nodes: NetworkNode[];
   edges: NetworkEdge[];
@@ -61,7 +61,7 @@ export interface ResourceProfile {
 }
 
 export interface WorkloadDistribution {
-  logId: string;
+  datasetId: string;
   resources: Array<{
     resource: string;
     eventCount: number;
@@ -74,12 +74,12 @@ export interface WorkloadDistribution {
 }
 
 export interface OrganizationalModule {
-  getHandoverNetwork: (logId: string) => Promise<SocialNetwork>;
-  getCollaborationNetwork: (logId: string) => Promise<SocialNetwork>;
-  getResourceSimilarity: (logId: string) => Promise<SocialNetwork>;
-  getRoles: (logId: string) => Promise<ResourceRole[]>;
-  getResourceProfile: (logId: string, resource: string) => Promise<ResourceProfile>;
-  getWorkload: (logId: string) => Promise<WorkloadDistribution>;
+  getHandoverNetwork: (datasetId: string) => Promise<SocialNetwork>;
+  getCollaborationNetwork: (datasetId: string) => Promise<SocialNetwork>;
+  getResourceSimilarity: (datasetId: string) => Promise<SocialNetwork>;
+  getRoles: (datasetId: string) => Promise<ResourceRole[]>;
+  getResourceProfile: (datasetId: string, resource: string) => Promise<ResourceProfile>;
+  getWorkload: (datasetId: string) => Promise<WorkloadDistribution>;
 }
 
 // Backend response types (snake_case)
@@ -98,7 +98,7 @@ interface NetworkEdgeResponse {
 }
 
 interface SocialNetworkResponse {
-  log_id: string;
+  dataset_id: string;
   network_type: string;
   nodes: NetworkNodeResponse[];
   edges: NetworkEdgeResponse[];
@@ -131,7 +131,7 @@ interface ResourceProfileResponse {
 }
 
 interface WorkloadResponse {
-  log_id: string;
+  dataset_id: string;
   resources: Array<{
     resource: string;
     event_count: number;
@@ -151,7 +151,7 @@ function transformNetwork(be: SocialNetworkResponse): SocialNetwork {
     : 'handover'; // Default fallback
 
   return {
-    logId: be.log_id,
+    datasetId: be.dataset_id,
     networkType,
     nodes: be.nodes.map((n) => ({
       id: n.id,
@@ -200,7 +200,7 @@ function transformProfile(be: ResourceProfileResponse): ResourceProfile {
 
 function transformWorkload(be: WorkloadResponse): WorkloadDistribution {
   return {
-    logId: be.log_id,
+    datasetId: be.dataset_id,
     resources: be.resources.map((r) => ({
       resource: r.resource,
       eventCount: r.event_count,
@@ -215,44 +215,44 @@ function transformWorkload(be: WorkloadResponse): WorkloadDistribution {
 
 export function createOrganizationalModule(client: ApiClient): OrganizationalModule {
   return {
-    async getHandoverNetwork(logId: string) {
+    async getHandoverNetwork(datasetId: string) {
       const response = await client.get<SocialNetworkResponse>(
-        `/organizational/logs/${logId}/handover-network`
+        `/organizational/logs/${datasetId}/handover-network`
       );
       return transformNetwork(response);
     },
 
-    async getCollaborationNetwork(logId: string) {
+    async getCollaborationNetwork(datasetId: string) {
       const response = await client.get<SocialNetworkResponse>(
-        `/organizational/logs/${logId}/collaboration-network`
+        `/organizational/logs/${datasetId}/collaboration-network`
       );
       return transformNetwork(response);
     },
 
-    async getResourceSimilarity(logId: string) {
+    async getResourceSimilarity(datasetId: string) {
       const response = await client.get<SocialNetworkResponse>(
-        `/organizational/logs/${logId}/resource-similarity`
+        `/organizational/logs/${datasetId}/resource-similarity`
       );
       return transformNetwork(response);
     },
 
-    async getRoles(logId: string) {
+    async getRoles(datasetId: string) {
       const response = await client.get<ResourceRoleResponse[]>(
-        `/organizational/logs/${logId}/roles`
+        `/organizational/logs/${datasetId}/roles`
       );
       return response.map(transformRole);
     },
 
-    async getResourceProfile(logId: string, resource: string) {
+    async getResourceProfile(datasetId: string, resource: string) {
       const response = await client.get<ResourceProfileResponse>(
-        `/organizational/logs/${logId}/resources/${encodeURIComponent(resource)}/profile`
+        `/organizational/logs/${datasetId}/resources/${encodeURIComponent(resource)}/profile`
       );
       return transformProfile(response);
     },
 
-    async getWorkload(logId: string) {
+    async getWorkload(datasetId: string) {
       const response = await client.get<WorkloadResponse>(
-        `/organizational/logs/${logId}/workload`
+        `/organizational/logs/${datasetId}/workload`
       );
       return transformWorkload(response);
     },

@@ -66,7 +66,7 @@ async def discover_model(
     Set async_mode=False for synchronous execution (not recommended for large logs).
 
     Args:
-        request: Discovery request with log_id, miner_type, model_name
+        request: Discovery request with dataset_id, miner_type, model_name
         async_mode: If True (default), runs in background and returns job_id
 
     Returns:
@@ -152,7 +152,7 @@ async def discover_model(
         try:
             # Queue Celery task
             task = perform_discovery_task.delay(
-                log_id=request.dataset_id,
+                dataset_id=request.dataset_id,
                 miner_type=miner_type.value,
                 model_name=request.model_name,
             )

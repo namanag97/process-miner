@@ -141,7 +141,7 @@ async def upload_ocel(
             # Store object types now (lightweight), defer heavy relational persistence
             for ot_name in stats["object_types"]:
                 ot_model = OCELObjectType(
-                    log_id=log_model.id,
+                    dataset_id=log_model.id,
                     name=ot_name,
                     object_count=stats["objects_per_type"].get(ot_name, 0),
                 )
@@ -149,15 +149,15 @@ async def upload_ocel(
 
             # Note: persist_ocel_2_0 would be called in background task if needed
             # For MVP, we skip full relational persistence and rely on ocel_data blob
-            logger.info("ocel_persistence_deferred", log_id=log_model.id)
+            logger.info("ocel_persistence_deferred", dataset_id=log_model.id)
         else:
             # Sync mode: persist OCEL 2.0 tables immediately
-            await ocpm_service.persist_ocel_2_0(session, ocel, source_log_id=log_model.id)
+            await ocpm_service.persist_ocel_2_0(session, ocel, source_dataset_id=log_model.id)
 
             # Store object types (legacy support)
             for ot_name in stats["object_types"]:
                 ot_model = OCELObjectType(
-                    log_id=log_model.id,
+                    dataset_id=log_model.id,
                     name=ot_name,
                     object_count=stats["objects_per_type"].get(ot_name, 0),
                 )
@@ -169,7 +169,7 @@ async def upload_ocel(
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info(
             "ocel_upload_completed",
-            log_id=log_model.id,
+            dataset_id=log_model.id,
             total_events=log_model.total_events,
             total_objects=log_model.total_objects,
             total_object_types=log_model.total_object_types,
@@ -219,9 +219,9 @@ async def list_ocel_logs(
     return OCELLogListResponse(logs=response_logs, total=len(response_logs))
 
 
-@router.get("/logs/{log_id}", response_model=OCELLogResponse)
+@router.get("/datasets/{dataset_id}", response_model=OCELLogResponse)
 async def get_ocel_log(
-    log_id: str,
+    dataset_id: str,
     session: AsyncSession = Depends(get_session),
 ):
     """
@@ -229,7 +229,7 @@ async def get_ocel_log(
 
     Returns detailed information about a specific object-centric event log.
     """
-    result = await session.execute(select(OCELLog).where(OCELLog.id == log_id))
+    result = await session.execute(select(OCELLog).where(OCELLog.id == dataset_id))
     log = result.scalar_one_or_none()
 
     if not log:
@@ -239,9 +239,9 @@ async def get_ocel_log(
     return OCELLogResponse.model_validate(log)
 
 
-@router.delete("/logs/{log_id}")
+@router.delete("/datasets/{dataset_id}")
 async def delete_ocel_log(
-    log_id: str,
+    dataset_id: str,
     session: AsyncSession = Depends(get_session),
 ):
     """
@@ -249,7 +249,7 @@ async def delete_ocel_log(
 
     Removes the log and all associated data (object types, models).
     """
-    result = await session.execute(select(OCELLog).where(OCELLog.id == log_id))
+    result = await session.execute(select(OCELLog).where(OCELLog.id == dataset_id))
     log = result.scalar_one_or_none()
 
     if not log:
@@ -258,7 +258,7 @@ async def delete_ocel_log(
     await session.delete(log)
     await session.commit()
 
-    return {"status": "deleted", "log_id": log_id}
+    return {"status": "deleted", "dataset_id": dataset_id}
 
 
 # =============================================================================
@@ -266,9 +266,9 @@ async def delete_ocel_log(
 # =============================================================================
 
 
-@router.get("/logs/{log_id}/object-types", response_model=list[OCELObjectTypeResponse])
+@router.get("/datasets/{dataset_id}/object-types", response_model=list[OCELObjectTypeResponse])
 async def get_object_types(
-    log_id: str,
+    dataset_id: str,
     session: AsyncSession = Depends(get_session),
 ):
     """
@@ -276,12 +276,12 @@ async def get_object_types(
 
     Returns all object types (e.g., Order, Item, Package) with their counts.
     """
-    result = await session.execute(select(OCELObjectType).where(OCELObjectType.log_id == log_id))
+    result = await session.execute(select(OCELObjectType).where(OCELObjectType.dataset_id == dataset_id))
     object_types = result.scalars().all()
 
     if not object_types:
         # Check if log exists
-        log_result = await session.execute(select(OCELLog).where(OCELLog.id == log_id))
+        log_result = await session.execute(select(OCELLog).where(OCELLog.id == dataset_id))
         if not log_result.scalar_one_or_none():
             raise HTTPException(status_code=404, detail="OCEL log not found")
 
@@ -297,9 +297,9 @@ async def get_object_types(
     ]
 
 
-@router.get("/logs/{log_id}/statistics", response_model=OCELStatisticsResponse)
+@router.get("/datasets/{dataset_id}/statistics", response_model=OCELStatisticsResponse)
 async def get_ocel_statistics(
-    log_id: str,
+    dataset_id: str,
     session: AsyncSession = Depends(get_session),
 ):
     """
@@ -308,7 +308,7 @@ async def get_ocel_statistics(
     Returns comprehensive statistics including event counts, object counts,
     activities, and objects per type.
     """
-    result = await session.execute(select(OCELLog).where(OCELLog.id == log_id))
+    result = await session.execute(select(OCELLog).where(OCELLog.id == dataset_id))
     log = result.scalar_one_or_none()
 
     if not log:
@@ -319,7 +319,7 @@ async def get_ocel_statistics(
     activities = metadata.get("activities", [])
 
     return OCELStatisticsResponse(
-        log_id=log.id,
+        dataset_id=log.id,
         total_events=log.total_events,
         total_objects=log.total_objects,
         total_object_types=log.total_object_types,
@@ -348,7 +348,7 @@ async def discover_oc_petri_net(
     Uses PM4Py's `discover_oc_petri_net()` to create an OC-PN that captures
     the process behavior across all object types.
     """
-    result = await session.execute(select(OCELLog).where(OCELLog.id == request.log_id))
+    result = await session.execute(select(OCELLog).where(OCELLog.id == request.dataset_id))
     log = result.scalar_one_or_none()
 
     if not log:
@@ -379,7 +379,7 @@ async def discover_oc_petri_net(
             status="pending",
             parameters_json=json.dumps(
                 {
-                    "log_id": request.log_id,
+                    "dataset_id": request.dataset_id,
                     "model_name": model_name,
                 }
             ),
@@ -387,7 +387,7 @@ async def discover_oc_petri_net(
         session.add(async_job)
         await session.commit()
 
-        logger.info("async_ocpn_discovery_started", job_id=job_id, log_id=log.id)
+        logger.info("async_ocpn_discovery_started", job_id=job_id, dataset_id=log.id)
         return {
             "job_id": job_id,
             "status": "pending",
@@ -395,7 +395,7 @@ async def discover_oc_petri_net(
         }
 
     # Sync mode (legacy)
-    logger.info("oc_pn_discovery_started", log_id=log.id, model_name=model_name)
+    logger.info("oc_pn_discovery_started", dataset_id=log.id, model_name=model_name)
     start_time = time.perf_counter()
 
     try:
@@ -413,7 +413,7 @@ async def discover_oc_petri_net(
 
         # Create OC-PN record with serialized model
         oc_pn_model = OCPetriNet(
-            log_id=log.id,
+            dataset_id=log.id,
             name=model_name,
             object_types_json=json.dumps(object_types),
             serialized_model=serialized_pn,
@@ -425,21 +425,21 @@ async def discover_oc_petri_net(
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info(
             "oc_pn_discovery_completed",
-            log_id=log.id,
+            dataset_id=log.id,
             model_id=oc_pn_model.id,
             duration_ms=round(duration_ms, 2),
         )
 
         return OCPetriNetResponse(
             id=oc_pn_model.id,
-            log_id=oc_pn_model.log_id,
+            dataset_id=oc_pn_model.dataset_id,
             name=oc_pn_model.name,
             object_types=object_types,
             created_at=oc_pn_model.created_at,
         )
 
     except Exception as e:
-        logger.error("oc_pn_discovery_failed", log_id=log.id, error=str(e), exc_info=True)
+        logger.error("oc_pn_discovery_failed", dataset_id=log.id, error=str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"OC-PN discovery failed: {e!s}")
 
 
@@ -500,9 +500,9 @@ async def delete_oc_petri_net(
 # =============================================================================
 
 
-@router.get("/logs/{log_id}/relationships", response_model=dict)
+@router.get("/datasets/{dataset_id}/relationships", response_model=dict)
 async def get_object_relationships(
-    log_id: str,
+    dataset_id: str,
     session: AsyncSession = Depends(get_session),
 ):
     """
@@ -511,7 +511,7 @@ async def get_object_relationships(
     Shows how many events and cases are associated with each object type.
     This is stored metadata from the upload - actual graph requires re-parsing.
     """
-    result = await session.execute(select(OCELLog).where(OCELLog.id == log_id))
+    result = await session.execute(select(OCELLog).where(OCELLog.id == dataset_id))
     log = result.scalar_one_or_none()
 
     if not log:
@@ -521,7 +521,7 @@ async def get_object_relationships(
     objects_per_type = metadata.get("objects_per_type", {})
 
     return {
-        "log_id": log.id,
+        "dataset_id": log.id,
         "object_types": list(objects_per_type.keys()),
         "objects_per_type": objects_per_type,
         "total_objects": log.total_objects,
@@ -529,9 +529,9 @@ async def get_object_relationships(
     }
 
 
-@router.get("/logs/{log_id}/oc-dfg", response_model=OCDFGResponse)
+@router.get("/datasets/{dataset_id}/oc-dfg", response_model=OCDFGResponse)
 async def get_oc_dfg(
-    log_id: str,
+    dataset_id: str,
     session: AsyncSession = Depends(get_session),
 ):
     """
@@ -543,7 +543,7 @@ async def get_oc_dfg(
 
     This endpoint requires the OCEL data to be stored (uploaded after Phase 2.1).
     """
-    result = await session.execute(select(OCELLog).where(OCELLog.id == log_id))
+    result = await session.execute(select(OCELLog).where(OCELLog.id == dataset_id))
     log = result.scalar_one_or_none()
 
     if not log:
@@ -554,7 +554,7 @@ async def get_oc_dfg(
             status_code=400, detail="OCEL data not stored. Please re-upload the OCEL file."
         )
 
-    logger.info("oc_dfg_computation_started", log_id=log.id)
+    logger.info("oc_dfg_computation_started", dataset_id=log.id)
     start_time = time.perf_counter()
 
     try:
@@ -572,13 +572,13 @@ async def get_oc_dfg(
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info(
             "oc_dfg_computation_completed",
-            log_id=log.id,
+            dataset_id=log.id,
             object_types=len(ocdfg_data["object_types"]),
             duration_ms=round(duration_ms, 2),
         )
 
         return OCDFGResponse(
-            log_id=log.id,
+            dataset_id=log.id,
             object_types=ocdfg_data["object_types"],
             activities=ocdfg_data["activities"],
             graphs_by_type=ocdfg_data["graphs_by_type"],
@@ -589,7 +589,7 @@ async def get_oc_dfg(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("oc_dfg_computation_failed", log_id=log.id, error=str(e), exc_info=True)
+        logger.error("oc_dfg_computation_failed", dataset_id=log.id, error=str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"OC-DFG computation failed: {e!s}")
 
 
@@ -625,9 +625,9 @@ async def list_supported_formats():
 # =============================================================================
 
 
-@router.post("/logs/{log_id}/flatten")
+@router.post("/datasets/{dataset_id}/flatten")
 async def flatten_ocel_to_dataset(
-    log_id: str,
+    dataset_id: str,
     object_type: str = Form(..., description="Object type to flatten on (e.g., 'Order', 'Item')"),
     name: str | None = Form(None, description="Name for the created dataset"),
     session: AsyncSession = Depends(get_session),
@@ -651,10 +651,10 @@ async def flatten_ocel_to_dataset(
     from src.core.enums import EntityType, JobStatus, JobType
     from src.models.orm import AsyncJob, Dataset, DatasetStatus
 
-    logger.info("ocel_flatten_started", log_id=log_id, object_type=object_type, name=name)
+    logger.info("ocel_flatten_started", dataset_id=dataset_id, object_type=object_type, name=name)
 
     # Validate OCEL log exists
-    result = await session.execute(select(OCELLog).where(OCELLog.id == log_id))
+    result = await session.execute(select(OCELLog).where(OCELLog.id == dataset_id))
     log = result.scalar_one_or_none()
 
     if not log:
@@ -693,7 +693,7 @@ async def flatten_ocel_to_dataset(
         entity_id=dataset.id,
         parameters_json=json.dumps(
             {
-                "ocel_log_id": log_id,
+                "ocel_log_id": dataset_id,
                 "object_type": object_type,
                 "dataset_id": dataset.id,
             }
@@ -710,7 +710,7 @@ async def flatten_ocel_to_dataset(
     # For now, we return the job_id for the pattern to be complete
     logger.info(
         "ocel_flatten_queued",
-        log_id=log_id,
+        ocel_dataset_id=dataset_id,
         job_id=job.id,
         dataset_id=dataset.id,
         object_type=object_type,

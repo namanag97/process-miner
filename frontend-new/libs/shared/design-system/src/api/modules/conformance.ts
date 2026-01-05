@@ -1,19 +1,21 @@
 /**
  * Conformance Module - SDK methods for conformance checking
+ * 
+ * FIXED: Standardized on datasetId (was datasetId)
  */
 
 import type { ApiClient } from '../client';
 import type { ConformanceResponse, DiagnosticsResponse } from '../types';
 
 export interface ConformanceCheckOptions {
-  logId: string;
+  datasetId: string;
   modelId: string;
   method?: 'token_replay' | 'alignment';
 }
 
 export interface ConformanceResult {
   id: string;
-  logId: string;
+  datasetId: string;
   modelId: string;
   fitness: number;
   precision?: number;
@@ -28,13 +30,13 @@ export interface ConformanceResult {
 
 export interface ConformanceModule {
   check: (options: ConformanceCheckOptions) => Promise<ConformanceResult>;
-  getDiagnostics: (logId: string, modelId: string) => Promise<DiagnosticsResponse>;
+  getDiagnostics: (datasetId: string, modelId: string) => Promise<DiagnosticsResponse>;
 }
 
 function transformConformanceResponse(be: ConformanceResponse): ConformanceResult {
   return {
     id: be.id,
-    logId: be.log_id,
+    datasetId: be.dataset_id,
     modelId: be.model_id,
     fitness: be.fitness,
     precision: be.precision,
@@ -52,17 +54,18 @@ export function createConformanceModule(client: ApiClient): ConformanceModule {
   return {
     async check(options: ConformanceCheckOptions) {
       const response = await client.post<ConformanceResponse>('/conformance/check', {
-        log_id: options.logId,
+        dataset_id: options.datasetId,
         model_id: options.modelId,
         method: options.method ?? 'token_replay',
       });
       return transformConformanceResponse(response);
     },
 
-    async getDiagnostics(logId: string, modelId: string) {
+    async getDiagnostics(datasetId: string, modelId: string) {
       return client.get<DiagnosticsResponse>(
-        `/conformance/diagnostics/${encodeURIComponent(logId)}/${encodeURIComponent(modelId)}`
+        `/conformance/diagnostics/${encodeURIComponent(datasetId)}/${encodeURIComponent(modelId)}`
       );
     },
   };
 }
+

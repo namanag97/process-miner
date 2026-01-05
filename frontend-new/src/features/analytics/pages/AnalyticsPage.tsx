@@ -43,12 +43,12 @@ export function AnalyticsPage() {
 
   const logs = logsData?.items ?? [];
 
-  // Read logId from URL query param or auto-select first log
+  // Read datasetId from URL query param or auto-select first log
   useEffect(() => {
-    const urlLogId = searchParams.get('logId');
+    const urlLogId = searchParams.get('datasetId');
     if (urlLogId && logs.some((l: EventLog) => l.id === urlLogId)) {
       setSelectedLogId(urlLogId);
-      log.debug('Selected log from URL param', { logId: urlLogId });
+      log.debug('Selected log from URL param', { datasetId: urlLogId });
     } else if (!selectedLogId && logs.length > 0) {
       setSelectedLogId(logs[0].id);
     }
@@ -99,11 +99,11 @@ export function AnalyticsPage() {
     }
   };
 
-  const handleLogChange = (logId: string) => {
-    logAction('AnalyticsPage', 'log_selected', { logId });
-    log.info('Log selection changed', { logId });
-    setSelectedLogId(logId);
-    navigate(`${location.pathname}?logId=${logId}`, { replace: true });
+  const handleLogChange = (datasetId: string) => {
+    logAction('AnalyticsPage', 'log_selected', { datasetId });
+    log.info('Log selection changed', { datasetId });
+    setSelectedLogId(datasetId);
+    navigate(`${location.pathname}?datasetId=${datasetId}`, { replace: true });
   };
 
   const selectedLog = logs.find((l: EventLog) => l.id === selectedLogId);
@@ -125,7 +125,7 @@ export function AnalyticsPage() {
           Performance
         </Space>
       ),
-      children: <PerformanceTab logId={selectedLogId} data={performanceData} loading={perfLoading} />,
+      children: <PerformanceTab datasetId={selectedLogId} data={performanceData} loading={perfLoading} />,
     },
     {
       key: 'conformance',
@@ -135,7 +135,7 @@ export function AnalyticsPage() {
           Conformance
         </Space>
       ),
-      children: <ConformanceTab logId={selectedLogId} />,
+      children: <ConformanceTab datasetId={selectedLogId} projectId={projectId} />,
     },
     {
       key: 'rework',
@@ -145,7 +145,7 @@ export function AnalyticsPage() {
           Rework Analysis
         </Space>
       ),
-      children: <ReworkTab logId={selectedLogId} data={reworkData} loading={reworkLoading} />,
+      children: <ReworkTab datasetId={selectedLogId} data={reworkData} loading={reworkLoading} />,
     },
     {
       key: 'resources',
@@ -155,7 +155,7 @@ export function AnalyticsPage() {
           Resources
         </Space>
       ),
-      children: <ResourcesTab logId={selectedLogId} />,
+      children: <ResourcesTab datasetId={selectedLogId} />,
     },
   ];
 

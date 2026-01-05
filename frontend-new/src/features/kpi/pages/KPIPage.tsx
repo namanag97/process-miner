@@ -34,25 +34,25 @@ import { createLogger } from '../../../utils/logger';
 const log = createLogger('KPIPage');
 
 export function KPIPage() {
-  const { projectId, logId } = useParams<{ projectId: string; logId: string }>();
+  const { projectId, datasetId } = useParams<{ projectId: string; datasetId: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'performance';
   const kpiAudit = useKPIAuditLogger();
 
-  const { data: process, isLoading, error, refetch } = useProcess(logId || '');
+  const { data: process, isLoading, error, refetch } = useProcess(datasetId || '');
 
-  log.debug('Rendering KPIPage', { projectId, logId, activeTab });
+  log.debug('Rendering KPIPage', { projectId, datasetId, activeTab });
 
   // Log KPI page view for audit
   useEffect(() => {
-    if (process && logId) {
-      kpiAudit.logView(logId, activeTab, projectId);
+    if (process && datasetId) {
+      kpiAudit.logView(datasetId, activeTab, projectId);
     }
-  }, [process, logId, activeTab, projectId, kpiAudit]);
+  }, [process, datasetId, activeTab, projectId, kpiAudit]);
 
   const handleTabChange = (key: string) => {
-    logAction('KPIPage', 'tab_changed', { from: activeTab, to: key, logId });
+    logAction('KPIPage', 'tab_changed', { from: activeTab, to: key, datasetId });
     setSearchParams({ tab: key });
   };
 
@@ -70,7 +70,7 @@ export function KPIPage() {
     );
   }
 
-  if (!process || !logId) {
+  if (!process || !datasetId) {
     return (
       <EmptyState
         title="Process not found"
@@ -135,7 +135,7 @@ export function KPIPage() {
           Performance
         </span>
       ),
-      children: <PerformanceTab logId={logId} />,
+      children: <PerformanceTab datasetId={datasetId} />,
     },
     {
       key: 'deadlines',
@@ -145,7 +145,7 @@ export function KPIPage() {
           Deadlines
         </span>
       ),
-      children: <DeadlinesTab logId={logId} />,
+      children: <DeadlinesTab datasetId={datasetId} />,
     },
     {
       key: 'unwanted',
@@ -155,7 +155,7 @@ export function KPIPage() {
           Unwanted Activities
         </span>
       ),
-      children: <UnwantedActivitiesTab logId={logId} />,
+      children: <UnwantedActivitiesTab datasetId={datasetId} />,
     },
     {
       key: 'automation',
@@ -165,7 +165,7 @@ export function KPIPage() {
           Automation
         </span>
       ),
-      children: <AutomationTab logId={logId} />,
+      children: <AutomationTab datasetId={datasetId} />,
     },
   ];
 
@@ -177,13 +177,13 @@ export function KPIPage() {
         breadcrumb={[
           { label: 'Workspace', href: '/workspace' },
           { label: 'Project', href: `/workspace/${projectId}` },
-          { label: 'Questions', href: `/workspace/${projectId}/data/${logId}/questions` },
+          { label: 'Questions', href: `/workspace/${projectId}/data/${datasetId}/questions` },
           { label: 'KPIs' },
         ]}
         actions={
           <Button
             icon={<ArrowLeftOutlined />}
-            onClick={() => navigate(`/workspace/${projectId}/data/${logId}/questions`)}
+            onClick={() => navigate(`/workspace/${projectId}/data/${datasetId}/questions`)}
           >
             Back to Questions
           </Button>

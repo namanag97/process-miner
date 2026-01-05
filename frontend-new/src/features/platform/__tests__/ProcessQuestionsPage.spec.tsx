@@ -6,7 +6,7 @@ import { useProcess } from '@lumina/design-system';
 
 // Mock dependencies
 jest.mock('react-router-dom', () => ({
-    useParams: () => ({ projectId: 'p1', logId: 'l1' }),
+    useParams: () => ({ projectId: 'p1', datasetId: 'l1' }),
     useNavigate: () => jest.fn(),
 }));
 

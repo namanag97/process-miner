@@ -34,6 +34,12 @@ class LogLevel(str, Enum):
     METRIC = "metric"
     PERF = "perf"
     CIRCUIT = "circuit"
+    # New categories for comprehensive logging
+    DB_QUERY = "db-query"
+    CACHE = "cache"
+    AUTH = "auth"
+    VALIDATION = "validation"
+    PM4PY = "pm4py"
 
 
 # =============================================================================
@@ -59,6 +65,8 @@ class DevLogEntry(BaseModel):
     tags: list[str] = Field(default_factory=list)
     # Performance breakdown (for API responses)
     timing: dict[str, float] | None = None  # db_ms, pm4py_ms, serialize_ms
+    # Importance level (1-5): 1=noise, 2=low, 3=medium, 4=high, 5=critical
+    importance: int = 3
 
 
 class TraceSpan(BaseModel):
@@ -131,6 +139,7 @@ def create_log_entry(
     request_id: str | None = None,
     tags: list[str] | None = None,
     timing: dict[str, float] | None = None,
+    importance: int = 3,
 ) -> DevLogEntry:
     """Create an enhanced log entry and publish to log broker.
 
@@ -147,6 +156,7 @@ def create_log_entry(
         request_id: Optional request ID for correlation
         tags: Optional list of tags for filtering
         timing: Optional timing breakdown dict
+        importance: Importance level 1-5 (1=noise, 2=low, 3=medium, 4=high, 5=critical)
 
     Returns:
         The created DevLogEntry
@@ -165,6 +175,7 @@ def create_log_entry(
         request_id=request_id,
         tags=tags or [],
         timing=timing,
+        importance=importance,
     )
 
     # Add to local buffer (synchronous, always works)

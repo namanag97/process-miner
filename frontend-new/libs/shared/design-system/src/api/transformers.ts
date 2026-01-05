@@ -102,7 +102,7 @@ export interface ActivityDetail {
 }
 
 export interface PerformanceData {
-  logId: string;
+  datasetId: string;
   cycleTime: {
     minSeconds: number;
     maxSeconds: number;
@@ -133,7 +133,7 @@ export interface PerformanceData {
 }
 
 export interface ReworkData {
-  logId: string;
+  datasetId: string;
   reworkActivities: Array<{
     activity: string;
     reworkCount: number;
@@ -158,7 +158,7 @@ export interface OCELLog {
 }
 
 export interface OCELStatistics {
-  logId: string;
+  datasetId: string;
   totalEvents: number;
   totalObjects: number;
   totalObjectTypes: number;
@@ -318,7 +318,7 @@ export function transformBottleneck(be: BottleneckResponse) {
 
 export function transformPerformance(be: PerformanceDashboardResponse): PerformanceData {
   return {
-    logId: be.log_id,
+    datasetId: be.dataset_id,
     cycleTime: {
       minSeconds: be.cycle_time.min_seconds,
       maxSeconds: be.cycle_time.max_seconds,
@@ -343,7 +343,7 @@ export function transformPerformance(be: PerformanceDashboardResponse): Performa
 
 export function transformRework(be: ReworkListResponse): ReworkData {
   return {
-    logId: be.log_id,
+    datasetId: be.dataset_id,
     reworkActivities: be.rework_activities.map(r => ({
       activity: r.activity,
       reworkCount: r.rework_count,
@@ -372,7 +372,7 @@ export function transformOCELLog(be: OCELLogResponse): OCELLog {
 
 export function transformOCELStatistics(be: OCELStatisticsResponse): OCELStatistics {
   return {
-    logId: be.log_id,
+    datasetId: be.dataset_id,
     totalEvents: be.total_events,
     totalObjects: be.total_objects,
     totalObjectTypes: be.total_object_types,

@@ -16,17 +16,17 @@ import { createQueryHook } from '../../../core/hooks/createFeatureHook';
  * This is the recommended hook for the Process Explorer page
  */
 export const useExplorerData = createQueryHook({
-  queryKey: ({ logId, options }: { logId: string; options?: { includePerformance?: boolean; includeComplexity?: boolean; topVariants?: number } }) =>
-    queryKeys.explorer.data(logId, options as any),
-  queryFn: async (sdk, { logId, options }: { logId: string; options?: { includePerformance?: boolean; includeComplexity?: boolean; topVariants?: number } }) => {
-    const result = await sdk.discovery.getExplorerData(logId, {
+  queryKey: ({ datasetId, options }: { datasetId: string; options?: { includePerformance?: boolean; includeComplexity?: boolean; topVariants?: number } }) =>
+    queryKeys.explorer.data(datasetId, options as any),
+  queryFn: async (sdk, { datasetId, options }: { datasetId: string; options?: { includePerformance?: boolean; includeComplexity?: boolean; topVariants?: number } }) => {
+    const result = await sdk.discovery.getExplorerData(datasetId, {
       includePerformance: options?.includePerformance ?? true,
       includeComplexity: options?.includeComplexity ?? true,
       topVariants: options?.topVariants ?? 50,
     });
     return result;
   },
-  enabled: ({ logId }: { logId: string }) => !!logId,
+  enabled: ({ datasetId }: { datasetId: string }) => !!datasetId,
   staleTime: 5 * 60 * 1000,
 });
 
@@ -35,15 +35,15 @@ export const useExplorerData = createQueryHook({
  * @deprecated Use useExplorerData instead for better performance
  */
 export const useDFG = createQueryHook({
-  queryKey: ({ logId, options }: { logId: string; options?: { includePerformance?: boolean } }) =>
-    queryKeys.dfg.data(logId, options as any),
-  queryFn: async (sdk, { logId, options }: { logId: string; options?: { includePerformance?: boolean } }) => {
-    const result = await sdk.discovery.buildDFG(logId, {
+  queryKey: ({ datasetId, options }: { datasetId: string; options?: { includePerformance?: boolean } }) =>
+    queryKeys.dfg.data(datasetId, options as any),
+  queryFn: async (sdk, { datasetId, options }: { datasetId: string; options?: { includePerformance?: boolean } }) => {
+    const result = await sdk.discovery.buildDFG(datasetId, {
       includePerformance: options?.includePerformance ?? true,
     });
     return result;
   },
-  enabled: ({ logId }: { logId: string }) => !!logId,
+  enabled: ({ datasetId }: { datasetId: string }) => !!datasetId,
   staleTime: 5 * 60 * 1000,
 });
 
@@ -52,15 +52,15 @@ export const useDFG = createQueryHook({
  * @deprecated Use useExplorerData instead for better performance
  */
 export const useVariants = createQueryHook({
-  queryKey: ({ logId, options }: { logId: string; options?: { topN?: number } }) =>
-    queryKeys.variants.list(logId, options as any),
-  queryFn: async (sdk, { logId, options }: { logId: string; options?: { topN?: number } }) => {
-    const result = await sdk.discovery.getVariants(logId, {
+  queryKey: ({ datasetId, options }: { datasetId: string; options?: { topN?: number } }) =>
+    queryKeys.variants.list(datasetId, options as any),
+  queryFn: async (sdk, { datasetId, options }: { datasetId: string; options?: { topN?: number } }) => {
+    const result = await sdk.discovery.getVariants(datasetId, {
       topN: options?.topN ?? 50,
     });
     return result;
   },
-  enabled: ({ logId }: { logId: string }) => !!logId,
+  enabled: ({ datasetId }: { datasetId: string }) => !!datasetId,
   staleTime: 5 * 60 * 1000,
 });
 
@@ -69,10 +69,10 @@ export const useVariants = createQueryHook({
  * @deprecated Use useExplorerData instead for better performance
  */
 export const useActivities = createQueryHook({
-  queryKey: (logId: string) => queryKeys.activities.list(logId),
-  queryFn: async (sdk, logId: string) => {
+  queryKey: (datasetId: string) => queryKeys.activities.list(datasetId),
+  queryFn: async (sdk, datasetId: string) => {
     // Use DFG to get activity information since getActivityStats may not exist
-    const dfg = await sdk.discovery.buildDFG(logId);
+    const dfg = await sdk.discovery.buildDFG(datasetId);
     // Transform nodes to activity details (matching ActivityDetail type)
     return dfg.nodes.map((node: { id: string; label: string; frequency: number; isStart?: boolean; isEnd?: boolean }) => ({
       id: node.id,
@@ -87,7 +87,7 @@ export const useActivities = createQueryHook({
       resources: [] as string[],
     }));
   },
-  enabled: (logId: string) => !!logId,
+  enabled: (datasetId: string) => !!datasetId,
   staleTime: 5 * 60 * 1000,
 });
 
@@ -95,12 +95,12 @@ export const useActivities = createQueryHook({
  * Hook to fetch log details
  */
 export const useLogDetail = createQueryHook({
-  queryKey: (logId: string) => queryKeys.processes.detail(logId),
-  queryFn: async (sdk, logId: string) => {
-    const result = await sdk.processes.get(logId);
+  queryKey: (datasetId: string) => queryKeys.processes.detail(datasetId),
+  queryFn: async (sdk, datasetId: string) => {
+    const result = await sdk.processes.get(datasetId);
     return result;
   },
-  enabled: (logId: string) => !!logId,
+  enabled: (datasetId: string) => !!datasetId,
   staleTime: 2 * 60 * 1000,
 });
 

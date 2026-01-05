@@ -15,17 +15,17 @@ import {
 const { Text: _Text } = Typography;
 
 interface PerformanceTabProps {
-  logId: string;
+  datasetId: string;
 }
 
 /**
  * PerformanceTab - Performance metrics and cycle time analysis
  * Shows throughput, bottlenecks, and timing statistics
  */
-export function PerformanceTab({ logId }: PerformanceTabProps) {
-  const { data: performance, isLoading: perfLoading, error: perfError, refetch: refetchPerf } = usePerformance(logId);
-  const { data: cycleTime, isLoading: cycleLoading } = useCycleTime(logId);
-  const { data: throughput, isLoading: throughputLoading } = useThroughput(logId);
+export function PerformanceTab({ datasetId }: PerformanceTabProps) {
+  const { data: performance, isLoading: perfLoading, error: perfError, refetch: refetchPerf } = usePerformance(datasetId);
+  const { data: cycleTime, isLoading: cycleLoading } = useCycleTime(datasetId);
+  const { data: throughput, isLoading: throughputLoading } = useThroughput(datasetId);
 
   const isLoading = perfLoading || cycleLoading || throughputLoading;
 

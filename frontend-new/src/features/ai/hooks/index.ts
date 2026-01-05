@@ -56,12 +56,12 @@ export const useAIProcesses = createQueryHook<
  * Provides performance metrics, bottlenecks, and patterns for AI analysis
  */
 export const useAIProcessSummary = createQueryHook<ProcessSummaryData, string>({
-  queryKey: (logId) => ['ai', 'summary', logId],
-  queryFn: async (sdk, logId) => {
-    const result = await sdk.analytics.getProcessSummary(logId);
+  queryKey: (datasetId) => ['ai', 'summary', datasetId],
+  queryFn: async (sdk, datasetId) => {
+    const result = await sdk.analytics.getProcessSummary(datasetId);
     return result;
   },
-  enabled: (logId) => !!logId && logId.length > 0,
+  enabled: (datasetId) => !!datasetId && datasetId.length > 0,
   staleTime: 5 * 60 * 1000,
 });
 
@@ -70,11 +70,11 @@ export const useAIProcessSummary = createQueryHook<ProcessSummaryData, string>({
  * Returns array of Predictor objects from SDK
  */
 export const useAIPredictors = createQueryHook<Predictor[], string>({
-  queryKey: (logId) => ['ai', 'predictors', logId],
-  queryFn: async (sdk, logId) => {
-    return sdk.predictions.listPredictors(logId);
+  queryKey: (datasetId) => ['ai', 'predictors', datasetId],
+  queryFn: async (sdk, datasetId) => {
+    return sdk.predictions.listPredictors(datasetId);
   },
-  enabled: (logId) => !!logId && logId.length > 0,
+  enabled: (datasetId) => !!datasetId && datasetId.length > 0,
   staleTime: 5 * 60 * 1000,
 });
 
@@ -88,12 +88,12 @@ export const useAIPredictors = createQueryHook<Predictor[], string>({
  */
 // export const useTrainPredictor = createMutationHook<
 //   Predictor,
-//   { logId: string; request: TrainPredictorRequest }
+//   { datasetId: string; request: TrainPredictorRequest }
 // >({
-//   mutationFn: async (sdk, { logId, request }) => {
-//     return sdk.predictions.train(logId, request);
+//   mutationFn: async (sdk, { datasetId, request }) => {
+//     return sdk.predictions.train(datasetId, request);
 //   },
-//   invalidateKeys: (data, { logId }) => [['ai', 'predictors', logId]],
+//   invalidateKeys: (data, { datasetId }) => [['ai', 'predictors', datasetId]],
 //   onSuccessMessage: 'Predictor training started successfully',
 // });
 

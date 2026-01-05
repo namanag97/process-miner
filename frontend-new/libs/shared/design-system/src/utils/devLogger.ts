@@ -6,17 +6,24 @@
  * Format: [TIMESTAMP] [TYPE] [SOURCE] → MESSAGE
  */
 
-type LogType = 'FE-ACTION' | 'API-REQ' | 'API-RES' | 'ERROR' | 'HOOK' | 'STATE' | 'QUERY' | 'MUTATION';
+type LogType = 'FE-ACTION' | 'API-REQ' | 'API-RES' | 'ERROR' | 'HOOK' | 'STATE' | 'QUERY' | 'MUTATION' | 'NAVIGATION' | 'VALIDATION' | 'PERFORMANCE' | 'CACHE';
 
 interface LogEntry {
   type: LogType;
   source: string;
   message: unknown;
   timestamp: string;
+  importance?: number; // 1-5: 1=noise, 2=low, 3=medium, 4=high, 5=critical
 }
 
 // Global event for DevConsole integration
-type DevConsoleCallback = (level: string, source: string, message: string, data?: unknown, extra?: { duration?: number; status?: number }) => void;
+type DevConsoleCallback = (
+  level: string,
+  source: string,
+  message: string,
+  data?: unknown,
+  extra?: { duration?: number; status?: number; importance?: number }
+) => void;
 let devConsoleCallback: DevConsoleCallback | null = null;
 
 /**
@@ -79,12 +86,13 @@ function scheduleFlush(): void {
 /**
  * Log a dev event to the file-based log
  */
-export function devLog(type: LogType, source: string, message: unknown): void {
+export function devLog(type: LogType, source: string, message: unknown, importance: number = 3): void {
   const entry: LogEntry = {
     type,
     source,
     message: typeof message === 'string' ? truncate(message) : message,
     timestamp: new Date().toISOString(),
+    importance,
   };
 
   logQueue.push(entry);
@@ -94,12 +102,12 @@ export function devLog(type: LogType, source: string, message: unknown): void {
 /**
  * Log a frontend action (click, submit, navigation, state change)
  */
-export function logAction(source: string, message: unknown = 'triggered', data?: Record<string, unknown>): void {
-  devLog('FE-ACTION', source, data ? { message, ...data } : message);
-  
+export function logAction(source: string, message: unknown = 'triggered', data?: Record<string, unknown>, importance: number = 4): void {
+  devLog('FE-ACTION', source, data ? { message, ...data } : message, importance);
+
   // Emit to DevConsole
   const messageStr = typeof message === 'string' ? message : JSON.stringify(message).slice(0, 100);
-  devConsoleCallback?.('action', source, messageStr, data);
+  devConsoleCallback?.('action', source, messageStr, data, { importance });
 }
 
 /**
@@ -117,10 +125,13 @@ export function logRequest(method: string, path: string, payload?: unknown): voi
  * Log an API response
  */
 export function logResponse(method: string, path: string, status: number, duration: number, body?: unknown): void {
-  devLog('API-RES', `${method} ${path}`, { status, ms: Math.round(duration), body: body ? truncate(JSON.stringify(body)) : undefined });
+  // Determine importance based on status and timing
+  const importance = status >= 500 ? 5 : status >= 400 ? 4 : duration > 3000 ? 4 : 3;
+
+  devLog('API-RES', `${method} ${path}`, { status, ms: Math.round(duration), body: body ? truncate(JSON.stringify(body)) : undefined }, importance);
 
   // Emit to DevConsole with full response body (not truncated)
-  devConsoleCallback?.('api-res', `${method} ${path}`, `${status} (${Math.round(duration)}ms)`, { responseBody: body }, { duration: Math.round(duration), status });
+  devConsoleCallback?.('api-res', `${method} ${path}`, `${status} (${Math.round(duration)}ms)`, { responseBody: body }, { duration: Math.round(duration), status, importance });
 }
 
 /**
@@ -131,11 +142,11 @@ export function logError(source: string, error: unknown, context?: Record<string
     ? { message: error.message, stack: error.stack?.split('\n').slice(0, 3).join(' ') }
     : { message: String(error) };
 
-  devLog('ERROR', source, { ...errObj, ...context });
+  devLog('ERROR', source, { ...errObj, ...context }, 5); // Errors are always critical
 
   // Emit to DevConsole
   const errorMessage = error instanceof Error ? error.message : String(error);
-  devConsoleCallback?.('error', source, errorMessage, { ...errObj, ...context });
+  devConsoleCallback?.('error', source, errorMessage, { ...errObj, ...context }, { importance: 5 });
 }
 
 /**
@@ -178,6 +189,50 @@ export function logMutation(mutationKey: string, event: 'start' | 'success' | 'e
   // Emit to DevConsole with 'mutation' level for distinct display
   const emoji = event === 'success' ? '✓' : event === 'error' ? '✗' : '→';
   devConsoleCallback?.('mutation', mutationKey, `${emoji} ${event}`, data);
+}
+
+/**
+ * Log a navigation event (route change)
+ */
+export function logNavigation(from: string, to: string, data?: Record<string, unknown>): void {
+  devLog('NAVIGATION', 'Router', { from, to, ...data }, 2); // Low importance
+
+  devConsoleCallback?.('navigation', 'Router', `${from} → ${to}`, data, { importance: 2 });
+}
+
+/**
+ * Log a validation result
+ */
+export function logValidation(entity: string, isValid: boolean, errors?: string[], data?: Record<string, unknown>): void {
+  const importance = isValid ? 2 : 4; // Failed validation is important
+
+  devLog('VALIDATION', entity, { isValid, errors, ...data }, importance);
+
+  const message = isValid ? 'Valid' : `Invalid (${errors?.length || 0} errors)`;
+  devConsoleCallback?.('validation', entity, message, { errors, ...data }, { importance });
+}
+
+/**
+ * Log a performance measurement
+ */
+export function logPerformance(operation: string, duration: number, data?: Record<string, unknown>): void {
+  const importance = duration > 1000 ? 4 : duration > 500 ? 3 : 2;
+
+  devLog('PERFORMANCE', operation, { duration, ...data }, importance);
+
+  devConsoleCallback?.('performance', operation, `${duration}ms`, data, { duration, importance });
+}
+
+/**
+ * Log a cache event (hit, miss, set, clear)
+ */
+export function logCache(operation: 'hit' | 'miss' | 'set' | 'clear', key: string, data?: Record<string, unknown>): void {
+  const importance = operation === 'hit' ? 1 : 2; // Cache hits are low noise
+
+  devLog('CACHE', `Cache:${operation}`, { key, ...data }, importance);
+
+  const emoji = operation === 'hit' ? '✓' : operation === 'miss' ? '✗' : operation === 'set' ? '→' : '🗑';
+  devConsoleCallback?.('cache', `Cache`, `${emoji} ${operation}: ${key}`, data, { importance });
 }
 
 /**

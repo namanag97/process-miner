@@ -1,5 +1,7 @@
 /**
  * Analytics Zod Schemas - Performance, Rework, Bottlenecks, etc.
+ * 
+ * FIXED: Standardized on dataset_id (was dataset_id)
  */
 import { z } from 'zod';
 
@@ -41,7 +43,7 @@ export const ReworkActivitySchema = z.object({
 export type ReworkActivity = z.infer<typeof ReworkActivitySchema>;
 
 export const ReworkResponseSchema = z.object({
-  log_id: z.string(),
+  dataset_id: z.string(),
   rework_activities: z.array(ReworkActivitySchema),
   total_rework_cases: z.number(),
   rework_percentage: z.number(),
@@ -54,7 +56,7 @@ export type ReworkResponse = z.infer<typeof ReworkResponseSchema>;
 // ============================================
 
 export const CycleTimeResponseSchema = z.object({
-  log_id: z.string(),
+  dataset_id: z.string(),
   min_seconds: z.number(),
   max_seconds: z.number(),
   avg_seconds: z.number(),
@@ -71,7 +73,7 @@ export type CycleTimeResponse = z.infer<typeof CycleTimeResponseSchema>;
 // ============================================
 
 export const ThroughputResponseSchema = z.object({
-  log_id: z.string(),
+  dataset_id: z.string(),
   total_cases: z.number(),
   completed_cases: z.number(),
   cases_per_day: z.number(),
@@ -87,7 +89,7 @@ export type ThroughputResponse = z.infer<typeof ThroughputResponseSchema>;
 // ============================================
 
 export const PerformanceDashboardResponseSchema = z.object({
-  log_id: z.string(),
+  dataset_id: z.string(),
   cycle_time: CycleTimeResponseSchema,
   throughput: ThroughputResponseSchema,
   top_bottlenecks: z.array(BottleneckResponseSchema),
@@ -117,11 +119,11 @@ export const PatternListResponseSchema = z.object({
 export type PatternListResponse = z.infer<typeof PatternListResponseSchema>;
 
 // ============================================
-// Process Summary (for AI Assistant)
+// Dataset Summary (for AI Assistant)
 // ============================================
 
-export const ProcessSummaryResponseSchema = z.object({
-  log_id: z.string(),
+export const DatasetSummaryResponseSchema = z.object({
+  dataset_id: z.string(),
   name: z.string(),
   total_cases: z.number(),
   total_events: z.number(),
@@ -133,4 +135,8 @@ export const ProcessSummaryResponseSchema = z.object({
   most_common_variant: z.string().optional(),
 });
 
-export type ProcessSummaryResponse = z.infer<typeof ProcessSummaryResponseSchema>;
+export type DatasetSummaryResponse = z.infer<typeof DatasetSummaryResponseSchema>;
+
+// Legacy alias for backward compatibility
+export const ProcessSummaryResponseSchema = DatasetSummaryResponseSchema;
+export type ProcessSummaryResponse = DatasetSummaryResponse;

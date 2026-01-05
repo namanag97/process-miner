@@ -12,13 +12,13 @@ const { Text, Title } = Typography;
 const log = createLogger('PerformanceTab');
 
 interface PerformanceTabProps {
-  logId: string | null;
+  datasetId: string | null;
   data?: PerformanceData;
   loading?: boolean;
 }
 
-export function PerformanceTab({ logId, data, loading }: PerformanceTabProps) {
-  log.debug('Rendering PerformanceTab', { logId, hasData: !!data });
+export function PerformanceTab({ datasetId, data, loading }: PerformanceTabProps) {
+  log.debug('Rendering PerformanceTab', { datasetId, hasData: !!data });
 
   if (loading) {
     return (

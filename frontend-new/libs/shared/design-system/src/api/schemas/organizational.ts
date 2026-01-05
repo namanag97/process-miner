@@ -38,7 +38,7 @@ export const NetworkTypeSchema = z.enum(['handover', 'collaboration', 'similarit
 export type NetworkType = z.infer<typeof NetworkTypeSchema>;
 
 export const SocialNetworkResponseSchema = z.object({
-  log_id: z.string(),
+  dataset_id: z.string(),
   network_type: NetworkTypeSchema,
   nodes: z.array(NetworkNodeSchema),
   edges: z.array(NetworkEdgeSchema),
@@ -109,7 +109,7 @@ export const ResourceWorkloadSchema = z.object({
 export type ResourceWorkload = z.infer<typeof ResourceWorkloadSchema>;
 
 export const WorkloadDistributionResponseSchema = z.object({
-  log_id: z.string(),
+  dataset_id: z.string(),
   resources: z.array(ResourceWorkloadSchema),
   total_events: z.number(),
   total_resources: z.number(),

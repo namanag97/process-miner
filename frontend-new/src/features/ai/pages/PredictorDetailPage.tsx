@@ -21,7 +21,7 @@ const mockPredictor = {
   name: 'Order Next Step',
   type: 'next_activity',
   typeLabel: 'Next Activity Prediction',
-  logId: '1',
+  datasetId: '1',
   logName: 'Orders_2024.csv',
   accuracy: 87.5,
   precision: 85.2,

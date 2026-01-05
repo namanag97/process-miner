@@ -12,7 +12,7 @@ import {
 const { Text } = Typography;
 
 interface AutomationTabProps {
-  logId: string;
+  datasetId: string;
 }
 
 interface ActivityAutomation {
@@ -27,8 +27,8 @@ interface ActivityAutomation {
  * AutomationTab - Automation level analysis and opportunities
  * Shows current automation rates and potential for improvement
  */
-export function AutomationTab({ logId }: AutomationTabProps) {
-  const { data: automation, isLoading, error, refetch } = useAutomation(logId);
+export function AutomationTab({ datasetId }: AutomationTabProps) {
+  const { data: automation, isLoading, error, refetch } = useAutomation(datasetId);
 
   if (isLoading) {
     return <LoadingState type="card" rows={2} />;

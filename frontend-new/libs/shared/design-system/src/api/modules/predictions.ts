@@ -22,7 +22,7 @@ export interface PredictorMetrics {
 
 export interface Predictor {
   id: string;
-  logId: string;
+  datasetId: string;
   targetType: 'next_activity' | 'remaining_time';
   algorithm: string;
   metrics: PredictorMetrics;
@@ -43,8 +43,8 @@ export interface TrainOptions {
 }
 
 export interface PredictionsModule {
-  trainPredictor: (logId: string, options: TrainOptions) => Promise<{ id: string } | { jobId: string; status: string }>;
-  listPredictors: (logId: string) => Promise<Predictor[]>;
+  trainPredictor: (datasetId: string, options: TrainOptions) => Promise<{ id: string } | { jobId: string; status: string }>;
+  listPredictors: (datasetId: string) => Promise<Predictor[]>;
   getPredictor: (predictorId: string) => Promise<Predictor>;
   predict: (predictorId: string, casePrefix: string[]) => Promise<PredictionResult>;
   predictBatch: (predictorId: string, cases: Array<{ case_prefix: string[] }>) => Promise<PredictionResult[]>;
@@ -55,7 +55,7 @@ export interface PredictionsModule {
 // Backend response types (snake_case)
 interface PredictorResponse {
   id: string;
-  log_id: string;
+  dataset_id: string;
   target_type: 'next_activity' | 'remaining_time';
   algorithm: string;
   metrics: PredictorMetrics;
@@ -63,7 +63,7 @@ interface PredictorResponse {
 }
 
 interface PredictorListResponse {
-  log_id: string;
+  dataset_id: string;
   predictors: PredictorResponse[];
   total: number;
 }
@@ -79,7 +79,7 @@ interface PredictionResponse {
 function transformPredictor(be: PredictorResponse): Predictor {
   return {
     id: be.id,
-    logId: be.log_id,
+    datasetId: be.dataset_id,
     targetType: be.target_type,
     algorithm: be.algorithm,
     metrics: be.metrics,
@@ -99,9 +99,9 @@ function transformPrediction(be: PredictionResponse): PredictionResult {
 
 export function createPredictionsModule(client: ApiClient): PredictionsModule {
   return {
-    async trainPredictor(logId: string, options: TrainOptions) {
+    async trainPredictor(datasetId: string, options: TrainOptions) {
       const response = await client.post<{ id?: string; job_id?: string; status?: string }>(
-        `/predictions/logs/${logId}/train`,
+        `/predictions/logs/${datasetId}/train`,
         {
           target_type: options.targetType,
           algorithm: options.algorithm ?? 'random_forest',
@@ -114,9 +114,9 @@ export function createPredictionsModule(client: ApiClient): PredictionsModule {
       return { id: response.id! };
     },
 
-    async listPredictors(logId: string) {
+    async listPredictors(datasetId: string) {
       const response = await client.get<PredictorListResponse>(
-        `/predictions/logs/${logId}/predictors`
+        `/predictions/logs/${datasetId}/predictors`
       );
       return response.predictors.map(transformPredictor);
     },

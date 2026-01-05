@@ -130,7 +130,7 @@ export interface WorkloadEntry {
 // ============================================
 
 export interface AnalyticsTabProps {
-  logId: string | null;
+  datasetId: string | null;
   data?: unknown;
   loading?: boolean;
 }

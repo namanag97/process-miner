@@ -7,7 +7,7 @@ import type { PredictorResponse } from '../types';
 
 export interface Predictor {
   id: string;
-  logId: string;
+  datasetId: string;
   targetType: string;
   algorithm: string;
   metrics?: Record<string, number>;
@@ -15,15 +15,15 @@ export interface Predictor {
 }
 
 export interface AIModule {
-  listPredictors: (logId: string) => Promise<Predictor[]>;
-  getInsights: (logId: string) => Promise<{ predictions: unknown[]; insights: unknown[] }>;
+  listPredictors: (datasetId: string) => Promise<Predictor[]>;
+  getInsights: (datasetId: string) => Promise<{ predictions: unknown[]; insights: unknown[] }>;
   getPredictorDetail: (id: string) => Promise<Predictor>;
 }
 
 function transformPredictor(be: PredictorResponse): Predictor {
   return {
     id: be.id,
-    logId: be.log_id,
+    datasetId: be.dataset_id,
     targetType: be.target_type,
     algorithm: be.algorithm,
     metrics: be.metrics,
@@ -33,14 +33,14 @@ function transformPredictor(be: PredictorResponse): Predictor {
 
 export function createAIModule(client: ApiClient): AIModule {
   return {
-    async listPredictors(logId: string) {
-      const response = await client.get<PredictorResponse[]>(`/predictions/logs/${logId}/predictors`);
+    async listPredictors(datasetId: string) {
+      const response = await client.get<PredictorResponse[]>(`/predictions/logs/${datasetId}/predictors`);
       return response.map(transformPredictor);
     },
 
-    async getInsights(logId: string) {
+    async getInsights(datasetId: string) {
       // Uses predictions endpoint for insights
-      return client.get(`/predictions/logs/${logId}/predictions`);
+      return client.get(`/predictions/logs/${datasetId}/predictions`);
     },
 
     async getPredictorDetail(id: string) {
