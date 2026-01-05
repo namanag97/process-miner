@@ -59,11 +59,15 @@ from src.features.process_mining.models.organizational import (
     SocialNetwork,
 )
 
-# OCEL
+# OCEL 2.0 models
 from src.features.process_mining.models.ocel2 import (
-    OCELLog,
-    OCELObjectType,
-    OCPetriNet,
+    E2ORelation,
+    O2ORelation,
+    ObjectAttributeChange,
+    OCEL2Event,
+    OCEL2EventType,
+    OCEL2Object,
+    OCEL2ObjectType,
 )
 
 # Lookup tables for normalized values
@@ -107,13 +111,18 @@ __all__ = [
     # Models - Workflows
     "Workflow",
     "WorkflowRun",
-    # OCEL
-    "OCELLog",
-    "OCELObjectType",
-    "OCPetriNet",
+    # OCEL 2.0
+    "OCEL2Event",
+    "OCEL2EventType",
+    "OCEL2Object",
+    "OCEL2ObjectType",
+    "E2ORelation",
+    "O2ORelation",
+    "ObjectAttributeChange",
     # Lookup Tables
     "Activity",
     "Resource",
     "get_or_create_activity",
     "get_or_create_resource",
 ]
+
