@@ -2,8 +2,6 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export { OpenAPI } from './OpenAPI';
-
 export { ApiError } from './core/ApiError';
 export { BaseHttpRequest } from './core/BaseHttpRequest';
 export { CancelablePromise, CancelError } from './core/CancelablePromise';

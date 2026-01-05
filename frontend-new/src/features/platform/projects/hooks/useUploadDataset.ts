@@ -61,7 +61,7 @@ async function uploadDataset({
     }
 
     // Use API base URL from environment config
-    const apiUrl = `${env.API_BASE_URL}/api/v1/datasets/upload`;
+    const apiUrl = `${env.API_BASE_URL}/api/v1/datasets/`;
     console.log('[Upload] Uploading to:', apiUrl, 'projectId:', projectId);
 
     // BUG-043 FIX: Add auth headers (no Content-Type for FormData)

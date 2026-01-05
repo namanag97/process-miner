@@ -123,12 +123,12 @@ async function getPresignedUrl(filename: string, fileSize: number, projectId: st
         fileSize,
         projectId,
         contentType,
-        url: `${API_BASE}/api/v1/datasets/upload/presigned`
+        url: `${API_BASE}/api/v1/datasets/presign`
     };
     console.log('[API] getPresignedUrl request', reqData);
     devLog.info('API', 'Requesting presigned upload URL', reqData);
 
-    const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/upload/presigned`, {
+    const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/presign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -169,12 +169,12 @@ async function getPresignedUrl(filename: string, fileSize: number, projectId: st
 async function triggerValidation(datasetId: string): Promise<{ task_id: string }> {
     const reqData = {
         datasetId,
-        url: `${API_BASE}/api/v1/datasets/${datasetId}/trigger-validation`
+        url: `${API_BASE}/api/v1/datasets/${datasetId}/uploaded`
     };
     console.log('[API] triggerValidation request', reqData);
     devLog.info('API', 'Triggering dataset validation', reqData);
 
-    const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/${datasetId}/trigger-validation`, {
+    const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/${datasetId}/uploaded`, {
         method: 'POST',
     });
 
@@ -373,9 +373,9 @@ export function useUploadWizard(_projectId: string, initialDatasetId?: string) {
                 formData.append('async_store', 'true'); // Store without parsing
 
                 console.log('[UploadWizard:uploadFileDirect] Uploading file directly to backend...');
-                devLog.info('UploadWizard:uploadFileDirect', 'Uploading to /api/v1/datasets/upload');
+                devLog.info('UploadWizard:uploadFileDirect', 'Uploading to /api/v1/datasets/');
 
-                const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/upload`, {
+                const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/`, {
                     method: 'POST',
                     body: formData,
                     // Don't set Content-Type - browser will set it with boundary
