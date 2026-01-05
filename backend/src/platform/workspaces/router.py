@@ -409,37 +409,12 @@ async def remove_project_from_workspace(
 # =============================================================================
 
 
-from pydantic import BaseModel, Field
-
-
-class WorkspaceMemberResponse(BaseModel):
-    """Workspace member response."""
-
-    user_id: str
-    email: str
-    name: str
-    role: str
-    joined_at: datetime | None = None
-
-
-class WorkspaceMemberListResponse(BaseModel):
-    """Workspace member list response."""
-
-    items: list[WorkspaceMemberResponse]
-    total: int
-
-
-class AddMemberRequest(BaseModel):
-    """Add member request."""
-
-    user_id: str = Field(..., description="User ID to add")
-    role: str = Field("viewer", pattern=r"^(owner|admin|editor|analyst|viewer)$")
-
-
-class UpdateMemberRoleRequest(BaseModel):
-    """Update member role request."""
-
-    role: str = Field(..., pattern=r"^(owner|admin|editor|analyst|viewer)$")
+from src.platform.workspaces.schemas import (
+    AddMemberRequest,
+    UpdateMemberRoleRequest,
+    WorkspaceMemberListResponse,
+    WorkspaceMemberResponseInline as WorkspaceMemberResponse,
+)
 
 
 @router.get("/{workspace_id}/members", response_model=WorkspaceMemberListResponse)

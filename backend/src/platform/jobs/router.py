@@ -10,7 +10,6 @@ Hardened with:
 """
 
 from fastapi import APIRouter, Path, Query, Request
-from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from src.api.dependencies import DBSession
@@ -19,8 +18,13 @@ from src.platform.core.enums import JobStatus, JobType
 from src.platform.core.exceptions import NotFoundError
 from src.platform.core.logging_config import get_logger
 from src.platform.core.validation import calculate_total_pages, validate_uuid
+from src.platform.jobs.schemas import (
+    JobCancelResponse,
+    JobListResponse,
+    JobLogEntry,
+    JobLogsResponse,
+)
 from src.platform.models import AsyncJob
-from src.platform.schemas import PaginatedResponse
 
 logger = get_logger(__name__)
 
@@ -28,14 +32,8 @@ router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
 
 # =============================================================================
-# Response Models
+# Helper Functions
 # =============================================================================
-
-
-class JobListResponse(PaginatedResponse):
-    """Paginated job list."""
-
-    items: list[JobStatusResponse]
 
 
 # =============================================================================
@@ -158,12 +156,7 @@ async def get_job_status(
     return JobStatusResponse.model_validate(job)
 
 
-class JobCancelResponse(BaseModel):
-    """Response after cancelling or deleting a job."""
 
-    id: str
-    status: str
-    message: str
 
 
 @router.delete("/{job_id}", response_model=JobCancelResponse)
@@ -351,21 +344,7 @@ async def stream_job_progress(
 # =============================================================================
 
 
-class JobLogEntry(BaseModel):
-    """Job log entry."""
 
-    timestamp: str
-    level: str
-    message: str
-    details: dict | None = None
-
-
-class JobLogsResponse(BaseModel):
-    """Job logs response."""
-
-    job_id: str
-    logs: list[JobLogEntry]
-    total: int
 
 
 @router.get("/{job_id}/logs", response_model=JobLogsResponse)
