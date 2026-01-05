@@ -12,6 +12,10 @@ from src.features.process_mining.models.orm import (
     ConformanceResult,
     # Core models
     Dataset,
+    # NEW: 4-Phase Upload Architecture Models
+    DatasetColumn,
+    DatasetColumnMapping,
+    DatasetMetadata,
     # Enums
     DatasetStatus,
     GraphCache,
@@ -50,6 +54,9 @@ __all__ = [
     "AnalysisStatus",
     # Models
     "Dataset",
+    "DatasetColumn",
+    "DatasetColumnMapping",
+    "DatasetMetadata",
     "UploadedFile",
     "Analysis",
     "ProcessCase",
