@@ -26,7 +26,7 @@ router = APIRouter()
 
 
 @router.get(
-    "",
+    "/",
     response_model=DatasetListResponse,
     summary="List Datasets",
     description="List all datasets with pagination and filtering.",

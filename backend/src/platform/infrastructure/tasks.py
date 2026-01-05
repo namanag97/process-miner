@@ -287,7 +287,7 @@ async def train_prediction_model_task(
 async def ingest_dataset_task(
     self,
     dataset_id: str,
-    mapping: dict[str, str],
+    job_id: str | None = None,
 ) -> dict[str, Any]:
     """Async task for background dataset ingestion.
 
@@ -300,7 +300,7 @@ async def ingest_dataset_task(
 
     Args:
         dataset_id: Dataset ID to ingest
-        mapping: Column mapping dict with case_id_column, activity_column, etc.
+        job_id: Optional job ID for tracking (if provided)
 
     Returns:
         dict with dataset_id, stats, and duration info
@@ -308,6 +308,7 @@ async def ingest_dataset_task(
     logger.info(
         "ingest_dataset_task_started",
         dataset_id=dataset_id,
+        job_id=job_id,
         task_id=self.request.id,
     )
     start = time.perf_counter()
@@ -323,6 +324,8 @@ async def ingest_dataset_task(
 
             from src.features.process_mining.models import (
                 Dataset,
+                DatasetColumnMapping,
+                DatasetMetadata,
                 DatasetStatus,
                 ProcessCase,
                 ProcessEvent,
@@ -339,6 +342,29 @@ async def ingest_dataset_task(
             dataset = result.scalar_one_or_none()
             if not dataset:
                 raise ValueError(f"Dataset not found: {dataset_id}")
+
+            # Load mapping from database
+            mapping_result = await db.execute(
+                select(DatasetColumnMapping).where(DatasetColumnMapping.dataset_id == dataset_id)
+            )
+            column_mapping = mapping_result.scalar_one_or_none()
+
+            if column_mapping:
+                # Use new DatasetColumnMapping table
+                mapping = {
+                    'case_id_column': column_mapping.case_id_column,
+                    'activity_column': column_mapping.activity_column,
+                    'timestamp_column': column_mapping.timestamp_column,
+                    'resource_column': column_mapping.resource_column,
+                    'timestamp_format': column_mapping.timestamp_format,
+                }
+                logger.info("loaded_mapping_from_table", dataset_id=dataset_id)
+            elif dataset.mapping_json:
+                # Fallback to legacy mapping_json for backward compatibility
+                mapping = json.loads(dataset.mapping_json)
+                logger.info("loaded_mapping_from_json", dataset_id=dataset_id)
+            else:
+                raise ValueError(f"No column mapping found for dataset: {dataset_id}")
 
             result = await db.execute(
                 select(UploadedFile).where(UploadedFile.dataset_id == dataset_id)
@@ -494,6 +520,25 @@ async def ingest_dataset_task(
             dataset.statistics_json = json.dumps(stats)
             dataset.status = DatasetStatus.READY.value
             dataset.error_message = None
+
+            # Create DatasetMetadata record
+            metadata = DatasetMetadata(
+                dataset_id=dataset_id,
+                total_events=stats["total_events"],
+                total_cases=stats["total_cases"],
+                total_activities=stats["total_activities"],
+                total_variants=stats.get("total_variants", 0),
+                first_event_at=stats.get("first_event_at"),
+                last_event_at=stats.get("last_event_at"),
+                avg_case_duration=stats.get("avg_case_duration"),
+                min_case_duration=stats.get("min_case_duration"),
+                max_case_duration=stats.get("max_case_duration"),
+                total_resources=stats.get("total_resources"),
+                computed_at=datetime.utcnow(),
+                computation_time_ms=int((time.perf_counter() - start) * 1000),
+            )
+            db.add(metadata)
+            logger.info("dataset_metadata_created", dataset_id=dataset_id)
 
             # Update AsyncJob
             job_result = await db.execute(
@@ -1486,8 +1531,95 @@ async def validate_uploaded_file_task(
 
             dataset.detected_columns_json = json.dumps(columns)
             dataset.column_suggestions_json = json.dumps(suggestions)
-            dataset.status = DatasetStatus.AWAITING_MAPPING.value
             dataset.error_message = None
+
+            # Step 3a: Store detected columns in database
+            from src.features.process_mining.models import DatasetColumn, DatasetColumnMapping
+
+            for idx, col_info in enumerate(columns):
+                # Extract column information
+                col_name = col_info.get('name', f'column_{idx}')
+                col_dtype = col_info.get('dtype', 'STRING')
+                samples = col_info.get('sample_values', [])
+                null_pct = col_info.get('null_percentage', 0.0)
+                unique_cnt = col_info.get('unique_count', 0)
+
+                # Get suggestion for this column (if any)
+                suggested_role = None
+                confidence = None
+                for role, suggestion in suggestions.items():
+                    if suggestion.get('column') == col_name:
+                        suggested_role = role
+                        confidence = suggestion.get('confidence', 0.0)
+                        break
+
+                dataset_column = DatasetColumn(
+                    dataset_id=dataset_id,
+                    name=col_name,
+                    dtype=col_dtype,
+                    position=idx,
+                    sample_values_json=json.dumps(samples) if samples else None,
+                    null_count=int(row_count_sample * null_pct / 100) if row_count_sample else 0,
+                    null_percentage=null_pct,
+                    unique_count=unique_cnt,
+                    suggested_role=suggested_role,
+                    suggestion_confidence=confidence,
+                )
+                db.add(dataset_column)
+
+            # Step 3b: Auto-mapping if high confidence
+            required_roles = {'case_id', 'activity', 'timestamp'}
+            can_auto_map = True
+            auto_mapping = {}
+            confidence_scores = {}
+
+            for role in required_roles:
+                if role in suggestions:
+                    col_name = suggestions[role].get('column')
+                    confidence = suggestions[role].get('confidence', 0.0)
+                    auto_mapping[role] = col_name
+                    confidence_scores[role] = confidence
+                    if confidence < 0.8:
+                        can_auto_map = False
+                else:
+                    can_auto_map = False
+
+            # Check for resource column suggestion
+            if 'resource' in suggestions:
+                auto_mapping['resource'] = suggestions['resource'].get('column')
+                confidence_scores['resource'] = suggestions['resource'].get('confidence', 0.0)
+
+            if can_auto_map and len(auto_mapping) >= 3:
+                # Create mapping and set MAPPED status
+                mapping = DatasetColumnMapping(
+                    dataset_id=dataset_id,
+                    case_id_column=auto_mapping['case_id'],
+                    activity_column=auto_mapping['activity'],
+                    timestamp_column=auto_mapping['timestamp'],
+                    resource_column=auto_mapping.get('resource'),
+                    auto_mapped=True,
+                    confidence_scores_json=json.dumps(confidence_scores),
+                )
+                db.add(mapping)
+
+                # Also store in legacy mapping_json for backward compatibility
+                dataset.mapping_json = json.dumps({
+                    'case_id_column': auto_mapping['case_id'],
+                    'activity_column': auto_mapping['activity'],
+                    'timestamp_column': auto_mapping['timestamp'],
+                    'resource_column': auto_mapping.get('resource'),
+                })
+
+                dataset.status = DatasetStatus.MAPPED.value
+                logger.info(
+                    "auto_mapping_applied",
+                    dataset_id=dataset_id,
+                    case_id=auto_mapping['case_id'],
+                    activity=auto_mapping['activity'],
+                    timestamp=auto_mapping['timestamp'],
+                )
+            else:
+                dataset.status = DatasetStatus.AWAITING_MAPPING.value
 
             # Get actual file size from S3
             try:

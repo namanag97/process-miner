@@ -302,7 +302,7 @@ async def confirm_upload_complete(
 
 
 @router.post(
-    "",
+    "/",
     response_model=DatasetResponse,
     summary="Upload Event Log File",
     description="""

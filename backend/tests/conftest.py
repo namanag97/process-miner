@@ -309,7 +309,7 @@ async def uploaded_log_id(
 ) -> str:
     """Pre-upload a log and return its ID for dependent tests."""
     response = await client.post(
-        "/api/v1/datasets/upload",
+        "/api/v1/datasets/",
         files={"file": ("test_variants.csv", sample_csv_with_multiple_variants, "text/csv")},
         data={"project_id": default_project},
     )
@@ -388,7 +388,7 @@ async def uploaded_insurance_log_id(
 ) -> str:
     """Pre-upload insurance log and return ID."""
     response = await client.post(
-        "/api/v1/datasets/upload",
+        "/api/v1/datasets/",
         files={"file": ("test.csv", insurance_small_csv, "text/csv")},
         data={"project_id": default_project},
     )

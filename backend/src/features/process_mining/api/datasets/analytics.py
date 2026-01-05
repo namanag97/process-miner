@@ -61,8 +61,12 @@ async def get_statistics(
         total_activities=dataset.total_activities,
         total_variants=0,
         activities=[],
-        activity_frequencies={},
-        case_duration_stats=None,
+        start_activities={},
+        end_activities={},
+        avg_case_duration_seconds=None,
+        min_case_duration_seconds=None,
+        max_case_duration_seconds=None,
+        date_range=None,
     )
 
 
