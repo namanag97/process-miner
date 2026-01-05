@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_db
+from src.features.process_mining.analytics.service import analytics_service
 from src.features.process_mining.models import Dataset
 from src.features.process_mining.schemas import (
     BottleneckListResponse,
@@ -25,7 +26,6 @@ from src.features.process_mining.schemas import (
     ServiceTimeResponse,
     ThroughputResponse,
 )
-from src.features.process_mining.services.analytics import analytics_service
 from src.features.process_mining.services.filtering import filtering_service
 from src.platform.core.exceptions import ProcessNotFoundError
 from src.platform.core.logging_config import get_logger
