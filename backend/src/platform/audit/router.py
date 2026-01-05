@@ -3,7 +3,7 @@
 Stub implementation for audit logging. To be expanded with full functionality.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Query
@@ -31,7 +31,7 @@ async def get_audit_logs(
         page=page,
         page_size=page_size,
     )
-    
+
     return {
         "items": [],
         "total": 0,
@@ -46,9 +46,9 @@ async def create_audit_log(
 ) -> dict[str, Any]:
     """Create audit log entry (stub - accepts but discards)."""
     logger.debug("audit_log_created", user_id=current_user.id)
-    
+
     return {
         "id": "stub-audit-log",
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "status": "logged",
     }

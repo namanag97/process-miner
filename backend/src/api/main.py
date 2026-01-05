@@ -9,10 +9,10 @@ Enterprise-grade setup with:
 """
 
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -39,15 +39,15 @@ from src.api.routers import (
 )
 from src.platform.admin.router import router as admin_router
 from src.platform.audit.router import router as audit_router
-from src.platform.organizations.router import router as organizations_router
-from src.platform.devconsole.streaming import router as dev_logs_stream_router
-from src.platform.devtools.dev_data import router as dev_data_router
-from src.platform.health.router import mark_startup_complete
-from src.platform.infrastructure.database import close_database, init_database
 from src.platform.core.config import get_settings
 from src.platform.core.exceptions import AppException
 from src.platform.core.logging_config import configure_logging, get_logger
 from src.platform.core.middleware import PerformanceLoggingMiddleware, RequestLoggingMiddleware
+from src.platform.devconsole.streaming import router as dev_logs_stream_router
+from src.platform.devtools.dev_data import router as dev_data_router
+from src.platform.health.router import mark_startup_complete
+from src.platform.infrastructure.database import close_database, init_database
+from src.platform.organizations.router import router as organizations_router
 
 settings = get_settings()
 
@@ -437,7 +437,7 @@ For support, please contact the developer team or refer to the internal document
             "detail": str(exc) if settings.debug else "An unexpected error occurred",
             "error_code": "ERR_500",
             "instance": str(request.url),
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         if correlation_id:
