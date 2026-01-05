@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/platform/infrastructure/devconsole_types.py
-# hypothesis_version: 6.148.9
-
-['Z', 'action', 'api-req', 'api-res', 'auth', 'cache', 'circuit', 'db-query', 'error', 'heartbeat', 'info', 'metric', 'perf', 'pm4py', 'span', 'state', 'trace_span', 'type', 'validation']

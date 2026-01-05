@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/features/process_mining/services/domain/__init__.py
-# hypothesis_version: 6.148.9
-
-['ActivityName', 'ActivitySequence', 'CaseId', 'DatasetAggregate', 'ProcessCase', 'ProcessEvent', 'ProcessStatistics', 'QualityMetrics', 'ResourceId', 'TimeRange', 'VariantStats']

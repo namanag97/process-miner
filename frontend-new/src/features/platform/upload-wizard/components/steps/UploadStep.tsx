@@ -7,6 +7,7 @@ import { Upload, Card, Typography, Space, Alert, Progress } from 'antd';
 import { InboxOutlined, FileTextOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import { tokens } from '@lumina/design-system';
+import { devLog } from '../../../../../components/DevConsole';
 
 const { Dragger } = Upload;
 const { Title, Text } = Typography;
@@ -34,16 +35,40 @@ export function UploadStep({ onUploadComplete, isLoading, uploadFilePresigned }:
             const { file, onSuccess, onError } = options;
             const fileObj = file as File;
 
+            const logData = {
+                fileName: fileObj.name,
+                fileSize: fileObj.size,
+                fileType: fileObj.type,
+                timestamp: new Date().toISOString()
+            };
+            console.log('[UploadWizard:UploadStep] customRequest started', logData);
+            devLog.action('UploadStep', 'Upload request started', logData);
+
             try {
-                setUploadProgress(10); // Start progress
+                setUploadProgress(10);
+                console.log('[UploadWizard:UploadStep] Starting presigned upload...');
+                devLog.info('UploadStep', 'Starting presigned upload flow');
 
                 // Use the custom presigned upload flow
                 const datasetId = await uploadFilePresigned(fileObj);
+
+                const successData = { datasetId, fileName: fileObj.name };
+                console.log('[UploadWizard:UploadStep] Upload completed successfully', successData);
+                devLog.action('UploadStep', 'Upload completed successfully', successData);
 
                 setUploadProgress(100);
                 onSuccess?.({ id: datasetId, source_file: fileObj.name });
                 onUploadComplete(datasetId, fileObj.name, fileObj.size);
             } catch (err: any) {
+                const errorData = {
+                    error: err,
+                    message: err.message,
+                    stack: err.stack,
+                    fileName: fileObj.name
+                };
+                console.error('[UploadWizard:UploadStep] Upload failed', errorData);
+                devLog.error('UploadStep', `Upload failed: ${err.message}`, errorData);
+
                 const error = new Error(err.message || 'Upload failed');
                 onError?.(error);
                 setError(err.message || 'Upload failed');
@@ -51,22 +76,39 @@ export function UploadStep({ onUploadComplete, isLoading, uploadFilePresigned }:
             }
         },
         beforeUpload: (file) => {
+            const fileData = {
+                fileName: file.name,
+                fileSize: file.size,
+                fileType: file.type
+            };
+            console.log('[UploadWizard:UploadStep] beforeUpload validation', fileData);
+            devLog.info('UploadStep', 'Validating file before upload', fileData);
+
             setError(null);
 
             // Validate size
             const sizeMB = file.size / (1024 * 1024);
             if (sizeMB > MAX_FILE_SIZE_MB) {
-                setError(`File too large (${sizeMB.toFixed(1)}MB). Maximum: ${MAX_FILE_SIZE_MB}MB`);
+                const errorMsg = `File too large (${sizeMB.toFixed(1)}MB). Maximum: ${MAX_FILE_SIZE_MB}MB`;
+                const errorData = { sizeMB, maxSize: MAX_FILE_SIZE_MB };
+                console.error('[UploadWizard:UploadStep] File too large', errorData);
+                devLog.error('UploadStep', errorMsg, errorData);
+                setError(errorMsg);
                 return Upload.LIST_IGNORE;
             }
 
             // Validate format
             const ext = file.name.split('.').pop()?.toLowerCase();
             if (!['csv', 'xlsx', 'xls', 'xes'].includes(ext || '')) {
-                setError('Invalid file format. Accepted: CSV, XLSX, XLS, XES');
+                const errorMsg = 'Invalid file format. Accepted: CSV, XLSX, XLS, XES';
+                console.error('[UploadWizard:UploadStep] Invalid file format', { extension: ext });
+                devLog.error('UploadStep', errorMsg, { extension: ext, fileName: file.name });
+                setError(errorMsg);
                 return Upload.LIST_IGNORE;
             }
 
+            console.log('[UploadWizard:UploadStep] Validation passed', { fileName: file.name, extension: ext });
+            devLog.action('UploadStep', 'File validation passed', { fileName: file.name, extension: ext });
             return true;
         },
     };

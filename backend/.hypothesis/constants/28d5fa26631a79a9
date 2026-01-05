@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/features/process_mining/models/__init__.py
-# hypothesis_version: 6.148.9
-
-['ActivityMapping', 'Analysis', 'AnalysisStatus', 'AnalysisType', 'AnalyticsCache', 'ConformanceResult', 'Dataset', 'DatasetStatus', 'GraphCache', 'OCELLog', 'OCELObjectType', 'OCPetriNet', 'Prediction', 'PredictionModel', 'ProcessCase', 'ProcessEvent', 'ProcessModel', 'ProcessModelMetrics', 'Recommendation', 'SocialNetwork', 'UploadedFile', 'Workflow', 'WorkflowRun']

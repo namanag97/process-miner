@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/platform/core/permissions.py
-# hypothesis_version: 6.148.9
-
-['admin', 'analysis:create', 'analysis:delete', 'analysis:read', 'analysis:update', 'analyst', 'dataset:create', 'dataset:delete', 'dataset:export', 'dataset:read', 'dataset:update', 'editor', 'member', 'model:create', 'model:delete', 'model:export', 'model:read', 'model:update', 'org:delete', 'org:read', 'org:update', 'owner', 'project:create', 'project:delete', 'project:read', 'project:update', 'viewer', 'workspace:delete', 'workspace:invite', 'workspace:read', 'workspace:update']

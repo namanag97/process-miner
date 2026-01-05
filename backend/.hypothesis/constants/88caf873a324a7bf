@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/features/process_mining/discovery/analysis.py
-# hypothesis_version: 6.148.9
-
-[0.3, 0.4, 0.5, 1.0, 100, ' → ', '->', 'activities', 'activity', 'avg_duration_seconds', 'complexity_score', 'concept:name', 'count', 'edges', 'end_activities', 'error', 'frequency', 'frequency_percent', 'id', 'is_end', 'is_end_activity', 'is_start', 'is_start_activity', 'max', 'max_duration_seconds', 'mean', 'min', 'min_duration_seconds', 'name', 'nodes', 'note', 'parallel', 'position_avg', 'probability', 'rework_count', 'sequence', 'source', 'start_activities', 'target', 'time:timestamp', 'top_variants', 'total_cases', 'total_frequency', 'total_variants', 'variant']

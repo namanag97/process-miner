@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/api/routers/analytics.py
-# hypothesis_version: 6.148.9
-
-[0.1, 3600, '/analytics', 'Analytics', 'bottlenecks', 'cases_with_chains', 'chains', 'chains_percentage', 'cycle_time', 'getting_bottlenecks', 'getting_cycle_time', 'getting_patterns', 'getting_rework', 'getting_throughput', 'rework_activities', 'rework_percentage', 'rework_summary', 'throughput', 'top_bottlenecks', 'total_bottlenecks', 'total_chains', 'total_rework_cases']

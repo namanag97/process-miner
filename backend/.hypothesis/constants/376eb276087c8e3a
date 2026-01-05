@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/platform/workspaces/authorization.py
-# hypothesis_version: 6.148.9
-
-['Analysis', 'Dataset', 'INVALID', 'ProcessModel', 'Project', 'User', 'Workspace', 'WorkspaceMember', 'org_access_denied', 'permission_denied', 'permission_granted', 'unknown', 'user_without_org']

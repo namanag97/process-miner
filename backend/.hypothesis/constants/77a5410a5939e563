@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/api/routers/workspaces.py
-# hypothesis_version: 6.148.9
-
-[100, 201, 204, 400, 404, '/workspaces', '/{workspace_id}', 'Project not found', 'Workspace not found', 'Workspaces']

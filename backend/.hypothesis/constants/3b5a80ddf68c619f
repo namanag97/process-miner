@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/platform/infrastructure/database.py
-# hypothesis_version: 6.148.9
-
-['database_closed', 'database_closing', 'database_initialized', 'db_session_committed', 'db_session_rollback']

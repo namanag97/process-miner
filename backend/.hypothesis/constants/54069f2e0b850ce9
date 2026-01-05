@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/features/process_mining/schemas/datasets.py
-# hypothesis_version: 6.148.9
-
-[255, ',', '.', 'Filter parameters', 'Original filename', '__dict__', 'activities', 'activities_json', 'before', 'created_at', 'file_size_bytes', 'filter_config', 'filter_config_json', 'filter_stats_json', 'id', 'ingestion_job_id', 'is_filtered', 'name', 'ready', 'source_dataset_id', 'source_file', 'source_format', 'statistics', 'status', 'text/csv', 'total_activities', 'total_cases', 'total_events', 'utf-8', 'validation_job_id']

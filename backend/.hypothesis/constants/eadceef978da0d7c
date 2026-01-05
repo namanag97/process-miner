@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/features/process_mining/conformance/__init__.py
-# hypothesis_version: 6.148.9
-
-['ConformanceService', 'conformance_service']

@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/features/process_mining/services/prediction.py
-# hypothesis_version: 6.148.9
-
-[0.5, 0.8, 1.0, 100, 1000, 'No training data', 'accuracy', 'activity', 'alternatives', 'concept:name', 'confidence', 'error', 'extracting_features', 'features_extracted', 'mae_seconds', 'mlogloss', 'model_trained', 'predict_proba', 'prediction', 'prediction_seconds', 'probability', 'random_forest', 'rmse_seconds', 'test_samples', 'time:timestamp', 'train_samples', 'xgboost']

@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/features/process_mining/services/simulation.py
-# hypothesis_version: 6.148.9
-
-[0.5, 0.8, 100, 1000, 3600, 86400, 'avg_duration_seconds', 'basic', 'capacity_estimated', 'current_resources', 'custom', 'default', 'estimating_capacity', 'factor', 'impact', 'max_duration_seconds', 'min_duration_seconds', 'org:resource', 'original_metrics', 'petri_net', 'play_out_completed', 'play_out_failed', 'playing_out_model', 'process_tree', 'reduce_duration', 'resource_utilization', 'scaling_factor', 'scenario', 'simulated_metrics', 'simulating_scenario', 'simulation_completed', 'time:timestamp', 'total_cases', 'total_events', 'type']

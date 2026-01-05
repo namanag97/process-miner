@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/features/process_mining/services/serializers/pnml_exporter.py
-# hypothesis_version: 6.148.9
-
-['.//pnml:net', './/pnml:place', './/pnml:transition', 'Marking', 'PetriNet', 'graphics', 'id', 'name', 'pnml', 'pnml_export_failed', 'pnml_export_success', 'pnml_import_failed', 'pnml_import_success', 'position', 'unicode', 'unknown', 'utf-8', 'x', 'y', '}pnml']

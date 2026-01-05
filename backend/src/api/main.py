@@ -38,6 +38,7 @@ from src.api.routers import (
     workspaces_router,
 )
 from src.platform.devtools.streaming import router as dev_logs_stream_router
+from src.platform.devtools.dev_data import router as dev_data_router
 from src.platform.health.router import mark_startup_complete
 from src.platform.telemetry.proxy import router as telemetry_proxy_router
 from src.platform.telemetry.test import router as telemetry_test_router
@@ -470,6 +471,7 @@ JWT-based authentication with optional workspace context.
     app.include_router(jobs_router, prefix=settings.api_prefix)  # Job-Centric Architecture
     app.include_router(dev_log_router, prefix=settings.api_prefix)
     app.include_router(dev_logs_stream_router, prefix=settings.api_prefix)
+    app.include_router(dev_data_router, prefix=settings.api_prefix)  # Data viewer for DevConsole
     app.include_router(telemetry_proxy_router, prefix=settings.api_prefix)
 
     # Test endpoint for telemetry (debug mode only)

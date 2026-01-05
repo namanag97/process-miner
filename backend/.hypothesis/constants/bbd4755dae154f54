@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/api/routers/projects.py
-# hypothesis_version: 6.148.9
-
-[100, 201, 204, 400, '/projects', '/{project_id}', 'Projects']

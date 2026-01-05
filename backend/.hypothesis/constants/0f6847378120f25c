@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/platform/__init__.py
-# hypothesis_version: 6.148.9
-
-['auth', 'core', 'infrastructure', 'jobs', 'projects', 'storage', 'users', 'workspaces']

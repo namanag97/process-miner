@@ -35,6 +35,14 @@ from src.features.process_mining.models.orm import (
     WorkflowRun,
 )
 
+# Lookup tables for normalized values
+from src.features.process_mining.models.lookup_tables import (
+    Activity,
+    Resource,
+    get_or_create_activity,
+    get_or_create_resource,
+)
+
 __all__ = [
     # Enums
     "DatasetStatus",
@@ -65,4 +73,9 @@ __all__ = [
     "OCPetriNet",
     # Hierarchical Mining
     "HierarchicalProcessModel",
+    # Lookup Tables
+    "Activity",
+    "Resource",
+    "get_or_create_activity",
+    "get_or_create_resource",
 ]

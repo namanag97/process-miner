@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/platform/core/security.py
-# hypothesis_version: 6.148.9
-
-['access', 'access_token_created', 'auto', 'bearer', 'email', 'exp', 'iat', 'jwt_decode_failed', 'org_id', 'pbkdf2_sha256', 'refresh', 'sub', 'type']

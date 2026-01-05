@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/api/routers/visualization.py
-# hypothesis_version: 6.148.9
-
-[100, 400, 404, 409, 500, 1000, ' → ', '/visualization', '/{log_id}/dfg', '/{log_id}/dfg/svg', '/{log_id}/footprints', 'Model has no data', 'Visualization', 'avg_duration_seconds', 'case_count', 'complexity_score', 'dataset_not_ready', 'dfg', 'edges', 'end', 'end_activities', 'end_time', 'error', 'frequency_percent', 'get_dfg_completed', 'get_dfg_started', 'image/svg+xml', 'log_not_found', 'max_duration_seconds', 'min_duration_seconds', 'nodes', 'rework_count', 'start', 'start_activities', 'start_time', 'top_variants', 'total_frequency', 'total_variants', 'variant_key', 'weight']

@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/features/process_mining/services/domain/value_objects.py
-# hypothesis_version: 6.148.9
-
-[0.0, 0.3, 0.4, 0.8, 1.0, 100, 3600, 86400, ' → ', 'ActivitySequence', 'TimeRange', 'f_score', 'fitness', 'generalization', 'precision', 'simplicity', 'value', '|']

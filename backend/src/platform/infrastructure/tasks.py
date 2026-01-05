@@ -13,8 +13,10 @@ from typing import Any
 
 import structlog
 from celery import Celery, Task
+from celery.exceptions import SoftTimeLimitExceeded
 from celery.result import AsyncResult
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -72,7 +74,14 @@ class AsyncTask(Task):
         raise NotImplementedError
 
 
-@celery_app.task(bind=True, base=AsyncTask, name="train_prediction_model")
+@celery_app.task(
+    bind=True,
+    base=AsyncTask,
+    name="train_prediction_model",
+    autoretry_for=(SQLAlchemyError,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 3},
+)
 async def train_prediction_model_task(
     self,
     log_id: str,
@@ -216,6 +225,31 @@ async def train_prediction_model_task(
                 "duration_ms": round(duration, 2),
             }
 
+    except SoftTimeLimitExceeded:
+        logger.warning(
+            "prediction_training_soft_timeout",
+            log_id=log_id,
+            target_type=target_type,
+            task_id=self.request.id,
+        )
+        # Update async job status to cancelled/timeout
+        async with AsyncSessionLocal() as db:
+            from src.platform.models import AsyncJob
+
+            job_result = await db.execute(
+                select(AsyncJob).where(AsyncJob.task_id == self.request.id)
+            )
+            job = job_result.scalar_one_or_none()
+            if job:
+                job.status = "failed"
+                job.error_message = "Task exceeded soft time limit - clean shutdown initiated"
+                job.completed_at = datetime.utcnow()
+                await db.commit()
+        
+        # We re-raise to let Celery know, or just return. 
+        # Re-raising SoftTimeLimitExceeded is standard if we want Celery to know it happened.
+        raise
+
     except Exception as e:
         logger.error(
             "prediction_training_failed",
@@ -242,7 +276,14 @@ async def train_prediction_model_task(
         raise
 
 
-@celery_app.task(bind=True, base=AsyncTask, name="ingest_dataset")
+@celery_app.task(
+    bind=True,
+    base=AsyncTask,
+    name="ingest_dataset",
+    autoretry_for=(SQLAlchemyError,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 3},
+)
 async def ingest_dataset_task(
     self,
     dataset_id: str,
@@ -491,6 +532,36 @@ async def ingest_dataset_task(
                 "duration_ms": round(duration, 2),
             }
 
+    except SoftTimeLimitExceeded:
+        logger.warning(
+            "ingest_dataset_soft_timeout",
+            dataset_id=dataset_id,
+            task_id=self.request.id,
+        )
+        
+        async with AsyncSessionLocal() as db:
+            from src.features.process_mining.models import Dataset, DatasetStatus
+            from src.platform.models import AsyncJob
+
+            result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
+            dataset = result.scalar_one_or_none()
+            if dataset:
+                dataset.status = DatasetStatus.ERROR.value
+                dataset.error_message = "Ingestion timed out (soft limit)"
+
+            job_result = await db.execute(
+                select(AsyncJob).where(AsyncJob.task_id == self.request.id)
+            )
+            job = job_result.scalar_one_or_none()
+            if job:
+                job.status = "failed"
+                job.error = "Task exceeded soft time limit"
+                job.completed_at = datetime.utcnow()
+
+            await db.commit()
+            
+        raise
+
     except Exception as e:
         logger.error(
             "ingest_dataset_task_failed",
@@ -524,7 +595,14 @@ async def ingest_dataset_task(
         raise
 
 
-@celery_app.task(bind=True, base=AsyncTask, name="validate_dataset")
+@celery_app.task(
+    bind=True,
+    base=AsyncTask,
+    name="validate_dataset",
+    autoretry_for=(SQLAlchemyError,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 3},
+)
 async def validate_dataset_task(
     self,
     dataset_id: str,
@@ -687,6 +765,32 @@ async def validate_dataset_task(
                 "duration_ms": round(duration, 2),
             }
 
+    except SoftTimeLimitExceeded:
+        logger.warning(
+            "validate_dataset_soft_timeout",
+            dataset_id=dataset_id,
+            task_id=self.request.id,
+        )
+        async with AsyncSessionLocal() as db:
+            from src.features.process_mining.models import Dataset, DatasetStatus
+            from src.platform.core.enums import JobStatus
+            from src.platform.models import AsyncJob
+
+            result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
+            dataset = result.scalar_one_or_none()
+            if dataset:
+                dataset.status = DatasetStatus.ERROR.value
+                dataset.error_message = "Validation timed out (soft limit)"
+
+            job = await db.get(AsyncJob, job_id)
+            if job:
+                job.status = JobStatus.FAILED.value
+                job.error = "Task exceeded soft time limit"
+                job.completed_at = datetime.utcnow()
+
+            await db.commit()
+        raise
+
     except Exception as e:
         logger.error(
             "validate_dataset_task_failed",
@@ -719,7 +823,14 @@ async def validate_dataset_task(
 
 
 @celery_app.task(
-    bind=True, base=AsyncTask, name="perform_analysis", time_limit=600, soft_time_limit=540
+    bind=True,
+    base=AsyncTask,
+    name="perform_analysis",
+    time_limit=600,
+    soft_time_limit=540,
+    autoretry_for=(SQLAlchemyError,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 3},
 )
 async def perform_analysis_task(
     self,

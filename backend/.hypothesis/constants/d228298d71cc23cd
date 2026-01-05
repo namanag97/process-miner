@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/api/routers/telemetry_proxy.py
-# hypothesis_version: 6.148.9
-
-[1000000.0, 1000000000.0, 200, 500, '/logs', '/telemetry', '/traces', 'CLIENT', 'CONSUMER', 'ERROR', 'FE Browser', 'INTERNAL', 'OK', 'PRODUCER', 'SERVER', 'Telemetry', 'UNSET', 'UNSPECIFIED', 'Z', 'attributes', 'boolValue', 'code', 'debug', 'doubleValue', 'endTimeUnixNano', 'error', 'events', 'info', 'intValue', 'key', 'kind', 'log_proxy_error', 'name', 'ok', 'parentSpanId', 'resourceSpans', 'scopeSpans', 'spanId', 'span_id', 'spans', 'startTimeUnixNano', 'status', 'stringValue', 'timeUnixNano', 'timestamp', 'traceId', 'trace_id', 'unknown', 'value', 'warn']

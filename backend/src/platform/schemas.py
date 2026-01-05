@@ -17,6 +17,9 @@ from src.shared.schemas import ErrorResponse, PaginatedResponse, PaginationParam
 
 if TYPE_CHECKING:
     from src.features.process_mining.schemas.datasets import DatasetResponse
+else:
+    # Import at runtime for Pydantic forward references
+    from src.features.process_mining.schemas.datasets import DatasetResponse
 
 
 # =============================================================================

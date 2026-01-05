@@ -142,11 +142,9 @@ class Project(Base):
 
     # Relationships
     workspace: Mapped[Optional["Workspace"]] = relationship(back_populates="projects")
-    # Note: datasets relationship defined via backref from Feature layer
-    datasets: Mapped[list["Dataset"]] = relationship(
-        back_populates="project",
-        lazy="selectin",
-    )
+    # NOTE: Bidirectional relationship to Feature layer (Dataset) REMOVED for proper layering.
+    # To get datasets for a project, use: Dataset.query.filter_by(project_id=project.id)
+    # This maintains Platform ← Feature direction only (Feature references Platform, not vice versa).
 
 
 # =============================================================================

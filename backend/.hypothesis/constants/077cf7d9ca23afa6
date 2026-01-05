@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/api/routers/predictions.py
-# hypothesis_version: 6.148.9
-
-[400, 404, '/jobs/{job_id}', '/predictions', 'Predictions', 'activities', 'algorithm', 'alternatives', 'completed_at', 'confidence', 'created_at', 'dataset_id', 'deleting_predictor', 'getting_job_status', 'getting_predictor', 'id', 'job_id', 'job_type', 'listing_predictors', 'making_prediction', 'message', 'metrics', 'next_activity', 'pending', 'prediction', 'prediction_seconds', 'predictor_trained', 'remaining_time', 'started_at', 'status', 'target_type', 'train_prediction', 'trained_at', 'training_predictor']

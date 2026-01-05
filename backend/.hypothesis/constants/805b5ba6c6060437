@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/platform/schemas.py
-# hypothesis_version: 6.148.9
-
-[255, 2000, 'DatasetResponse', 'ProjectResponse', '__dict__', 'before', 'created_at', 'description', 'id', 'name', 'tags', 'tags_json', 'total_analyses', 'total_files', 'updated_at']

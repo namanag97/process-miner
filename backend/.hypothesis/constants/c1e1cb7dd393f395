@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/platform/models.py
-# hypothesis_version: 6.148.9
-
-[100, 255, 'AsyncJob', 'AsyncJob.id', 'CASCADE', 'Dataset', 'Organization', 'Project', 'SET NULL', 'User', 'Workspace', 'WorkspaceMember', 'all, delete-orphan', 'async_jobs', 'async_jobs.id', 'error_logs', 'free', 'local', 'member', 'members', 'organization', 'organizations', 'organizations.id', 'project', 'projects', 'selectin', 'user', 'users', 'users.id', 'workspace', 'workspace_members', 'workspaces', 'workspaces.id']

@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/platform/core/middleware.py
-# hypothesis_version: 6.148.9
-
-[1000, '/api/v1/dev/log', '/health', '/metrics', 'X-Request-ID', 'error_type', 'request_completed', 'request_failed', 'request_started', 'slow_request']

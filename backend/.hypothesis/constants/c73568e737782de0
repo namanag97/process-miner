@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/api/routers/filtering.py
-# hypothesis_version: 6.148.9
-
-[404, ' -> ', '/filtering', '/templates', 'Filtering', 'applying_filters', 'concept:name', 'description', 'filtered_activities', 'filtered_cases', 'filtered_events', 'filtered_log_deleted', 'filters', 'filters_applied', 'id', 'message', 'name', 'org:resource', 'original_cases', 'params', 'preview', 'previewing_filters', 'time:timestamp', 'type']

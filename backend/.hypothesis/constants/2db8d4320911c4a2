@@ -1,4 +1,0 @@
-# file: /Users/namanagarwal/system/backend/src/features/process_mining/models/ocel2.py
-# hypothesis_version: 6.148.9
-
-[255, 'CASCADE', 'E2ORelation', 'O2ORelation', 'OCEL2Event', 'OCEL2EventType', 'OCEL2Object', 'OCEL2ObjectType', 'SET NULL', 'all, delete-orphan', 'datasets.id', 'event', 'event_relations', 'event_type', 'events', 'involved', 'object', 'object_relations', 'object_type', 'objects', 'ocel2_e2o_relations', 'ocel2_event_types', 'ocel2_event_types.id', 'ocel2_events', 'ocel2_events.id', 'ocel2_o2o_relations', 'ocel2_object_types', 'ocel2_objects', 'ocel2_objects.id', 'selectin', 'source_object', 'source_relations', 'target_object', 'target_relations']

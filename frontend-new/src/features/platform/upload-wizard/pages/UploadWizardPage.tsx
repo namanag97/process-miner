@@ -56,11 +56,18 @@ export function UploadWizardPage() {
         setUploadResult,
         setMapping,
         startAnalysis,
-        uploadFilePresigned, // New function from hook
+        uploadFileDirect, // Direct upload for local dev (no MinIO needed)
+        uploadFilePresigned, // Presigned upload for production (requires MinIO/S3)
     } = useUploadWizard(projectId!, resumeDatasetId || undefined);
 
     // Log wizard initialization
     useEffect(() => {
+        console.log('[UploadWizard:Page] Wizard initialized', {
+            projectId,
+            resumeDatasetId,
+            initialStep: currentStep,
+            timestamp: new Date().toISOString()
+        });
         devLog.action('UploadWizardPage', 'Wizard initialized', {
             projectId,
             resumeDatasetId,
@@ -73,6 +80,17 @@ export function UploadWizardPage() {
 
     // Log step changes
     useEffect(() => {
+        console.log('[UploadWizard:Page] Step changed', {
+            currentStep,
+            datasetId,
+            filename,
+            hasMapping: !!mapping,
+            hasPreview: !!preview,
+            jobId,
+            jobStatus: jobStatus?.status,
+            isLoading,
+            error
+        });
         devLog.info('UploadWizardPage', `Step changed: ${currentStep}`, {
             datasetId,
             filename,
@@ -82,6 +100,18 @@ export function UploadWizardPage() {
     // Only trigger when step changes; other values are for logging context only
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentStep]);
+
+    // Log errors when they occur
+    useEffect(() => {
+        if (error) {
+            console.error('[UploadWizard:Page] Error occurred', {
+                error,
+                currentStep,
+                datasetId,
+                filename
+            });
+        }
+    }, [error, currentStep, datasetId, filename]);
 
     const handleBackToProject = () => {
         devLog.action('UploadWizardPage', 'Navigating back to project', { projectId, currentStep });
@@ -123,11 +153,16 @@ export function UploadWizardPage() {
                     <UploadStep
                         projectId={projectId}
                         onUploadComplete={(id, name, size) => {
+                            console.log('[UploadWizard:Page] Upload complete callback', {
+                                datasetId: id,
+                                filename: name,
+                                fileSize: size
+                            });
                             devLog.info('UploadWizardPage', `Upload complete: ${name}`, { id, size });
                             setUploadResult(id, name, size);
                         }}
                         isLoading={isLoading}
-                        uploadFilePresigned={uploadFilePresigned}
+                        uploadFilePresigned={uploadFileDirect} // Using direct upload for local dev
                     />
                 );
 
