@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/features/process_mining/services/loader.py
+# hypothesis_version: 6.148.9
+
+[500000, ' -> ', '///', ':memory:', 'activities', 'activity_trace', 'case:concept:name', 'case_count', 'concept:name', 'dataset_loader_empty', 'end_time', 'frequency_percent', 'org:resource', 'sqlite', 'start_time', 'time:timestamp', 'total_activities', 'total_cases', 'total_events', 'total_resources', 'variant_key']

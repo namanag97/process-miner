@@ -1,24 +1,23 @@
 """Pytest configuration and fixtures."""
 
-import asyncio
 from collections.abc import AsyncGenerator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from src.api.main import app
-from src.models.database import get_session
-from src.models.orm import Base, User, Project, Dataset, Analysis, ProcessModel, Organization, Workspace
+from src.shared.database import Base
+from src.platform.models import Organization, Project, User, Workspace
+
 
 @pytest.fixture
 def test_db_path():
     """Create a temporary SQLite database file."""
-    import tempfile
     import os
-    
+    import tempfile
+
     fd, path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
     yield path
@@ -31,13 +30,14 @@ async def test_engine(test_db_path):
     """Create test database engine using file-based SQLite."""
     # Use file path instead of :memory: so DuckDB can attach to it
     database_url = f"sqlite+aiosqlite:///{test_db_path}"
-    
+
     # Patch event_log_loader to use this path
-    from src.services.event_log_loader import event_log_loader
+    from src.features.process_mining.services.loader import event_log_loader
+
     event_log_loader._sqlite_path = test_db_path
-    
+
     engine = create_async_engine(
-        database_url, 
+        database_url,
         echo=False,
     )
 
@@ -74,14 +74,14 @@ async def clear_db(test_session: AsyncSession):
     yield
     # Truncate all tables in dependency order
     from sqlalchemy import text
-    
+
     # Disable foreign key checks for truncation
     await test_session.execute(text("PRAGMA foreign_keys = OFF"))
-    
+
     # List of tables to clear
     tables = [
         "recommendations",
-        "simulations", 
+        "simulations",
         "predictions",
         "process_cases",
         "process_events",
@@ -91,15 +91,15 @@ async def clear_db(test_session: AsyncSession):
         "workspace_members",
         "users",
         "workspaces",
-        "organizations"
+        "organizations",
     ]
-    
+
     for table in tables:
         try:
             await test_session.execute(text(f"DELETE FROM {table}"))
         except Exception:
             pass
-            
+
     await test_session.execute(text("PRAGMA foreign_keys = ON"))
     await test_session.commit()
 
@@ -211,58 +211,78 @@ def sample_csv_with_bottleneck() -> bytes:
 """
 
 
-
-
 @pytest.fixture
 async def default_project(test_session: AsyncSession) -> str:
-    """Create a default project for testing with full hierarchy."""
+    """Create a default project for testing with full hierarchy.
+
+    Uses the MVP org/workspace that matches the mock user in dependencies.py.
+    """
     import uuid
     from datetime import datetime
-    from src.models.orm import Project, Organization, Workspace, User, WorkspaceMember
 
-    # 1. Create Organization
-    org_id = str(uuid.uuid4())
-    org = Organization(
-        id=org_id,
-        name="Test Organization",
-        slug=f"test-org-{uuid.uuid4()}",
-        plan="free",
-        created_at=datetime.utcnow(),
-    )
-    test_session.add(org)
+    from src.platform.models import WorkspaceMember
 
-    # 2. Create Workspace
-    workspace_id = str(uuid.uuid4())
-    workspace = Workspace(
-        id=workspace_id,
-        org_id=org_id,
-        name="Test Workspace",
-        description="Default workspace for e2e tests",
-        created_at=datetime.utcnow(),
-    )
-    test_session.add(workspace)
+    # Use MVP org/workspace to match mock user from dependencies.py
+    org_id = "mvp-org-001"
+    workspace_id = "mvp-ws-001"
+    user_id = "mvp-user-001"
 
-    # 3. Create User (System Owner) - Needed for 'owner_id' references if any, or auth
-    # Match the mock user email used by _get_mock_user in dependencies.py
-    user_id = str(uuid.uuid4())
-    user = User(
-        id=user_id, 
-        email="demo@processminer.io",
-        name="Test User",
-        auth_provider="local",
-        org_id=org_id,
-        created_at=datetime.utcnow(),
-    )
-    test_session.add(user)
+    # 1. Create Organization if it doesn't exist
+    org = await test_session.get(Organization, org_id)
+    if not org:
+        org = Organization(
+            id=org_id,
+            name="Demo Organization",
+            slug="demo-org",
+            plan="free",
+            created_at=datetime.utcnow(),
+        )
+        test_session.add(org)
 
-    # 4. Create Workspace Member (Grant Access)
-    member = WorkspaceMember(
-        workspace_id=workspace_id,
-        user_id=user_id,
-        role="owner",
-        joined_at=datetime.utcnow(),
+    # 2. Create Workspace if it doesn't exist
+    workspace = await test_session.get(Workspace, workspace_id)
+    if not workspace:
+        workspace = Workspace(
+            id=workspace_id,
+            org_id=org_id,
+            name="Default Workspace",
+            description="Your default process mining workspace",
+            created_at=datetime.utcnow(),
+        )
+        test_session.add(workspace)
+
+    # 3. Create User if it doesn't exist (matches mock user in dependencies.py)
+    user = await test_session.get(User, user_id)
+    if not user:
+        user = User(
+            id=user_id,
+            email="analyst@company.local",
+            name="Process Analyst",
+            auth_provider="local",
+            org_id=org_id,
+            role="admin",
+            created_at=datetime.utcnow(),
+        )
+        test_session.add(user)
+
+    # 4. Create Workspace Member if it doesn't exist
+    from sqlalchemy import select
+    member_result = await test_session.execute(
+        select(WorkspaceMember).filter(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == user_id
+        )
     )
-    test_session.add(member)
+    member = member_result.scalar_one_or_none()
+    if not member:
+        member = WorkspaceMember(
+            id="mvp-member-001",
+            workspace_id=workspace_id,
+            user_id=user_id,
+            role="owner",
+            joined_at=datetime.utcnow(),
+        )
+        test_session.add(member)
 
     # 5. Create Project
     project_id = str(uuid.uuid4())
@@ -271,20 +291,19 @@ async def default_project(test_session: AsyncSession) -> str:
         workspace_id=workspace_id,
         name="Test Project",
         description="Default project for e2e tests",
-        # owner_id="system",  <-- REMOVED: Field does not exist
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
     )
     test_session.add(project)
-    
+
     await test_session.commit()
     return project_id
 
 
 @pytest.fixture
 async def uploaded_log_id(
-    client: AsyncClient, 
-    sample_csv_with_multiple_variants: bytes, 
+    client: AsyncClient,
+    sample_csv_with_multiple_variants: bytes,
     default_project: str,
     test_session: AsyncSession,
 ) -> str:
@@ -295,12 +314,13 @@ async def uploaded_log_id(
         data={"project_id": default_project},
     )
     assert response.status_code == 200
-    
+
     # Force sync to disk for DuckDB visibility (same as e2e_log_id)
     await test_session.commit()
     from sqlalchemy import text
+
     await test_session.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
-    
+
     return response.json()["id"]
 
 

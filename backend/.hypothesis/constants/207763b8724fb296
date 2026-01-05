@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/features/process_mining/discovery/algorithms.py
+# hypothesis_version: 6.148.9
+
+[0.0, 1.0, 'Alpha Miner', 'BPMN Inductive', 'Batch Detection', 'Correlation Miner', 'DECLARE', 'Heuristics Miner', 'ILP Miner', 'Inductive Miner', 'Log Skeleton', 'POWL', 'Performance DFG', 'Prefix Tree', 'Temporal Profile', 'Transition System', 'advanced', 'analysis', 'category', 'classic', 'concept:name', 'declarative', 'deprecated', 'description', 'forward', 'id', 'name', 'output_format', 'time:timestamp']

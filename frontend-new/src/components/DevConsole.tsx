@@ -69,7 +69,7 @@ function formatLogData(data: unknown): string {
 // Types
 // ============================================
 
-type LogLevel = 'info' | 'api-req' | 'api-res' | 'error' | 'action' | 'state' | 'query' | 'mutation';
+type LogLevel = 'info' | 'api-req' | 'api-res' | 'error' | 'action' | 'state' | 'query' | 'mutation' | 'metric' | 'perf' | 'circuit' | 'db-query' | 'cache' | 'auth';
 type Importance = 1 | 2 | 3 | 4 | 5; // 1=noise, 5=critical
 
 interface LogEntry {
@@ -110,6 +110,7 @@ function calculateImportance(
 ): Importance {
   // Critical: Errors and failed requests
   if (level === 'error') return 5;
+  if (level === 'circuit') return 5;
   if (extra?.status && extra.status >= 400) return 5;
 
   // High: User actions, mutations, slow requests
@@ -117,13 +118,15 @@ function calculateImportance(
   if (level === 'action') return 4;
   if (extra?.duration && extra.duration > 1000) return 4;
 
-  // Medium: Successful API responses, state changes
+  // Medium: Successful API responses, state changes, metrics
   if (level === 'api-res' && extra?.status && extra.status < 400) return 3;
   if (level === 'state') return 3;
   if (level === 'query') return 3;
+  if (level === 'metric') return 3;
 
-  // Low: API requests (waiting for response)
+  // Low: API requests (waiting for response), perf logs
   if (level === 'api-req') return 2;
+  if (level === 'perf') return 2;
 
   // Noise: Heartbeats, connection logs, background polling
   const noisePatterns = [
@@ -234,6 +237,9 @@ export function devConsoleLog(
       'state': 'color: #fa8c16',
       'query': 'color: #2f54eb',
       'mutation': 'color: #eb2f96',
+      'metric': 'color: #13c2c2',
+      'perf': 'color: #fa8c16',
+      'circuit': 'color: #ff4d4f',
     }[level];
     console.log(`%c[${level.toUpperCase()}] ${source}`, style, message, data || '');
   }
@@ -317,6 +323,12 @@ const levelConfig: Record<LogLevel, { color: string; icon: React.ReactNode; labe
   'state': { color: 'orange', icon: <InfoCircleOutlined />, label: 'STATE' },
   'query': { color: 'geekblue', icon: <ApiOutlined />, label: 'QUERY' },
   'mutation': { color: 'magenta', icon: <ApiOutlined />, label: 'MUTATE' },
+  'metric': { color: 'cyan', icon: <InfoCircleOutlined />, label: 'METRIC' },
+  'perf': { color: 'gold', icon: <ThunderboltOutlined />, label: 'PERF' },
+  'circuit': { color: 'red', icon: <WarningOutlined />, label: 'CIRCUIT' },
+  'db-query': { color: 'lime', icon: <ApiOutlined />, label: 'DB' },
+  'cache': { color: 'volcano', icon: <ThunderboltOutlined />, label: 'CACHE' },
+  'auth': { color: 'purple', icon: <InfoCircleOutlined />, label: 'AUTH' },
 };
 
 // ============================================
@@ -359,12 +371,12 @@ function LogEntryRow({ entry, showImportance }: { entry: LogEntry; showImportanc
         cursor: entry.data ? 'pointer' : 'default',
         background: expanded ? '#fafafa' :
           isSlow ? '#fff1f0' :
-          isModeratelySlow ? '#fff7e6' :
-          entry.importance >= 4 ? '#fff7e6' : 'white',
+            isModeratelySlow ? '#fff7e6' :
+              entry.importance >= 4 ? '#fff7e6' : 'white',
         borderLeft: entry.importance === 5 ? '3px solid #ff4d4f' :
           entry.importance === 4 ? '3px solid #fa8c16' :
-          isSlow ? '3px solid #ff4d4f' :
-          isModeratelySlow ? '3px solid #fa8c16' : 'none',
+            isSlow ? '3px solid #ff4d4f' :
+              isModeratelySlow ? '3px solid #fa8c16' : 'none',
       }}
       onClick={() => entry.data && setExpanded(!expanded)}
     >

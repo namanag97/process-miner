@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/features/process_mining/ingestion/unified.py
+# hypothesis_version: 6.148.9
+
+[1000, 1024, '.csv', 'activities', 'activity', 'activityColumn', 'activity_column', 'caseID', 'caseId', 'caseIdColumn', 'case_id', 'case_id_column', 'cases_arrow', 'column_mapping', 'columns', 'end_time', 'events', 'events_arrow', 'events_data', 'name', 'resource', 'resourceColumn', 'resource_column', 'row_count', 'sample_rows', 'start_time', 'statistics', 'suggestions', 'timestamp', 'timestampColumn', 'timestamp_column', 'total_activities', 'total_cases', 'total_events', 'unified_parse_failed', 'unified_parse_start']

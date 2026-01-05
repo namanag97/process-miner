@@ -126,11 +126,14 @@ def e2e_ocel_json() -> bytes:
     return json.dumps(ocel_data).encode()
 
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 @pytest.fixture
-async def e2e_log_id(client: AsyncClient, e2e_process_csv: bytes, default_project: str, test_session: AsyncSession) -> str:
+async def e2e_log_id(
+    client: AsyncClient, e2e_process_csv: bytes, default_project: str, test_session: AsyncSession
+) -> str:
     """Upload test log and return its ID."""
     response = await client.post(
         "/api/v1/datasets/upload",
@@ -139,13 +142,13 @@ async def e2e_log_id(client: AsyncClient, e2e_process_csv: bytes, default_projec
     )
     assert response.status_code == 200, f"Upload failed: {response.text}"
     log_id = response.json()["id"]
-    
+
     # Force sync to disk for DuckDB visibility
     # DuckDB cannot read data if aiosqlite/SQLAlchemy holds an open transaction or lock.
     # We must explicitly commit and then VACUUM to force a complete rewrite and sync.
     await test_session.commit()
     await test_session.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
-    
+
     return log_id
 
 
@@ -168,7 +171,9 @@ async def e2e_model_id(client: AsyncClient, e2e_log_id: str) -> str:
 class TestE2EUploadFlow:
     """E2E tests for the upload and ingestion flow."""
 
-    async def test_upload_csv_complete_flow(self, client: AsyncClient, e2e_process_csv: bytes, default_project: str):
+    async def test_upload_csv_complete_flow(
+        self, client: AsyncClient, e2e_process_csv: bytes, default_project: str
+    ):
         """
         User Need: Upload a CSV file and see it processed.
         Flow: Upload CSV → Get log details → Verify statistics
@@ -197,7 +202,9 @@ class TestE2EUploadFlow:
         stats = response.json()
         assert "activity_count" in stats or "activities" in stats
 
-    async def test_upload_detects_columns(self, client: AsyncClient, e2e_process_csv: bytes, default_project: str):
+    async def test_upload_detects_columns(
+        self, client: AsyncClient, e2e_process_csv: bytes, default_project: str
+    ):
         """
         User Need: System should auto-detect case/activity/timestamp columns.
         Flow: Upload → Get columns → Verify detection
@@ -282,7 +289,9 @@ class TestE2EDiscoveryFlow:
 
         # DEBUG: Verify SQLAlchemy still works AFTER Discovery (DuckDB load_as_pm4py_log)
         dataset_res_after = await client.get(f"/api/v1/datasets/{e2e_log_id}")
-        assert dataset_res_after.status_code == 200, f"SQLAlchemy broken AFTER Discovery: {dataset_res_after.text}"
+        assert dataset_res_after.status_code == 200, (
+            f"SQLAlchemy broken AFTER Discovery: {dataset_res_after.text}"
+        )
 
     async def test_discover_with_alpha_miner(self, client: AsyncClient, e2e_log_id: str):
         """
@@ -337,7 +346,9 @@ class TestE2EDiscoveryFlow:
 
         # DEBUG: Verify SQLAlchemy still works AFTER DuckDB access
         dataset_res_after = await client.get(f"/api/v1/datasets/{e2e_log_id}")
-        assert dataset_res_after.status_code == 200, f"SQLAlchemy broken AFTER DuckDB: {dataset_res_after.text}"
+        assert dataset_res_after.status_code == 200, (
+            f"SQLAlchemy broken AFTER DuckDB: {dataset_res_after.text}"
+        )
 
     async def test_dfg_with_performance_metrics(self, client: AsyncClient, e2e_log_id: str):
         """
@@ -362,7 +373,9 @@ class TestE2EDiscoveryFlow:
 class TestE2EConformanceFlow:
     """E2E tests for conformance checking flow."""
 
-    @pytest.mark.skip(reason="Likely DuckDB/SQLite thread interaction issue in test env. Fails with 'no such table' only in POST.")
+    @pytest.mark.skip(
+        reason="Likely DuckDB/SQLite thread interaction issue in test env. Fails with 'no such table' only in POST."
+    )
     async def test_conformance_check_token_replay(
         self, client: AsyncClient, e2e_log_id: str, e2e_model_id: str
     ):
@@ -782,7 +795,9 @@ class TestE2EFeatureSummary:
             response = await client.get(endpoint)
             assert response.status_code == 200, f"{category} API not accessible at {endpoint}"
 
-    async def test_complete_happy_path(self, client: AsyncClient, e2e_process_csv: bytes, default_project: str):
+    async def test_complete_happy_path(
+        self, client: AsyncClient, e2e_process_csv: bytes, default_project: str
+    ):
         """
         Complete E2E happy path: Upload → Discover → Analyze → Conform.
 
@@ -805,7 +820,11 @@ class TestE2EFeatureSummary:
         # 3. DISCOVER (Inductive Miner)
         response = await client.post(
             "/api/v1/discovery/discover?async_mode=false",
-            json={"dataset_id": log_id, "miner_type": "inductive", "model_name": "Happy Path Model"},
+            json={
+                "dataset_id": log_id,
+                "miner_type": "inductive",
+                "model_name": "Happy Path Model",
+            },
         )
         assert response.status_code == 200
         model_id = response.json().get("id") or response.json().get("model_id")

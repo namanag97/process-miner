@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/api/routers/ocpm.py
+# hypothesis_version: 6.148.9
+
+[100, 202, 400, 404, 500, 1000, 1024, '.', '.jsonocel', '.sqlite', '.xmlocel', '/discover', '/formats', '/logs', '/models', '/models/{model_id}', '/ocpm', '/upload', 'JSON OCEL', 'OCEL 2.0 JSON format', 'OCEL 2.0 XML format', 'OCEL log not found', 'SQLite OCEL', 'XML OCEL', 'activities', 'application/json', 'application/xml', 'dataset_id', 'deleted', 'description', 'error', 'extension', 'graphs_by_type', 'job_id', 'jsonocel', 'message', 'mime_type', 'model_id', 'model_name', 'name', 'object_type', 'object_types', 'objects_per_type', 'ocel_file_streamed', 'ocel_flatten_queued', 'ocel_flatten_started', 'ocel_flattened', 'ocel_log_id', 'ocel_upload_failed', 'ocel_upload_started', 'ocpn_discovery', 'pending', 'queued', 'rb', 'sqlite', 'status', 'total_events', 'total_object_types', 'total_objects', 'unknown.jsonocel', 'wb', 'xmlocel']

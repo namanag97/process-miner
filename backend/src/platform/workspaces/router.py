@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 
 from src.api.dependencies import DBSession
 from src.platform.models import Project, Workspace
-from src.models.schemas import (
+from src.platform.schemas import (
     ProjectResponse,
     WorkspaceCreateRequest,
     WorkspaceDetailResponse,

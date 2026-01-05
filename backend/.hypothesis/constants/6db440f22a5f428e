@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/api/dependencies.py
+# hypothesis_version: 6.148.9
+
+['Auth disabled', 'AuthorizationService', 'Default Workspace', 'Demo Organization', 'Missing token', 'Org mismatch', 'Process Analyst', 'User', 'User not found', 'User | None', 'X-Org-Id', 'admin', 'demo-org', 'free', 'local', 'login', 'mock_auth', 'mvp-member-001', 'mvp-org-001', 'mvp-user-001', 'mvp-ws-001', 'mvp_user_not_found', 'org_mismatch', 'owner', 'permission_check', 'user_not_found']

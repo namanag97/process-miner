@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/platform/core/rate_limit.py
+# hypothesis_version: 6.148.9
+
+['fixed-window']

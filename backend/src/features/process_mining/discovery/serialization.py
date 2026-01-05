@@ -8,7 +8,7 @@ from typing import Any
 
 import joblib
 
-from src.platform.core.enums import ModelFormat
+from src.features.process_mining.enums import ModelFormat
 from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -53,9 +53,7 @@ class ModelSerializer:
             )
             return safe_loads(data)
 
-    def to_graph_json(
-        self, model_data: Any, model_format: ModelFormat
-    ) -> dict[str, Any] | None:
+    def to_graph_json(self, model_data: Any, model_format: ModelFormat) -> dict[str, Any] | None:
         """Serialize model to frontend-ready graph JSON.
 
         Args:
@@ -65,7 +63,7 @@ class ModelSerializer:
         Returns:
             Graph JSON dict or None if not supported
         """
-        from src.services.serializers import GraphStructureSerializer
+        from src.features.process_mining.services.serializers import GraphStructureSerializer
 
         serializer = GraphStructureSerializer()
 

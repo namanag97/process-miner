@@ -9,9 +9,9 @@ from typing import Any
 import pm4py
 from pm4py.objects.petri_net.obj import Marking, PetriNet
 
-from src.platform.core.enums import ConformanceMethod, ModelFormat
+from src.features.process_mining.enums import ConformanceMethod, ModelFormat
 from src.features.process_mining.models import Dataset, ProcessModel
-from src.services.mining import mining_service
+from src.features.process_mining.services.mining import mining_service
 
 
 class ConformanceService:
@@ -33,7 +33,7 @@ class ConformanceService:
             Dictionary with fitness, precision, method, and diagnostics
         """
         # Use fast path: event_log_loader instead of ORM iteration
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
 
@@ -53,7 +53,7 @@ class ConformanceService:
     ) -> float:
         """Calculate fitness score for log-model pair."""
         # Use fast path: event_log_loader instead of ORM iteration
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
 
@@ -69,7 +69,7 @@ class ConformanceService:
     ) -> float:
         """Calculate precision score for log-model pair."""
         # Use fast path: event_log_loader instead of ORM iteration
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
 
@@ -88,7 +88,7 @@ class ConformanceService:
         the observed behavior in the log.
         """
         # Use fast path: event_log_loader instead of ORM iteration
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
 
@@ -162,7 +162,7 @@ class ConformanceService:
     ) -> dict[str, Any]:
         """Get detailed conformance diagnostics."""
         # Use fast path: event_log_loader instead of ORM iteration
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
 
@@ -215,7 +215,7 @@ class ConformanceService:
     ) -> list[dict[str, Any]]:
         """Detect specific deviations from the model."""
         # Use fast path: event_log_loader instead of ORM iteration
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
 
@@ -271,7 +271,7 @@ class ConformanceService:
             Dictionary with alignment diagnostics per case
         """
         # Use fast path: event_log_loader instead of ORM iteration
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
 
@@ -374,7 +374,7 @@ class ConformanceService:
             Dictionary with constraint conformance details
         """
         # Use fast path: event_log_loader instead of ORM iteration
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
 
@@ -431,7 +431,7 @@ class ConformanceService:
             Dictionary with conformance details
         """
         # Use fast path: event_log_loader instead of ORM iteration
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
 
@@ -487,7 +487,7 @@ class ConformanceService:
             Dictionary with temporal conformance and detected anomalies
         """
         # Use fast path: event_log_loader instead of ORM iteration
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
 
@@ -580,7 +580,7 @@ class ConformanceService:
             Dictionary with EMD value
         """
         # Use fast path: event_log_loader instead of ORM iteration
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         pm4py_log = event_log_loader.load_as_pm4py_log(event_log.id)
 

@@ -52,7 +52,6 @@ class ObjectNotFoundError(ObjectStorageError):
     """Raised when object does not exist in storage."""
 
 
-
 class ObjectStorageClient:
     """S3/MinIO client abstraction for file storage.
 
@@ -134,7 +133,9 @@ class ObjectStorageClient:
                         else:
                             self.client.create_bucket(
                                 Bucket=bucket_name,
-                                CreateBucketConfiguration={"LocationConstraint": self.settings.s3_region},
+                                CreateBucketConfiguration={
+                                    "LocationConstraint": self.settings.s3_region
+                                },
                             )
                         logger.info("bucket_created", bucket=bucket_name, bucket_type=bucket_type)
                     except (BotoCoreError, ClientError) as create_error:
@@ -235,8 +236,12 @@ class ObjectStorageClient:
                 key=key,
             )
         except ClientError as e:
-            error_code = e.response.get("Error", {}).get("Code") if hasattr(e, "response") else "Unknown"
-            error_message = e.response.get("Error", {}).get("Message") if hasattr(e, "response") else str(e)
+            error_code = (
+                e.response.get("Error", {}).get("Code") if hasattr(e, "response") else "Unknown"
+            )
+            error_message = (
+                e.response.get("Error", {}).get("Message") if hasattr(e, "response") else str(e)
+            )
             logger.error(
                 "❌ [STORAGE] ClientError generating presigned URL",
                 bucket=bucket,
@@ -958,8 +963,7 @@ class ObjectStorageClient:
         """
         if bucket_type not in self.buckets:
             raise ValueError(
-                f"Invalid bucket type: {bucket_type}. "
-                f"Allowed: {', '.join(self.buckets.keys())}"
+                f"Invalid bucket type: {bucket_type}. Allowed: {', '.join(self.buckets.keys())}"
             )
         return self.buckets[bucket_type]
 

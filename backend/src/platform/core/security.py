@@ -100,9 +100,7 @@ def create_access_token(
         "type": "access",
     }
 
-    encoded_jwt = jwt.encode(
-        to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm
-    )
+    encoded_jwt = jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
     logger.debug("access_token_created", user_id=user_id, expires=expire.isoformat())
     return encoded_jwt
@@ -127,9 +125,7 @@ def create_refresh_token(
         "type": "refresh",
     }
 
-    return jwt.encode(
-        to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm
-    )
+    return jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
 def create_token_pair(

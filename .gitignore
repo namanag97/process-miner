@@ -108,10 +108,8 @@ backend/data/logs/
 *.temp
 .cache/
 
-# Documentation and notes (except README files)
-*.md
-!README.md
-!readme.md
+# Documentation and notes
+# Allow .md files for architecture documentation
 *.txt
 !README.txt
 

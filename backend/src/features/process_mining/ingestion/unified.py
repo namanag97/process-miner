@@ -12,10 +12,13 @@ from src.platform.core.logging_config import get_logger
 logger = get_logger(__name__)
 
 
-def _log_validation(entity: str, is_valid: bool, errors: list[str] | None = None, field_count: int | None = None) -> None:
+def _log_validation(
+    entity: str, is_valid: bool, errors: list[str] | None = None, field_count: int | None = None
+) -> None:
     """Log validation to dev console (lazy import to avoid service->api dependency)."""
     try:
         from src.api.routers.dev_logs_stream import log_validation
+
         log_validation(entity=entity, is_valid=is_valid, errors=errors, field_count=field_count)
     except ImportError:
         pass
@@ -33,6 +36,7 @@ class UnifiedIngestionService:
     def pm4py_service(self):
         if self._pm4py_service is None:
             from .service import ingestion_service
+
             self._pm4py_service = ingestion_service
         return self._pm4py_service
 
@@ -40,6 +44,7 @@ class UnifiedIngestionService:
     def duckdb_service(self):
         if self._duckdb_service is None:
             from .duckdb_parser import duckdb_parser
+
             self._duckdb_service = duckdb_parser
         return self._duckdb_service
 
@@ -51,7 +56,12 @@ class UnifiedIngestionService:
         start_time = time.perf_counter()
         ext = os.path.splitext(filename)[1].lower()
 
-        logger.info("unified_detect_columns_start", filename=filename, extension=ext, size_kb=len(file_content) / 1024)
+        logger.info(
+            "unified_detect_columns_start",
+            filename=filename,
+            extension=ext,
+            size_kb=len(file_content) / 1024,
+        )
 
         try:
             if ext == ".csv":
@@ -96,7 +106,12 @@ class UnifiedIngestionService:
 
         except Exception as e:
             duration_ms = int((time.perf_counter() - start_time) * 1000)
-            logger.error("unified_detect_columns_failed", filename=filename, error=str(e), duration_ms=duration_ms)
+            logger.error(
+                "unified_detect_columns_failed",
+                filename=filename,
+                error=str(e),
+                duration_ms=duration_ms,
+            )
             raise
 
     def parse(
@@ -127,7 +142,9 @@ class UnifiedIngestionService:
             _log_validation(
                 entity="column_mapping",
                 is_valid=False,
-                errors=[f"Missing required columns: {', '.join(['case_id', 'activity', 'timestamp'][i] for i, c in enumerate(required_cols) if not c)}"],
+                errors=[
+                    f"Missing required columns: {', '.join(['case_id', 'activity', 'timestamp'][i] for i, c in enumerate(required_cols) if not c)}"
+                ],
             )
             raise ValueError("Missing required column mappings")
 
@@ -186,7 +203,9 @@ class UnifiedIngestionService:
 
         except Exception as e:
             duration_ms = int((time.perf_counter() - start_time) * 1000)
-            logger.error("unified_parse_failed", filename=filename, error=str(e), duration_ms=duration_ms)
+            logger.error(
+                "unified_parse_failed", filename=filename, error=str(e), duration_ms=duration_ms
+            )
             raise
 
     def _standardize_suggestions(self, suggestions: dict[str, Any]) -> dict[str, Any]:

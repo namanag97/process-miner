@@ -8,9 +8,9 @@ Components:
 """
 
 from .algorithms import (
+    AdvancedMiner,
     AlphaMiner,
     AlphaPlusMiner,
-    AdvancedMiner,
     DeclarativeMiner,
     DFGMiner,
     HeuristicsMiner,

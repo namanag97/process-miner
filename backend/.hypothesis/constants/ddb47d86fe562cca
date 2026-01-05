@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/features/process_mining/enums.py
+# hypothesis_version: 6.148.9
+
+['alignment', 'alpha', 'alpha_plus', 'batches', 'bpmn', 'bpmn_inductive', 'correlation', 'csv', 'declare', 'dfg', 'footprints', 'heuristics', 'ilp', 'inductive', 'inductive_infrequent', 'log_skeleton', 'ocel_json', 'ocel_sqlite', 'performance_dfg', 'petri_net', 'powl', 'prefix_tree', 'process_tree', 'temporal_profile', 'token_replay', 'transition_system', 'xes']

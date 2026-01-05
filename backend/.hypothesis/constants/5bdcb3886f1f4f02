@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/features/process_mining/services/organizational.py
+# hypothesis_version: 6.148.9
+
+[0.1, 1.0, 200, 1000, 'activities', 'concept:name', 'density', 'discovering_roles', 'edge_count', 'edges', 'first_activity', 'handover', 'id', 'label', 'last_activity', 'metrics', 'network_type', 'node_count', 'nodes', 'org:resource', 'resource', 'resource_similarity', 'resources', 'role_id', 'roles_discovered', 'similar', 'similarity_edges', 'source', 'target', 'time:timestamp', 'total_events', 'total_resources', 'type', 'weight', 'working_together', 'workload', 'workload_computed']

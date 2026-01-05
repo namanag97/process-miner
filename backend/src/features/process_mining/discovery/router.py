@@ -9,7 +9,15 @@ from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 
 from src.api.dependencies import CurrentUser, DBSession
-from src.platform.core.enums import MinerType
+from src.features.process_mining.enums import MinerType
+from src.features.process_mining.models import Dataset, ProcessModel
+from src.features.process_mining.schemas import (
+    DiscoverRequest,
+    MinerInfo,
+    ModelListResponse,
+    ModelResponse,
+)
+from src.features.process_mining.services.mining import mining_service
 from src.platform.core.exceptions import (
     DiscoveryError,
     InvalidInputError,
@@ -17,14 +25,6 @@ from src.platform.core.exceptions import (
     ProcessNotFoundError,
 )
 from src.platform.core.logging_config import get_logger
-from src.features.process_mining.models import Dataset, ProcessModel
-from src.models.schemas import (
-    DiscoverRequest,
-    MinerInfo,
-    ModelListResponse,
-    ModelResponse,
-)
-from src.services.mining import mining_service
 
 logger = get_logger(__name__)
 
@@ -166,10 +166,15 @@ async def discover_model(
             async_job.status = JobStatus.FAILED.value
             async_job.error_message = f"Failed to queue task: {e}"
             await db.commit()
-            raise DiscoveryError(f"Failed to start discovery task: {e}", miner_type=miner_type.value)
+            raise DiscoveryError(
+                f"Failed to start discovery task: {e}", miner_type=miner_type.value
+            )
 
         logger.info(
-            "async_discovery_started", job_id=async_job.id, task_id=task.id, dataset_id=request.dataset_id
+            "async_discovery_started",
+            job_id=async_job.id,
+            task_id=task.id,
+            dataset_id=request.dataset_id,
         )
 
         # Return 202 Accepted with job_id
@@ -205,6 +210,7 @@ async def discover_model(
     graph_structure_json = None
     if graph_json:
         import json as json_module
+
         graph_structure_json = json_module.dumps(graph_json)
 
     # Calculate quality metrics (fitness/precision) if possible

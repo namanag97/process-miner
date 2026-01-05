@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/features/process_mining/schemas/analysis.py
+# hypothesis_version: 6.148.9
+
+[0.0, 1.0, 100, 255, 10000, 'Dataset ID to mine', '__dict__', 'activities', 'algorithm', 'analysis_type', 'before', 'completed_at', 'config', 'config_json', 'created_at', 'dataset_id', 'error_message', 'id', 'is_active', 'log_id', 'medium', 'metadata_json', 'metrics', 'metrics_json', 'model_id', 'name', 'object_types', 'object_types_json', 'objects_per_type', 'random_forest', 'resource', 'result_summary', 'result_summary_json', 'schedule', 'source_file', 'source_format', 'status', 'steps', 'steps_json', 'target_type', 'total_events', 'total_object_types', 'total_objects', 'trained_at']

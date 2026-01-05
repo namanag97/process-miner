@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/api/routers/auth.py
+# hypothesis_version: 6.148.9
+
+["'", '-', '/auth', '/login', '/logout', '/me', '/me/legacy', '/refresh', '/register', 'Auth', 'Default Workspace', 'User not found', 'Your first workspace', 'admin', 'bearer', 'free', 'local', 'logged_out', 'message', 'owner', 'status', 'user_logged_in', 'user_registered']

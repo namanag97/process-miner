@@ -4,7 +4,6 @@ Contains DFG data extraction, variant analysis, activity statistics,
 and case statistics using PM4Py.
 """
 
-import time
 from typing import Any
 
 import pm4py
@@ -49,7 +48,9 @@ class ProcessAnalyzer:
             "total_variants": len(variants),
         }
 
-    def get_dfg_data(self, dfg: dict, start_activities: dict, end_activities: dict) -> dict[str, Any]:
+    def get_dfg_data(
+        self, dfg: dict, start_activities: dict, end_activities: dict
+    ) -> dict[str, Any]:
         """Convert DFG to structured data for visualization."""
         all_activities = set()
         for (source, target), _ in dfg.items():
@@ -92,9 +93,7 @@ class ProcessAnalyzer:
             "total_frequency": total_freq,
         }
 
-    def get_dfg_with_performance(
-        self, pm4py_log: PM4PyLog
-    ) -> dict[str, Any]:
+    def get_dfg_with_performance(self, pm4py_log: PM4PyLog) -> dict[str, Any]:
         """Get DFG with performance metrics (avg/min/max duration per edge)."""
         dfg, start_activities, end_activities = pm4py.discover_dfg(pm4py_log)
         perf_dfg, _, _ = pm4py.discover_performance_dfg(pm4py_log)
@@ -294,9 +293,7 @@ class ProcessAnalyzer:
         unique_ratio = unique_count / total_count if total_count > 0 else 1
 
         complexity_score = (
-            min(total_count / 20, 1.0) * 0.3
-            + rework_ratio * 0.4
-            + (1 - unique_ratio) * 0.3
+            min(total_count / 20, 1.0) * 0.3 + rework_ratio * 0.4 + (1 - unique_ratio) * 0.3
         )
 
         return {

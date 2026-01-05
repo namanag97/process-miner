@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/platform/core/config.py
+# hypothesis_version: 6.148.9
+
+[1024, 3600, 6379, '*', './data/db', './data/models', './data/uploads', '.env', '/api/v1', '1.0.0', 'DEBUG', 'HS256', 'Process Mining API', 'localhost', 'minioadmin', 'pm-cache-dev', 'pm-models-dev', 'pm-raw-dev', 'us-east-1', 'utf-8']

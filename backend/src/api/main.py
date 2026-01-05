@@ -20,32 +20,32 @@ from src.api.routers import (
     analyses_router,
     analytics_router,
     auth_router,
+    business_use_cases_router,
     conformance_router,
     datasets_router,
     dev_log_router,
     discovery_router,
     filtering_router,
+    health_router,
+    jobs_router,
     ocpm_router,
     organizational_router,
     predictions_router,
     projects_router,
     simulation_router,
     visualization_router,
-    # workflows_router removed - orphaned code with no frontend consumers
+    workflows_router,
     workspaces_router,
 )
-from src.api.routers.business_use_cases import router as business_use_cases_router
-from src.api.routers.dev_logs_stream import router as dev_logs_stream_router
-from src.api.routers.health import mark_startup_complete
-from src.api.routers.health import router as health_router
-from src.api.routers.jobs import router as jobs_router
-from src.api.routers.telemetry_proxy import router as telemetry_proxy_router
-from src.api.routers.telemetry_test import router as telemetry_test_router
+from src.platform.devtools.streaming import router as dev_logs_stream_router
+from src.platform.health.router import mark_startup_complete
+from src.platform.telemetry.proxy import router as telemetry_proxy_router
+from src.platform.telemetry.test import router as telemetry_test_router
+from src.platform.infrastructure.database import close_database, init_database
 from src.platform.core.config import get_settings
 from src.platform.core.exceptions import AppException
 from src.platform.core.logging_config import configure_logging, get_logger
 from src.platform.core.middleware import PerformanceLoggingMiddleware, RequestLoggingMiddleware
-from src.models.database import close_database, init_database
 
 settings = get_settings()
 
@@ -102,15 +102,13 @@ async def _seed_mvp_data() -> None:
     """
     from sqlalchemy import select
 
-    from src.models.database import async_session_maker
+    from src.platform.infrastructure.database import async_session_maker
     from src.platform.models import Organization, User, Workspace, WorkspaceMember
 
     try:
         async with async_session_maker() as db:
             # Check if MVP org already exists
-            result = await db.execute(
-                select(Organization).where(Organization.id == "mvp-org-001")
-            )
+            result = await db.execute(select(Organization).where(Organization.id == "mvp-org-001"))
             if result.scalar_one_or_none():
                 logger.debug("mvp_seed_data_exists", msg="Skipping seeding")
                 return
@@ -161,8 +159,6 @@ async def _seed_mvp_data() -> None:
 
     except Exception as e:
         logger.warning("mvp_seed_data_failed", error=str(e))
-
-
 
 
 def _setup_observability(app: FastAPI) -> None:
@@ -465,7 +461,7 @@ JWT-based authentication with optional workspace context.
     app.include_router(conformance_router, prefix=settings.api_prefix)
     app.include_router(business_use_cases_router, prefix=settings.api_prefix)  # Phase 9
     app.include_router(ocpm_router, prefix=settings.api_prefix)
-    # workflows_router removed - orphaned code
+    app.include_router(workflows_router, prefix=settings.api_prefix)
     app.include_router(filtering_router, prefix=settings.api_prefix)
     app.include_router(analytics_router, prefix=settings.api_prefix)
     app.include_router(organizational_router, prefix=settings.api_prefix)

@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/api/routers/discovery.py
+# hypothesis_version: 6.148.9
+
+[100, 202, 1000, '/discover', '/discovery', '/miners', '/models', '/models/{model_id}', 'Discovery', 'celery_task_failed', 'dataset_empty', 'dataset_id', 'dataset_not_found', 'dataset_not_ready', 'delete_model_started', 'deleted', 'discovery_completed', 'discovery_failed', 'discovery_started', 'fitness', 'id', 'invalid_miner_type', 'job_id', 'list_models', 'message', 'miner_type', 'model_name', 'model_not_found', 'petri_net', 'process_tree', 'queued', 'status', 'task_id']

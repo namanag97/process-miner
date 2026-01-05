@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/api/routers/health.py
+# hypothesis_version: 6.148.9
+
+[0.0, 100, 503, 1000, 1024, '/detailed', '/health', '/live', '/metrics', '/ready', '/startup', 'Health', 'Not configured', 'SELECT 1', '__health_check__', 'cache', 'circuit_breakers', 'circuits', 'database', 'degraded', 'disk', 'free_gb', 'healthy', 'in-memory', 'open', 'pm4py', 'starting', 'state', 'text/plain', 'total_gb', 'type', 'unhealthy', 'used_percent', 'version']

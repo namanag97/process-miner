@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
 class DatasetStatus(str, Enum):
     """Dataset lifecycle states."""
+
     PENDING = "pending"
     VALIDATING = "validating"
     AWAITING_MAPPING = "awaiting_mapping"
@@ -38,6 +39,7 @@ class DatasetStatus(str, Enum):
 
 class AnalysisType(str, Enum):
     """Types of process analyses."""
+
     DISCOVERY = "discovery"
     CONFORMANCE = "conformance"
     ENHANCEMENT = "enhancement"
@@ -47,6 +49,7 @@ class AnalysisType(str, Enum):
 
 class AnalysisStatus(str, Enum):
     """Analysis job lifecycle states."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -198,7 +201,10 @@ class ProcessCase(Base):
 
     dataset: Mapped["Dataset"] = relationship(back_populates="cases")
     events: Mapped[list["ProcessEvent"]] = relationship(
-        back_populates="case", cascade="all, delete-orphan", lazy="raise", order_by="ProcessEvent.timestamp"
+        back_populates="case",
+        cascade="all, delete-orphan",
+        lazy="raise",
+        order_by="ProcessEvent.timestamp",
     )
 
 
@@ -264,7 +270,9 @@ class ProcessModelMetrics(Base):
     precision_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     computed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     model: Mapped["ProcessModel"] = relationship(back_populates="metrics")
 
@@ -283,7 +291,9 @@ class GraphCache(Base):
     cached_layout_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     model: Mapped["ProcessModel"] = relationship(back_populates="graph_caches")
 
@@ -326,7 +336,9 @@ class ActivityMapping(Base):
     level: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     mapping_rules: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     dataset: Mapped["Dataset"] = relationship(back_populates="activity_mappings")
     hierarchical_models: Mapped[list["HierarchicalProcessModel"]] = relationship(
@@ -540,6 +552,8 @@ class HierarchicalProcessModel(Base):
     activity_count: Mapped[int] = mapped_column(Integer, nullable=False)
     edge_count: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     mapping: Mapped["ActivityMapping"] = relationship(back_populates="hierarchical_models")

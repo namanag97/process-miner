@@ -5,20 +5,16 @@ Covers all ObjectStorageClient methods with mocked boto3 calls using moto.
 
 import gzip
 import io
-from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
-
-from src.core.exceptions import ProcessingError
-from src.infrastructure.object_storage import (
+from src.platform.infrastructure.object_storage import (
     ObjectNotFoundError,
     ObjectStorageClient,
     ObjectStorageError,
 )
-
 
 # =============================================================================
 # Fixtures
@@ -178,11 +174,7 @@ def test_get_presigned_download_url_custom_filename(storage_client, sample_file_
         Body=sample_file_content,
     )
 
-    url = storage_client.get_presigned_download_url(
-        "raw",
-        key,
-        filename="custom-filename.txt"
-    )
+    url = storage_client.get_presigned_download_url("raw", key, filename="custom-filename.txt")
 
     assert "custom-filename.txt" in url
     assert "response-content-disposition" in url
@@ -204,10 +196,7 @@ def test_upload_file(storage_client, sample_file_content, tmp_path):
     storage_client.upload_file("raw", test_file, key)
 
     # Verify file exists in S3
-    response = storage_client.client.get_object(
-        Bucket=storage_client.buckets["raw"],
-        Key=key
-    )
+    response = storage_client.client.get_object(Bucket=storage_client.buckets["raw"], Key=key)
     assert response["Body"].read() == sample_file_content
 
 
@@ -220,10 +209,7 @@ def test_upload_file_with_content_type(storage_client, tmp_path):
     storage_client.upload_file("raw", test_file, key, content_type="text/csv")
 
     # Verify content type
-    response = storage_client.client.head_object(
-        Bucket=storage_client.buckets["raw"],
-        Key=key
-    )
+    response = storage_client.client.head_object(Bucket=storage_client.buckets["raw"], Key=key)
     assert response["ContentType"] == "text/csv"
 
 
@@ -235,10 +221,7 @@ def test_upload_fileobj(storage_client, sample_file_content):
     storage_client.upload_fileobj("raw", file_obj, key)
 
     # Verify content
-    response = storage_client.client.get_object(
-        Bucket=storage_client.buckets["raw"],
-        Key=key
-    )
+    response = storage_client.client.get_object(Bucket=storage_client.buckets["raw"], Key=key)
     assert response["Body"].read() == sample_file_content
 
 
@@ -251,10 +234,7 @@ def test_upload_fileobj_with_metadata(storage_client):
     storage_client.upload_fileobj("raw", file_obj, key, metadata=metadata)
 
     # Verify metadata
-    response = storage_client.client.head_object(
-        Bucket=storage_client.buckets["raw"],
-        Key=key
-    )
+    response = storage_client.client.head_object(Bucket=storage_client.buckets["raw"], Key=key)
     assert response["Metadata"]["user-id"] == "123"
     assert response["Metadata"]["dataset-name"] == "test-dataset"
 
@@ -434,10 +414,7 @@ def test_upload_with_compression(storage_client):
     storage_client.upload_with_compression("models", io.BytesIO(content), key)
 
     # Download and verify decompression
-    response = storage_client.client.get_object(
-        Bucket=storage_client.buckets["models"],
-        Key=key
-    )
+    response = storage_client.client.get_object(Bucket=storage_client.buckets["models"], Key=key)
 
     # Content should be gzip compressed
     compressed_data = response["Body"].read()
@@ -456,10 +433,7 @@ def test_upload_with_compression_metadata(storage_client):
     storage_client.upload_with_compression("models", io.BytesIO(content), key)
 
     # Check metadata
-    response = storage_client.client.head_object(
-        Bucket=storage_client.buckets["models"],
-        Key=key
-    )
+    response = storage_client.client.head_object(Bucket=storage_client.buckets["models"], Key=key)
 
     assert "original-size" in response["Metadata"]
     assert int(response["Metadata"]["original-size"]) == len(content)
@@ -473,11 +447,7 @@ def test_upload_with_compression_metadata(storage_client):
 def test_configure_lifecycle_policy(storage_client):
     """Test S3 lifecycle policy configuration."""
     # Note: moto doesn't fully support lifecycle policies, so we test the call doesn't error
-    storage_client.configure_lifecycle_policy(
-        "cache",
-        transition_days=30,
-        expiration_days=90
-    )
+    storage_client.configure_lifecycle_policy("cache", transition_days=30, expiration_days=90)
 
     # Verify policy was set (moto limitation: can't fully verify policy content)
     # In real S3, we would check: client.get_bucket_lifecycle_configuration()
@@ -519,7 +489,7 @@ def test_get_workspace_storage_metrics(storage_client):
     files = [
         (f"workspaces/{workspace_id}/file1.csv", b"x" * 500),
         (f"workspaces/{workspace_id}/file2.csv", b"y" * 1500),
-        (f"workspaces/other-ws/file3.csv", b"z" * 1000),  # Different workspace
+        ("workspaces/other-ws/file3.csv", b"z" * 1000),  # Different workspace
     ]
 
     for key, content in files:
@@ -582,8 +552,7 @@ def test_ensure_buckets_exist_handles_errors(mock_settings):
     # In practice, this tests the error handling path
     with patch.object(client.client, "create_bucket") as mock_create:
         mock_create.side_effect = ClientError(
-            {"Error": {"Code": "BucketAlreadyExists", "Message": "Bucket exists"}},
-            "create_bucket"
+            {"Error": {"Code": "BucketAlreadyExists", "Message": "Bucket exists"}}, "create_bucket"
         )
 
         # Should raise ObjectStorageError

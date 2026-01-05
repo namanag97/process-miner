@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/features/process_mining/ingestion/service.py
+# hypothesis_version: 6.148.9
+
+[-100, 100, 1000, 1024, ' -> ', '%Y-%m-%d', '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S%z', '%Y-%m-%dT%H:%M:%S.%f', '%d/%m/%Y %H:%M:%S', '%m/%d/%Y %H:%M:%S', '+0000', ',', '.', '.csv', '.txt', '.xes', 'Z', 'action', 'activity', 'activity_column', 'activity_name', 'actor', 'agent', 'case', 'case:concept:name', 'case_id', 'case_id_column', 'caseid', 'columns', 'concept:name', 'csv', 'csv_columns_detected', 'date', 'datetime', 'event', 'event_name', 'event_time', 'ignore', 'ingest_file_started', 'org:resource', 'process_id', 'resource', 'row_count', 'sample_rows', 'start_time', 'store_only_completed', 'store_only_started', 'suggestions', 'task', 'time', 'time:timestamp', 'timestamp', 'timestamp_column', 'trace', 'trace_id', 'traceid', 'user', 'utf-8', 'xes']

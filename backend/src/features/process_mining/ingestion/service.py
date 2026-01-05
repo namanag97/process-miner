@@ -17,9 +17,15 @@ from typing import Any
 from pm4py.objects.log.importer.xes import importer as xes_importer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.features.process_mining.models import (
+    Dataset,
+    DatasetStatus,
+    ProcessCase,
+    ProcessEvent,
+    UploadedFile,
+)
 from src.platform.core.exceptions import ValidationError
 from src.platform.core.logging_config import get_logger
-from src.features.process_mining.models import Dataset, DatasetStatus, ProcessCase, ProcessEvent, UploadedFile
 
 logger = get_logger(__name__)
 
@@ -211,7 +217,7 @@ class IngestionService:
         """
         import hashlib
 
-        from src.services.storage import storage_service
+        from src.platform.storage.storage import storage_service
 
         logger.info("store_only_started", filename=filename, name=name)
         start_time = time.perf_counter()
@@ -564,7 +570,7 @@ class IngestionService:
         import hashlib
 
         from src.features.process_mining.models import UploadedFile
-        from src.services.storage import storage_service
+        from src.platform.storage.storage import storage_service
 
         # Store to filesystem/S3
         storage_path = await storage_service.store_dataset_file(content, dataset_id, filename)

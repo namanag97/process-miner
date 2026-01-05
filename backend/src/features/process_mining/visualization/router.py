@@ -9,10 +9,9 @@ from fastapi import APIRouter, HTTPException, Query, Response
 from sqlalchemy import select
 
 from src.api.dependencies import DBSession
-from src.platform.core.enums import ModelFormat
-from src.platform.core.logging_config import get_logger
+from src.features.process_mining.enums import ModelFormat
 from src.features.process_mining.models import Dataset, ProcessModel
-from src.models.schemas import (
+from src.features.process_mining.schemas import (
     ActivityDetailResponse,
     DFGEdge,
     DFGNode,
@@ -25,7 +24,8 @@ from src.models.schemas import (
     StatisticsResponse,
     VariantResponse,
 )
-from src.services.mining import mining_service
+from src.features.process_mining.services.mining import mining_service
+from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

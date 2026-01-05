@@ -1,40 +1,61 @@
-"""API routers."""
+"""API routers - Central registry for all API routers.
 
-from src.api.routers.analyses import router as analyses_router
-from src.api.routers.analytics import router as analytics_router
-from src.api.routers.auth import router as auth_router
-from src.api.routers.conformance import router as conformance_router
-from src.api.routers.datasets import router as datasets_router
-from src.api.routers.dev_log import router as dev_log_router
-from src.api.routers.discovery import router as discovery_router
-from src.api.routers.filtering import router as filtering_router
-from src.api.routers.jobs import router as jobs_router
-from src.api.routers.ocpm import router as ocpm_router
-from src.api.routers.organizational import router as organizational_router
-from src.api.routers.predictions import router as predictions_router
-from src.api.routers.projects import router as projects_router
-from src.api.routers.simulation import router as simulation_router
-from src.api.routers.visualization import router as visualization_router
+Following the Modular Monolith architecture:
+- Platform routers: Generic SaaS infrastructure (auth, workspaces, projects, jobs, health)
+- Feature routers: Domain-specific functionality (process mining)
+"""
 
-# workflows_router removed - orphaned code with no frontend consumers
-from src.api.routers.workspaces import router as workspaces_router
+# ============================================================================
+# Platform Layer Routers
+# ============================================================================
+from src.platform.auth.router import router as auth_router
+from src.platform.devtools.router import router as dev_log_router
+from src.platform.health.router import router as health_router
+from src.platform.jobs.router import router as jobs_router
+from src.platform.projects.router import router as projects_router
+from src.platform.workspaces.router import router as workspaces_router
+
+# ============================================================================
+# Process Mining Feature Routers
+# ============================================================================
+from src.features.process_mining.api.analyses import router as analyses_router
+from src.features.process_mining.api.analytics import router as analytics_router
+from src.features.process_mining.api.business_use_cases import (
+    router as business_use_cases_router,
+)
+from src.features.process_mining.api.datasets import router as datasets_router
+from src.features.process_mining.api.filtering import router as filtering_router
+from src.features.process_mining.api.ocpm import router as ocpm_router
+from src.features.process_mining.api.organizational import (
+    router as organizational_router,
+)
+from src.features.process_mining.api.predictions import router as predictions_router
+from src.features.process_mining.api.simulation import router as simulation_router
+from src.features.process_mining.api.visualization import router as visualization_router
+from src.features.process_mining.api.workflows import router as workflows_router
+from src.features.process_mining.conformance.router import router as conformance_router
+from src.features.process_mining.discovery.router import router as discovery_router
 
 __all__ = [
+    # Platform routers
+    "auth_router",
+    "dev_log_router",
+    "health_router",
+    "jobs_router",
+    "projects_router",
+    "workspaces_router",
+    # Process mining routers
     "analyses_router",
     "analytics_router",
-    "auth_router",
+    "business_use_cases_router",
     "conformance_router",
     "datasets_router",
-    "dev_log_router",
     "discovery_router",
     "filtering_router",
-    "jobs_router",
     "ocpm_router",
     "organizational_router",
     "predictions_router",
-    "projects_router",
     "simulation_router",
     "visualization_router",
-
-    "workspaces_router",
+    "workflows_router",
 ]

@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/features/process_mining/ingestion/duckdb_parser.py
+# hypothesis_version: 6.148.9
+
+[100, 128, ',', '.csv', ':memory:', ';', 'BIGINT', 'NULL', 'TIMESTAMP', 'VARCHAR', 'action', 'activities', 'activity', 'activity_column', 'actor', 'agent', 'case', 'case:concept:name', 'case_count', 'case_id', 'case_id_column', 'cases_arrow', 'column', 'columns', 'concept', 'concept:name', 'date', 'delimiter', 'detected_type', 'duckdb_parse_started', 'employee', 'end_time', 'event', 'events_arrow', 'frequency_percent', 'id', 'name', 'org:resource', 'resource', 'resource_column', 'row_count', 'stamp', 'start_time', 'statistics', 'suggested_role', 'suggestions', 'task', 'time', 'time:timestamp', 'timestamp', 'timestamp_column', 'total_activities', 'total_cases', 'total_events', 'total_resources', 'trace', 'user', 'variant', 'wb', '|']

@@ -22,12 +22,12 @@ from datetime import datetime
 import psutil
 
 from src.platform.infrastructure.devconsole_types import (
-    DevLogEntry,
     LogLevel,
     SystemMetrics,
+)
+from src.platform.infrastructure.devconsole_types import (
     create_log_entry as _create_log_entry,
 )
-
 
 # =============================================================================
 # Metrics Tracking (module-level state)
@@ -512,6 +512,9 @@ def reset_metrics() -> None:
 
 
 __all__ = [
+    "get_error_count",
+    "get_slow_request_count",
+    "get_system_metrics",
     "log_api_request",
     "log_api_response",
     "log_auth_event",
@@ -522,8 +525,5 @@ __all__ = [
     "log_perf_warning",
     "log_pm4py_operation",
     "log_validation",
-    "get_system_metrics",
-    "get_error_count",
-    "get_slow_request_count",
     "reset_metrics",
 ]

@@ -16,14 +16,14 @@ import pm4py
 from pm4py.objects.petri_net.obj import Marking, PetriNet
 from pm4py.objects.process_tree.obj import ProcessTree
 
-from src.platform.core.enums import MinerType, ModelFormat
-from src.platform.core.logging_config import get_logger, log_business_metric
+from src.features.process_mining.enums import MinerType, ModelFormat
 from src.features.process_mining.models import Dataset
+from src.platform.core.logging_config import get_logger, log_business_metric
 
 from .algorithms import (
+    AdvancedMiner,
     AlphaMiner,
     AlphaPlusMiner,
-    AdvancedMiner,
     DeclarativeMiner,
     DFGMiner,
     HeuristicsMiner,
@@ -75,7 +75,8 @@ class MiningService:
         start_time = time.perf_counter()
 
         # Load event log using fast DuckDB/Arrow path
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
 
         conversion_ms = (time.perf_counter() - start_time) * 1000
@@ -116,9 +117,7 @@ class MiningService:
 
         return result
 
-    def _run_discovery(
-        self, pm4py_log, miner_type: MinerType
-    ) -> tuple[Any, ModelFormat]:
+    def _run_discovery(self, pm4py_log, miner_type: MinerType) -> tuple[Any, ModelFormat]:
         """Run the appropriate discovery algorithm."""
         if miner_type == MinerType.ALPHA:
             return AlphaMiner.discover(pm4py_log), ModelFormat.PETRI_NET
@@ -165,13 +164,17 @@ class MiningService:
             return DeclarativeMiner.discover_log_skeleton(pm4py_log), ModelFormat.LOG_SKELETON
 
         if miner_type == MinerType.TEMPORAL_PROFILE:
-            return DeclarativeMiner.discover_temporal_profile(pm4py_log), ModelFormat.TEMPORAL_PROFILE
+            return DeclarativeMiner.discover_temporal_profile(
+                pm4py_log
+            ), ModelFormat.TEMPORAL_PROFILE
 
         if miner_type == MinerType.PREFIX_TREE:
             return AdvancedMiner.discover_prefix_tree(pm4py_log), ModelFormat.PREFIX_TREE
 
         if miner_type == MinerType.TRANSITION_SYSTEM:
-            return AdvancedMiner.discover_transition_system(pm4py_log), ModelFormat.TRANSITION_SYSTEM
+            return AdvancedMiner.discover_transition_system(
+                pm4py_log
+            ), ModelFormat.TRANSITION_SYSTEM
 
         if miner_type == MinerType.BATCHES:
             return AdvancedMiner.discover_batches(pm4py_log), ModelFormat.BATCHES
@@ -197,7 +200,7 @@ class MiningService:
 
     def discover_ilp(self, event_log: Dataset, alpha: float = 1.0) -> tuple[Any, ModelFormat]:
         """ILP Miner with custom alpha parameter."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         logger.info("discover_ilp_started", dataset_id=event_log.id, alpha=alpha)
         start_time = time.perf_counter()
@@ -211,7 +214,7 @@ class MiningService:
 
     def discover_powl(self, event_log: Dataset) -> tuple[Any, ModelFormat]:
         """POWL discovery."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         logger.info("discover_powl_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
@@ -225,7 +228,7 @@ class MiningService:
 
     def discover_bpmn(self, event_log: Dataset) -> tuple[Any, ModelFormat]:
         """BPMN discovery."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         logger.info("discover_bpmn_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
@@ -239,7 +242,7 @@ class MiningService:
 
     def discover_declare(self, event_log: Dataset) -> tuple[Any, ModelFormat]:
         """DECLARE discovery."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         logger.info("discover_declare_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
@@ -255,13 +258,16 @@ class MiningService:
         self, event_log: Dataset, noise_threshold: float = 0.0
     ) -> tuple[Any, ModelFormat]:
         """Log Skeleton discovery."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         logger.info("discover_log_skeleton_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
 
         pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
-        result = DeclarativeMiner.discover_log_skeleton(pm4py_log, noise_threshold), ModelFormat.LOG_SKELETON
+        result = (
+            DeclarativeMiner.discover_log_skeleton(pm4py_log, noise_threshold),
+            ModelFormat.LOG_SKELETON,
+        )
 
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info("discover_log_skeleton_completed", duration_ms=round(duration_ms, 2))
@@ -269,7 +275,7 @@ class MiningService:
 
     def discover_temporal_profile(self, event_log: Dataset) -> tuple[Any, ModelFormat]:
         """Temporal Profile discovery."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         logger.info("discover_temporal_profile_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
@@ -283,7 +289,7 @@ class MiningService:
 
     def discover_prefix_tree(self, event_log: Dataset) -> tuple[Any, ModelFormat]:
         """Prefix Tree discovery."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         logger.info("discover_prefix_tree_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
@@ -299,13 +305,16 @@ class MiningService:
         self, event_log: Dataset, direction: str = "forward", window: int = 2
     ) -> tuple[Any, ModelFormat]:
         """Transition System discovery."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         logger.info("discover_transition_system_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
 
         pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
-        result = AdvancedMiner.discover_transition_system(pm4py_log, direction, window), ModelFormat.TRANSITION_SYSTEM
+        result = (
+            AdvancedMiner.discover_transition_system(pm4py_log, direction, window),
+            ModelFormat.TRANSITION_SYSTEM,
+        )
 
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info("discover_transition_system_completed", duration_ms=round(duration_ms, 2))
@@ -313,7 +322,7 @@ class MiningService:
 
     def discover_batches(self, event_log: Dataset) -> tuple[Any, ModelFormat]:
         """Batch activity detection."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         logger.info("discover_batches_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
@@ -333,15 +342,18 @@ class MiningService:
         start_timestamp_key: str | None = None,
     ) -> tuple[Any, ModelFormat]:
         """Correlation Miner - DFG without case IDs."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         logger.info("discover_correlation_started", dataset_id=event_log.id)
         start_time = time.perf_counter()
 
         pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
-        result = AdvancedMiner.discover_correlation(
-            pm4py_log, activity_key, timestamp_key, start_timestamp_key
-        ), ModelFormat.DFG
+        result = (
+            AdvancedMiner.discover_correlation(
+                pm4py_log, activity_key, timestamp_key, start_timestamp_key
+            ),
+            ModelFormat.DFG,
+        )
 
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info("discover_correlation_completed", duration_ms=round(duration_ms, 2))
@@ -357,7 +369,7 @@ class MiningService:
         miner_type: MinerType = MinerType.INDUCTIVE,
     ) -> tuple[PetriNet, Marking, Marking]:
         """Get Petri net from discovery (converts process tree if needed)."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
 
@@ -379,16 +391,19 @@ class MiningService:
     def visualize_petri_net(self, net: PetriNet, im: Marking, fm: Marking) -> bytes:
         """Generate SVG visualization of Petri net."""
         from src.features.process_mining.visualization.service import visualization_service
+
         return visualization_service.visualize_petri_net(net, im, fm)
 
     def visualize_dfg(self, dfg: dict, start_activities: dict, end_activities: dict) -> bytes:
         """Generate SVG visualization of DFG."""
         from src.features.process_mining.visualization.service import visualization_service
+
         return visualization_service.visualize_dfg(dfg, start_activities, end_activities)
 
     def visualize_model(self, model_data: Any, model_format: ModelFormat) -> bytes:
         """Generate visualization for any model type."""
         from src.features.process_mining.visualization.service import visualization_service
+
         return visualization_service.visualize_model(model_data, model_format)
 
     # =========================================================================
@@ -397,43 +412,50 @@ class MiningService:
 
     def get_start_activities(self, event_log: Dataset) -> dict[str, int]:
         """Get start activities with frequencies."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         return process_analyzer.get_start_activities(pm4py_log)
 
     def get_end_activities(self, event_log: Dataset) -> dict[str, int]:
         """Get end activities with frequencies."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         return process_analyzer.get_end_activities(pm4py_log)
 
     def get_variants(self, event_log: Dataset, top_n: int = 20) -> dict[str, Any]:
         """Get process variants with counts."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         return process_analyzer.get_variants(pm4py_log, top_n)
 
     def get_dfg_data(self, event_log: Dataset) -> dict[str, Any]:
         """Get DFG as structured data for visualization."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
+
         dfg, start_activities, end_activities = event_log_loader.load_dfg(str(event_log.id))
         return process_analyzer.get_dfg_data(dfg, start_activities, end_activities)
 
     def get_dfg_data_with_performance(self, event_log: Dataset) -> dict[str, Any]:
         """Get DFG with performance metrics."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         return process_analyzer.get_dfg_with_performance(pm4py_log)
 
     def get_footprints(self, event_log: Dataset) -> dict[str, Any]:
         """Compute behavioral footprints."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         return process_analyzer.get_footprints(pm4py_log)
 
     def get_activity_statistics(self, event_log: Dataset) -> list[dict[str, Any]]:
         """Get detailed statistics for each activity."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         return process_analyzer.get_activity_statistics(pm4py_log)
 
@@ -443,7 +465,8 @@ class MiningService:
 
     def get_case_statistics(self, event_log: Dataset) -> dict[str, Any]:
         """Get case duration statistics."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         return process_analyzer.get_case_statistics(pm4py_log)
 
@@ -455,7 +478,8 @@ class MiningService:
         self, event_log: Dataset, net: PetriNet, im: Marking, fm: Marking
     ) -> dict[str, float]:
         """Evaluate model fitness using token replay."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         result = pm4py.fitness_token_based_replay(pm4py_log, net, im, fm)
         return {
@@ -467,7 +491,8 @@ class MiningService:
         self, event_log: Dataset, net: PetriNet, im: Marking, fm: Marking
     ) -> float:
         """Evaluate model precision."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
+
         pm4py_log = event_log_loader.load_as_pm4py_log(str(event_log.id))
         return pm4py.precision_token_based_replay(pm4py_log, net, im, fm)
 
@@ -500,6 +525,7 @@ class MiningService:
     def _to_pm4py_log(self, event_log: Dataset):
         """DEPRECATED: Use event_log_loader.load_as_pm4py_log() instead."""
         import warnings
+
         warnings.warn(
             "MiningService._to_pm4py_log() is deprecated. "
             "Use event_log_loader.load_as_pm4py_log(log_id) instead.",
@@ -514,6 +540,7 @@ class MiningService:
     def to_pm4py_dataframe(self, dataset_id: str, connection) -> "pd.DataFrame":
         """Convert EventLog to PM4Py-compatible DataFrame using direct SQL."""
         import pandas as pd
+
         start_time = time.perf_counter()
 
         query = """
@@ -563,7 +590,10 @@ class MiningService:
         elif miner_type == MinerType.INDUCTIVE:
             result = pm4py.discover_process_tree_inductive(df), ModelFormat.PROCESS_TREE
         elif miner_type == MinerType.INDUCTIVE_INFREQUENT:
-            result = pm4py.discover_process_tree_inductive(df, noise_threshold=0.2), ModelFormat.PROCESS_TREE
+            result = (
+                pm4py.discover_process_tree_inductive(df, noise_threshold=0.2),
+                ModelFormat.PROCESS_TREE,
+            )
         elif miner_type == MinerType.HEURISTICS:
             result = pm4py.discover_petri_net_heuristics(df), ModelFormat.PETRI_NET
         elif miner_type == MinerType.DFG:
@@ -589,7 +619,7 @@ class MiningService:
         self, dataset_id: str, miner_type: MinerType = MinerType.INDUCTIVE
     ) -> tuple[Any, ModelFormat]:
         """Discover using high-performance DataFrame loading."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         logger.info("discover_fast_started", dataset_id=dataset_id, miner_type=miner_type.value)
         start_time = time.perf_counter()
@@ -612,7 +642,7 @@ class MiningService:
 
     def get_dfg_fast(self, dataset_id: str) -> dict[str, Any]:
         """Get DFG using SQL-based computation."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         logger.info("get_dfg_fast_started", dataset_id=dataset_id)
         start_time = time.perf_counter()
@@ -674,7 +704,7 @@ class MiningService:
 
     def get_variants_fast(self, dataset_id: str, top_n: int = 20) -> dict[str, Any]:
         """Get process variants using SQL-based computation."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         logger.info("get_variants_fast_started", dataset_id=dataset_id, top_n=top_n)
         start_time = time.perf_counter()
@@ -704,7 +734,7 @@ class MiningService:
 
     def get_statistics_fast(self, dataset_id: str) -> dict[str, Any]:
         """Get event log statistics using SQL-based computation."""
-        from src.services.event_log_loader import event_log_loader
+        from src.features.process_mining.services.loader import event_log_loader
 
         logger.info("get_statistics_fast_started", dataset_id=dataset_id)
         start_time = time.perf_counter()

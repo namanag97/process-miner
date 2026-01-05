@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/platform/core/exceptions.py
+# hypothesis_version: 6.148.9
+
+[401, 403, 404, 409, 422, 429, 500, 502, 503, 504, 'Error', 'Model', 'Operation timed out', 'Process', 'Project', 'Rate limit exceeded', 'actual', 'correlation_id', 'current_version', 'database', 'detail', 'error_code', 'expected_types', 'field', 'filename', 'http_status', 'id', 'limit', 'line_number', 'method', 'miner_type', 'operation', 'original_error', 'pm4py', 'required', 'required_permission', 'resource', 'retry_after', 'service', 'status', 'timeout_seconds', 'timestamp', 'title', 'type', 'window_seconds']

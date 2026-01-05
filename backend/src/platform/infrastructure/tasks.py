@@ -114,9 +114,9 @@ async def train_prediction_model_task(
         async with AsyncSessionLocal() as db:
             # Import here to avoid circular dependencies
             from src.features.process_mining.models import Dataset, PredictionModel
+            from src.features.process_mining.services.loader import event_log_loader
+            from src.features.process_mining.services.prediction import prediction_service
             from src.platform.models import AsyncJob
-            from src.services.event_log_loader import event_log_loader
-            from src.services.prediction import prediction_service
 
             # Verify dataset exists
             result = await db.execute(select(Dataset).where(Dataset.id == log_id))
@@ -287,9 +287,11 @@ async def ingest_dataset_task(
                 ProcessEvent,
                 UploadedFile,
             )
+            from src.features.process_mining.services.ingestion.duckdb import (
+                duckdb_ingestion_service,
+            )
             from src.platform.models import AsyncJob
-            from src.services.duckdb_ingestion import duckdb_ingestion_service
-            from src.services.storage import storage_service
+            from src.platform.storage.storage import storage_service
 
             # Load dataset and file
             result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
@@ -560,15 +562,17 @@ async def validate_dataset_task(
         async with AsyncSessionLocal() as db:
             import json
 
-            from src.platform.core.enums import JobStatus
             from src.features.process_mining.models import (
                 Dataset,
                 DatasetStatus,
                 UploadedFile,
             )
+            from src.features.process_mining.services.ingestion.unified import (
+                unified_ingestion_service,
+            )
+            from src.platform.core.enums import JobStatus
             from src.platform.models import AsyncJob
-            from src.services.storage import storage_service
-            from src.services.unified_ingestion import unified_ingestion_service
+            from src.platform.storage.storage import storage_service
 
             # Load dataset
             result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
@@ -693,8 +697,8 @@ async def validate_dataset_task(
 
         # Update dataset and job status
         async with AsyncSessionLocal() as db:
-            from src.platform.core.enums import JobStatus
             from src.features.process_mining.models import Dataset, DatasetStatus
+            from src.platform.core.enums import JobStatus
             from src.platform.models import AsyncJob
 
             result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
@@ -760,7 +764,7 @@ async def perform_analysis_task(
             import json
 
             from src.features.process_mining.models import Analysis, AnalysisStatus, AnalysisType
-            from src.services.mining import mining_service
+            from src.features.process_mining.services.mining import mining_service
 
             # Load analysis record
             result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
@@ -906,10 +910,10 @@ async def perform_discovery_task(
         )
 
         async with AsyncSessionLocal() as db:
-            from src.platform.core.enums import MinerType
+            from src.features.process_mining.enums import MinerType
             from src.features.process_mining.models import Dataset, ProcessModel
+            from src.features.process_mining.services.mining import mining_service
             from src.platform.models import AsyncJob
-            from src.services.mining import mining_service
 
             # Load dataset
             result = await db.execute(select(Dataset).where(Dataset.id == log_id))
@@ -964,6 +968,7 @@ async def perform_discovery_task(
             graph_structure_json = None
             if graph_json:
                 import json
+
                 graph_structure_json = json.dumps(graph_json)
 
             # Calculate quality metrics if possible
@@ -1095,8 +1100,8 @@ async def perform_conformance_task(
             import json
 
             from src.features.process_mining.models import ConformanceResult, Dataset, ProcessModel
+            from src.features.process_mining.services.conformance import conformance_service
             from src.platform.models import AsyncJob
-            from src.services.conformance import conformance_service
 
             # Load dataset and model
             result = await db.execute(select(Dataset).where(Dataset.id == log_id))
@@ -1236,9 +1241,11 @@ async def validate_uploaded_file_task(
         )
 
         async with AsyncSessionLocal() as db:
-            from src.platform.infrastructure.object_storage import get_storage_client
             from src.features.process_mining.models import Dataset, DatasetStatus
-            from src.services.unified_ingestion import unified_ingestion_service
+            from src.features.process_mining.services.ingestion.unified import (
+                unified_ingestion_service,
+            )
+            from src.platform.infrastructure.object_storage import get_storage_client
 
             # Load dataset
             result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
@@ -1317,7 +1324,9 @@ async def validate_uploaded_file_task(
                         actual="binary",
                     )
                     dataset.status = DatasetStatus.ERROR.value
-                    dataset.error_message = "File appears to be invalid CSV format (contains binary data)"
+                    dataset.error_message = (
+                        "File appears to be invalid CSV format (contains binary data)"
+                    )
                     await db.commit()
                     raise ValueError("Invalid CSV file signature")
 

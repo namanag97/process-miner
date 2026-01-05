@@ -17,7 +17,7 @@ import { devConsoleLog } from '../components/DevConsole';
 interface BackendLogEntry {
   id: string;
   timestamp: string;
-  level: 'info' | 'api-req' | 'api-res' | 'error' | 'action' | 'state' | 'metric' | 'perf' | 'circuit';
+  level: 'info' | 'api-req' | 'api-res' | 'error' | 'action' | 'state' | 'metric' | 'perf' | 'circuit' | 'db-query' | 'cache' | 'auth';
   source: string;
   message: string;
   data?: Record<string, unknown>;
@@ -221,9 +221,7 @@ export function useBackendLogs(enabled: boolean = true): BackendObservability {
           }
 
           // Map circuit breaker logs to state level for DevConsole
-          const level = log.level === 'circuit' ? 'state' :
-                       log.level === 'perf' ? 'info' :
-                       log.level as 'info' | 'api-req' | 'api-res' | 'error' | 'action' | 'state';
+          const level = log.level as 'info' | 'api-req' | 'api-res' | 'error' | 'action' | 'state' | 'metric' | 'perf' | 'circuit' | 'db-query' | 'cache' | 'auth';
 
           // Enrich data with timing breakdown
           const enrichedData = {
@@ -258,10 +256,10 @@ export function useBackendLogs(enabled: boolean = true): BackendObservability {
       source.addEventListener('heartbeat', (event) => {
         try {
           const heartbeat: HeartbeatMessage = JSON.parse((event as MessageEvent).data);
-          
+
           globalMetrics = heartbeat.metrics;
           notifyMetricsListeners();
-          
+
           setState(prev => ({
             ...prev,
             connected: true,
@@ -311,11 +309,11 @@ export function useBackendLogs(enabled: boolean = true): BackendObservability {
       source.onerror = () => {
         source.close();
         setState(prev => ({ ...prev, connected: false }));
-        
+
         // Exponential backoff for reconnection
         const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000);
         reconnectAttempts.current++;
-        
+
         console.log(`[BackendLogs] Reconnecting in ${delay}ms...`);
         reconnectTimeoutRef.current = setTimeout(connect, delay);
       };
@@ -324,7 +322,7 @@ export function useBackendLogs(enabled: boolean = true): BackendObservability {
         console.log('[BackendLogs] ✓ Connected to backend observability stream');
         reconnectAttempts.current = 0;
         setState(prev => ({ ...prev, connected: true }));
-        
+
         devConsoleLog(
           'info',
           'BE Connection',

@@ -10,18 +10,14 @@
  * 3. Add import here
  */
 
-// Core workspace features
-import './projects';
-import './upload-wizard';
+// Platform features (auth, workspaces, projects, uploads)
+import './platform';
 
-// Process analysis features
+// Process analysis features (domain layer)
 import './explorer';
 import './discovery';
 import './kpi';
 import './analytics';
 import './ai';
-
-// Platform features (settings, notifications, etc.)
-import './platform';
 
 console.debug('[Features] All features registered');

@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/features/process_mining/services/serializers/graph_serializer.py
+# hypothesis_version: 6.148.9
+
+[100, 'Marking', 'PetriNet', 'arcCount', 'arcs', 'autoLayout', 'dagre', 'dfg', 'edgeCount', 'edges', 'endActivities', 'frequency', 'id', 'isEnd', 'isFinal', 'isInitial', 'isInvisible', 'isStart', 'label', 'layoutHint', 'metadata', 'name', 'netName', 'nodeCount', 'nodes', 'petri_net', 'placeCount', 'places', 'probability', 'source', 'startActivities', 'target', 'tokens', 'totalFrequency', 'transitionCount', 'transitions', 'type', 'unnamed', 'weight']

@@ -15,13 +15,13 @@ from enum import Enum
 # Re-exports for backward compatibility
 # New code should import from the layer-specific modules directly
 # =============================================================================
-
-# Analysis layer enums
-from src.analysis.enums import ConformanceMethod, MinerType, ModelFormat
-
-# Datasets layer enums
-from src.datasets.enums import SourceFormat
-
+# Domain layer enums
+from src.features.process_mining.enums import (
+    ConformanceMethod,
+    MinerType,
+    ModelFormat,
+    SourceFormat,
+)
 
 # =============================================================================
 # Platform-only enums (these stay here)
@@ -94,4 +94,3 @@ __all__ = [
     "SourceFormat",
     "ConformanceMethod",
 ]
-

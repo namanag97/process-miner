@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/features/process_mining/services/ocpm.py
+# hypothesis_version: 6.148.9
+
+[100, '.jsonocel', '.sqlite', '.xmlocel', 'Could not flatten', 'activities', 'activities_ot', 'case_count', 'edges', 'end_activities', 'error', 'event_count', 'event_to_cluster', 'events', 'frequency', 'graph_type', 'graphs_by_type', 'id', 'involved', 'jsonocel', 'name', 'nodes', 'object_cobirth', 'object_codeath', 'object_descendants', 'object_inheritance', 'object_interaction', 'object_type', 'object_types', 'objects_per_type', 'ocel:activity', 'ocel:eid', 'ocel:timestamp', 'ocel:type:', 'records', 'related', 'source', 'sqlite', 'start_activities', 'target', 'to_dict', 'total_activities', 'total_clusters', 'total_edges', 'total_events', 'total_nodes', 'total_object_types', 'total_objects', 'weight', 'xmlocel']

@@ -12,10 +12,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_session
-from src.platform.core.enums import ConformanceMethod
-from src.platform.core.logging_config import get_logger
+from src.features.process_mining.enums import ConformanceMethod
 from src.features.process_mining.models import ConformanceResult, Dataset, ProcessModel
-from src.models.schemas import (
+from src.features.process_mining.schemas import (
     AlignmentDiagnosticsResponse,
     ConformanceCheckRequest,
     ConformanceListResponse,
@@ -24,7 +23,8 @@ from src.models.schemas import (
     DiagnosticsResponse,
     QualityMetricsResponse,
 )
-from src.services.conformance import conformance_service
+from src.features.process_mining.services.conformance import conformance_service
+from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -610,10 +610,10 @@ async def import_reference_model(
     """
     from uuid import uuid4
 
-    from src.platform.core.enums import ModelFormat
+    from src.features.process_mining.enums import ModelFormat
     from src.features.process_mining.models import ProcessModel
+    from src.features.process_mining.services.model_importer import model_importer
     from src.platform.models import Project
-    from src.services.model_importer import model_importer
 
     logger.info(
         "model_import_started",
@@ -642,9 +642,7 @@ async def import_reference_model(
             # BPMN import and convert to Petri net
             net, im, fm = model_importer.import_and_convert_bpmn(model_content)
         else:
-            raise HTTPException(
-                status_code=400, detail=f"Unsupported format: {model_format.value}"
-            )
+            raise HTTPException(status_code=400, detail=f"Unsupported format: {model_format.value}")
 
         # Serialize the Petri net using joblib
         serialized_model = model_importer.serialize_petri_net(net, im, fm)
@@ -699,9 +697,7 @@ async def import_reference_model(
 
     except Exception as e:
         logger.error("model_import_failed", error=str(e), exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to import model: {e!s}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Failed to import model: {e!s}") from e
 
 
 # =============================================================================
@@ -739,7 +735,7 @@ async def get_root_cause_analysis(
     Returns:
         Comprehensive root cause analysis report
     """
-    from src.services.root_cause_analysis import root_cause_analyzer
+    from src.features.process_mining.services.root_cause import root_cause_analyzer
 
     logger.info(
         "root_cause_analysis_started",
@@ -791,9 +787,7 @@ async def get_root_cause_analysis(
             error=str(e),
             exc_info=True,
         )
-        raise HTTPException(
-            status_code=500, detail=f"Failed to analyze root causes: {e!s}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Failed to analyze root causes: {e!s}") from e
 
 
 @router.get("/deviations/by-activity/{log_id}/{model_id}")
@@ -807,7 +801,7 @@ async def get_deviations_by_activity(
 
     Identifies which activities cause the most conformance issues.
     """
-    from src.services.root_cause_analysis import root_cause_analyzer
+    from src.features.process_mining.services.root_cause import root_cause_analyzer
 
     logger.info("deviations_by_activity_started", dataset_id=dataset_id, model_id=model_id)
 
@@ -828,9 +822,7 @@ async def get_deviations_by_activity(
 
     except Exception as e:
         logger.error("deviations_by_activity_failed", error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"Failed to aggregate deviations: {e!s}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Failed to aggregate deviations: {e!s}") from e
 
 
 @router.get("/deviations/by-position/{log_id}/{model_id}")
@@ -844,7 +836,7 @@ async def get_deviations_by_position(
 
     Identifies at which point in the process deviations occur most frequently.
     """
-    from src.services.root_cause_analysis import root_cause_analyzer
+    from src.features.process_mining.services.root_cause import root_cause_analyzer
 
     logger.info("deviations_by_position_started", dataset_id=dataset_id, model_id=model_id)
 
@@ -865,16 +857,16 @@ async def get_deviations_by_position(
 
     except Exception as e:
         logger.error("deviations_by_position_failed", error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"Failed to aggregate deviations: {e!s}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Failed to aggregate deviations: {e!s}") from e
 
 
 @router.get("/deviations/attribute-correlation/{log_id}/{model_id}")
 async def get_attribute_correlation(
     dataset_id: str,
     model_id: str,
-    attribute: str = Query("resource", description="Attribute to analyze (e.g., resource, department)"),
+    attribute: str = Query(
+        "resource", description="Attribute to analyze (e.g., resource, department)"
+    ),
     session: AsyncSession = Depends(get_session),
 ):
     """
@@ -883,7 +875,7 @@ async def get_attribute_correlation(
     Identifies which attribute values (e.g., specific resources or departments)
     are associated with more conformance violations.
     """
-    from src.services.root_cause_analysis import root_cause_analyzer
+    from src.features.process_mining.services.root_cause import root_cause_analyzer
 
     logger.info(
         "attribute_correlation_started",

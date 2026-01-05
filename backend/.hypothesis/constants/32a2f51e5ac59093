@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/features/process_mining/discovery/service.py
+# hypothesis_version: 6.148.9
+
+[0.0, 0.2, 1.0, 1000, 'activities', 'activity_trace', 'avg_duration_seconds', 'case:concept:name', 'case_count', 'cases', 'concept:name', 'constraints', 'dataset_id', 'discover_ilp_started', 'discovery_throughput', 'discovery_time', 'edges', 'end_activities', 'error', 'events', 'events/sec', 'fitness', 'forward', 'frequency', 'frequency_percent', 'get_dfg_fast_started', 'id', 'is_end', 'is_start', 'miner', 'ms', 'name', 'nodes', 'pd.DataFrame', 'probability', 'source', 'start_activities', 'target', 'time:timestamp', 'top_variants', 'total_frequency', 'total_variants', 'variant_key']

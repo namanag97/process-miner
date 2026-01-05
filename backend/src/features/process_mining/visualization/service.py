@@ -10,7 +10,7 @@ from pm4py.objects.petri_net.obj import Marking, PetriNet
 from pm4py.visualization.dfg import visualizer as dfg_visualizer
 from pm4py.visualization.petri_net import visualizer as pn_visualizer
 
-from src.platform.core.enums import ModelFormat
+from src.features.process_mining.enums import ModelFormat
 from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)

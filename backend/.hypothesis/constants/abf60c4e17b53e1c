@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/platform/infrastructure/object_storage.py
+# hypothesis_version: 6.148.9
+
+[100, 1024, '-', '404', 'AWS S3', 'Body', 'Bucket', 'Code', 'ContentEncoding', 'ContentLength', 'ContentType', 'Contents', 'Days', 'Enabled', 'Error', 'Expiration', 'Filter', 'GET', 'GLACIER', 'ID', 'Key', 'LocationConstraint', 'Message', 'Metadata', 'NoSuchKey', 'PUT', 'Prefix', 'Rules', 'STANDARD_IA', 'Size', 'Status', 'StorageClass', 'Transitions', 'Unknown', 'addressing_style', 'application/gzip', 'bucket_created', 'bucket_exists', 'cache', 'compressed-size', 'compression-ratio', 'file_deleted', 'file_downloaded', 'file_streamed', 'file_uploaded', 'fileobj_downloaded', 'fileobj_uploaded', 'get_object', 'gzip', 'list_objects_v2', 'models', 'object_count', 'original-size', 'path', 'pm-cache', 'pm-models', 'pm-raw', 'put_object', 'raw', 'response', 's3', 's3v4', 'total_bytes', 'us-east-1', 'wb']

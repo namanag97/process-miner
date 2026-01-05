@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/platform/infrastructure/rate_limiter.py
+# hypothesis_version: 6.148.9
+
+[0.0, 100, 429, 1000, 3600, '/health', '0', 'Content-Type', 'ERR_510', 'Rate Limit Exceeded', 'Rate limit exceeded', 'Retry-After', 'X-RateLimit-Limit', 'application/json', 'detail', 'error_code', 'limit', 'rate_limit_exceeded', 'request', 'retry_after', 'status', 'title', 'type', 'unknown', 'window_seconds']

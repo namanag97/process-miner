@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/api/routers/business_use_cases.py
+# hypothesis_version: 6.148.9
+
+[0.8, 404, 500, 1000, ',', '/business', 'Business Use Cases', 'Event log not found', 'Group A', 'Group B', 'Value to filter for', 'capacity_increase', 'log_split_failed', 'log_split_started', 'simulation_failed', 'simulation_started']

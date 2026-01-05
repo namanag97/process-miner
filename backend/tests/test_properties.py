@@ -332,7 +332,7 @@ class TestCircuitBreakerProperties:
     )
     def test_circuit_breaker_config_valid(self, threshold: int, timeout: float):
         """Circuit breaker should accept valid configurations."""
-        from src.infrastructure.circuit_breaker import CircuitBreaker
+        from src.platform.infrastructure.circuit_breaker import CircuitBreaker
 
         cb = CircuitBreaker(
             name="test",
@@ -359,7 +359,7 @@ class TestRateLimiterProperties:
     )
     def test_token_bucket_starts_full(self, capacity: int, refill_rate: float):
         """Token bucket should start at full capacity."""
-        from src.infrastructure.rate_limiter import TokenBucket
+        from src.platform.infrastructure.rate_limiter import TokenBucket
 
         bucket = TokenBucket(capacity=capacity, refill_rate=refill_rate)
 

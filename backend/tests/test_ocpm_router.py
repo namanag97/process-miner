@@ -16,7 +16,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.orm import OCELLog
+from src.features.process_mining.models.orm import OCELLog
 
 
 class TestOCELUpload:

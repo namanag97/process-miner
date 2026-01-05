@@ -11,9 +11,11 @@ from sqlalchemy import func, select
 
 from src.api.dependencies import CurrentUser, DBSession
 from src.features.process_mining.models import Dataset
-from src.platform.models import Project
-from src.models.schemas import (
+from src.features.process_mining.schemas import (
     DatasetResponse,
+)
+from src.platform.models import Project
+from src.platform.schemas import (
     ProjectCreateRequest,
     ProjectDetailResponse,
     ProjectListResponse,
@@ -57,7 +59,7 @@ async def create_project(
     Requires PROJECT_CREATE permission in the workspace.
     """
     from src.platform.core.permissions import Permission
-    from src.services.authorization import AuthorizationService
+    from src.platform.workspaces.authorization import AuthorizationService
 
     # Workspace_id is required for RBAC
     if not workspace_id:
@@ -100,7 +102,7 @@ async def list_projects(
     """
     from src.platform.core.permissions import Permission
     from src.platform.models import Workspace, WorkspaceMember
-    from src.services.authorization import AuthorizationService
+    from src.platform.workspaces.authorization import AuthorizationService
 
     # Build query with RLS filtering (user's workspaces only)
     query = (
@@ -163,12 +165,10 @@ async def get_project(
     Requires PROJECT_READ permission in the workspace.
     """
     from src.platform.core.permissions import Permission
-    from src.services.authorization import require_project_permission
+    from src.platform.workspaces.authorization import require_project_permission
 
     # Check permission (also validates project exists)
-    _, project = await require_project_permission(
-        db, project_id, user, Permission.PROJECT_READ
-    )
+    _, project = await require_project_permission(db, project_id, user, Permission.PROJECT_READ)
 
     # Get datasets for this project
     datasets_result = await db.execute(select(Dataset).filter(Dataset.project_id == project_id))
@@ -203,12 +203,10 @@ async def update_project(
     Requires PROJECT_UPDATE permission in the workspace.
     """
     from src.platform.core.permissions import Permission
-    from src.services.authorization import require_project_permission
+    from src.platform.workspaces.authorization import require_project_permission
 
     # Check permission (also validates project exists)
-    _, project = await require_project_permission(
-        db, project_id, user, Permission.PROJECT_UPDATE
-    )
+    _, project = await require_project_permission(db, project_id, user, Permission.PROJECT_UPDATE)
 
     if request.name is not None:
         project.name = request.name
@@ -240,12 +238,10 @@ async def delete_project(
     Requires PROJECT_DELETE permission in the workspace.
     """
     from src.platform.core.permissions import Permission
-    from src.services.authorization import require_project_permission
+    from src.platform.workspaces.authorization import require_project_permission
 
     # Check permission (also validates project exists)
-    _, project = await require_project_permission(
-        db, project_id, user, Permission.PROJECT_DELETE
-    )
+    _, project = await require_project_permission(db, project_id, user, Permission.PROJECT_DELETE)
 
     # Unlink datasets (they remain, just not in a project)
     from sqlalchemy import update
@@ -276,18 +272,14 @@ async def add_file_to_project(
     Requires PROJECT_UPDATE permission in the workspace.
     """
     from src.platform.core.permissions import Permission
-    from src.services.authorization import require_dataset_permission, require_project_permission
+    from src.platform.workspaces.authorization import require_dataset_permission, require_project_permission
 
     # Check permission on project (also validates project exists)
-    _, project = await require_project_permission(
-        db, project_id, user, Permission.PROJECT_UPDATE
-    )
+    _, project = await require_project_permission(db, project_id, user, Permission.PROJECT_UPDATE)
 
     # Check permission on dataset (user must have access to move it)
     # Helper already fetches the dataset, so we reuse it
-    _, dataset = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_UPDATE
-    )
+    _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_UPDATE)
 
     dataset.project_id = project_id
 
@@ -316,17 +308,13 @@ async def remove_file_from_project(
     Requires PROJECT_UPDATE permission in the workspace.
     """
     from src.platform.core.permissions import Permission
-    from src.services.authorization import require_dataset_permission, require_project_permission
+    from src.platform.workspaces.authorization import require_dataset_permission, require_project_permission
 
     # Check permission on project (also validates project exists)
-    _, project = await require_project_permission(
-        db, project_id, user, Permission.PROJECT_UPDATE
-    )
+    _, project = await require_project_permission(db, project_id, user, Permission.PROJECT_UPDATE)
 
     # Check permission on dataset (user must have access to modify it)
-    _, dataset = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_UPDATE
-    )
+    _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_UPDATE)
 
     if dataset.project_id != project_id:
         raise HTTPException(status_code=400, detail="Dataset is not in this project")

@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pytest
 
-from src.domain.value_objects import (
+from src.features.process_mining.services.domain.value_objects import (
     ActivitySequence,
     CaseId,
     ProcessStatistics,

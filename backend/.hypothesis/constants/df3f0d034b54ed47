@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/platform/infrastructure/log_broker.py
+# hypothesis_version: 6.148.9
+
+[1000, 'buffer_size', 'channel', 'connected', 'data', 'dev:heartbeat', 'dev:logs', 'heartbeat', 'local buffer only', 'log', 'log_broker_connected', 'message', 'redis_available', 'redis_url', 'type', 'user_id', 'utf-8']

@@ -72,9 +72,7 @@ class AuthorizationService:
                 workspace_id=workspace_id,
                 user_id=user_id,
             )
-            raise ForbiddenError(
-                f"Access denied: not a member of workspace {workspace_id}"
-            )
+            raise ForbiddenError(f"Access denied: not a member of workspace {workspace_id}")
         return membership
 
     async def check_permission(
@@ -103,9 +101,7 @@ class AuthorizationService:
                 role=membership.role,
                 required_permission=permission,
             )
-            raise ForbiddenError(
-                f"Insufficient permissions: requires {permission.value}"
-            )
+            raise ForbiddenError(f"Insufficient permissions: requires {permission.value}")
 
         logger.debug(
             "permission_granted",
@@ -127,9 +123,7 @@ class AuthorizationService:
         from src.platform.models import Workspace, WorkspaceMember
 
         result = await self.db.execute(
-            select(Workspace)
-            .join(WorkspaceMember)
-            .filter(WorkspaceMember.user_id == user_id)
+            select(Workspace).join(WorkspaceMember).filter(WorkspaceMember.user_id == user_id)
         )
         return list(result.scalars().all())
 
@@ -166,9 +160,7 @@ class AuthorizationService:
         """
         from src.platform.models import Workspace
 
-        result = await self.db.execute(
-            select(Workspace).filter(Workspace.id == workspace_id)
-        )
+        result = await self.db.execute(select(Workspace).filter(Workspace.id == workspace_id))
         workspace = result.scalar_one_or_none()
 
         if not workspace:
@@ -312,9 +304,7 @@ async def require_dataset_permission(
         raise NotFoundError("Dataset", dataset_id)
 
     # Get project to find workspace_id
-    project_result = await db.execute(
-        select(Project).filter(Project.id == dataset.project_id)
-    )
+    project_result = await db.execute(select(Project).filter(Project.id == dataset.project_id))
     project = project_result.scalar_one_or_none()
 
     if not project or not project.workspace_id:
@@ -398,18 +388,14 @@ async def require_analysis_permission(
         raise NotFoundError("Analysis", analysis_id)
 
     # Get dataset to find project
-    dataset_result = await db.execute(
-        select(Dataset).filter(Dataset.id == analysis.dataset_id)
-    )
+    dataset_result = await db.execute(select(Dataset).filter(Dataset.id == analysis.dataset_id))
     dataset = dataset_result.scalar_one_or_none()
 
     if not dataset or not dataset.project_id:
         raise NotFoundError("Dataset", analysis.dataset_id)
 
     # Get project to find workspace_id
-    project_result = await db.execute(
-        select(Project).filter(Project.id == dataset.project_id)
-    )
+    project_result = await db.execute(select(Project).filter(Project.id == dataset.project_id))
     project = project_result.scalar_one_or_none()
 
     if not project:

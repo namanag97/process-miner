@@ -5,7 +5,7 @@ Provides unified interface for file operations that works with:
 - S3/MinIO (production) - future implementation
 
 Usage:
-    from src.services.storage import storage_service
+    from src.platform.storage.storage import storage_service
 
     # Store a file
     path = await storage_service.store(content, "logs/abc123/data.csv")

@@ -11,8 +11,8 @@ from uuid import uuid4
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.shared.database import Base
 from src.platform.core.enums import JobStatus
+from src.shared.database import Base
 
 # Note: Dataset is referenced as string to avoid circular imports with features layer
 # This is intentional for proper DDD layering - Platform should not import Features
@@ -204,7 +204,9 @@ class ErrorLog(Base):
     __tablename__ = "error_logs"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    timestamp: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, index=True
+    )
 
     level: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     exception_type: Mapped[str] = mapped_column(String(255), nullable=False)

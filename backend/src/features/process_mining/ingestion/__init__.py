@@ -11,10 +11,10 @@ from .service import IngestionService, ingestion_service
 from .unified import UnifiedIngestionService, unified_ingestion_service
 
 __all__ = [
-    "IngestionService",
-    "ingestion_service",
     "DuckDBParser",
-    "duckdb_parser",
+    "IngestionService",
     "UnifiedIngestionService",
+    "duckdb_parser",
+    "ingestion_service",
     "unified_ingestion_service",
 ]

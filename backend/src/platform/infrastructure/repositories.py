@@ -1,160 +1,555 @@
-"""SQLAlchemy Repository Implementations.
+"""Repository pattern abstraction for data access.
 
-Infrastructure layer implementations of the domain repository interfaces.
-This is where all ORM and database-specific code lives.
+Provides clean separation between domain logic and data access with:
+- Generic repository interface
+- SQLAlchemy implementation
+- Unit of Work pattern for transactions
+
+Usage:
+    # Get repository from dependency injection
+    repo = SQLAlchemyDatasetRepository(session)
+
+    # Use repository methods
+    dataset = await repo.get_by_id("...")
+    await repo.save(dataset)
 """
 
-import contextlib
-import json
-from typing import TYPE_CHECKING
-
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-
-from src.platform.core.logging_config import get_logger
-from src.domain.entities import (
-    DatasetAggregate,
-    ProcessCase,
-    ProcessEvent,
-)
-from src.domain.repositories import DatasetRepository
-from src.domain.value_objects import CaseId
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Optional, Protocol, TypeVar
 
 if TYPE_CHECKING:
-    from src.features.process_mining.models import Dataset as ORMDataset
+    from src.features.process_mining.models import Dataset, ProcessModel
+    from src.platform.models import AsyncJob, Project
+
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+T = TypeVar("T")
+ID = TypeVar("ID")
+
 
 # =============================================================================
-# SQLAlchemy Implementations
+# Generic Repository Interface
 # =============================================================================
+
+
+class Repository(Protocol[T, ID]):
+    """Generic repository interface for aggregate roots."""
+
+    async def get_by_id(self, id: ID) -> T | None:
+        """Get an entity by its ID."""
+        ...
+
+    async def save(self, entity: T) -> T:
+        """Save (create or update) an entity."""
+        ...
+
+    async def delete(self, id: ID) -> bool:
+        """Delete an entity by its ID."""
+        ...
+
+    async def exists(self, id: ID) -> bool:
+        """Check if an entity exists."""
+        ...
+
+
+class ReadOnlyRepository(Protocol[T, ID]):
+    """Read-only repository interface for query-heavy operations."""
+
+    async def get_by_id(self, id: ID) -> T | None: ...
+
+    async def exists(self, id: ID) -> bool: ...
+
+    async def count(self) -> int: ...
+
+
+# =============================================================================
+# Event Log Repository
+# =============================================================================
+
+
+class DatasetRepository(ABC):
+    """Repository interface for Dataset aggregate root."""
+
+    @abstractmethod
+    async def get_by_id(self, dataset_id: str) -> Optional["Dataset"]:
+        """Get dataset by ID with all cases loaded."""
+
+    @abstractmethod
+    async def get_by_id_lightweight(self, dataset_id: str) -> Optional["Dataset"]:
+        """Get dataset by ID without loading cases (for metadata only)."""
+
+    @abstractmethod
+    async def save(self, dataset: "Dataset") -> "Dataset":
+        """Save dataset (create or update)."""
+
+    @abstractmethod
+    async def delete(self, dataset_id: str) -> bool:
+        """Delete dataset and all associated data."""
+
+    @abstractmethod
+    async def exists(self, dataset_id: str) -> bool:
+        """Check if dataset exists."""
+
+    @abstractmethod
+    async def list_all(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        source_format: str | None = None,
+    ) -> tuple[list["Dataset"], int]:
+        """List datasets with pagination. Returns (datasets, total_count)."""
+
+    @abstractmethod
+    async def count(self) -> int:
+        """Count total datasets."""
 
 
 class SQLAlchemyDatasetRepository(DatasetRepository):
-    """SQLAlchemy implementation of DatasetRepository.
-
-    Optimized for:
-    - Eager loading of cases and events
-    - Efficient batch operations
-    - Proper transaction management
-    """
+    """SQLAlchemy implementation of DatasetRepository."""
 
     def __init__(self, session: AsyncSession):
         self._session = session
 
-    async def get(self, dataset_id: str) -> DatasetAggregate | None:
-        """Load aggregate with eager loading of cases and events."""
-        from src.features.process_mining.models import Dataset as ORMDataset
-        from src.features.process_mining.models import ProcessCase as ORMCase
+    async def get_by_id(self, dataset_id: str) -> Optional["Dataset"]:
+        from src.features.process_mining.models import Dataset
 
-        stmt = (
-            select(ORMDataset)
-            .options(selectinload(ORMDataset.cases).selectinload(ORMCase.events))
-            .where(ORMDataset.id == dataset_id)
-        )
+        return await self._session.get(Dataset, dataset_id)
 
+    async def get_by_id_lightweight(self, dataset_id: str) -> Optional["Dataset"]:
+        from src.features.process_mining.models import Dataset
+
+        # Use a query that doesn't eager load relationships
+        stmt = select(Dataset).where(Dataset.id == dataset_id)
         result = await self._session.execute(stmt)
-        orm_log = result.scalar_one_or_none()
+        return result.scalar_one_or_none()
 
-        if not orm_log:
-            return None
-
-        return self._to_domain(orm_log)
-
-    async def get_many(self, dataset_ids: list[str]) -> list[DatasetAggregate]:
-        """Load multiple aggregates efficiently."""
-        from src.features.process_mining.models import Dataset as ORMDataset
-        from src.features.process_mining.models import ProcessCase as ORMCase
-
-        if not dataset_ids:
-            return []
-
-        stmt = (
-            select(ORMDataset)
-            .options(selectinload(ORMDataset.cases).selectinload(ORMCase.events))
-            .where(ORMDataset.id.in_(dataset_ids))
-        )
-
-        result = await self._session.execute(stmt)
-        orm_logs = result.scalars().all()
-
-        return [self._to_domain(orm_log) for orm_log in orm_logs]
-
-    async def save(self, aggregate: DatasetAggregate) -> None:
-        """Persist aggregate - UPDATE not implemented yet (MVP)."""
-        # For MVP, we don't update existing logs through this path
-        # The existing upload flow handles creation
-        logger.warning("repository_save_not_implemented", dataset_id=aggregate.id)
+    async def save(self, dataset: "Dataset") -> "Dataset":
+        self._session.add(dataset)
+        await self._session.flush()
+        await self._session.refresh(dataset)
+        return dataset
 
     async def delete(self, dataset_id: str) -> bool:
-        """Delete aggregate and all related entities."""
-        from src.features.process_mining.models import Dataset as ORMDataset
-
-        stmt = select(ORMDataset).where(ORMDataset.id == dataset_id)
-        result = await self._session.execute(stmt)
-        orm_log = result.scalar_one_or_none()
-
-        if not orm_log:
-            return False
-
-        await self._session.delete(orm_log)
-        return True
+        dataset = await self.get_by_id(dataset_id)
+        if dataset:
+            await self._session.delete(dataset)
+            await self._session.flush()
+            return True
+        return False
 
     async def exists(self, dataset_id: str) -> bool:
-        """Check if dataset exists."""
-        from src.features.process_mining.models import Dataset as ORMDataset
+        from src.features.process_mining.models import Dataset
 
-        stmt = select(ORMDataset.id).where(ORMDataset.id == dataset_id)
+        stmt = select(func.count()).where(Dataset.id == dataset_id)
         result = await self._session.execute(stmt)
-        return result.scalar_one_or_none() is not None
+        return result.scalar() > 0
 
-    def _to_domain(self, orm_log: "ORMDataset") -> DatasetAggregate:
-        """Convert ORM model to domain aggregate."""
-        cases = []
+    async def list_all(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        source_format: str | None = None,
+    ) -> tuple[list["Dataset"], int]:
+        from src.features.process_mining.models import Dataset
 
-        for orm_case in orm_log.cases:
-            events = []
-            for orm_event in orm_case.events:
-                # Parse attributes JSON if present
-                attributes = {}
-                if orm_event.attributes_json:
-                    with contextlib.suppress(json.JSONDecodeError, TypeError):
-                        attributes = json.loads(orm_event.attributes_json)
+        # Count query
+        count_stmt = select(func.count()).select_from(Dataset)
+        if source_format:
+            count_stmt = count_stmt.where(Dataset.source_format == source_format)
 
-                events.append(
-                    ProcessEvent(
-                        id=orm_event.id,
-                        activity=orm_event.activity,
-                        timestamp=orm_event.timestamp,
-                        resource=orm_event.resource,
-                        attributes=attributes,
-                    )
-                )
+        count_result = await self._session.execute(count_stmt)
+        total = count_result.scalar() or 0
 
-            cases.append(
-                ProcessCase(
-                    case_id=CaseId(orm_case.case_id),
-                    events=events,
-                )
-            )
+        # Data query
+        stmt = select(Dataset).order_by(Dataset.created_at.desc())
+        if source_format:
+            stmt = stmt.where(Dataset.source_format == source_format)
 
-        return DatasetAggregate(
-            id=orm_log.id,
-            name=orm_log.name or "Untitled",
-            cases=cases,
-            source_format=orm_log.source_format or "csv",
-            source_file=orm_log.source_file,
-            created_at=orm_log.created_at,
+        stmt = stmt.offset((page - 1) * page_size).limit(page_size)
+        result = await self._session.execute(stmt)
+        datasets = list(result.scalars().all())
+
+        return datasets, total
+
+    async def count(self) -> int:
+        from src.features.process_mining.models import Dataset
+
+        stmt = select(func.count()).select_from(Dataset)
+        result = await self._session.execute(stmt)
+        return result.scalar() or 0
+
+
+# =============================================================================
+# Project Repository
+# =============================================================================
+
+
+class ProjectRepository(ABC):
+    """Repository interface for Project aggregate root."""
+
+    @abstractmethod
+    async def get_by_id(self, project_id: str) -> Optional["Project"]:
+        pass
+
+    @abstractmethod
+    async def save(self, project: "Project") -> "Project":
+        pass
+
+    @abstractmethod
+    async def delete(self, project_id: str) -> bool:
+        pass
+
+    @abstractmethod
+    async def list_all(self, page: int = 1, page_size: int = 20) -> tuple[list["Project"], int]:
+        pass
+
+
+class SQLAlchemyProjectRepository(ProjectRepository):
+    """SQLAlchemy implementation of ProjectRepository."""
+
+    def __init__(self, session: AsyncSession):
+        self._session = session
+
+    async def get_by_id(self, project_id: str) -> Optional["Project"]:
+        from src.platform.models import Project
+
+        return await self._session.get(Project, project_id)
+
+    async def save(self, project: "Project") -> "Project":
+        self._session.add(project)
+        await self._session.flush()
+        await self._session.refresh(project)
+        return project
+
+    async def delete(self, project_id: str) -> bool:
+        project = await self.get_by_id(project_id)
+        if project:
+            await self._session.delete(project)
+            await self._session.flush()
+            return True
+        return False
+
+    async def list_all(self, page: int = 1, page_size: int = 20) -> tuple[list["Project"], int]:
+        from src.platform.models import Project
+
+        # Count
+        count_stmt = select(func.count()).select_from(Project)
+        count_result = await self._session.execute(count_stmt)
+        total = count_result.scalar() or 0
+
+        # Data
+        stmt = (
+            select(Project)
+            .order_by(Project.created_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
         )
+        result = await self._session.execute(stmt)
+        projects = list(result.scalars().all())
+
+        return projects, total
 
 
 # =============================================================================
-# Factory Function
+# Process Model Repository
 # =============================================================================
 
 
-def create_dataset_repository(session: AsyncSession) -> DatasetRepository:
-    """Factory function to create the appropriate repository."""
-    return SQLAlchemyDatasetRepository(session)
+class ProcessModelRepository(ABC):
+    """Repository interface for ProcessModel."""
+
+    @abstractmethod
+    async def get_by_id(self, model_id: str) -> Optional["ProcessModel"]:
+        pass
+
+    @abstractmethod
+    async def save(self, model: "ProcessModel") -> "ProcessModel":
+        pass
+
+    @abstractmethod
+    async def get_by_dataset_id(self, dataset_id: str) -> list["ProcessModel"]:
+        """Get all models for a given dataset."""
+
+
+class SQLAlchemyProcessModelRepository(ProcessModelRepository):
+    """SQLAlchemy implementation."""
+
+    def __init__(self, session: AsyncSession):
+        self._session = session
+
+    async def get_by_id(self, model_id: str) -> Optional["ProcessModel"]:
+        from src.features.process_mining.models import ProcessModel
+
+        return await self._session.get(ProcessModel, model_id)
+
+    async def save(self, model: "ProcessModel") -> "ProcessModel":
+        self._session.add(model)
+        await self._session.flush()
+        await self._session.refresh(model)
+        return model
+
+    async def get_by_dataset_id(self, dataset_id: str) -> list["ProcessModel"]:
+        from src.features.process_mining.models import ProcessModel
+
+        stmt = (
+            select(ProcessModel)
+            .where(ProcessModel.dataset_id == dataset_id)
+            .order_by(ProcessModel.created_at.desc())
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+
+# =============================================================================
+# Unit of Work
+# =============================================================================
+
+
+class UnitOfWork:
+    """Unit of Work pattern for managing transactions across repositories.
+
+    Usage:
+        async with UnitOfWork(session) as uow:
+            dataset = await uow.datasets.get_by_id(dataset_id)
+            dataset.name = "Updated"
+            await uow.datasets.save(dataset)
+            await uow.commit()
+    """
+
+    def __init__(self, session: AsyncSession):
+        self._session = session
+        self.datasets = SQLAlchemyDatasetRepository(session)
+        self.projects = SQLAlchemyProjectRepository(session)
+        self.models = SQLAlchemyProcessModelRepository(session)
+        self.jobs = SQLAlchemyAsyncJobRepository(session)
+
+    async def __aenter__(self) -> "UnitOfWork":
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        if exc_type:
+            await self.rollback()
+        else:
+            await self.commit()
+
+    async def commit(self) -> None:
+        """Commit the current transaction."""
+        await self._session.commit()
+
+    async def rollback(self) -> None:
+        """Rollback the current transaction."""
+        await self._session.rollback()
+
+
+# =============================================================================
+# Async Job Repository
+# =============================================================================
+
+
+class AsyncJobRepository(ABC):
+    """Repository interface for AsyncJob."""
+
+    @abstractmethod
+    async def get_by_id(self, job_id: str) -> Optional["AsyncJob"]:
+        pass
+
+    @abstractmethod
+    async def get_by_task_id(self, task_id: str) -> Optional["AsyncJob"]:
+        """Get job by Celery task ID."""
+
+    @abstractmethod
+    async def save(self, job: "AsyncJob") -> "AsyncJob":
+        pass
+
+    @abstractmethod
+    async def delete(self, job_id: str) -> bool:
+        pass
+
+    @abstractmethod
+    async def update_progress(self, job_id: str, progress: int, stage: str | None = None) -> bool:
+        """Update job progress and stage."""
+
+    @abstractmethod
+    async def complete(
+        self, job_id: str, result: dict | None = None, entity_id: str | None = None
+    ) -> bool:
+        """Mark job as completed with result."""
+
+    @abstractmethod
+    async def fail(self, job_id: str, error: str) -> bool:
+        """Mark job as failed with error."""
+
+    @abstractmethod
+    async def list_by_user(
+        self,
+        user_id: str,
+        page: int = 1,
+        page_size: int = 20,
+        job_type: str | None = None,
+        status: str | None = None,
+        entity_id: str | None = None,
+    ) -> tuple[list["AsyncJob"], int]:
+        """List jobs for a user with filtering and pagination."""
+
+    @abstractmethod
+    async def list_by_entity(
+        self,
+        entity_type: str,
+        entity_id: str,
+    ) -> list["AsyncJob"]:
+        """List all jobs for a specific entity."""
+
+
+class SQLAlchemyAsyncJobRepository(AsyncJobRepository):
+    """SQLAlchemy implementation of AsyncJobRepository."""
+
+    def __init__(self, session: AsyncSession):
+        self._session = session
+
+    async def get_by_id(self, job_id: str) -> Optional["AsyncJob"]:
+        from src.platform.models import AsyncJob
+
+        return await self._session.get(AsyncJob, job_id)
+
+    async def get_by_task_id(self, task_id: str) -> Optional["AsyncJob"]:
+        from src.platform.models import AsyncJob
+
+        stmt = select(AsyncJob).where(AsyncJob.task_id == task_id)
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def save(self, job: "AsyncJob") -> "AsyncJob":
+        self._session.add(job)
+        await self._session.flush()
+        await self._session.refresh(job)
+        return job
+
+    async def delete(self, job_id: str) -> bool:
+        job = await self.get_by_id(job_id)
+        if job:
+            await self._session.delete(job)
+            await self._session.flush()
+            return True
+        return False
+
+    async def update_progress(self, job_id: str, progress: int, stage: str | None = None) -> bool:
+        from datetime import datetime
+
+        from src.platform.core.enums import JobStatus
+
+        job = await self.get_by_id(job_id)
+        if not job:
+            return False
+
+        job.progress = min(max(progress, 0), 100)  # Clamp 0-100
+        if stage:
+            job.stage = stage
+        job.updated_at = datetime.utcnow()
+
+        # Auto-transition to RUNNING if not already
+        if job.status == JobStatus.PENDING.value and progress > 0:
+            job.status = JobStatus.RUNNING.value
+            job.started_at = datetime.utcnow()
+
+        await self._session.flush()
+        return True
+
+    async def complete(
+        self, job_id: str, result: dict | None = None, entity_id: str | None = None
+    ) -> bool:
+        import json
+        from datetime import datetime
+
+        from src.platform.core.enums import JobStatus
+
+        job = await self.get_by_id(job_id)
+        if not job:
+            return False
+
+        job.status = JobStatus.COMPLETED.value
+        job.progress = 100
+        job.completed_at = datetime.utcnow()
+        job.updated_at = datetime.utcnow()
+
+        if result:
+            job.result_json = json.dumps(result)
+        if entity_id:
+            job.entity_id = entity_id
+
+        await self._session.flush()
+        return True
+
+    async def fail(self, job_id: str, error: str) -> bool:
+        from datetime import datetime
+
+        from src.platform.core.enums import JobStatus
+
+        job = await self.get_by_id(job_id)
+        if not job:
+            return False
+
+        job.status = JobStatus.FAILED.value
+        job.error = error
+        job.completed_at = datetime.utcnow()
+        job.updated_at = datetime.utcnow()
+
+        await self._session.flush()
+        return True
+
+    async def list_by_user(
+        self,
+        user_id: str,
+        page: int = 1,
+        page_size: int = 20,
+        job_type: str | None = None,
+        status: str | None = None,
+        entity_id: str | None = None,
+    ) -> tuple[list["AsyncJob"], int]:
+        from src.platform.models import AsyncJob
+
+        # Build filter conditions
+        conditions = [AsyncJob.user_id == user_id]
+        if job_type:
+            conditions.append(AsyncJob.job_type == job_type)
+        if status:
+            conditions.append(AsyncJob.status == status)
+        if entity_id:
+            conditions.append(AsyncJob.entity_id == entity_id)
+
+        # Count query
+        count_stmt = select(func.count()).select_from(AsyncJob).where(*conditions)
+        count_result = await self._session.execute(count_stmt)
+        total = count_result.scalar() or 0
+
+        # Data query
+        stmt = (
+            select(AsyncJob)
+            .where(*conditions)
+            .order_by(AsyncJob.created_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        result = await self._session.execute(stmt)
+        jobs = list(result.scalars().all())
+
+        return jobs, total
+
+    async def list_by_entity(
+        self,
+        entity_type: str,
+        entity_id: str,
+    ) -> list["AsyncJob"]:
+        from src.platform.models import AsyncJob
+
+        stmt = (
+            select(AsyncJob)
+            .where(AsyncJob.entity_type == entity_type, AsyncJob.entity_id == entity_id)
+            .order_by(AsyncJob.created_at.desc())
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())

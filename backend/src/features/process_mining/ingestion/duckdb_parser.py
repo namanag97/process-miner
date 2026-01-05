@@ -49,6 +49,7 @@ def _get_duckdb():
     if _duckdb is None:
         try:
             import duckdb
+
             _duckdb = duckdb
         except ImportError:
             raise ImportError(
@@ -63,6 +64,7 @@ class DuckDBParser:
     def _get_manager(self):
         """Get the DuckDB manager instance."""
         from src.platform.infrastructure.duckdb import duckdb_manager
+
         return duckdb_manager
 
     def parse_csv(
@@ -131,6 +133,7 @@ class DuckDBParser:
             """).arrow()
 
             import pyarrow as pa
+
             if isinstance(arrow_table, pa.RecordBatchReader):
                 arrow_table = arrow_table.read_all()
 
@@ -221,7 +224,9 @@ class DuckDBParser:
                     if not suggestions["case_id_column"]:
                         suggestions["case_id_column"] = col_name
 
-                elif any(x in name_lower for x in ["activity", "action", "event", "task", "concept"]):
+                elif any(
+                    x in name_lower for x in ["activity", "action", "event", "task", "concept"]
+                ):
                     col_info["suggested_role"] = "activity"
                     if not suggestions["activity_column"]:
                         suggestions["activity_column"] = col_name
@@ -234,7 +239,9 @@ class DuckDBParser:
                     if not suggestions["timestamp_column"]:
                         suggestions["timestamp_column"] = col_name
 
-                elif any(x in name_lower for x in ["resource", "user", "actor", "agent", "employee"]):
+                elif any(
+                    x in name_lower for x in ["resource", "user", "actor", "agent", "employee"]
+                ):
                     col_info["suggested_role"] = "resource"
                     if not suggestions["resource_column"]:
                         suggestions["resource_column"] = col_name
@@ -308,8 +315,7 @@ class DuckDBParser:
             """).fetchall()
 
             return [
-                {"variant": v[0], "case_count": v[1], "frequency_percent": v[2]}
-                for v in variants
+                {"variant": v[0], "case_count": v[1], "frequency_percent": v[2]} for v in variants
             ]
         finally:
             if conn:

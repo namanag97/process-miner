@@ -7,10 +7,16 @@
  * - Audit logs
  * - Help center
  * - Developer tools (test bench)
+ * - Projects (workspace organization)
+ * - Upload wizard (dataset ingestion)
  */
 
 import { FeatureRegistry } from '../../core/plugins/FeatureRegistry';
 import { platformRouteConfig } from './routes';
+
+// Import sub-features (projects, upload-wizard)
+import './projects';
+import './upload-wizard';
 
 // ============================================
 // Feature Configuration

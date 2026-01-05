@@ -1,0 +1,4 @@
+# file: /Users/namanagarwal/system/backend/src/features/process_mining/services/domain/entities.py
+# hypothesis_version: 6.148.9
+
+[1000, 'DatasetAggregate', 'PM4PyLog', 'ProcessCase', 'activity_filtered', 'cache_invalidated', 'concept:name', 'csv', 'duration_filtered', 'end_filtered', 'filtered', 'org:resource', 'pm4py_cache_hit', 'pm4py_log_built', 'start_filtered', 'time:timestamp', 'time_filtered', 'variant_filtered']
