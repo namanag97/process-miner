@@ -37,6 +37,8 @@ from src.api.routers import (
     workflows_router,
     workspaces_router,
 )
+from src.platform.admin.router import router as admin_router
+from src.platform.organizations.router import router as organizations_router
 from src.platform.devconsole.streaming import router as dev_logs_stream_router
 from src.platform.devtools.dev_data import router as dev_data_router
 from src.platform.health.router import mark_startup_complete
@@ -188,6 +190,10 @@ def create_app() -> FastAPI:
             "description": "🔐 Authentication and authorization. Uses JWT (Access & Refresh Tokens).",
         },
         {
+            "name": "Organizations",
+            "description": "🏛️ Organization management. Multi-tenant org structure and billing.",
+        },
+        {
             "name": "Workspaces",
             "description": "🏢 Multi-tenant workspace management. Create, update, and manage workspaces.",
         },
@@ -198,6 +204,10 @@ def create_app() -> FastAPI:
         {
             "name": "Jobs",
             "description": "⚡ Unified async job tracking and progress monitoring.",
+        },
+        {
+            "name": "Admin",
+            "description": "🛡️ Admin-only system management and monitoring.",
         },
         {
             "name": "Health",
@@ -455,6 +465,8 @@ For support, please contact the developer team or refer to the internal document
 
     # Include API routers with prefix
     app.include_router(auth_router, prefix=settings.api_prefix)
+    app.include_router(organizations_router, prefix=settings.api_prefix)  # New: Organizations
+    app.include_router(admin_router, prefix=settings.api_prefix)  # New: Admin
     app.include_router(workspaces_router, prefix=settings.api_prefix)
     app.include_router(projects_router, prefix=settings.api_prefix)
     app.include_router(datasets_router, prefix=settings.api_prefix)
