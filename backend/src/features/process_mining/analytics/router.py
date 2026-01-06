@@ -1,7 +1,35 @@
 """Analytics Router - Performance Analytics API.
 
-Provides endpoints for bottleneck detection, rework analysis, service times,
-cycle times, throughput metrics, and performance dashboards.
+Performance analysis endpoints for process mining insights.
+
+## Business Context
+Analytics provides operational insights from process execution:
+- **Bottlenecks**: Activities with high waiting times slowing the process
+- **Rework**: Repeated activities indicating inefficiency or errors
+- **Service Times**: How long each activity takes to execute
+- **Cycle Time**: End-to-end case duration statistics
+- **Throughput**: Cases completed per time period
+
+## Testing Instructions
+
+### Prerequisites
+1. Have a dataset in READY status with ingested events
+
+### Endpoints (all require dataset_id in path)
+- **Bottlenecks**: `GET /api/v1/analytics/datasets/{id}/bottlenecks`
+- **Rework**: `GET /api/v1/analytics/datasets/{id}/rework`
+- **Service Times**: `GET /api/v1/analytics/datasets/{id}/service-times`
+- **Cycle Time**: `GET /api/v1/analytics/datasets/{id}/cycle-time`
+- **Throughput**: `GET /api/v1/analytics/datasets/{id}/throughput`
+- **Patterns**: `GET /api/v1/analytics/datasets/{id}/patterns?min_support=0.1`
+- **Rework Chains**: `GET /api/v1/analytics/datasets/{id}/rework-chains`
+- **Dashboard**: `GET /api/v1/analytics/datasets/{id}/performance`
+
+### Caching
+Results are cached for 1 hour. Subsequent calls return cached data.
+
+### Common Errors
+- **404**: Dataset not found (verify dataset_id UUID)
 """
 
 from typing import cast
@@ -10,8 +38,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.dependencies import get_db
-from src.features.process_mining.analytics.service import analytics_service
+from src.api.dependencies import ServiceContainer, get_db
 from src.features.process_mining.models import Dataset
 from src.features.process_mining.schemas import (
     BottleneckListResponse,
@@ -26,7 +53,6 @@ from src.features.process_mining.schemas import (
     ServiceTimeResponse,
     ThroughputResponse,
 )
-from src.features.process_mining.services.filtering import filtering_service
 from src.platform.core.exceptions import ProcessNotFoundError
 from src.platform.core.logging_config import get_logger
 from src.platform.infrastructure.cache import cache_service
@@ -36,19 +62,21 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 
-async def _get_pm4py_log(dataset_id: str, db: AsyncSession):
+async def _get_pm4py_log(dataset_id: str, db: AsyncSession, container: ServiceContainer):
     """Helper to get PM4Py log from dataset_id."""
     query = select(Dataset).where(Dataset.id == dataset_id)
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
     if not event_log:
         raise ProcessNotFoundError(dataset_id)
-    return filtering_service.to_pm4py_log(event_log), event_log
+    return container.filtering.to_pm4py_log(event_log), event_log
 
 
 @router.get("/datasets/{dataset_id}/bottlenecks", response_model=BottleneckListResponse)
 async def get_bottlenecks(
-    dataset_id: str, db: AsyncSession = Depends(get_db)
+    dataset_id: str,
+    container: ServiceContainer,
+    db: AsyncSession = Depends(get_db),
 ) -> BottleneckListResponse:
     """Detect process bottlenecks based on waiting times."""
     logger.info("getting_bottlenecks", dataset_id=dataset_id)
@@ -59,8 +87,8 @@ async def get_bottlenecks(
     if cached:
         return cast(BottleneckListResponse, cached)
 
-    pm4py_log, _ = await _get_pm4py_log(dataset_id, db)
-    result = analytics_service.detect_bottlenecks(pm4py_log)
+    pm4py_log, _ = await _get_pm4py_log(dataset_id, db, container)
+    result = container.analytics.detect_bottlenecks(pm4py_log)
     response = BottleneckListResponse(
         dataset_id=dataset_id,
         bottlenecks=[BottleneckResponse(**b) for b in result["bottlenecks"]],
@@ -73,7 +101,11 @@ async def get_bottlenecks(
 
 
 @router.get("/datasets/{dataset_id}/rework", response_model=ReworkListResponse)
-async def get_rework(dataset_id: str, db: AsyncSession = Depends(get_db)) -> ReworkListResponse:
+async def get_rework(
+    dataset_id: str,
+    container: ServiceContainer,
+    db: AsyncSession = Depends(get_db),
+) -> ReworkListResponse:
     """Analyze rework (repeated activities) in cases."""
     logger.info("getting_rework", dataset_id=dataset_id)
 
@@ -83,8 +115,8 @@ async def get_rework(dataset_id: str, db: AsyncSession = Depends(get_db)) -> Rew
     if cached:
         return cast(ReworkListResponse, cached)
 
-    pm4py_log, _ = await _get_pm4py_log(dataset_id, db)
-    result = analytics_service.analyze_rework(pm4py_log)
+    pm4py_log, _ = await _get_pm4py_log(dataset_id, db, container)
+    result = container.analytics.analyze_rework(pm4py_log)
     response = ReworkListResponse(
         dataset_id=dataset_id,
         rework_activities=[ReworkResponse(**r) for r in result["rework_activities"]],
@@ -99,7 +131,9 @@ async def get_rework(dataset_id: str, db: AsyncSession = Depends(get_db)) -> Rew
 
 @router.get("/datasets/{dataset_id}/service-times")
 async def get_service_times(
-    dataset_id: str, db: AsyncSession = Depends(get_db)
+    dataset_id: str,
+    container: ServiceContainer,
+    db: AsyncSession = Depends(get_db),
 ) -> list[ServiceTimeResponse]:
     """Get service time statistics per activity."""
     logger.info("getting_service_times", dataset_id=dataset_id)
@@ -110,8 +144,8 @@ async def get_service_times(
     if cached:
         return cast(list[ServiceTimeResponse], cached)
 
-    pm4py_log, _ = await _get_pm4py_log(dataset_id, db)
-    result = analytics_service.get_service_times(pm4py_log)
+    pm4py_log, _ = await _get_pm4py_log(dataset_id, db, container)
+    result = container.analytics.get_service_times(pm4py_log)
     response = [ServiceTimeResponse(**s) for s in result]
 
     # Cache for 1 hour
@@ -120,37 +154,50 @@ async def get_service_times(
 
 
 @router.get("/datasets/{dataset_id}/cycle-time", response_model=CycleTimeResponse)
-async def get_cycle_time(dataset_id: str, db: AsyncSession = Depends(get_db)) -> CycleTimeResponse:
+async def get_cycle_time(
+    dataset_id: str,
+    container: ServiceContainer,
+    db: AsyncSession = Depends(get_db),
+) -> CycleTimeResponse:
     """Get cycle time (case duration) statistics."""
     logger.info("getting_cycle_time", dataset_id=dataset_id)
-    pm4py_log, _ = await _get_pm4py_log(dataset_id, db)
-    result = analytics_service.get_cycle_time(pm4py_log)
+    pm4py_log, _ = await _get_pm4py_log(dataset_id, db, container)
+    result = container.analytics.get_cycle_time(pm4py_log)
     return CycleTimeResponse(dataset_id=dataset_id, **result)
 
 
 @router.get("/datasets/{dataset_id}/throughput", response_model=ThroughputResponse)
-async def get_throughput(dataset_id: str, db: AsyncSession = Depends(get_db)) -> ThroughputResponse:
+async def get_throughput(
+    dataset_id: str,
+    container: ServiceContainer,
+    db: AsyncSession = Depends(get_db),
+) -> ThroughputResponse:
     """Get throughput metrics (cases per day/week/month)."""
     logger.info("getting_throughput", dataset_id=dataset_id)
-    pm4py_log, _ = await _get_pm4py_log(dataset_id, db)
-    result = analytics_service.get_throughput(pm4py_log)
+    pm4py_log, _ = await _get_pm4py_log(dataset_id, db, container)
+    result = container.analytics.get_throughput(pm4py_log)
     return ThroughputResponse(dataset_id=dataset_id, **result)
 
 
 @router.get("/datasets/{dataset_id}/patterns")
 async def get_patterns(
-    dataset_id: str, min_support: float = 0.1, db: AsyncSession = Depends(get_db)
+    dataset_id: str,
+    container: ServiceContainer,
+    min_support: float = 0.1,
+    db: AsyncSession = Depends(get_db),
 ) -> list[PatternResponse]:
     """Get frequent activity patterns/subsequences."""
     logger.info("getting_patterns", dataset_id=dataset_id, min_support=min_support)
-    pm4py_log, _ = await _get_pm4py_log(dataset_id, db)
-    result = analytics_service.get_frequent_patterns(pm4py_log, min_support)
+    pm4py_log, _ = await _get_pm4py_log(dataset_id, db, container)
+    result = container.analytics.get_frequent_patterns(pm4py_log, min_support)
     return [PatternResponse(**p) for p in result]
 
 
 @router.get("/datasets/{dataset_id}/rework-chains", response_model=ReworkChainListResponse)
 async def get_rework_chains(
-    dataset_id: str, db: AsyncSession = Depends(get_db)
+    dataset_id: str,
+    container: ServiceContainer,
+    db: AsyncSession = Depends(get_db),
 ) -> ReworkChainListResponse:
     """Detect rework chains - consecutive repetitions of the same activity.
 
@@ -171,8 +218,8 @@ async def get_rework_chains(
     if cached:
         return cast(ReworkChainListResponse, cached)
 
-    pm4py_log, _ = await _get_pm4py_log(dataset_id, db)
-    result = analytics_service.detect_rework_chains(pm4py_log)
+    pm4py_log, _ = await _get_pm4py_log(dataset_id, db, container)
+    result = container.analytics.detect_rework_chains(pm4py_log)
 
     response = ReworkChainListResponse(
         dataset_id=dataset_id,
@@ -190,12 +237,14 @@ async def get_rework_chains(
 
 @router.get("/datasets/{dataset_id}/performance", response_model=PerformanceDashboardResponse)
 async def get_performance_dashboard(
-    dataset_id: str, db: AsyncSession = Depends(get_db)
+    dataset_id: str,
+    container: ServiceContainer,
+    db: AsyncSession = Depends(get_db),
 ) -> PerformanceDashboardResponse:
     """Get comprehensive performance dashboard."""
     logger.info("getting_performance_dashboard", dataset_id=dataset_id)
-    pm4py_log, _ = await _get_pm4py_log(dataset_id, db)
-    result = analytics_service.get_performance_dashboard(pm4py_log)
+    pm4py_log, _ = await _get_pm4py_log(dataset_id, db, container)
+    result = container.analytics.get_performance_dashboard(pm4py_log)
     return PerformanceDashboardResponse(
         dataset_id=dataset_id,
         cycle_time=CycleTimeResponse(dataset_id=dataset_id, **result["cycle_time"]),

@@ -5,6 +5,8 @@ Provides:
 - Colored console output for development
 - Request ID tracking
 - Performance timing
+- Operation logging decorators
+- Scoped context management
 
 Note: DevConsole integration is handled separately in the API middleware
 to maintain clean architecture (core layer should not depend on infrastructure).
@@ -12,12 +14,20 @@ to maintain clean architecture (core layer should not depend on infrastructure).
 
 import logging
 import sys
-from typing import Any
+import time
+from contextlib import contextmanager
+from functools import wraps
+from typing import Any, Callable, ParamSpec, TypeVar
 
 import structlog
 from structlog.types import Processor
 
 from src.platform.core.config import get_settings
+
+
+# Type hints for decorator
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 def configure_logging() -> None:
@@ -110,6 +120,203 @@ def clear_context() -> None:
 
 
 # =============================================================================
+# Operation Logging Decorator
+# =============================================================================
+
+
+def log_operation(
+    operation_name: str,
+    *,
+    include_args: list[str] | None = None,
+    log_result: bool = False,
+) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    """Decorator for automatic operation logging.
+
+    Logs:
+    - Operation start with context
+    - Operation success with duration
+    - Operation failure with error details
+
+    Args:
+        operation_name: Name for this operation (e.g., "create_dataset")
+        include_args: List of argument names to include in logs (by name)
+        log_result: Whether to log the result (be careful with sensitive data)
+
+    Example:
+        @router.post("/datasets")
+        @log_operation("create_dataset", include_args=["project_id"])
+        async def create_dataset(project_id: str, ...):
+            ...
+    """
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
+        logger = get_logger(func.__module__)
+
+        @wraps(func)
+        async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            # Extract loggable context from kwargs
+            log_context: dict[str, Any] = {"operation": operation_name}
+            if include_args:
+                for arg_name in include_args:
+                    if arg_name in kwargs:
+                        log_context[arg_name] = kwargs[arg_name]
+
+            # Log operation start
+            logger.info(f"🚀 {operation_name}_started", **log_context)
+            start_time = time.perf_counter()
+
+            try:
+                result = await func(*args, **kwargs)
+                duration_ms = (time.perf_counter() - start_time) * 1000
+
+                # Log success
+                success_context = {**log_context, "duration_ms": round(duration_ms, 2)}
+                if log_result and result is not None:
+                    # Only log simple types to avoid huge log entries
+                    if isinstance(result, (str, int, float, bool)):
+                        success_context["result"] = result
+                    elif hasattr(result, "id"):
+                        success_context["result_id"] = getattr(result, "id", None)
+
+                logger.info(f"✅ {operation_name}_completed", **success_context)
+                return result
+
+            except Exception as e:
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                error_context = {
+                    **log_context,
+                    "duration_ms": round(duration_ms, 2),
+                    "error_type": type(e).__name__,
+                    "error_message": str(e)[:500],  # Truncate long errors
+                }
+                logger.error(f"❌ {operation_name}_failed", **error_context, exc_info=True)
+                raise
+
+        @wraps(func)
+        def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            # Extract loggable context from kwargs
+            log_context: dict[str, Any] = {"operation": operation_name}
+            if include_args:
+                for arg_name in include_args:
+                    if arg_name in kwargs:
+                        log_context[arg_name] = kwargs[arg_name]
+
+            logger.info(f"🚀 {operation_name}_started", **log_context)
+            start_time = time.perf_counter()
+
+            try:
+                result = func(*args, **kwargs)
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                logger.info(
+                    f"✅ {operation_name}_completed",
+                    **log_context,
+                    duration_ms=round(duration_ms, 2),
+                )
+                return result
+
+            except Exception as e:
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                logger.error(
+                    f"❌ {operation_name}_failed",
+                    **log_context,
+                    duration_ms=round(duration_ms, 2),
+                    error_type=type(e).__name__,
+                    error_message=str(e)[:500],
+                    exc_info=True,
+                )
+                raise
+
+        # Return appropriate wrapper based on function type
+        import asyncio
+        if asyncio.iscoroutinefunction(func):
+            return async_wrapper  # type: ignore
+        return sync_wrapper  # type: ignore
+
+    return decorator
+
+
+# =============================================================================
+# Scoped Context Manager
+# =============================================================================
+
+
+@contextmanager
+def operation_context(**kwargs: Any):
+    """Context manager for scoped log context binding.
+
+    Binds context variables for the duration of the 'with' block,
+    then restores previous context.
+
+    Example:
+        with operation_context(user_id=user.id, workspace_id=ws.id):
+            logger.info("processing")  # Includes user_id and workspace_id
+            do_work()
+        # Context is cleared after block
+    """
+    # Get current context to restore later
+    previous_context = structlog.contextvars.get_contextvars()
+
+    try:
+        bind_context(**kwargs)
+        yield
+    finally:
+        # Restore previous context
+        clear_context()
+        if previous_context:
+            bind_context(**previous_context)
+
+
+# =============================================================================
+# API Error Logging Helper
+# =============================================================================
+
+
+def log_api_error(
+    logger: structlog.stdlib.BoundLogger,
+    error: Exception,
+    *,
+    operation: str,
+    resource_type: str | None = None,
+    resource_id: str | None = None,
+    user_id: str | None = None,
+    extra: dict[str, Any] | None = None,
+) -> None:
+    """Log an API error with consistent structure.
+
+    Use this for explicit error logging in exception handlers.
+
+    Args:
+        logger: The logger instance to use
+        error: The exception that occurred
+        operation: What operation failed (e.g., "create_dataset")
+        resource_type: Type of resource involved (e.g., "Dataset", "Project")
+        resource_id: ID of the resource if applicable
+        user_id: ID of the user if applicable
+        extra: Additional context to include
+    """
+    context: dict[str, Any] = {
+        "operation": operation,
+        "error_type": type(error).__name__,
+        "error_message": str(error)[:500],
+    }
+
+    if resource_type:
+        context["resource_type"] = resource_type
+    if resource_id:
+        context["resource_id"] = resource_id
+    if user_id:
+        context["user_id"] = user_id
+    if extra:
+        context.update(extra)
+
+    # Use warning for expected errors (NotFound, Validation), error for unexpected
+    from src.platform.core.exceptions import AppException
+    if isinstance(error, AppException) and error.status_code < 500:
+        logger.warning(f"⚠️ {operation}_failed", **context)
+    else:
+        logger.error(f"🔥 {operation}_failed", **context, exc_info=True)
+
+
+# =============================================================================
 # Business Metrics Helper
 # =============================================================================
 
@@ -143,3 +350,4 @@ def log_business_metric(
         metric_unit=unit,
         **(tags or {}),
     )
+

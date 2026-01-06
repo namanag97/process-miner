@@ -1,12 +1,37 @@
 """Jobs Router.
 
-Unified endpoint for polling asynchronous job status and progress.
+Unified endpoint for tracking asynchronous job status and progress.
 
-Hardened with:
-- UUID validation for job_id path parameters
-- Proper pagination with accurate total counts
-- Validated enum filters for job_type and status
-- Consistent error responses
+## Business Context
+Many process mining operations run asynchronously:
+- Dataset ingestion (CSV/XES parsing into events and cases)
+- Process discovery (mining algorithms like Alpha, Inductive, Heuristic)
+- Conformance checking (token replay, alignments)
+- Predictions training (ML model training)
+
+Jobs have a lifecycle: `pending → queued → running → completed/failed/cancelled`
+
+## Testing Instructions
+
+### Workflow
+1. Trigger an async operation (e.g., `POST /api/v1/datasets/{id}/ingest`)
+2. Get job_id from the response
+3. Poll `GET /api/v1/jobs/{job_id}` until status is `completed` or `failed`
+4. Or use SSE streaming: `GET /api/v1/jobs/{job_id}/stream`
+
+### Endpoints
+- **List Jobs**: `GET /api/v1/jobs` - Paginated, filterable by job_type/status
+- **Get Job**: `GET /api/v1/jobs/{job_id}` - Current status and progress
+- **Cancel Job**: `DELETE /api/v1/jobs/{job_id}` - Cancel running or delete completed
+- **Stream Progress**: `GET /api/v1/jobs/{job_id}/stream` - SSE real-time updates
+- **Get Logs**: `GET /api/v1/jobs/{job_id}/logs` - Execution history
+
+### Job Types
+`ingestion`, `discovery`, `conformance`, `training`, `export`, `validation`
+
+### Common Errors
+- **404**: Job not found (may have expired or been deleted)
+- **422**: Invalid UUID format for job_id
 """
 
 from fastapi import APIRouter, Path, Query, Request

@@ -1,0 +1,30 @@
+case:concept:name,concept:name,time:timestamp,org:resource
+1,Register Request,2023-01-01 09:00:00,John
+1,Examine Casually,2023-01-01 09:30:00,Sarah
+1,Check Ticket,2023-01-01 10:00:00,Mike
+1,Decide,2023-01-01 11:00:00,Sarah
+1,Pay Compensation,2023-01-01 12:00:00,John
+2,Register Request,2023-01-01 09:15:00,Sarah
+2,Examine Thoroughly,2023-01-01 10:00:00,Sarah
+2,Check Ticket,2023-01-01 11:00:00,John
+2,Decide,2023-01-01 12:00:00,Mike
+2,Reject Request,2023-01-01 13:00:00,Sarah
+3,Register Request,2023-01-02 08:00:00,Mike
+3,Examine Casually,2023-01-02 08:30:00,John
+3,Check Ticket,2023-01-02 09:00:00,Sarah
+3,Decide,2023-01-02 10:00:00,John
+3,Pay Compensation,2023-01-02 11:00:00,Mike
+4,Register Request,2023-01-02 09:00:00,John
+4,Examine Casually,2023-01-02 09:45:00,Mike
+4,Check Ticket,2023-01-02 10:30:00,John
+4,Decide,2023-01-02 11:30:00,Sarah
+4,Reinitiate Request,2023-01-02 12:00:00,John
+4,Examine Thoroughly,2023-01-02 13:00:00,Sarah
+4,Check Ticket,2023-01-02 14:00:00,Mike
+4,Decide,2023-01-02 15:00:00,John
+4,Pay Compensation,2023-01-02 16:00:00,Sarah
+5,Register Request,2023-01-03 08:30:00,Sarah
+5,Examine Thoroughly,2023-01-03 09:30:00,Mike
+5,Check Ticket,2023-01-03 10:30:00,John
+5,Decide,2023-01-03 11:30:00,Sarah
+5,Pay Compensation,2023-01-03 12:30:00,Mike

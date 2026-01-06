@@ -464,5 +464,4 @@ class AnalyticsService:
         logger.info("performance_dashboard_computed", duration_ms=round(duration, 2))
         return result
 
-
 analytics_service = AnalyticsService()

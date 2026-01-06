@@ -9,9 +9,9 @@ from uuid import uuid4
 from fastapi import APIRouter, Query
 
 from src.api.dependencies import CurrentUser, DBSession
-from src.features.process_mining.models import Dataset, DatasetStatus
+from src.features.process_mining.models import DatasetStatus
 from src.features.process_mining.schemas.analysis import JobStatusResponse
-from src.features.process_mining.schemas.datasets import DownloadResponse, ExportRequest
+from src.features.process_mining.schemas.datasets import DownloadResponse
 from src.platform.core.exceptions import NotFoundError, ValidationError
 from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission

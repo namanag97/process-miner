@@ -5,9 +5,10 @@ Part of 4-Phase Upload Architecture: Upload → Validate → Map → Ingest
 """
 
 from fastapi import APIRouter
+from sqlalchemy import select
 
 from src.api.dependencies import CurrentUser, DBSession
-from src.features.process_mining.models import Dataset, DatasetStatus
+from src.features.process_mining.models import DatasetStatus, DatasetColumnMapping
 from src.features.process_mining.schemas.analysis import JobStatusResponse
 from src.platform.core.exceptions import ValidationError
 from src.platform.core.logging_config import get_logger
@@ -71,7 +72,12 @@ async def trigger_ingestion(
         )
 
     # Check mapping exists
-    if not dataset.column_mapping and not dataset.mapping_json:
+    mapping_result = await db.execute(
+        select(DatasetColumnMapping).where(DatasetColumnMapping.dataset_id == dataset_id)
+    )
+    mapping = mapping_result.scalar_one_or_none()
+    
+    if not mapping and not dataset.mapping_json:
         raise ValidationError("No column mapping found. Submit mapping first.")
 
     # Create async job record
@@ -108,14 +114,13 @@ async def trigger_ingestion(
     )
 
     return JobStatusResponse(
-        job_id=job.id,
-        task_id=task.id,
-        status=JobStatus.PENDING.value,
+        id=job.id,
         job_type="ingest_dataset",
-        entity_type="dataset",
-        entity_id=dataset_id,
+        status=JobStatus.PENDING.value,
         progress=0,
-        message="Ingestion job queued",
+        stage="queued",
+        created_at=job.created_at,
+        result={"task_id": task.id, "message": "Ingestion job queued"},
     )
 
 
@@ -166,7 +171,12 @@ async def trigger_reingest(
         )
 
     # Check mapping exists
-    if not dataset.column_mapping and not dataset.mapping_json:
+    mapping_result = await db.execute(
+        select(DatasetColumnMapping).where(DatasetColumnMapping.dataset_id == dataset_id)
+    )
+    mapping = mapping_result.scalar_one_or_none()
+
+    if not mapping and not dataset.mapping_json:
         raise ValidationError("No column mapping found. Submit mapping first.")
 
     # Create async job record
@@ -203,12 +213,11 @@ async def trigger_reingest(
     )
 
     return JobStatusResponse(
-        job_id=job.id,
-        task_id=task.id,
-        status=JobStatus.PENDING.value,
+        id=job.id,
         job_type="reingest_dataset",
-        entity_type="dataset",
-        entity_id=dataset_id,
+        status=JobStatus.PENDING.value,
         progress=0,
-        message="Re-ingestion job queued",
+        stage="queued",
+        created_at=job.created_at,
+        result={"task_id": task.id, "message": "Re-ingestion job queued"},
     )

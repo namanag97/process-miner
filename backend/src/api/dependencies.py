@@ -240,3 +240,34 @@ async def get_authorization_service(db: DBSession) -> "AuthorizationService":
 
 # Type alias for dependency injection
 AuthService = Annotated["AuthorizationService", Depends(get_authorization_service)]
+
+
+# =============================================================================
+# Service Container Dependency
+# =============================================================================
+
+
+async def get_container(
+    db: DBSession,
+    user: "User | None" = Depends(get_current_user_optional),
+) -> "Container":
+    """Get request-scoped service container.
+    
+    The container lazily instantiates services on first access,
+    and all services share the same database session.
+    
+    Usage:
+        @router.get("/example")
+        async def example(container: Container = Depends(get_container)):
+            await container.ingestion.process(...)
+            await container.analytics.compute(...)
+    """
+    from src.shared.container import Container
+    
+    user_id = user.id if user else None
+    return Container(db, user_id)
+
+
+# Type alias for dependency injection
+ServiceContainer = Annotated["Container", Depends(get_container)]
+

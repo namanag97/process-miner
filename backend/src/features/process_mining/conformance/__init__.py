@@ -5,8 +5,8 @@ Components:
 - router.py: API router for conformance checking endpoints
 """
 
-from .router import router
 from .service import ConformanceService, conformance_service
+from .router import router
 
 __all__ = [
     "router",

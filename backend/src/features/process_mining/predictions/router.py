@@ -1,20 +1,53 @@
 """Predictions Router - ML Predictions API.
 
-Provides endpoints for training prediction models and making predictions
-for next activity, remaining time, and process outcomes.
+Machine learning for predictive process monitoring.
+
+## Business Context
+Predictions enable proactive process management:
+- **Next Activity**: What activity is likely to come next?
+- **Remaining Time**: How long until case completion?
+- Use for SLA monitoring, resource planning, and interventions
+
+## Testing Instructions
+
+### Train a Predictor
+```
+POST /api/v1/predictions/datasets/{dataset_id}/train
+{"target_type": "next_activity", "algorithm": "decision_tree"}
+```
+→ Returns job_id (training runs async by default)
+
+### Test Flow
+1. **Train Model**: `POST /api/v1/predictions/datasets/{id}/train`
+2. **Check Job**: `GET /api/v1/predictions/jobs/{job_id}` until completed
+3. **List Predictors**: `GET /api/v1/predictions/datasets/{id}/predictors`
+4. **Get Predictor**: `GET /api/v1/predictions/predictors/{predictor_id}`
+5. **Predict**:
+   ```
+   POST /api/v1/predictions/predictors/{id}/predict
+   {"case_prefix": ["Activity A", "Activity B"]}
+   ```
+6. **Batch Predict**: `POST /api/v1/predictions/predictors/{id}/predict-batch`
+
+### Target Types
+`next_activity`, `remaining_time`
+
+### Algorithms
+`decision_tree`, `random_forest`, `gradient_boosting`
+
+### Common Errors
+- **404**: Dataset or Predictor not found
+- **400**: Model has no data (retrain)
 """
 
 import json
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.dependencies import get_db
-from src.features.process_mining.filtering.service import filtering_service
+from src.api.dependencies import DBSession, ServiceContainer
 from src.features.process_mining.models import Dataset, PredictionModel
-from src.features.process_mining.predictions.service import prediction_service
 from src.features.process_mining.schemas import (
     BatchPredictionRequest,
     BatchPredictionResponse,
@@ -33,7 +66,7 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/predictions", tags=["Predictions"])
 
 
-async def _get_pm4py_log(dataset_id: str, db: AsyncSession):
+async def _get_pm4py_log(dataset_id: str, db: DBSession, container: ServiceContainer):
     """Helper to get PM4Py log from dataset_id."""
     query = select(Dataset).where(Dataset.id == dataset_id)
     result = await db.execute(query)
@@ -46,7 +79,7 @@ async def _get_pm4py_log(dataset_id: str, db: AsyncSession):
         )
 
     try:
-        pm4py_log = filtering_service.to_pm4py_log(event_log)
+        pm4py_log = container.filtering.to_pm4py_log(event_log)
         return pm4py_log, event_log
     except Exception as e:
         logger.error(
@@ -62,11 +95,11 @@ async def _get_pm4py_log(dataset_id: str, db: AsyncSession):
         )
 
 
-@router.post("/datasets/{dataset_id}/train")
 async def train_predictor(
     dataset_id: str,
     request: TrainPredictorRequest,
-    db: AsyncSession = Depends(get_db),
+    db: DBSession,
+    container: ServiceContainer,
     async_mode: bool = True,
     user_id: str | None = None,  # BUG-046: Optional user_id for job ownership
 ) -> dict[str, Any]:
@@ -129,14 +162,14 @@ async def train_predictor(
             "message": "Training started asynchronously. Use /jobs/{job_id} to check status.",
         }
     # Train synchronously (original behavior)
-    pm4py_log = filtering_service.to_pm4py_log(event_log)
+    pm4py_log = container.filtering.to_pm4py_log(event_log)
 
     if request.target_type == "next_activity":
-        model_bytes, metrics = prediction_service.train_next_activity_model(
+        model_bytes, metrics = container.predictions.train_next_activity_model(
             pm4py_log, request.algorithm
         )
     elif request.target_type == "remaining_time":
-        model_bytes, metrics = prediction_service.train_remaining_time_model(
+        model_bytes, metrics = container.predictions.train_remaining_time_model(
             pm4py_log, request.algorithm
         )
     else:
@@ -144,7 +177,7 @@ async def train_predictor(
             status_code=400, detail=f"Unsupported target type: {request.target_type}"
         )
 
-    activities = prediction_service.get_activities_from_log(pm4py_log)
+    activities = container.predictions.get_activities_from_log(pm4py_log)
     metrics["activities"] = activities
 
     prediction_model = PredictionModel(
@@ -171,10 +204,9 @@ async def train_predictor(
     }
 
 
-@router.get("/jobs/{job_id}")
 async def get_job_status(
     job_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: DBSession,
     user_id: str | None = None,  # BUG-046: Optional user_id for ownership validation
 ) -> dict[str, Any]:
     """Get status of an async training job.
@@ -211,9 +243,8 @@ async def get_job_status(
     return task_status
 
 
-@router.get("/datasets/{dataset_id}/predictors", response_model=PredictorListResponse)
 async def list_predictors(
-    dataset_id: str, db: AsyncSession = Depends(get_db)
+    dataset_id: str, db: DBSession
 ) -> PredictorListResponse:
     """List all predictors for an event log."""
     logger.info("listing_predictors", dataset_id=dataset_id)
@@ -227,8 +258,7 @@ async def list_predictors(
     return PredictorListResponse(dataset_id=dataset_id, predictors=items, total=len(items))
 
 
-@router.get("/predictors/{predictor_id}", response_model=PredictorResponse)
-async def get_predictor(predictor_id: str, db: AsyncSession = Depends(get_db)) -> PredictorResponse:
+async def get_predictor(predictor_id: str, db: DBSession) -> PredictorResponse:
     """Get predictor details."""
     logger.info("getting_predictor", predictor_id=predictor_id)
 
@@ -242,11 +272,11 @@ async def get_predictor(predictor_id: str, db: AsyncSession = Depends(get_db)) -
     return PredictorResponse.model_validate(predictor)
 
 
-@router.post("/predictors/{predictor_id}/predict", response_model=PredictionResponse)
 async def predict(
     predictor_id: str,
     request: PredictionRequest,
-    db: AsyncSession = Depends(get_db),
+    db: DBSession,
+    container: ServiceContainer,
 ) -> PredictionResponse:
     """Make a prediction for a case prefix."""
     logger.info("making_prediction", predictor_id=predictor_id, prefix_len=len(request.case_prefix))
@@ -265,7 +295,7 @@ async def predict(
         raise HTTPException(status_code=400, detail="Predictor model data is missing")
 
     if predictor.target_type == "next_activity":
-        prediction_result = prediction_service.predict_next_activity(
+        prediction_result = container.predictions.predict_next_activity(
             predictor.model_binary, request.case_prefix, activities
         )
         return PredictionResponse(
@@ -276,7 +306,7 @@ async def predict(
             alternatives=prediction_result.get("alternatives"),
         )
     if predictor.target_type == "remaining_time":
-        prediction_result = prediction_service.predict_remaining_time(
+        prediction_result = container.predictions.predict_remaining_time(
             predictor.model_binary, request.case_prefix, activities
         )
         return PredictionResponse(
@@ -288,11 +318,11 @@ async def predict(
     raise HTTPException(status_code=400, detail=f"Unsupported target type: {predictor.target_type}")
 
 
-@router.post("/predictors/{predictor_id}/predict-batch", response_model=BatchPredictionResponse)
 async def predict_batch(
     predictor_id: str,
     request: BatchPredictionRequest,
-    db: AsyncSession = Depends(get_db),
+    db: DBSession,
+    container: ServiceContainer,
 ) -> BatchPredictionResponse:
     """Make batch predictions."""
     logger.info("making_batch_prediction", predictor_id=predictor_id, batch_size=len(request.cases))
@@ -313,7 +343,7 @@ async def predict_batch(
     predictions = []
     for case in request.cases:
         if predictor.target_type == "next_activity":
-            pred_result = prediction_service.predict_next_activity(
+            pred_result = container.predictions.predict_next_activity(
                 predictor.model_binary, case.case_prefix, activities
             )
             predictions.append(
@@ -325,7 +355,7 @@ async def predict_batch(
                 )
             )
         else:
-            pred_result = prediction_service.predict_remaining_time(
+            pred_result = container.predictions.predict_remaining_time(
                 predictor.model_binary, case.case_prefix, activities
             )
             predictions.append(
@@ -340,8 +370,7 @@ async def predict_batch(
     return BatchPredictionResponse(predictor_id=predictor_id, predictions=predictions)
 
 
-@router.delete("/predictors/{predictor_id}")
-async def delete_predictor(predictor_id: str, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+async def delete_predictor(predictor_id: str, db: DBSession) -> dict[str, Any]:
     """Delete a predictor."""
     logger.info("deleting_predictor", predictor_id=predictor_id)
 

@@ -1,21 +1,49 @@
 """Filtering Router - Event Log Filtering API.
 
-Provides endpoints for filtering event logs using various criteria:
-- Time-based filtering
-- Variant-based filtering (top-k, coverage)
-- Activity-based filtering
-- Performance-based filtering (duration, case size)
+Create filtered subsets of event logs for targeted analysis.
+
+## Business Context
+Filtering allows analysts to focus on specific process segments:
+- **Time-based**: Filter by date range
+- **Variant-based**: Keep top-k variants or by coverage %
+- **Activity-based**: Include/exclude specific activities
+- **Performance-based**: Filter by case duration or size
+
+## Testing Instructions
+
+### Prerequisites
+1. Have a dataset in READY status
+
+### Test Flow
+1. **Get Options**: `GET /api/v1/filtering/datasets/{id}/options` → Shows available filter values
+2. **Preview Filter**: `POST /api/v1/filtering/datasets/{id}/preview`
+   ```json
+   {"filters": [{"type": "variant_top_k", "params": {"k": 10}}]}
+   ```
+   → Returns impact without saving
+3. **Apply Filter**: `POST /api/v1/filtering/datasets/{id}/apply`
+   ```json
+   {"filters": [...], "name": "Top 10 Variants", "save_result": true}
+   ```
+   → Creates new filtered dataset
+4. **List Results**: `GET /api/v1/filtering/datasets/{id}/results`
+5. **Templates**: `GET /api/v1/filtering/templates`
+
+### Filter Types
+`time_range`, `variant_top_k`, `variant_coverage`, `activity_include`, `activity_exclude`, `duration_range`, `case_size`
+
+### Common Errors
+- **404**: Dataset not found
 """
 
 import json
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.dependencies import get_db
+from src.api.dependencies import DBSession, ServiceContainer
 from src.features.process_mining.models import Dataset, ProcessCase, ProcessEvent
 from src.features.process_mining.schemas import (
     FilterConfig,
@@ -29,7 +57,6 @@ from src.features.process_mining.schemas import (
     FilterTemplateListResponse,
     FilterTemplateResponse,
 )
-from src.features.process_mining.filtering.service import filtering_service
 from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -46,7 +73,8 @@ router = APIRouter(prefix="/filtering", tags=["Filtering"])
 async def apply_filters(
     dataset_id: str,
     request: FilterRequest,
-    db: AsyncSession = Depends(get_db),
+    db: DBSession,
+    container: ServiceContainer,
 ) -> FilteredLogResponse:
     """
     Apply filters to an event log and create a new filtered log.
@@ -69,15 +97,15 @@ async def apply_filters(
         )
 
     # Convert to PM4Py log
-    pm4py_log = filtering_service.to_pm4py_log(source_log)
+    pm4py_log = container.filtering.to_pm4py_log(source_log)
     original_pm4py = pm4py_log  # Keep reference for statistics
 
     # Apply filter chain
     filters_config = [{"type": f.type, "params": f.params} for f in request.filters]
-    filtered_pm4py = filtering_service.apply_filter_chain(pm4py_log, filters_config)
+    filtered_pm4py = container.filtering.apply_filter_chain(pm4py_log, filters_config)
 
     # Compute statistics
-    stats = filtering_service.compute_filter_statistics(original_pm4py, filtered_pm4py)
+    stats = container.filtering.compute_filter_statistics(original_pm4py, filtered_pm4py)
 
     if not request.save_result:
         # Return preview-style response without saving
@@ -192,7 +220,8 @@ async def apply_filters(
 async def preview_filters(
     dataset_id: str,
     request: FilterPreviewRequest,
-    db: AsyncSession = Depends(get_db),
+    db: DBSession,
+    container: ServiceContainer,
 ) -> FilterPreviewResponse:
     """
     Preview the impact of filters without saving.
@@ -214,15 +243,15 @@ async def preview_filters(
         )
 
     # Convert to PM4Py log
-    pm4py_log = filtering_service.to_pm4py_log(source_log)
+    pm4py_log = container.filtering.to_pm4py_log(source_log)
     original_pm4py = pm4py_log
 
     # Apply filter chain
     filters_config = [{"type": f.type, "params": f.params} for f in request.filters]
-    filtered_pm4py = filtering_service.apply_filter_chain(pm4py_log, filters_config)
+    filtered_pm4py = container.filtering.apply_filter_chain(pm4py_log, filters_config)
 
     # Compute statistics
-    stats = filtering_service.compute_filter_statistics(original_pm4py, filtered_pm4py)
+    stats = container.filtering.compute_filter_statistics(original_pm4py, filtered_pm4py)
 
     logger.info(
         "filter_preview_completed",
@@ -246,7 +275,8 @@ async def preview_filters(
 @router.get("/datasets/{dataset_id}/options", response_model=FilterOptionsResponse)
 async def get_filter_options(
     dataset_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: DBSession,
+    container: ServiceContainer,
 ) -> FilterOptionsResponse:
     """
     Get available filter options based on log contents.
@@ -269,10 +299,10 @@ async def get_filter_options(
         )
 
     # Convert to PM4Py log
-    pm4py_log = filtering_service.to_pm4py_log(source_log)
+    pm4py_log = container.filtering.to_pm4py_log(source_log)
 
     # Get filter options
-    options = filtering_service.get_filter_options(pm4py_log)
+    options = container.filtering.get_filter_options(pm4py_log)
 
     return FilterOptionsResponse(**options)
 
@@ -285,7 +315,7 @@ async def get_filter_options(
 @router.get("/datasets/{dataset_id}/results", response_model=FilteredLogListResponse)
 async def list_filtered_logs(
     dataset_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: DBSession,
 ) -> FilteredLogListResponse:
     """
     List all filtered versions of an event log.
@@ -364,7 +394,7 @@ async def list_filtered_logs(
 async def delete_filtered_log(
     dataset_id: str,
     filtered_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: DBSession,
 ) -> dict[str, Any]:
     """
     Delete a filtered log.
@@ -402,13 +432,13 @@ async def delete_filtered_log(
 
 
 @router.get("/templates", response_model=FilterTemplateListResponse)
-async def get_filter_templates() -> FilterTemplateListResponse:
+async def get_filter_templates(container: ServiceContainer) -> FilterTemplateListResponse:
     """
     Get pre-built filter templates.
     """
     logger.info("getting_filter_templates")
 
-    templates_raw = filtering_service.get_filter_templates()
+    templates_raw = container.filtering.get_filter_templates()
     templates = [
         FilterTemplateResponse(
             id=t["id"],

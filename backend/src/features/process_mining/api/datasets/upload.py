@@ -6,7 +6,6 @@ Part of 4-Phase Upload Architecture: Upload → Validate → Map → Ingest
 
 import os
 import tempfile
-import time
 from datetime import datetime
 from uuid import uuid4
 
@@ -14,7 +13,7 @@ import aiofiles
 from fastapi import APIRouter, File, Form, Request, Response, UploadFile
 
 from src.api.dependencies import CurrentUser, DBSession
-from src.features.process_mining.models import Dataset, DatasetStatus
+from src.features.process_mining.models import Dataset, DatasetStatus, UploadedFile
 from src.features.process_mining.schemas import (
     DatasetResponse,
     PresignedUploadRequest,
@@ -66,9 +65,14 @@ def validate_file_extension(filename: str) -> None:
 
     ext = os.path.splitext(filename)[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
-        logger.warning("upload_rejected_extension", filename=filename, extension=ext)
+        logger.warning(
+            "upload_rejected_extension",
+            filename=filename,
+            extension=ext,
+            allowed=list(ALLOWED_EXTENSIONS),
+        )
         raise InvalidFileError(
-            f"Invalid file type '{ext}'. Allowed: {', '.join(ALLOWED_EXTENSIONS)}",
+            f"File type '{ext}' is not supported. Please upload a CSV or XES file.",
             filename=filename,
             expected_types=list(ALLOWED_EXTENSIONS),
         )
@@ -159,7 +163,11 @@ async def create_presigned_upload(
     db: DBSession,
     current_user: CurrentUser,
 ) -> PresignedUploadResponse:
-    """Generate presigned URL for direct client-to-S3 upload."""
+    """Generate presigned URL for direct client-to-S3 upload.
+    
+    Creates a dataset record and returns a presigned S3 URL for direct upload.
+    After uploading, call POST /datasets/{id}/uploaded to trigger validation.
+    """
     from src.platform.core.permissions import Permission
     from src.platform.infrastructure.object_storage import get_storage_client
     from src.platform.workspaces.authorization import require_project_permission
@@ -256,7 +264,6 @@ async def confirm_upload_complete(
     current_user: CurrentUser,
 ) -> dict:
     """Trigger validation after S3 upload complete."""
-    from sqlalchemy import select
 
     from src.platform.core.permissions import Permission
     from src.platform.workspaces.authorization import require_dataset_permission
@@ -330,7 +337,11 @@ async def upload_dataset(
     name: str | None = Form(None),
     project_id: str | None = Form(None, description="Project ID to assign dataset to"),
 ) -> DatasetResponse:
-    """Upload and store an event log file."""
+    """Upload and store an event log file.
+    
+    Validates, stores, and queues the file for processing.
+    Use presigned upload for files larger than 50MB.
+    """
     from src.platform.core.permissions import Permission
     from src.platform.infrastructure.object_storage import get_storage_client
     from src.platform.infrastructure.tasks import validate_uploaded_file_task
@@ -386,10 +397,11 @@ async def upload_dataset(
         storage_key = f"{dataset_id}/{uuid4()}{file_extension}"
 
         storage_client = get_storage_client()
-        storage_client.upload_file(
+        import io
+        storage_client.upload_fileobj(
             bucket_type="raw",
             key=storage_key,
-            file_content=content,
+            file_obj=io.BytesIO(content),
             content_type=file.content_type,
         )
 
@@ -408,6 +420,18 @@ async def upload_dataset(
         )
 
         db.add(dataset)
+
+        # Create UploadedFile record (required for ingestion)
+        uploaded_file_record = UploadedFile(
+            dataset_id=dataset_id,
+            filename=filename,
+            storage_path=storage_key,
+            size_bytes=total_size,
+            mime_type=file.content_type,
+            checksum=None
+        )
+        db.add(uploaded_file_record)
+
         await db.commit()
 
         # Queue validation job
@@ -434,6 +458,16 @@ async def upload_dataset(
             file_size_bytes=total_size,
         )
 
+    except InvalidFileError:
+        raise
+    except ValidationError:
+        raise
+    except Exception as e:
+        logger.exception("direct_upload_failed_exception", error=str(e))
+        raise ProcessingError(f"Upload failed: {str(e)}")
     finally:
         if temp_file_path and os.path.exists(temp_file_path):
-            os.unlink(temp_file_path)
+            try:
+                os.unlink(temp_file_path)
+            except Exception:
+                pass

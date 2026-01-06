@@ -1,6 +1,6 @@
 """Feature Models - Process Mining Domain.
 
-Re-exports all process mining models from the feature modules.
+All process mining models consolidated in one location.
 """
 
 # Enums
@@ -10,33 +10,32 @@ from src.features.process_mining.models.enums import (
     DatasetStatus,
 )
 
-# Core models - Dataset
+# Dataset models
 from src.features.process_mining.models.dataset import (
     Dataset,
     DatasetColumn,
     DatasetColumnMapping,
     DatasetMetadata,
-    UploadedFile,
 )
 
-# Events
-from src.features.process_mining.models.events import (
-    ProcessCase,
-    ProcessEvent,
-)
+# Uploaded file
+from src.features.process_mining.models.uploaded_file import UploadedFile
 
-# Process Models
-from src.features.process_mining.models.process_model import (
-    GraphCache,
-    ProcessModel,
-    ProcessModelMetrics,
-)
+# Event models
+from src.features.process_mining.models.events import ProcessCase, ProcessEvent
 
-# Analysis
+# Analysis models
 from src.features.process_mining.models.analysis import (
     Analysis,
     AnalyticsCache,
     ConformanceResult,
+)
+
+# Process model
+from src.features.process_mining.models.process_model import (
+    GraphCache,
+    ProcessModel,
+    ProcessModelMetrics,
 )
 
 # Predictions
@@ -44,12 +43,6 @@ from src.features.process_mining.models.prediction import (
     Prediction,
     PredictionModel,
     Recommendation,
-)
-
-# Workflows
-from src.features.process_mining.models.workflow import (
-    Workflow,
-    WorkflowRun,
 )
 
 # Organizational Mining
@@ -74,7 +67,6 @@ from src.features.process_mining.models.ocel2 import (
 from src.features.process_mining.models.lookup_tables import (
     Activity,
     Resource,
-    get_or_create_activity,
     get_or_create_activity,
     get_or_create_resource,
 )
@@ -116,9 +108,6 @@ __all__ = [
     "PredictionModel",
     "Prediction",
     "Recommendation",
-    # Models - Workflows
-    "Workflow",
-    "WorkflowRun",
     # OCEL 2.0
     "OCEL2Event",
     "OCEL2EventType",
@@ -137,4 +126,3 @@ __all__ = [
     "OCELObjectType",
     "OCPetriNet",
 ]
-

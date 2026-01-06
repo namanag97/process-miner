@@ -1027,6 +1027,4 @@ class FilteringService:
 
         return event_log_loader.load_as_pm4py_log(event_log.id)
 
-
-# Singleton instance
 filtering_service = FilteringService()

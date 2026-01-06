@@ -1,7 +1,35 @@
 """Admin Router.
 
-Superuser-only endpoints for system management.
-8 endpoints per API specification.
+Superuser-only endpoints for system administration.
+
+## Business Context
+Admin endpoints for platform operators:
+- User management (list, update, disable)
+- Error log viewing and resolution
+- System health and usage statistics
+
+## Authorization
+**Requires admin or owner role** - regular users get 403 Forbidden
+
+## Testing Instructions
+
+### Prerequisites
+1. Have a user with role="admin" or role="owner"
+2. Use that user's access token
+
+### Endpoints
+- **List Users**: `GET /api/v1/admin/users?search=test&page=1`
+- **Get User**: `GET /api/v1/admin/users/{user_id}`
+- **Update User**: `PUT /api/v1/admin/users/{user_id}` with `{"role": "admin"}`
+- **Disable User**: `POST /api/v1/admin/users/{user_id}/disable`
+- **List Errors**: `GET /api/v1/admin/errors`
+- **Get Error**: `GET /api/v1/admin/errors/{error_id}`
+- **Resolve Error**: `PUT /api/v1/admin/errors/{error_id}/resolve`
+- **System Stats**: `GET /api/v1/admin/stats`
+
+### Common Errors
+- **403**: User is not a superuser
+- **404**: User or Error not found
 """
 
 from datetime import datetime

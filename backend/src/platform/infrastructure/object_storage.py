@@ -972,27 +972,203 @@ class ObjectStorageClient:
 # Global Instance (Singleton Pattern)
 # =============================================================================
 
-_storage_client: ObjectStorageClient | None = None
+class LocalStorageClient:
+    """Local filesystem storage client for development/testing.
+    
+    Mimics S3 client interface but stores files locally.
+    Enabled when storage_type="local" in settings.
+    """
+
+    def __init__(self):
+        self.settings = settings
+        self.base_path = Path("./data/storage")
+        
+        # Bucket templates -> local directories
+        env_suffix = "dev" # Default for local
+        self.buckets = {
+            "raw": self.base_path / f"pm-raw-{env_suffix}",
+            "models": self.base_path / f"pm-models-{env_suffix}",
+            "cache": self.base_path / f"pm-cache-{env_suffix}",
+        }
+        
+    def ensure_buckets_exist(self) -> None:
+        """Create local directories for buckets."""
+        for path in self.buckets.values():
+            path.mkdir(parents=True, exist_ok=True)
+            logger.info("local_bucket_created", path=str(path))
+
+    def _get_bucket_path(self, bucket_type: str) -> Path:
+        if bucket_type not in self.buckets:
+            raise ValueError(f"Invalid bucket type: {bucket_type}")
+        return self.buckets[bucket_type]
+
+    def _get_object_path(self, bucket_type: str, key: str) -> Path:
+        return self._get_bucket_path(bucket_type) / key
+
+    def upload_fileobj(
+        self,
+        bucket_type: str,
+        key: str,
+        file_obj: io.BytesIO,
+        content_type: str | None = None,
+        metadata: dict[str, str] | None = None,
+    ) -> None:
+        dest_path = self._get_object_path(bucket_type, key)
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        with open(dest_path, "wb") as f:
+            f.write(file_obj.read())
+            
+        logger.info("local_file_uploaded", path=str(dest_path))
+
+    def upload_file(
+        self,
+        bucket_type: str,
+        key: str,
+        file_path: Path,
+        content_type: str | None = None,
+        metadata: dict[str, str] | None = None,
+    ) -> None:
+        dest_path = self._get_object_path(bucket_type, key)
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        import shutil
+        shutil.copy2(file_path, dest_path)
+        logger.info("local_file_copied", src=str(file_path), dest=str(dest_path))
+
+    def download_fileobj(self, bucket_type: str, key: str) -> io.BytesIO:
+        src_path = self._get_object_path(bucket_type, key)
+        if not src_path.exists():
+            raise ObjectNotFoundError(f"Object not found: {key}", bucket=bucket_type, key=key)
+            
+        with open(src_path, "rb") as f:
+            return io.BytesIO(f.read())
+
+    def download_file(self, bucket_type: str, key: str, dest_path: Path) -> None:
+        src_path = self._get_object_path(bucket_type, key)
+        if not src_path.exists():
+            raise ObjectNotFoundError(f"Object not found: {key}", bucket=bucket_type, key=key)
+            
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        import shutil
+        shutil.copy2(src_path, dest_path)
+
+    def file_exists(self, bucket_type: str, key: str) -> bool:
+        return self._get_object_path(bucket_type, key).exists()
+
+    def get_file_size(self, bucket_type: str, key: str) -> int:
+        path = self._get_object_path(bucket_type, key)
+        if not path.exists():
+            raise ObjectNotFoundError(f"Object not found: {key}", bucket=bucket_type, key=key)
+        return path.stat().st_size
+
+    def stream_file(
+        self,
+        bucket_type: str, 
+        key: str,
+        chunk_size: int = 64 * 1024,
+    ) -> Iterator[bytes]:
+        path = self._get_object_path(bucket_type, key)
+        if not path.exists():
+            raise ObjectNotFoundError(f"Object not found: {key}", bucket=bucket_type, key=key)
+            
+        with open(path, "rb") as f:
+            while chunk := f.read(chunk_size):
+                yield chunk
+
+    def delete_file(self, bucket_type: str, key: str) -> None:
+        path = self._get_object_path(bucket_type, key)
+        if path.exists():
+            path.unlink()
+            logger.info("local_file_deleted", path=str(path))
+
+    def get_presigned_upload_url(
+        self,
+        bucket_type: str,
+        key: str,
+        expires_in: int | None = None,
+        content_type: str = "application/octet-stream",
+    ) -> str:
+        # For local dev, we might need a workaround if frontend relies on this.
+        # Returning a fake URL that won't work for real PUTs but satisfies the string return type.
+        return f"http://localhost/local-storage/{bucket_type}/{key}"
+
+    def get_presigned_download_url(
+        self,
+        bucket_type: str,
+        key: str,
+        expires_in: int | None = None,
+        filename: str | None = None,
+    ) -> str:
+        return f"http://localhost/local-storage/{bucket_type}/{key}"
+
+    def configure_lifecycle_policy(self, *args, **kwargs) -> None:
+        pass # No-op for local
+
+    def upload_with_compression(
+        self,
+        bucket_type: str,
+        key: str,
+        data: bytes,
+        content_type: str = "application/gzip",
+        metadata: dict[str, str] | None = None,
+    ) -> None:
+        # Reuse standard upload for now, or implement compression if needed
+        import gzip
+        compressed = io.BytesIO()
+        with gzip.GzipFile(fileobj=compressed, mode="wb", compresslevel=9) as gz:
+            gz.write(data)
+        compressed.seek(0)
+        self.upload_fileobj(bucket_type, key, compressed, content_type, metadata)
+        
+    def get_bucket_storage_metrics(self, bucket_type: str) -> dict[str, int]:
+        path = self._get_bucket_path(bucket_type)
+        total_bytes = 0
+        object_count = 0
+        if path.exists():
+            for p in path.rglob("*"):
+                if p.is_file():
+                    object_count += 1
+                    total_bytes += p.stat().st_size
+        return {"object_count": object_count, "total_bytes": total_bytes}
+
+    def get_workspace_storage_metrics(self, workspace_id: str) -> dict[str, int]:
+        total_bytes = 0
+        object_count = 0
+        for bucket_type in self.buckets:
+            path = self._get_bucket_path(bucket_type)
+            if path.exists():
+                # Naive implementation assuming key starts with workspace_id or is inside a folder named workspace_id
+                # S3 keys are usually "{workspace_id}/..."
+                # Local paths are "bucket/parent/file"
+                for p in path.rglob("*"):
+                    if p.is_file() and str(p).find(workspace_id) != -1:
+                         object_count += 1
+                         total_bytes += p.stat().st_size
+        return {"object_count": object_count, "total_bytes": total_bytes}
 
 
-def get_storage_client() -> ObjectStorageClient:
-    """Get global ObjectStorageClient instance (singleton).
+# =============================================================================
+# Global Instance (Singleton Pattern)
+# =============================================================================
 
-    Creates client on first call, reuses on subsequent calls.
-    Thread-safe for FastAPI async workers.
+_storage_client: ObjectStorageClient | LocalStorageClient | None = None
 
-    Returns:
-        Global ObjectStorageClient instance
 
-    Example:
-        ```python
-        from src.platform.infrastructure.object_storage import get_storage_client
+def get_storage_client() -> ObjectStorageClient | LocalStorageClient:
+    """Get global storage client instance (singleton).
 
-        storage = get_storage_client()
-        url = storage.get_presigned_upload_url("raw", "dataset.csv")
-        ```
+    Returns ObjectStorageClient (S3) or LocalStorageClient based on configuration.
     """
     global _storage_client
     if _storage_client is None:
-        _storage_client = ObjectStorageClient()
+        logger.info("initializing_storage_client", storage_type=settings.storage_type)
+        if settings.storage_type == "local":
+            logger.info("using_local_storage_client")
+            _storage_client = LocalStorageClient()
+            _storage_client.ensure_buckets_exist()
+        else:
+            logger.info("using_s3_storage_client")
+            _storage_client = ObjectStorageClient()
+            _storage_client.ensure_buckets_exist()
     return _storage_client

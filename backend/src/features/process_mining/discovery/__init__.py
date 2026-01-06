@@ -20,9 +20,8 @@ from .algorithms import (
     get_available_miners,
 )
 from .analysis import ProcessAnalyzer, process_analyzer
-from .router import router
-from .serialization import ModelSerializer, model_serializer
 from .service import MiningService, mining_service
+from .router import router
 
 __all__ = [
     # Router

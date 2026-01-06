@@ -167,7 +167,7 @@ def decode_token(token: str) -> TokenData:
         if not user_id:
             raise AuthenticationError(
                 message="Invalid token: missing subject",
-                code=ErrorCode.VALIDATION_FAILED,
+                error_code=ErrorCode.VALIDATION_FAILED,
             )
 
         return TokenData(
@@ -183,7 +183,7 @@ def decode_token(token: str) -> TokenData:
         logger.warning("jwt_decode_failed", error=str(e))
         raise AuthenticationError(
             message="Invalid or expired token",
-            code=ErrorCode.VALIDATION_FAILED,
+            error_code=ErrorCode.VALIDATION_FAILED,
         ) from e
 
 
@@ -197,7 +197,7 @@ def validate_refresh_token(token: str) -> TokenData:
     if token_data.type != "refresh":
         raise AuthenticationError(
             message="Invalid token type: expected refresh token",
-            code=ErrorCode.VALIDATION_FAILED,
+            error_code=ErrorCode.VALIDATION_FAILED,
         )
 
     return token_data

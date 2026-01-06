@@ -3,7 +3,6 @@
 Re-exports schemas from submodules for convenient access.
 """
 
-from src.shared.schemas import ErrorResponse
 from src.features.process_mining.schemas.analysis import (
     AlignmentDiagnosticsResponse,
     AlignmentMove,
@@ -116,3 +115,38 @@ from src.features.process_mining.schemas.datasets import (
     StatisticsResponse,
     VariantResponse,
 )
+from src.shared.schemas import ErrorResponse
+
+__all__ = [
+    "ActivityDetailResponse", 
+    "CaseListResponse",
+    "CaseResponse",
+    "ColumnDetectionResponse",
+    "ColumnMapping", 
+    "ColumnTypeInfo",
+    "DataPreviewResponse",
+    "DatasetDetailResponse",
+    "DatasetListResponse",
+    "DatasetResponse", 
+    "DatasetUploadRequest",
+    "EventResponse",
+    "FilteredLogListResponse",
+    "FilteredLogResponse",
+    "FilterOptionsResponse",
+    "FilterPreviewRequest", 
+    "FilterPreviewResponse",
+    "FilterRequest",
+    "FilterStatistics",
+    "FilterTemplateListResponse",
+    "FilterTemplateResponse",
+    "IngestRequest",
+    "MappingUpdateRequest",
+    "ParseConfigRequest",
+    "PresignedUploadRequest",
+    "PresignedUploadResponse", 
+    "SheetInfo",
+    "SheetsResponse",
+    "StatisticsResponse",
+    "VariantResponse",
+    "ErrorResponse",
+]

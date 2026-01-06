@@ -13,7 +13,6 @@ from starlette.concurrency import run_in_threadpool
 
 from src.api.dependencies import CurrentUser, DBSession
 from src.features.process_mining.models import (
-    Dataset,
     DatasetColumn,
     DatasetColumnMapping,
     DatasetStatus,

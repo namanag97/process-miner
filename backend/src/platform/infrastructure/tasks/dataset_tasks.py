@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from .base import AsyncSessionLocal, AsyncTask, celery_app
+from src.platform.models import Project
 
 logger = structlog.get_logger(__name__)
 
@@ -293,6 +294,10 @@ async def validate_uploaded_file_task(
 
         async with AsyncSessionLocal() as db:
             from src.features.process_mining.models import Dataset, DatasetStatus
+            from src.features.process_mining.services.ingestion.unified import (
+                unified_ingestion_service,
+            )
+            from src.platform.infrastructure.object_storage import get_storage_client
             from src.features.process_mining.services.ingestion.unified import (
                 unified_ingestion_service,
             )
@@ -619,7 +624,7 @@ async def ingest_dataset_task(
                 duckdb_ingestion_service,
             )
             from src.platform.models import AsyncJob
-            from src.platform.storage.storage import storage_service
+            from src.platform.infrastructure.object_storage import get_storage_client
 
             # Load dataset and file
             result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
@@ -660,9 +665,10 @@ async def ingest_dataset_task(
                 meta={"status": "Reading file from storage", "progress": 10},
             )
 
-            file_content = await storage_service.backend.retrieve(
-                f"{dataset_id}/{uploaded_file.filename}"
-            )
+            # Retrieve file using the object storage client (matches upload/validation)
+            storage_client = get_storage_client()
+            file_obj = storage_client.download_fileobj("raw", uploaded_file.storage_path)
+            file_content = file_obj.read()
 
             self.update_state(
                 state="PROGRESS",

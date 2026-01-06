@@ -11,7 +11,7 @@ Benefits:
 """
 
 from sqlalchemy import ForeignKey, Index, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from src.shared.database import Base
 
@@ -74,8 +74,6 @@ async def get_or_create_activity(session, dataset_id: str, name: str) -> Activit
     Uses INSERT ... ON CONFLICT DO NOTHING pattern for concurrent safety.
     """
     from sqlalchemy import select
-    from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-    from sqlalchemy.dialects.postgresql import insert as pg_insert
     
     # Try to get existing
     result = await session.execute(

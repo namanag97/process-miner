@@ -1,15 +1,9 @@
-"""Workflows Module - Automated workflow execution.
+"""Workflows Package.
 
-Components:
-- router.py: API router for workflow endpoints
-- service.py: WorkflowService for workflow execution
+Legacy workflow orchestration - superceded by DAGs.
+This module provides backward-compatible API endpoints.
 """
 
-from .router import router
-from .service import WorkflowService, workflow_service
+from src.features.process_mining.workflows.router import router
 
-__all__ = [
-    "router",
-    "WorkflowService",
-    "workflow_service",
-]
+__all__ = ["router"]

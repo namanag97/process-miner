@@ -1,14 +1,33 @@
 """Health check endpoints for Kubernetes and monitoring.
 
-Provides structured health checks following best practices:
-- /health/live: Liveness probe (is the process alive?)
-- /health/ready: Readiness probe (can we serve traffic?)
-- /health/startup: Startup probe (is initialization complete?)
-- /health/detailed: Full component status (for dashboards)
+## Business Context
+Health endpoints enable container orchestration and monitoring:
+- Kubernetes uses probes to manage pod lifecycle
+- Monitoring dashboards track component health
+- No authentication required (public endpoints)
 
-Usage:
-    from src.api.routers.health import router as health_router
-    app.include_router(health_router)
+## Endpoints (No Auth Required)
+
+| Endpoint | Purpose | When to Use |
+|----------|---------|-------------|
+| `GET /health` | Basic check | Quick alive check |
+| `GET /health/live` | Liveness probe | K8s: restart unhealthy pods |
+| `GET /health/ready` | Readiness probe | K8s: route traffic only to ready pods |
+| `GET /health/startup` | Startup probe | K8s: wait for slow initialization |
+| `GET /health/detailed` | Full component status | Dashboards, debugging |
+
+## Testing Instructions
+```bash
+# Quick health check
+curl http://localhost:8001/health
+
+# Detailed component status
+curl http://localhost:8001/health/detailed
+```
+
+## Response Codes
+- **200**: Healthy
+- **503**: Unhealthy (for /ready, /startup)
 """
 
 import asyncio

@@ -1,6 +1,33 @@
 """Visualization Router - Graph Data for Frontend.
 
 Endpoints returning structured data for React visualization libraries.
+
+## Business Context
+Visualization endpoints provide graph data for the Process Explorer UI:
+- **DFG**: Directly-Follows Graph showing activity flow and frequencies
+- **Petri Net**: Formal process model structure (places, transitions, arcs)
+- **SVG Export**: Rendered images for download/embedding
+- **Explorer Data**: All-in-one endpoint for the Process Explorer component
+
+## Testing Instructions
+
+### Prerequisites
+1. Have a dataset in READY status (completed ingestion)
+2. Optionally have a discovered process model
+
+### Endpoints
+- **DFG Data**: `GET /api/v1/visualization/{dataset_id}/dfg`
+- **DFG with Timing**: `GET /api/v1/visualization/{dataset_id}/dfg?include_performance=true`
+- **DFG SVG**: `GET /api/v1/visualization/{dataset_id}/dfg/svg`
+- **Petri Net**: `GET /api/v1/visualization/models/{model_id}/petri`
+- **Model SVG**: `GET /api/v1/visualization/models/{model_id}/svg`
+- **Footprints**: `GET /api/v1/visualization/{dataset_id}/footprints`
+- **Explorer Data**: `GET /api/v1/visualization/{dataset_id}/explorer-data`
+
+### Common Errors
+- **404**: Dataset or Model not found
+- **409**: Dataset not ready (complete ingestion first)
+- **400**: Model has no serialized data (rediscover)
 """
 
 import time
@@ -8,7 +35,7 @@ import time
 from fastapi import APIRouter, HTTPException, Query, Response
 from sqlalchemy import select
 
-from src.api.dependencies import DBSession
+from src.api.dependencies import DBSession, ServiceContainer
 from src.features.process_mining.enums import ModelFormat
 from src.features.process_mining.models import Dataset, DatasetStatus, ProcessModel
 from src.features.process_mining.schemas import (
@@ -24,7 +51,6 @@ from src.features.process_mining.schemas import (
     StatisticsResponse,
     VariantResponse,
 )
-from src.features.process_mining.services.mining import mining_service
 from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -39,6 +65,7 @@ router = APIRouter(prefix="/visualization", tags=["Visualization"])
 @router.get("/{dataset_id}/dfg", response_model=DFGResponse)
 async def get_dfg(
     db: DBSession,
+    container: ServiceContainer,
     dataset_id: str,
     include_performance: bool = Query(
         False, description="Include performance metrics (avg/min/max duration) for edges"
@@ -76,11 +103,11 @@ async def get_dfg(
             detail=f"Dataset not ready (status: {event_log.status}). Complete ingestion first.",
         )
 
-    # Get DFG data (mining_service uses efficient DuckDB path internally)
+    # Get DFG data (discovery service uses efficient DuckDB path internally)
     if include_performance:
-        dfg_data = mining_service.get_dfg_data_with_performance(event_log)
+        dfg_data = container.discovery.get_dfg_data_with_performance(event_log)
     else:
-        dfg_data = mining_service.get_dfg_data(event_log)
+        dfg_data = container.discovery.get_dfg_data(event_log)
 
     duration_ms = (time.perf_counter() - start_time) * 1000
 
@@ -110,6 +137,7 @@ async def get_dfg(
 @router.get("/models/{model_id}/petri", response_model=PetriNetResponse)
 async def get_petri_net(
     db: DBSession,
+    container: ServiceContainer,
     model_id: str,
 ):
     """
@@ -129,7 +157,7 @@ async def get_petri_net(
         raise HTTPException(status_code=400, detail="Model has no data")
 
     # Deserialize model
-    model_data = mining_service.deserialize_model(model.serialized_model)
+    model_data = container.discovery.deserialize_model(model.serialized_model)
 
     # Convert to Petri net if needed
     model_format = ModelFormat(model.model_format)
@@ -137,7 +165,7 @@ async def get_petri_net(
     if model_format == ModelFormat.PETRI_NET:
         net, im, fm = model_data
     elif model_format == ModelFormat.PROCESS_TREE:
-        net, im, fm = mining_service.tree_to_petri_net(model_data)
+        net, im, fm = container.discovery.tree_to_petri_net(model_data)
     else:
         raise HTTPException(
             status_code=400,
@@ -193,6 +221,7 @@ async def get_petri_net(
 @router.get("/models/{model_id}/svg")
 async def get_model_svg(
     db: DBSession,
+    container: ServiceContainer,
     model_id: str,
 ):
     """
@@ -211,11 +240,11 @@ async def get_model_svg(
         raise HTTPException(status_code=400, detail="Model has no data")
 
     # Deserialize and visualize
-    model_data = mining_service.deserialize_model(model.serialized_model)
+    model_data = container.discovery.deserialize_model(model.serialized_model)
     model_format = ModelFormat(model.model_format)
 
     try:
-        svg_bytes = mining_service.visualize_model(model_data, model_format)
+        svg_bytes = container.discovery.visualize_model(model_data, model_format)
     except Exception as e:
         logger.error(
             "model_svg_visualization_failed",
@@ -239,6 +268,7 @@ async def get_model_svg(
 @router.get("/{dataset_id}/dfg/svg")
 async def get_dfg_svg(
     db: DBSession,
+    container: ServiceContainer,
     dataset_id: str,
 ):
     """
@@ -257,9 +287,9 @@ async def get_dfg_svg(
 
     # Discover DFG using efficient DuckDB path
     try:
-        # BUG-060 FIX: Use mining_service.get_dfg_data which uses DuckDB
-        dfg_data = mining_service.get_dfg_data(event_log)
-        svg_bytes = mining_service.visualize_dfg(
+        # BUG-060 FIX: Use discovery service get_dfg_data which uses DuckDB
+        dfg_data = container.discovery.get_dfg_data(event_log)
+        svg_bytes = container.discovery.visualize_dfg(
             dfg_data["dfg"], dfg_data["start_activities"], dfg_data["end_activities"]
         )
     except Exception as e:
@@ -289,6 +319,7 @@ async def get_dfg_svg(
 @router.get("/{dataset_id}/footprints")
 async def get_footprints(
     db: DBSession,
+    container: ServiceContainer,
     dataset_id: str,
 ):
     """
@@ -304,7 +335,7 @@ async def get_footprints(
     if not event_log:
         raise HTTPException(status_code=404, detail=f"Event log not found: {dataset_id}")
 
-    footprints = mining_service.get_footprints(event_log)
+    footprints = container.discovery.get_footprints(event_log)
 
     if "error" in footprints:
         logger.error(
@@ -328,6 +359,7 @@ async def get_footprints(
 @router.get("/{dataset_id}/explorer-data", response_model=ProcessExplorerDataResponse)
 async def get_explorer_data(
     db: DBSession,
+    container: ServiceContainer,
     dataset_id: str,
     include_performance: bool = Query(True, description="Include performance metrics in DFG edges"),
     include_complexity: bool = Query(True, description="Include complexity metrics in variants"),
@@ -377,9 +409,9 @@ async def get_explorer_data(
 
     # Get DFG data
     if include_performance:
-        dfg_data = mining_service.get_dfg_data_with_performance(event_log)
+        dfg_data = container.discovery.get_dfg_data_with_performance(event_log)
     else:
-        dfg_data = mining_service.get_dfg_data(event_log)
+        dfg_data = container.discovery.get_dfg_data(event_log)
 
     dfg_response = DFGResponse(
         nodes=[DFGNode(**n) for n in dfg_data["nodes"]],
@@ -390,7 +422,7 @@ async def get_explorer_data(
     )
 
     # BUG-060 FIX: Use vectorized variant computation (DuckDB) instead of ORM loop
-    variants_data = mining_service.get_variants_fast(dataset_id, top_n=top_variants)
+    variants_data = container.discovery.get_variants_fast(dataset_id, top_n=top_variants)
 
     variants = []
     for v in variants_data.get("top_variants", []):
@@ -402,7 +434,7 @@ async def get_explorer_data(
         unique_activity_count: int | None = None
 
         if include_complexity:
-            complexity = mining_service.calculate_variant_complexity(variant_key)
+            complexity = container.discovery.calculate_variant_complexity(variant_key)
             complexity_score = complexity.get("complexity_score")
             rework_count = complexity.get("rework_count")
             unique_activity_count = complexity.get("unique_activity_count")
@@ -424,15 +456,15 @@ async def get_explorer_data(
         )
 
     # Get activities
-    activities_data = mining_service.get_activity_statistics(event_log)
+    activities_data = container.discovery.get_activity_statistics(event_log)
     activities = [ActivityDetailResponse(**a) for a in activities_data]
 
     # BUG-060 FIX: Use cached statistics if available, otherwise use DuckDB path
-    start_activities = mining_service.get_start_activities(event_log)
-    end_activities = mining_service.get_end_activities(event_log)
-    case_stats = mining_service.get_case_statistics(event_log)
-    # mining_service.get_variants uses DuckDB
-    variants_stats = mining_service.get_variants(event_log)
+    start_activities = container.discovery.get_start_activities(event_log)
+    end_activities = container.discovery.get_end_activities(event_log)
+    case_stats = container.discovery.get_case_statistics(event_log)
+    # discovery service get_variants uses DuckDB
+    variants_stats = container.discovery.get_variants(event_log)
 
     date_range = None
     if case_stats.get("start_time"):

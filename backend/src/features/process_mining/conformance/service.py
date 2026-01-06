@@ -729,5 +729,5 @@ class ConformanceService:
         raise ValueError(f"Cannot convert {model.model_format} to Petri net")
 
 
-# Singleton instance
+# Singleton instance for backward compatibility
 conformance_service = ConformanceService()

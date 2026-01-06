@@ -1,6 +1,40 @@
 """CRUD Router - List, Get, Delete dataset endpoints.
 
-Basic CRUD operations for datasets with comprehensive logging.
+Dataset lifecycle management for process mining event logs.
+
+## Business Context
+Datasets (event logs) are the foundation of process mining:
+- Upload CSV/XES files containing process execution data
+- Map columns to case_id, activity, timestamp, resource
+- Ingest to create queryable event/case tables
+- Analyze with process discovery, conformance checking, analytics
+
+## Dataset Status Flow
+```
+PENDING → UPLOADED → VALIDATING → VALIDATED → MAPPED → INGESTING → READY
+                                                      ↘ ERROR
+```
+
+## Testing Instructions
+
+### Prerequisites
+1. Create a project first: `POST /api/v1/projects?workspace_id={workspace_id}`
+2. Have a sample CSV file with columns: case_id, activity, timestamp
+
+### Test Flow
+1. **Upload File**: `POST /api/v1/datasets/` (multipart form with `file` + `project_id`)
+2. **Poll Status**: `GET /api/v1/datasets/{dataset_id}` until status != PENDING
+3. **Get Columns**: `GET /api/v1/datasets/{dataset_id}/columns` → See detected columns
+4. **Submit Mapping**: `POST /api/v1/datasets/{dataset_id}/mapping` with column mappings
+5. **Trigger Ingestion**: `POST /api/v1/datasets/{dataset_id}/ingest`
+6. **Poll Until READY**: `GET /api/v1/datasets/{dataset_id}` until status == READY
+7. **Query Data**: `GET /api/v1/datasets/{dataset_id}/events`, `/cases`, `/variants`
+
+### Common Errors
+- **400**: Dataset not in correct state (check current status)
+- **404**: Dataset not found (verify dataset_id UUID)
+- **413**: File too large (max 100MB for direct upload)
+- **422**: Invalid file type (only .csv and .xes supported)
 """
 
 import json
@@ -10,8 +44,8 @@ from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 
 from src.api.dependencies import CurrentUser, DBSession
-from src.features.process_mining.models import Dataset, DatasetMetadata, DatasetStatus
-from src.features.process_mining.schemas import (
+from src.features.process_mining.models import Dataset
+from src.features.process_mining.schemas.datasets import (
     DatasetDetailResponse,
     DatasetListResponse,
     DatasetResponse,

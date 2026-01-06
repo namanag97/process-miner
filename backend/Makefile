@@ -77,3 +77,37 @@ stop:
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+
+# ============================================================================
+# Cleanup Targets (Operational Stability)
+# ============================================================================
+
+.PHONY: clean-logs clean-storage clean-cache clean-dev reset-dev
+
+clean-logs:
+	@echo "🧹 Cleaning log files..."
+	rm -f celery.log celery_debug*.log server*.log
+	rm -f data/logs/*.log 2>/dev/null || true
+	rm -f *.log
+	@echo "✅ Logs cleaned"
+
+clean-storage:
+	@echo "🧹 Cleaning temp storage..."
+	rm -rf data/storage/pm-raw-dev/* 2>/dev/null || true
+	rm -rf data/exports/* 2>/dev/null || true
+	rm -rf data/uploads/* 2>/dev/null || true
+	@echo "✅ Storage cleaned"
+
+clean-cache: clean
+	@echo "🧹 Cleaning Python cache..."
+	find . -type f -name "*.pyc" -delete 2>/dev/null || true
+	@echo "✅ Cache cleaned"
+
+clean-dev: clean-logs clean-storage clean-cache
+	@echo "🧹 Full dev cleanup complete"
+
+reset-dev: clean-dev
+	@echo "🔄 Resetting database..."
+	rm -f process_mining.db data/app.db 2>/dev/null || true
+	$(PYTHON) -m alembic upgrade head
+	@echo "✅ Dev environment reset"
