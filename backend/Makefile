@@ -56,7 +56,7 @@ check: lint format-check typecheck security
 	@echo "✅ All checks passed"
 
 run:
-	$(PYTHON) -m uvicorn src.api.main:app --reload --port $(PORT)
+	$(PYTHON) -m uvicorn src.api.main:app --reload --reload-dir src --port $(PORT)
 
 dev:
 	@echo "🔄 Starting dev server on port $(PORT)..."
@@ -66,7 +66,7 @@ dev:
 	@sleep 1
 	@# Start server
 	@echo "🚀 Launching uvicorn..."
-	@$(PYTHON) -m uvicorn src.api.main:app --reload --port $(PORT)
+	@$(PYTHON) -m uvicorn src.api.main:app --reload --reload-dir src --port $(PORT)
 
 restart: dev
 

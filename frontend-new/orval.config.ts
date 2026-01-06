@@ -17,9 +17,8 @@ export default defineConfig({
     api: {
         input: '../backend/docs/openapi.json',
         output: {
-            mode: 'tags-split',
-            target: './libs/api-hooks/src/generated',
-            schemas: './libs/api-hooks/src/generated/models',
+            mode: 'single',
+            target: './libs/api-hooks/src/generated/api.ts',
             client: 'react-query',
             clean: true,
             prettier: true,
@@ -31,9 +30,8 @@ export default defineConfig({
                 query: {
                     useQuery: true,
                     useMutation: true,
-                    useSuspenseQuery: true,
-                    useInfinite: true,
-                    useInfiniteQueryParam: 'page',
+                    useSuspenseQuery: false,
+                    useInfinite: false,
                 },
             },
         },

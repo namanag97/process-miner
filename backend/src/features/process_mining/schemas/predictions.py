@@ -35,25 +35,39 @@ class PredictorResponse(BaseModel):
 
     id: str
     dataset_id: str = ""
+    name: str = Field("", description="Human-readable model name")
     target_type: str
     algorithm: str
+    status: str = Field("ready", description="training, ready, deprecated, failed")
+    storage_path: str | None = Field(None, description="Path to serialized model file")
     metrics: dict[str, Any] = {}
+    training_config: dict[str, Any] | None = Field(None, description="Hyperparameters and feature settings")
+    workflow_id: str | None = Field(None, description="Temporal workflow that trained this model")
     trained_at: datetime | None = None
+    training_duration_seconds: int | None = None
+    created_at: datetime | None = None
 
     @model_validator(mode="before")
     @classmethod
     def parse_json_fields(cls, data: Any) -> Any:
-        """Auto-parse metrics_json."""
+        """Auto-parse metrics_json and training_config_json."""
         if hasattr(data, "__dict__"):
             data = {
                 k: getattr(data, k)
                 for k in [
                     "id",
                     "dataset_id",
+                    "name",
                     "target_type",
                     "algorithm",
+                    "status",
+                    "storage_path",
                     "metrics_json",
+                    "training_config_json",
+                    "workflow_id",
                     "trained_at",
+                    "training_duration_seconds",
+                    "created_at",
                 ]
                 if hasattr(data, k)
             }
@@ -65,6 +79,11 @@ class PredictorResponse(BaseModel):
                     data["metrics"] = {}
             elif "metrics" not in data:
                 data["metrics"] = {}
+            if data.get("training_config_json"):
+                try:
+                    data["training_config"] = json.loads(data["training_config_json"])
+                except (json.JSONDecodeError, TypeError):
+                    data["training_config"] = None
         return data
 
     model_config = ConfigDict(from_attributes=True)

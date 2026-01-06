@@ -11,6 +11,8 @@ export { FilterPanel } from './FilterPanel';
 export { AnalysisModeSelector } from './AnalysisModeSelector';
 export { CaseCoverageGauge } from './CaseCoverageGauge';
 export { ActivitiesPanel } from './ActivitiesPanel';
+export { EdgeFrequencySlider, useEdgeFrequencyFilter } from './EdgeFrequencySlider';
+export { ExplorerSkeleton } from './ExplorerSkeleton';
 
 // Re-export component props types
 export type { ProcessKPIBarProps, KPITrend } from './ProcessKPIBar';

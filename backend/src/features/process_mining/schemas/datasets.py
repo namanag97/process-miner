@@ -289,6 +289,68 @@ class StatisticsResponse(BaseModel):
     date_range: dict[str, datetime] | None
 
 
+class DatasetStatisticsResponse(BaseModel):
+    """Computed statistics from dataset_statistics table.
+    
+    These are pre-computed and cached for performance.
+    """
+    
+    dataset_id: str
+    # Volume metrics
+    total_events: int
+    total_cases: int
+    total_activities: int
+    total_variants: int
+    total_resources: int | None = None
+    # Time boundaries
+    first_event_at: datetime | None = None
+    last_event_at: datetime | None = None
+    log_duration_seconds: int | None = Field(None, description="Total time span of the log")
+    # Case duration statistics (in seconds)
+    avg_case_duration: float | None = None
+    median_case_duration: float | None = None
+    min_case_duration: float | None = None
+    max_case_duration: float | None = None
+    stddev_case_duration: float | None = None
+    # Case length statistics (number of events)
+    avg_case_length: float | None = None
+    min_case_length: int | None = None
+    max_case_length: int | None = None
+    # Variant analysis (for spaghetti detection)
+    variant_coverage_80: int | None = Field(None, description="Number of variants covering 80% of cases")
+    unique_variant_ratio: float | None = Field(None, description="variants/cases - high value indicates spaghetti")
+    # Activity distribution
+    activities: list[dict] | None = Field(None, description="Activity frequency list from activities_json")
+    # Computation metadata
+    computed_at: datetime
+    computation_time_ms: int | None = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProcessVariantDetailResponse(BaseModel):
+    """Enhanced process variant with all computed fields.
+    
+    Used when fetching variants from process_variants table.
+    """
+    
+    id: str
+    dataset_id: str
+    variant_key: str = Field(..., description="Hash of the activity sequence")
+    activity_sequence: list[str] = Field(..., description="Ordered list of activity names")
+    activity_trace: str = Field(..., description="Human-readable: 'A → B → C'")
+    case_count: int
+    frequency_percent: float
+    avg_duration_seconds: float | None = None
+    # Complexity metrics
+    length: int = Field(..., description="Number of activities in variant")
+    has_loops: bool = Field(False, description="True if any activity repeats")
+    unique_activity_count: int | None = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+
 # =============================================================================
 # File Parsing & Validation
 # =============================================================================

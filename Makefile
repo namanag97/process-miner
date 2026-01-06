@@ -184,31 +184,51 @@ dev-observability:
 # =============================================================================
 
 frontend-install:
-	cd frontend && npm install
+	cd frontend-new && npm install
 
 frontend-dev:
-	cd frontend && npx nx dev process-mining
+	cd frontend-new && npm start
 
 frontend-build:
-	cd frontend && npx nx build process-mining
+	cd frontend-new && npm run build
 
 frontend-lint:
 	@echo "🔍 Linting frontend (ESLint)..."
-	cd frontend && npx nx lint process-mining
+	cd frontend-new && npm run lint
 
 frontend-typecheck:
 	@echo "🔍 Type checking frontend (tsc)..."
-	cd frontend && npx nx typecheck process-mining
+	cd frontend-new && npx nx typecheck
 
 frontend-test:
-	@echo "🧪 Testing frontend (vitest)..."
-	cd frontend && npx nx test ui
-	cd frontend && npx nx test process-graph
-	cd frontend && npx nx test api
+	@echo "🧪 Testing frontend (Jest)..."
+	cd frontend-new && npm test
 
-frontend-e2e:
-	@echo "🧪 E2E testing frontend (Playwright)..."
-	cd frontend && npx nx e2e process-mining-e2e
+# =============================================================================
+# E2E & User Journey Tests
+# =============================================================================
+
+e2e: e2e-backend
+	@echo "✅ E2E tests complete"
+
+e2e-backend:
+	@echo "🧪 Running backend E2E user journey tests..."
+	./scripts/test_user_journeys.sh
+
+# Quick test for fast feedback during development
+backend-test-quick:
+	@echo "🧪 Running quick backend tests (health only)..."
+	cd backend && .venv/bin/python -m pytest tests/api/test_health.py -v
+
+# Run unit tests only (fast)
+backend-test-unit:
+	@echo "🧪 Running backend unit tests..."
+	cd backend && .venv/bin/python -m pytest tests/ -v -m unit
+
+# Run integration tests
+backend-test-integration:
+	@echo "🧪 Running backend integration tests..."
+	cd backend && .venv/bin/python -m pytest tests/ -v -m integration
 
 # =============================================================================
 # Quick Dev Shortcuts (AI-friendly)

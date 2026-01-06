@@ -11,6 +11,7 @@ from typing import Any
 
 import pm4py
 
+from src.platform.core.exceptions import PM4PyError
 from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -42,7 +43,11 @@ class LLMService:
             return pm4py.llm.abstract_dfg(log)
         except Exception as e:
             logger.error("abstract_dfg_failed", error=str(e))
-            return f"Error abstracting DFG: {e}"
+            raise PM4PyError(
+                message="Failed to abstract DFG for LLM",
+                operation="abstract_dfg",
+                original_error=str(e),
+            ) from e
 
     def abstract_variants(self, log, max_variants: int = 10) -> str:
         """
@@ -59,7 +64,11 @@ class LLMService:
             return pm4py.llm.abstract_variants(log, max_len=max_variants)
         except Exception as e:
             logger.error("abstract_variants_failed", error=str(e))
-            return f"Error abstracting variants: {e}"
+            raise PM4PyError(
+                message="Failed to abstract variants for LLM",
+                operation="abstract_variants",
+                original_error=str(e),
+            ) from e
 
     def abstract_log_attributes(self, log) -> str:
         """
@@ -74,7 +83,12 @@ class LLMService:
         try:
             return pm4py.llm.abstract_log_attributes(log)
         except Exception as e:
-            return f"Error abstracting attributes: {e}"
+            logger.error("abstract_log_attributes_failed", error=str(e))
+            raise PM4PyError(
+                message="Failed to abstract log attributes",
+                operation="abstract_log_attributes",
+                original_error=str(e),
+            ) from e
 
     def abstract_log_features(self, log) -> str:
         """
@@ -89,7 +103,12 @@ class LLMService:
         try:
             return pm4py.llm.abstract_log_features(log)
         except Exception as e:
-            return f"Error abstracting features: {e}"
+            logger.error("abstract_log_features_failed", error=str(e))
+            raise PM4PyError(
+                message="Failed to abstract log features",
+                operation="abstract_log_features",
+                original_error=str(e),
+            ) from e
 
     def abstract_case(self, trace) -> str:
         """
@@ -104,7 +123,12 @@ class LLMService:
         try:
             return pm4py.llm.abstract_case(trace)
         except Exception as e:
-            return f"Error abstracting case: {e}"
+            logger.error("abstract_case_failed", error=str(e))
+            raise PM4PyError(
+                message="Failed to abstract case",
+                operation="abstract_case",
+                original_error=str(e),
+            ) from e
 
     def abstract_petri_net(self, net, im, fm) -> str:
         """
@@ -121,7 +145,12 @@ class LLMService:
         try:
             return pm4py.llm.abstract_petri_net(net, im, fm)
         except Exception as e:
-            return f"Error abstracting Petri net: {e}"
+            logger.error("abstract_petri_net_failed", error=str(e))
+            raise PM4PyError(
+                message="Failed to abstract Petri net",
+                operation="abstract_petri_net",
+                original_error=str(e),
+            ) from e
 
     def abstract_declare(self, declare_model) -> str:
         """
@@ -136,7 +165,12 @@ class LLMService:
         try:
             return pm4py.llm.abstract_declare(declare_model)
         except Exception as e:
-            return f"Error abstracting DECLARE: {e}"
+            logger.error("abstract_declare_failed", error=str(e))
+            raise PM4PyError(
+                message="Failed to abstract DECLARE model",
+                operation="abstract_declare",
+                original_error=str(e),
+            ) from e
 
     def abstract_log_skeleton(self, log_skeleton) -> str:
         """
@@ -151,7 +185,12 @@ class LLMService:
         try:
             return pm4py.llm.abstract_log_skeleton(log_skeleton)
         except Exception as e:
-            return f"Error abstracting log skeleton: {e}"
+            logger.error("abstract_log_skeleton_failed", error=str(e))
+            raise PM4PyError(
+                message="Failed to abstract log skeleton",
+                operation="abstract_log_skeleton",
+                original_error=str(e),
+            ) from e
 
     def abstract_temporal_profile(self, temporal_profile) -> str:
         """
@@ -166,7 +205,12 @@ class LLMService:
         try:
             return pm4py.llm.abstract_temporal_profile(temporal_profile)
         except Exception as e:
-            return f"Error abstracting temporal profile: {e}"
+            logger.error("abstract_temporal_profile_failed", error=str(e))
+            raise PM4PyError(
+                message="Failed to abstract temporal profile",
+                operation="abstract_temporal_profile",
+                original_error=str(e),
+            ) from e
 
     # =========================================================================
     # OCEL Abstractions
@@ -185,7 +229,12 @@ class LLMService:
         try:
             return pm4py.llm.abstract_ocel(ocel)
         except Exception as e:
-            return f"Error abstracting OCEL: {e}"
+            logger.error("abstract_ocel_failed", error=str(e))
+            raise PM4PyError(
+                message="Failed to abstract OCEL",
+                operation="abstract_ocel",
+                original_error=str(e),
+            ) from e
 
     def abstract_ocel_ocdfg(self, ocel) -> str:
         """
@@ -200,7 +249,12 @@ class LLMService:
         try:
             return pm4py.llm.abstract_ocel_ocdfg(ocel)
         except Exception as e:
-            return f"Error abstracting OC-DFG: {e}"
+            logger.error("abstract_ocel_ocdfg_failed", error=str(e))
+            raise PM4PyError(
+                message="Failed to abstract OC-DFG",
+                operation="abstract_ocel_ocdfg",
+                original_error=str(e),
+            ) from e
 
     # =========================================================================
     # AI Query Functions
@@ -222,7 +276,11 @@ class LLMService:
             return pm4py.llm.openai_query(prompt, api_key=api_key, openai_model=model)
         except Exception as e:
             logger.error("openai_query_failed", error=str(e))
-            return f"Error: {e}"
+            raise PM4PyError(
+                message="OpenAI query failed",
+                operation="openai_query",
+                original_error=str(e),
+            ) from e
 
     async def google_query(self, prompt: str, api_key: str, model: str = "gemini-1.5-pro") -> str:
         """
@@ -240,7 +298,11 @@ class LLMService:
             return pm4py.llm.google_query(prompt, api_key=api_key, google_model=model)
         except Exception as e:
             logger.error("google_query_failed", error=str(e))
-            return f"Error: {e}"
+            raise PM4PyError(
+                message="Google Gemini query failed",
+                operation="google_query",
+                original_error=str(e),
+            ) from e
 
     async def anthropic_query(
         self, prompt: str, api_key: str, model: str = "claude-3-opus-20240229"
@@ -260,7 +322,11 @@ class LLMService:
             return pm4py.llm.anthropic_query(prompt, api_key=api_key, anthropic_model=model)
         except Exception as e:
             logger.error("anthropic_query_failed", error=str(e))
-            return f"Error: {e}"
+            raise PM4PyError(
+                message="Anthropic Claude query failed",
+                operation="anthropic_query",
+                original_error=str(e),
+            ) from e
 
     # =========================================================================
     # Advanced AI Analysis

@@ -326,10 +326,15 @@ class AnalyticsService:
 
         try:
             durations = case_statistics.get_all_case_durations(pm4py_log)
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "pm4py_case_durations_failed",
+                error=str(e),
+                msg="Falling back to manual calculation",
+            )
             durations = []
             for trace in pm4py_log:
-                timestamps = [e.get("time:timestamp") for e in trace if "time:timestamp" in e]
+                timestamps = [evt.get("time:timestamp") for evt in trace if "time:timestamp" in evt]
                 if len(timestamps) >= 2:
                     durations.append((max(timestamps) - min(timestamps)).total_seconds())
 

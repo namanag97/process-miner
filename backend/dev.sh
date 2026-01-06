@@ -41,4 +41,4 @@ fi
 # Start server
 echo -e "${GREEN}🚀 Starting uvicorn on port $PORT...${NC}"
 echo ""
-python -m uvicorn src.api.main:app --reload --port $PORT
+python -m uvicorn src.api.main:app --reload --reload-dir src --port $PORT

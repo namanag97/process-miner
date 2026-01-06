@@ -51,6 +51,7 @@ import { registerDevConsoleCallback } from '@lumina/design-system';
 import { useBackendLogs } from '../../hooks/useBackendLogs';
 import { BackendMetricsPanel } from '../BackendMetricsPanel';
 import { DataViewer } from '../DataViewer';
+import { DebugExport } from './DebugExport';
 
 const { Text } = Typography;
 const { Panel } = Collapse;
@@ -1031,6 +1032,7 @@ export function DevConsole() {
         onClose={() => setOpen(false)}
         extra={
           <Space>
+            <DebugExport logs={logs} sessionStart={new Date(Date.now() - 600000)} />
             <Tooltip title={focusMode ? 'Show all logs' : 'Hide noise (importance < 3)'}>
               <Button
                 icon={focusMode ? <EyeInvisibleOutlined /> : <AimOutlined />}

@@ -7,6 +7,8 @@ import json
 from datetime import datetime
 from typing import Any
 
+from pydantic import ValidationError as PydanticValidationError
+
 from fastapi import APIRouter, Query
 from sqlalchemy import func, select, text
 
@@ -50,8 +52,18 @@ async def get_statistics(
         try:
             stats = json.loads(dataset.statistics_json)
             return StatisticsResponse(**stats)
-        except Exception:
-            pass
+        except json.JSONDecodeError as e:
+            logger.warning(
+                "statistics_json_parse_failed",
+                dataset_id=dataset_id,
+                error=str(e),
+            )
+        except PydanticValidationError as e:
+            logger.warning(
+                "statistics_validation_failed",
+                dataset_id=dataset_id,
+                error=str(e),
+            )
 
     # Compute basic statistics if not stored
     return StatisticsResponse(
@@ -417,8 +429,12 @@ async def get_metadata(
     if dataset.activities_json:
         try:
             activities = json.loads(dataset.activities_json)
-        except Exception:
-            pass
+        except json.JSONDecodeError as e:
+            logger.warning(
+                "activities_json_parse_failed",
+                dataset_id=dataset_id,
+                error=str(e),
+            )
 
     # Try to get detailed metadata
     date_range = None

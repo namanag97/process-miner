@@ -17,6 +17,9 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
+      "@/*": [
+        "./*"
+      ],
       "@lumina/design-system": [
         "libs/shared/design-system/src/index.ts"
       ],

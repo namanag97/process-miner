@@ -42,12 +42,15 @@ class AnalysisResponse(BaseModel):
 
     id: str
     dataset_id: str
+    created_by: str | None = None  # User who created the analysis
     name: str
     analysis_type: str
     status: str
     config: dict[str, Any] | None = None
     result_summary: dict[str, Any] | None = None
+    result_full_path: str | None = None  # Path to full results file for large results
     model_id: str | None = None
+    workflow_id: str | None = None  # Temporal workflow tracking
     created_at: datetime
     completed_at: datetime | None = None
     error_message: str | None = None
@@ -62,12 +65,15 @@ class AnalysisResponse(BaseModel):
                 for k in [
                     "id",
                     "dataset_id",
+                    "created_by",
                     "name",
                     "analysis_type",
                     "status",
                     "config_json",
                     "result_summary_json",
+                    "result_full_path",
                     "model_id",
+                    "workflow_id",
                     "created_at",
                     "completed_at",
                     "error_message",

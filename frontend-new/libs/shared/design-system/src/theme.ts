@@ -19,8 +19,11 @@ export const tokens = {
     success: {
       50: '#ECFDF5',
       100: '#D1FAE5',
+      200: '#A7F3D0',
+      300: '#6EE7B7',
       500: '#10B981',
       600: '#059669',
+      700: '#047857',
     },
     warning: {
       50: '#FFFBEB',
@@ -31,8 +34,11 @@ export const tokens = {
     error: {
       50: '#FEF2F2',
       100: '#FEE2E2',
+      200: '#FECACA',
+      300: '#FCA5A5',
       500: '#EF4444',
       600: '#DC2626',
+      700: '#B91C1C',
     },
     info: {
       50: '#EFF6FF',
@@ -174,22 +180,22 @@ export const luminaTheme: ThemeConfig = {
     colorWarning: tokens.colors.warning[500],
     colorError: tokens.colors.error[500],
     colorInfo: tokens.colors.info[500],
-    
+
     // Typography
     fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     fontSize: 14,
-    
+
     // Border
     borderRadius: tokens.radius.md,
     borderRadiusLG: tokens.radius.lg,
     borderRadiusSM: tokens.radius.sm,
-    
+
     // Spacing
     padding: tokens.spacing[4],
     paddingLG: tokens.spacing[6],
     paddingSM: tokens.spacing[3],
     paddingXS: tokens.spacing[2],
-    
+
     // Layout
     controlHeight: 40,   // More breathing room
     controlHeightLG: 48,

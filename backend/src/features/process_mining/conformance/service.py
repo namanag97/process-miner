@@ -12,6 +12,9 @@ from pm4py.objects.petri_net.obj import Marking, PetriNet
 from src.features.process_mining.enums import ConformanceMethod, ModelFormat
 from src.features.process_mining.models import Dataset, ProcessModel
 from src.features.process_mining.discovery.service import mining_service
+from src.platform.core.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class ConformanceService:
@@ -97,7 +100,12 @@ class ConformanceService:
         try:
             # PM4py's generalization function
             return pm4py.generalization_tbr(pm4py_log, net, im, fm)
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "generalization_calculation_failed",
+                error=str(e),
+                msg="Returning None for generalization",
+            )
             return None
 
     def calculate_simplicity(
@@ -114,7 +122,12 @@ class ConformanceService:
         try:
             # PM4py's simplicity function for Petri nets
             return pm4py.simplicity_petri_net(net, im, fm)
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "simplicity_calculation_failed",
+                error=str(e),
+                msg="Returning None for simplicity",
+            )
             return None
 
     def calculate_f_score(
@@ -645,7 +658,12 @@ class ConformanceService:
 
         try:
             precision = pm4py.precision_token_based_replay(log, net, im, fm)
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "precision_calculation_failed",
+                error=str(e),
+                msg="Returning None for precision",
+            )
             precision = None
 
         # Get diagnostics for fitting trace count

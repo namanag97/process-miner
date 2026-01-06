@@ -44,12 +44,11 @@ class Container:
         # Both share the same session
     """
     
-    __slots__ = ("_session", "_user_id", "_cache")
+    # Note: Cannot use __slots__ with @cached_property (requires __dict__)
     
     def __init__(self, session: AsyncSession, user_id: str | None = None):
         self._session = session
         self._user_id = user_id
-        self._cache: dict = {}
     
     @property
     def session(self) -> AsyncSession:

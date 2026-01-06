@@ -43,6 +43,7 @@ from src.api.routers import (
 from src.platform.audit.router import router as audit_router
 from src.platform.core.config import get_settings
 from src.platform.core.exceptions import AppException
+from src.platform.core.api_logging import APILoggingMiddleware
 from src.platform.core.logging_config import configure_logging, get_logger
 from src.platform.core.middleware import PerformanceLoggingMiddleware, RequestLoggingMiddleware
 from src.platform.devconsole.streaming import router as dev_logs_stream_router
@@ -345,10 +346,12 @@ For support, please contact the developer team or refer to the internal document
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-        expose_headers=["X-Request-ID", "X-Trace-ID", "ETag", "Retry-After"],
+        expose_headers=["X-Request-ID", "X-Trace-ID", "X-Correlation-ID", "X-Request-Duration-Ms", "ETag", "Retry-After"],
     )
 
-    # Logging middleware (order matters - performance first, then request logging)
+    # Logging middleware (order matters - API logging first, then performance, then request)
+    # APILoggingMiddleware: Comprehensive request/response logging with correlation IDs
+    app.add_middleware(APILoggingMiddleware)
     app.add_middleware(PerformanceLoggingMiddleware, slow_request_threshold_ms=1000)
     app.add_middleware(RequestLoggingMiddleware)
 
