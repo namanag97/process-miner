@@ -1,6 +1,9 @@
 """Celery Tasks Package.
 
 Re-exports all tasks and infrastructure for backward compatibility.
+
+NOTE: For new workflows, prefer using Temporal via src.platform.temporal.
+See src.platform.temporal.compat for the migration compatibility layer.
 """
 
 # Base infrastructure

@@ -19,8 +19,8 @@ from uuid import uuid4
 
 from src.platform.temporal.config import get_temporal_config
 
-# Feature flag for Temporal migration
-USE_TEMPORAL = os.getenv("USE_TEMPORAL", "false").lower() == "true"
+# Feature flag for Temporal migration - now defaults to TRUE for MVP
+USE_TEMPORAL = os.getenv("USE_TEMPORAL", "true").lower() == "true"
 
 
 async def dispatch_workflow(

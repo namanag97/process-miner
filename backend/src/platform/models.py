@@ -70,6 +70,10 @@ class AsyncJob(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
+    # Temporal workflow tracking (Phase 4+ of migration)
+    workflow_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    workflow_run_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
     parent_job: Mapped[Optional["AsyncJob"]] = relationship(
         "AsyncJob", remote_side="AsyncJob.id", foreign_keys=[parent_job_id], lazy="selectin"
     )

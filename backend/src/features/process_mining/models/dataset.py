@@ -69,6 +69,9 @@ class Dataset(Base):
     is_filtered: Mapped[bool] = mapped_column(Boolean, default=False)
     filter_stats_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Temporal workflow tracking (Phase 4+ of migration)
+    workflow_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
