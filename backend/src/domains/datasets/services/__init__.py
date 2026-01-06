@@ -5,12 +5,20 @@ Services for dataset lifecycle management:
 - Storage service (S3/MinIO)
 - Validation service
 - Metadata computation
+- Event streaming for job progress
 """
 
 from src.features.process_mining.ingestion.service import IngestionService
-from src.features.process_mining.services.ingestion.stream import StreamIngestionService
+from src.features.process_mining.services.ingestion.stream import (
+    EventStreamManager,
+    EventType,
+    event_stream_manager,
+)
 
 __all__ = [
     "IngestionService",
-    "StreamIngestionService",
+    "EventStreamManager",
+    "EventType",
+    "event_stream_manager",
 ]
+
