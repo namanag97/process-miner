@@ -51,6 +51,7 @@ from src.domains.analysis.api import (
 # ============================================================================
 # Platform Infrastructure Routers
 # ============================================================================
+from src.platform.dag.router import router as dags_router
 from src.platform.devtools.router import router as dev_log_router
 from src.platform.health.router import router as health_router
 from src.platform.jobs.router import router as jobs_router
@@ -83,6 +84,7 @@ __all__ = [
     "business_use_cases_router",
     "workflows_router",
     # Platform infrastructure
+    "dags_router",
     "dev_log_router",
     "health_router",
     "jobs_router",

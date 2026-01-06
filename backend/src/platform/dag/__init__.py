@@ -35,6 +35,7 @@ from src.platform.dag.templates import (
     list_templates,
 )
 from src.platform.dag.executor import DAGExecutor
+from src.platform.dag.service import DAGService
 
 __all__ = [
     # Models
@@ -57,5 +58,7 @@ __all__ = [
     "list_templates",
     # Executor
     "DAGExecutor",
+    # Service
+    "DAGService",
 ]
 

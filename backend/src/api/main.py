@@ -22,6 +22,7 @@ from src.api.routers import (
     auth_router,
     business_use_cases_router,
     conformance_router,
+    dags_router,
     datasets_router,
     dev_log_router,
     discovery_router,
@@ -204,6 +205,10 @@ def create_app() -> FastAPI:
         {
             "name": "Jobs",
             "description": "⚡ Unified async job tracking and progress monitoring.",
+        },
+        {
+            "name": "DAGs",
+            "description": "🔀 DAG workflow orchestration. Trigger and monitor multi-step workflows.",
         },
         {
             "name": "Admin",
@@ -496,6 +501,7 @@ For support, please contact the developer team or refer to the internal document
     # Platform Infrastructure Routers
     # =========================================================================
     app.include_router(jobs_router, prefix=settings.api_prefix)
+    app.include_router(dags_router, prefix=settings.api_prefix)
     app.include_router(audit_router, prefix=settings.api_prefix)
     app.include_router(dev_log_router, prefix=settings.api_prefix)
     app.include_router(dev_logs_stream_router, prefix=settings.api_prefix)
