@@ -265,6 +265,50 @@ async def get_dataset(
     )
 
 
+@router.get(
+    "/{dataset_id}/sheets",
+    summary="Get Dataset Sheets",
+    description="Get list of sheets for multi-sheet files (Excel). CSV/XES files return a single sheet.",
+)
+async def get_dataset_sheets(
+    db: DBSession,
+    dataset_id: str,
+    user: CurrentUser,
+) -> dict[str, Any]:
+    """Get list of sheets for dataset (stub for MVP - returns single sheet)."""
+    logger.info(
+        "get_dataset_sheets_request",
+        dataset_id=dataset_id,
+        user_id=user.id,
+    )
+
+    # Verify permission
+    _, dataset = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_READ
+    )
+
+    # For MVP: CSV and XES files are single-sheet
+    # Future: Add Excel multi-sheet support
+    sheets = [
+        {
+            "name": dataset.source_file or "Sheet1",
+            "index": 0,
+            "is_default": True,
+        }
+    ]
+
+    logger.info(
+        "get_dataset_sheets_success",
+        dataset_id=dataset_id,
+        sheet_count=len(sheets),
+    )
+
+    return {
+        "sheets": sheets,
+        "total": len(sheets),
+    }
+
+
 @router.delete(
     "/{dataset_id}",
     summary="Delete Dataset",

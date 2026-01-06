@@ -10,7 +10,8 @@ from fastapi import APIRouter, Query
 
 from src.api.dependencies import CurrentUser, DBSession
 from src.features.process_mining.models import DatasetStatus
-from src.features.process_mining.schemas.datasets import JobStatusResponse, DownloadResponse
+from src.features.process_mining.schemas.analyses import JobStatusResponse
+from src.features.process_mining.schemas.datasets import DownloadResponse
 from src.platform.core.exceptions import NotFoundError, ValidationError
 from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
@@ -95,13 +96,12 @@ async def export_dataset(
     )
 
     return JobStatusResponse(
-        job_id=job.id,
+        id=job.id,
         status=JobStatus.PENDING.value,
         job_type="export_dataset",
-        entity_type="dataset",
-        entity_id=dataset_id,
         progress=0,
-        message=f"Export to {export_format} queued",
+        stage=f"Export to {export_format} queued",
+        created_at=job.created_at,
     )
 
 

@@ -1157,13 +1157,18 @@ _storage_client: ObjectStorageClient | LocalStorageClient | None = None
 
 def get_storage_client() -> ObjectStorageClient | LocalStorageClient:
     """Get global storage client instance (singleton).
-    
+
     Returns ObjectStorageClient (S3) or LocalStorageClient based on configuration.
     """
     global _storage_client
     if _storage_client is None:
+        logger.info("initializing_storage_client", storage_type=settings.storage_type)
         if settings.storage_type == "local":
+            logger.info("using_local_storage_client")
             _storage_client = LocalStorageClient()
+            _storage_client.ensure_buckets_exist()
         else:
+            logger.info("using_s3_storage_client")
             _storage_client = ObjectStorageClient()
+            _storage_client.ensure_buckets_exist()
     return _storage_client

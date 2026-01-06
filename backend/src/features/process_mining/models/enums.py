@@ -10,6 +10,7 @@ class DatasetStatus(str, Enum):
     """Dataset lifecycle states."""
 
     PENDING = "pending"
+    UPLOADED = "uploaded"
     VALIDATING = "validating"
     AWAITING_MAPPING = "awaiting_mapping"
     MAPPED = "mapped"

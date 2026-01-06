@@ -73,8 +73,10 @@ class Dataset(Base):
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships (use forward references for all relationships to avoid circular imports)
-    # uploaded_file relationship moved to uploaded_file.py
-    
+    uploaded_file: Mapped[Optional["UploadedFile"]] = relationship(
+        back_populates="dataset", uselist=False, cascade="all, delete-orphan", lazy="selectin"
+    )
+
     # Core relationships for process mining
     cases: Mapped[list["ProcessCase"]] = relationship(
         "ProcessCase", back_populates="dataset", cascade="all, delete-orphan", lazy="raise"
@@ -84,6 +86,9 @@ class Dataset(Base):
     )
     analyses: Mapped[list["Analysis"]] = relationship(
         "Analysis", back_populates="dataset", cascade="all, delete-orphan", lazy="raise"
+    )
+    activity_mappings: Mapped[list["ActivityMapping"]] = relationship(
+        back_populates="dataset", cascade="all, delete-orphan", lazy="raise"
     )
 
     # NEW: 4-Phase Upload Architecture relationships

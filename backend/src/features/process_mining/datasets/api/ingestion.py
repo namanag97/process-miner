@@ -9,7 +9,7 @@ from sqlalchemy import select
 
 from src.api.dependencies import CurrentUser, DBSession
 from src.features.process_mining.models import DatasetStatus, DatasetColumnMapping
-from src.features.process_mining.schemas.datasets import JobStatusResponse
+from src.features.process_mining.schemas.analyses import JobStatusResponse
 from src.platform.core.exceptions import ValidationError
 from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
