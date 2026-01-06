@@ -43,15 +43,13 @@ expected process (models) to find deviations:
 import json
 import time
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import ValidationError
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.dependencies import get_session
-from src.features.process_mining.conformance.service import conformance_service
-from src.features.process_mining.enums import ConformanceMethod
-from src.features.process_mining.models import ConformanceResult, Dataset, ProcessModel
+from src.api.dependencies import DBSession, ServiceContainer
+from src.features.process_mining.enums import ConformanceMethod, ModelFormat
+from src.features.process_mining.models import ConformanceResult, Dataset, DatasetStatus, ProcessModel
 from src.features.process_mining.schemas import (
     AlignmentDiagnosticsResponse,
     ConformanceCheckRequest,
@@ -69,6 +67,31 @@ router = APIRouter(prefix="/conformance", tags=["Conformance"])
 
 
 # =============================================================================
+# Helper functions
+# =============================================================================
+
+
+async def _get_dataset_or_404(db: DBSession, dataset_id: str) -> Dataset:
+    """Get dataset or raise 404."""
+    result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
+    dataset = result.scalar_one_or_none()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Event log not found")
+    return dataset
+
+
+async def _get_model_or_404(db: DBSession, model_id: str) -> ProcessModel:
+    """Get process model or raise 404."""
+    result = await db.execute(select(ProcessModel).where(ProcessModel.id == model_id))
+    model = result.scalar_one_or_none()
+    if not model:
+        raise HTTPException(status_code=404, detail="Process model not found")
+    if not model.serialized_model:
+        raise HTTPException(status_code=400, detail="Process model has no serialized data")
+    return model
+
+
+# =============================================================================
 # ENDPOINTS
 # =============================================================================
 
@@ -76,22 +99,11 @@ router = APIRouter(prefix="/conformance", tags=["Conformance"])
 @router.post("/check", response_model=ConformanceResponse)
 async def check_conformance(
     request: ConformanceCheckRequest,
-    session: AsyncSession = Depends(get_session),
+    db: DBSession,
+    container: ServiceContainer,
     auto_discover: bool = Query(False, description="Auto-discover model if model_id not provided"),
 ):
-    """
-    Check conformance between an event log and a process model.
-
-    Supports two methods:
-    - `token_replay`: Fast, token-based replay (default)
-    - `alignment`: More accurate, alignment-based (slower)
-
-    Job-Centric Architecture Enhancement:
-    - If `auto_discover=True` and no model_id, first runs discovery then conformance
-    - Returns 202 with chained job IDs for async processing
-
-    Returns fitness, precision, and conformance status.
-    """
+    """Check conformance between an event log and a process model."""
     logger.info(
         "conformance_check_started",
         dataset_id=request.dataset_id,
@@ -100,81 +112,49 @@ async def check_conformance(
     )
     start_time = time.perf_counter()
 
-    # Get the event log with cases and events
-    log_result = await session.execute(select(Dataset).where(Dataset.id == request.dataset_id))
-    event_log = log_result.scalar_one_or_none()
-
-    if not event_log:
-        logger.warning("log_not_found", dataset_id=request.dataset_id)
-        raise HTTPException(status_code=404, detail="Event log not found")
-
-    # FIX: Validate dataset is ready for conformance checking
-    from src.features.process_mining.models import DatasetStatus
+    event_log = await _get_dataset_or_404(db, request.dataset_id)
 
     if event_log.status != DatasetStatus.READY.value:
-        logger.warning("dataset_not_ready", dataset_id=request.dataset_id, status=event_log.status)
         raise HTTPException(
             status_code=409,
             detail=f"Dataset not ready (status: {event_log.status}). Complete ingestion first.",
         )
 
-    # Get the process model
-    model_result = await session.execute(
-        select(ProcessModel).where(ProcessModel.id == request.model_id)
-    )
-    model = model_result.scalar_one_or_none()
-
-    if not model:
-        logger.warning("model_not_found", model_id=request.model_id)
-        raise HTTPException(status_code=404, detail="Process model not found")
-
-    if not model.serialized_model:
-        logger.warning("model_no_data", model_id=request.model_id)
-        raise HTTPException(
-            status_code=400,
-            detail="Process model has no serialized data - rediscover the model",
-        )
+    model = await _get_model_or_404(db, request.model_id)
 
     try:
-        # Run conformance check
-        result = conformance_service.check_conformance(
+        result = container.conformance.check_conformance(
             event_log=event_log,
             model=model,
             method=request.method,
         )
 
-        # Store result in database
         conformance_record = ConformanceResult(
-            dataset_id=request.dataset_id,  # BUG-001 FIX: ORM uses dataset_id
+            dataset_id=request.dataset_id,
             model_id=request.model_id,
             fitness=result["fitness"],
             precision=result.get("precision"),
             method=result["method"],
-            diagnostics_json=json.dumps(
-                {
-                    "fitting_traces": result["fitting_traces"],
-                    "total_traces": result["total_traces"],
-                }
-            ),
+            diagnostics_json=json.dumps({
+                "fitting_traces": result["fitting_traces"],
+                "total_traces": result["total_traces"],
+            }),
         )
-        session.add(conformance_record)
-        await session.commit()
-        await session.refresh(conformance_record)
+        db.add(conformance_record)
+        await db.commit()
+        await db.refresh(conformance_record)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info(
             "conformance_check_completed",
             result_id=conformance_record.id,
             fitness=result["fitness"],
-            is_conformant=result["is_conformant"],
-            fitting_traces=result["fitting_traces"],
-            total_traces=result["total_traces"],
             duration_ms=round(duration_ms, 2),
         )
 
         return ConformanceResponse(
             id=conformance_record.id,
-            dataset_id=conformance_record.dataset_id,  # BUG-001 FIX
+            dataset_id=conformance_record.dataset_id,
             model_id=conformance_record.model_id,
             fitness=conformance_record.fitness,
             precision=conformance_record.precision,
@@ -188,69 +168,48 @@ async def check_conformance(
         )
 
     except Exception as e:
-        logger.error(
-            "conformance_check_failed",
-            dataset_id=request.dataset_id,
-            model_id=request.model_id,
-            error=str(e),
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=500,
-            detail=f"Conformance check failed: {e!s}",
-        )
+        logger.error("conformance_check_failed", error=str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Conformance check failed: {e!s}")
 
 
 @router.get("/results", response_model=ConformanceListResponse)
 async def list_conformance_results(
-    dataset_id: str | None = Query(None, description="Filter by event log ID"),
-    model_id: str | None = Query(None, description="Filter by model ID"),
+    db: DBSession,
+    dataset_id: str | None = Query(None),
+    model_id: str | None = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    session: AsyncSession = Depends(get_session),
 ):
-    """
-    List conformance check results.
-
-    Optionally filter by dataset_id or model_id.
-    """
+    """List conformance check results."""
     query = select(ConformanceResult)
-
     if dataset_id:
-        query = query.where(ConformanceResult.dataset_id == dataset_id)  # BUG-001 FIX
+        query = query.where(ConformanceResult.dataset_id == dataset_id)
     if model_id:
         query = query.where(ConformanceResult.model_id == model_id)
-
     query = query.order_by(ConformanceResult.created_at.desc())
 
-    # Count total
     count_query = select(func.count()).select_from(query.subquery())
-    total_result = await session.execute(count_query)
-    total = total_result.scalar() or 0
+    total = (await db.execute(count_query)).scalar() or 0
 
-    # Paginate
     query = query.offset((page - 1) * page_size).limit(page_size)
-    result = await session.execute(query)
-    results = result.scalars().all()
+    results = (await db.execute(query)).scalars().all()
 
     items = []
     for r in results:
         diagnostics = json.loads(r.diagnostics_json) if r.diagnostics_json else {}
-        items.append(
-            ConformanceResponse(
-                id=r.id,
-                dataset_id=r.dataset_id,  # BUG-001 FIX
-                model_id=r.model_id,
-                fitness=r.fitness,
-                precision=r.precision,
-                method=r.method,
-                algorithm_used=r.method,  # Default to method for historical data
-                is_conformant=r.fitness >= 0.8,
-                fitting_traces=diagnostics.get("fitting_traces", 0),
-                total_traces=diagnostics.get("total_traces", 0),
-                created_at=r.created_at,
-            )
-        )
+        items.append(ConformanceResponse(
+            id=r.id,
+            dataset_id=r.dataset_id,
+            model_id=r.model_id,
+            fitness=r.fitness,
+            precision=r.precision,
+            method=r.method,
+            algorithm_used=r.method,
+            is_conformant=r.fitness >= 0.8,
+            fitting_traces=diagnostics.get("fitting_traces", 0),
+            total_traces=diagnostics.get("total_traces", 0),
+            created_at=r.created_at,
+        ))
 
     return ConformanceListResponse(
         items=items,
@@ -262,31 +221,22 @@ async def list_conformance_results(
 
 
 @router.get("/results/{result_id}", response_model=ConformanceResponse)
-async def get_conformance_result(
-    result_id: str,
-    session: AsyncSession = Depends(get_session),
-):
-    """
-    Get a specific conformance check result.
-    """
-    result = await session.execute(
-        select(ConformanceResult).where(ConformanceResult.id == result_id)
-    )
+async def get_conformance_result(result_id: str, db: DBSession):
+    """Get a specific conformance check result."""
+    result = await db.execute(select(ConformanceResult).where(ConformanceResult.id == result_id))
     record = result.scalar_one_or_none()
-
     if not record:
         raise HTTPException(status_code=404, detail="Conformance result not found")
 
     diagnostics = json.loads(record.diagnostics_json) if record.diagnostics_json else {}
-
     return ConformanceResponse(
         id=record.id,
-        dataset_id=record.dataset_id,  # BUG-001 FIX
+        dataset_id=record.dataset_id,
         model_id=record.model_id,
         fitness=record.fitness,
         precision=record.precision,
         method=record.method,
-        algorithm_used=record.method,  # Default to method for historical data
+        algorithm_used=record.method,
         is_conformant=record.fitness >= 0.8,
         fitting_traces=diagnostics.get("fitting_traces", 0),
         total_traces=diagnostics.get("total_traces", 0),
@@ -295,24 +245,14 @@ async def get_conformance_result(
 
 
 @router.delete("/results/{result_id}")
-async def delete_conformance_result(
-    result_id: str,
-    session: AsyncSession = Depends(get_session),
-):
-    """
-    Delete a conformance check result.
-    """
-    result = await session.execute(
-        select(ConformanceResult).where(ConformanceResult.id == result_id)
-    )
+async def delete_conformance_result(result_id: str, db: DBSession):
+    """Delete a conformance check result."""
+    result = await db.execute(select(ConformanceResult).where(ConformanceResult.id == result_id))
     record = result.scalar_one_or_none()
-
     if not record:
         raise HTTPException(status_code=404, detail="Conformance result not found")
-
-    await session.delete(record)
-    await session.commit()
-
+    await db.delete(record)
+    await db.commit()
     return {"status": "deleted", "result_id": result_id}
 
 
@@ -320,39 +260,16 @@ async def delete_conformance_result(
 async def get_conformance_diagnostics(
     dataset_id: str,
     model_id: str,
-    session: AsyncSession = Depends(get_session),
+    db: DBSession,
+    container: ServiceContainer,
 ):
-    """
-    Get detailed conformance diagnostics for a log-model pair.
-
-    Returns trace-level analysis including deviations.
-    """
-    # Get the event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
-    event_log = log_result.scalar_one_or_none()
-
-    if not event_log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-
-    # Get the process model
-    model_result = await session.execute(select(ProcessModel).where(ProcessModel.id == model_id))
-    model = model_result.scalar_one_or_none()
-
-    if not model:
-        raise HTTPException(status_code=404, detail="Process model not found")
-
-    if not model.serialized_model:
-        raise HTTPException(
-            status_code=400,
-            detail="Process model has no serialized data",
-        )
+    """Get detailed conformance diagnostics for a log-model pair."""
+    event_log = await _get_dataset_or_404(db, dataset_id)
+    model = await _get_model_or_404(db, model_id)
 
     try:
-        # Get detailed diagnostics
-        diagnostics = conformance_service.get_diagnostics(event_log, model)
-
-        # Also get fitness/precision for completeness
-        result = conformance_service.check_conformance(event_log, model)
+        diagnostics = container.conformance.get_diagnostics(event_log, model)
+        result = container.conformance.check_conformance(event_log, model)
 
         return DiagnosticsResponse(
             fitness=result["fitness"],
@@ -363,49 +280,24 @@ async def get_conformance_diagnostics(
             fitness_ratio=diagnostics["fitness_ratio"],
             deviations=diagnostics["deviations"],
         )
-
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get diagnostics: {e!s}",
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get diagnostics: {e!s}")
 
 
 @router.get("/deviations/{dataset_id}/{model_id}", response_model=list[DeviationResponse])
 async def get_deviations(
     dataset_id: str,
     model_id: str,
+    db: DBSession,
+    container: ServiceContainer,
     threshold: float = Query(0.8, ge=0.0, le=1.0),
-    session: AsyncSession = Depends(get_session),
 ):
-    """
-    Detect and list specific deviations from the model.
-
-    Returns case-level deviation information.
-    """
-    # Get the event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
-    event_log = log_result.scalar_one_or_none()
-
-    if not event_log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-
-    # Get the process model
-    model_result = await session.execute(select(ProcessModel).where(ProcessModel.id == model_id))
-    model = model_result.scalar_one_or_none()
-
-    if not model:
-        raise HTTPException(status_code=404, detail="Process model not found")
-
-    if not model.serialized_model:
-        raise HTTPException(
-            status_code=400,
-            detail="Process model has no serialized data",
-        )
+    """Detect and list specific deviations from the model."""
+    event_log = await _get_dataset_or_404(db, dataset_id)
+    model = await _get_model_or_404(db, model_id)
 
     try:
-        deviations = conformance_service.detect_deviations(event_log, model, threshold)
-
+        deviations = container.conformance.detect_deviations(event_log, model, threshold)
         return [
             DeviationResponse(
                 case_id=d["case_id"],
@@ -413,76 +305,32 @@ async def get_deviations(
                 deviation_type=d["deviation_type"],
                 details=d["details"],
             )
-            for d in deviations[:100]  # Limit to 100 deviations
+            for d in deviations[:100]
         ]
-
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to detect deviations: {e!s}",
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to detect deviations: {e!s}")
 
 
 @router.get("/alignments/{dataset_id}/{model_id}", response_model=AlignmentDiagnosticsResponse)
 async def get_alignment_diagnostics(
     dataset_id: str,
     model_id: str,
-    max_cases: int = Query(100, ge=1, le=1000, description="Max cases to include"),
-    session: AsyncSession = Depends(get_session),
+    db: DBSession,
+    container: ServiceContainer,
+    max_cases: int = Query(100, ge=1, le=1000),
 ):
-    """
-    Get detailed alignment diagnostics for a log-model pair.
-
-    Uses PM4Py's alignment-based conformance checking to compute optimal
-    alignments between traces and the process model. This provides:
-    - Per-case fitness scores
-    - Detailed alignment moves (sync, log-only, model-only)
-    - Identification of deviating activities
-
-    Note: This is computationally expensive for large logs. Use max_cases to limit.
-    """
-    logger.info(
-        "alignment_diagnostics_started",
-        dataset_id=dataset_id,
-        model_id=model_id,
-        max_cases=max_cases,
-    )
+    """Get detailed alignment diagnostics for a log-model pair."""
+    logger.info("alignment_diagnostics_started", dataset_id=dataset_id, model_id=model_id)
     start_time = time.perf_counter()
 
-    # Get the event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
-    event_log = log_result.scalar_one_or_none()
-
-    if not event_log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-
-    # Get the process model
-    model_result = await session.execute(select(ProcessModel).where(ProcessModel.id == model_id))
-    model = model_result.scalar_one_or_none()
-
-    if not model:
-        raise HTTPException(status_code=404, detail="Process model not found")
-
-    if not model.serialized_model:
-        raise HTTPException(
-            status_code=400,
-            detail="Process model has no serialized data",
-        )
+    event_log = await _get_dataset_or_404(db, dataset_id)
+    model = await _get_model_or_404(db, model_id)
 
     try:
-        # Get alignment diagnostics
-        diagnostics = conformance_service.get_alignment_diagnostics(event_log, model, max_cases)
+        diagnostics = container.conformance.get_alignment_diagnostics(event_log, model, max_cases)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
-        logger.info(
-            "alignment_diagnostics_completed",
-            dataset_id=dataset_id,
-            model_id=model_id,
-            total_cases=diagnostics["total_cases"],
-            fitting_cases=diagnostics["fitting_cases"],
-            average_fitness=diagnostics["average_fitness"],
-            duration_ms=round(duration_ms, 2),
-        )
+        logger.info("alignment_diagnostics_completed", duration_ms=round(duration_ms, 2))
 
         return AlignmentDiagnosticsResponse(
             dataset_id=dataset_id,
@@ -492,39 +340,17 @@ async def get_alignment_diagnostics(
             average_fitness=diagnostics["average_fitness"],
             case_alignments=diagnostics["case_alignments"],
         )
-
     except Exception as e:
-        logger.error(
-            "alignment_diagnostics_failed",
-            dataset_id=dataset_id,
-            model_id=model_id,
-            error=str(e),
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get alignment diagnostics: {e!s}",
-        )
+        logger.error("alignment_diagnostics_failed", error=str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get alignment diagnostics: {e!s}")
 
 
 @router.get("/methods")
 async def list_conformance_methods():
-    """
-    List available conformance checking methods.
-    """
+    """List available conformance checking methods."""
     return [
-        {
-            "id": ConformanceMethod.TOKEN_REPLAY.value,
-            "name": "Token Replay",
-            "description": "Fast token-based replay conformance checking",
-            "is_default": True,
-        },
-        {
-            "id": ConformanceMethod.ALIGNMENT.value,
-            "name": "Alignment",
-            "description": "More accurate alignment-based conformance (slower)",
-            "is_default": False,
-        },
+        {"id": ConformanceMethod.TOKEN_REPLAY.value, "name": "Token Replay", "description": "Fast token-based replay", "is_default": True},
+        {"id": ConformanceMethod.ALIGNMENT.value, "name": "Alignment", "description": "More accurate alignment-based (slower)", "is_default": False},
     ]
 
 
@@ -532,63 +358,21 @@ async def list_conformance_methods():
 async def get_quality_metrics(
     dataset_id: str,
     model_id: str,
-    session: AsyncSession = Depends(get_session),
+    db: DBSession,
+    container: ServiceContainer,
 ):
-    """
-    Get full quality metrics for a log-model pair.
-
-    Returns all 4 quality dimensions from PM4py:
-    - **Fitness**: How well the log fits the model (0-1)
-    - **Precision**: How much the model allows for behavior not observed in log (0-1)
-    - **Generalization**: How well the model generalizes beyond observed behavior (0-1)
-    - **Simplicity**: How simple/understandable the model is (0-1)
-    - **F-score**: Harmonic mean of fitness and precision
-
-    All metrics are higher-is-better.
-    """
-    logger.info(
-        "quality_metrics_started",
-        dataset_id=dataset_id,
-        model_id=model_id,
-    )
+    """Get full quality metrics for a log-model pair (fitness, precision, generalization, simplicity)."""
+    logger.info("quality_metrics_started", dataset_id=dataset_id, model_id=model_id)
     start_time = time.perf_counter()
 
-    # Get the event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
-    event_log = log_result.scalar_one_or_none()
-
-    if not event_log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-
-    # Get the process model
-    model_result = await session.execute(select(ProcessModel).where(ProcessModel.id == model_id))
-    model = model_result.scalar_one_or_none()
-
-    if not model:
-        raise HTTPException(status_code=404, detail="Process model not found")
-
-    if not model.serialized_model:
-        raise HTTPException(
-            status_code=400,
-            detail="Process model has no serialized data",
-        )
+    event_log = await _get_dataset_or_404(db, dataset_id)
+    model = await _get_model_or_404(db, model_id)
 
     try:
-        # Get full quality metrics
-        metrics = conformance_service.get_full_quality_metrics(event_log, model)
+        metrics = container.conformance.get_full_quality_metrics(event_log, model)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
-        logger.info(
-            "quality_metrics_completed",
-            dataset_id=dataset_id,
-            model_id=model_id,
-            fitness=metrics["fitness"],
-            precision=metrics.get("precision"),
-            generalization=metrics.get("generalization"),
-            simplicity=metrics.get("simplicity"),
-            f_score=metrics.get("f_score"),
-            duration_ms=round(duration_ms, 2),
-        )
+        logger.info("quality_metrics_completed", duration_ms=round(duration_ms, 2))
 
         return QualityMetricsResponse(
             dataset_id=dataset_id,
@@ -599,123 +383,63 @@ async def get_quality_metrics(
             simplicity=metrics.get("simplicity"),
             f_score=metrics.get("f_score"),
         )
-
     except Exception as e:
-        logger.error(
-            "quality_metrics_failed",
-            dataset_id=dataset_id,
-            model_id=model_id,
-            error=str(e),
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get quality metrics: {e!s}",
-        )
-
-
-# =============================================================================
-# Phase 11.1 - Reference Model Import (PNML/BPMN)
-# =============================================================================
+        logger.error("quality_metrics_failed", error=str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get quality metrics: {e!s}")
 
 
 @router.post("/import-model")
 async def import_reference_model(
+    db: DBSession,
+    container: ServiceContainer,
     project_id: str = Query(..., description="Project ID to store the model under"),
     model_name: str = Query(..., description="Name for the imported model"),
     model_content: str = Query(..., description="XML content (PNML or BPMN)"),
-    session: AsyncSession = Depends(get_session),
 ):
-    """
-    Import a reference model from PNML or BPMN format.
-
-    Phase 11.1 - Reference Model Management
-
-    Supports:
-    - PNML (Petri Net Markup Language) - direct import
-    - BPMN 2.0 (Business Process Model and Notation) - imported and converted to Petri net
-
-    Use this to upload external reference models for conformance checking.
-
-    Args:
-        project_id: The project to associate the model with
-        model_name: Display name for the model
-        model_content: XML content of the PNML or BPMN file
-
-    Returns:
-        Created process model with ID
-    """
+    """Import a reference model from PNML or BPMN format."""
     from uuid import uuid4
-
-    from src.features.process_mining.enums import ModelFormat
-    from src.features.process_mining.models import ProcessModel
     from src.features.process_mining.services.model_importer import model_importer
     from src.platform.models import Project
 
-    logger.info(
-        "model_import_started",
-        project_id=project_id,
-        model_name=model_name,
-        content_length=len(model_content),
-    )
+    logger.info("model_import_started", project_id=project_id, model_name=model_name)
     start_time = time.perf_counter()
 
-    # Validate project exists
-    project_result = await session.execute(select(Project).where(Project.id == project_id))
-    project = project_result.scalar_one_or_none()
-    if not project:
+    project_result = await db.execute(select(Project).where(Project.id == project_id))
+    if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Project not found")
 
     try:
-        # Auto-detect format
         model_format = model_importer.validate_model_format(model_content)
-        logger.info("model_format_detected", format=model_format.value)
-
-        # Import based on format
+        
         if model_format == ModelFormat.PETRI_NET:
-            # PNML import
             net, im, fm = model_importer.import_pnml(model_content)
         elif model_format == ModelFormat.BPMN:
-            # BPMN import and convert to Petri net
             net, im, fm = model_importer.import_and_convert_bpmn(model_content)
         else:
             raise HTTPException(status_code=400, detail=f"Unsupported format: {model_format.value}")
 
-        # Serialize the Petri net using joblib
         serialized_model = model_importer.serialize_petri_net(net, im, fm)
 
-        # Create ProcessModel record
         model_id = str(uuid4())
         process_model = ProcessModel(
             id=model_id,
             project_id=project_id,
             name=model_name,
-            model_format=ModelFormat.PETRI_NET.value,  # Always Petri net after conversion
+            model_format=ModelFormat.PETRI_NET.value,
             serialized_model=serialized_model,
-            metadata_json=json.dumps(
-                {
-                    "imported_from": model_format.value,
-                    "import_method": "reference_model_import",
-                    "places_count": len(net.places),
-                    "transitions_count": len(net.transitions),
-                    "arcs_count": len(net.arcs),
-                }
-            ),
+            metadata_json=json.dumps({
+                "imported_from": model_format.value,
+                "places_count": len(net.places),
+                "transitions_count": len(net.transitions),
+            }),
         )
 
-        session.add(process_model)
-        await session.commit()
-        await session.refresh(process_model)
+        db.add(process_model)
+        await db.commit()
+        await db.refresh(process_model)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
-        logger.info(
-            "model_import_success",
-            model_id=model_id,
-            format=model_format.value,
-            places=len(net.places),
-            transitions=len(net.transitions),
-            duration_ms=round(duration_ms, 2),
-        )
+        logger.info("model_import_success", model_id=model_id, duration_ms=round(duration_ms, 2))
 
         return {
             "model_id": model_id,
@@ -729,101 +453,38 @@ async def import_reference_model(
         }
 
     except ValidationError as e:
-        logger.warning("model_import_validation_failed", error=str(e))
         raise HTTPException(status_code=400, detail=str(e)) from e
-
     except Exception as e:
         logger.error("model_import_failed", error=str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to import model: {e!s}") from e
-
-
-# =============================================================================
-# Phase 11.3 - Root Cause Analysis
-# =============================================================================
 
 
 @router.get("/root-cause/{dataset_id}/{model_id}")
 async def get_root_cause_analysis(
     dataset_id: str,
     model_id: str,
-    attributes: str = Query(
-        "resource",
-        description="Comma-separated list of attributes to analyze (e.g., 'resource,department')",
-    ),
-    session: AsyncSession = Depends(get_session),
+    db: DBSession,
+    container: ServiceContainer,
+    attributes: str = Query("resource", description="Comma-separated list of attributes to analyze"),
 ):
-    """
-    Get comprehensive root cause analysis for conformance deviations.
-
-    Phase 11.3 - Root Cause Analysis
-
-    Analyzes:
-    - Deviation aggregation by activity (which activities cause most issues)
-    - Deviation aggregation by position (where in the process do issues occur)
-    - Attribute correlation (which resources/departments have more deviations)
-
-    Use this to identify patterns in conformance violations.
-
-    Args:
-        dataset_id: Event log ID
-        model_id: Process model ID
-        attributes: Comma-separated attributes to analyze (default: "resource")
-
-    Returns:
-        Comprehensive root cause analysis report
-    """
+    """Get comprehensive root cause analysis for conformance deviations."""
     from src.features.process_mining.services.root_cause import root_cause_analyzer
 
-    logger.info(
-        "root_cause_analysis_started",
-        dataset_id=dataset_id,
-        model_id=model_id,
-        attributes=attributes,
-    )
+    logger.info("root_cause_analysis_started", dataset_id=dataset_id, model_id=model_id)
     start_time = time.perf_counter()
 
-    # Get event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
-    event_log = log_result.scalar_one_or_none()
-    if not event_log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-
-    # Get process model
-    model_result = await session.execute(select(ProcessModel).where(ProcessModel.id == model_id))
-    model = model_result.scalar_one_or_none()
-    if not model:
-        raise HTTPException(status_code=404, detail="Process model not found")
-
-    if not model.serialized_model:
-        raise HTTPException(status_code=400, detail="Process model has no serialized data")
+    event_log = await _get_dataset_or_404(db, dataset_id)
+    model = await _get_model_or_404(db, model_id)
 
     try:
-        # Parse attributes
         attribute_list = [a.strip() for a in attributes.split(",") if a.strip()]
-
-        # Get comprehensive analysis
-        analysis = root_cause_analyzer.get_comprehensive_root_cause_analysis(
-            event_log, model, attribute_list
-        )
+        analysis = root_cause_analyzer.get_comprehensive_root_cause_analysis(event_log, model, attribute_list)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
-        logger.info(
-            "root_cause_analysis_completed",
-            dataset_id=dataset_id,
-            model_id=model_id,
-            duration_ms=round(duration_ms, 2),
-        )
-
+        logger.info("root_cause_analysis_completed", duration_ms=round(duration_ms, 2))
         return analysis
-
     except Exception as e:
-        logger.error(
-            "root_cause_analysis_failed",
-            dataset_id=dataset_id,
-            model_id=model_id,
-            error=str(e),
-            exc_info=True,
-        )
+        logger.error("root_cause_analysis_failed", error=str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to analyze root causes: {e!s}") from e
 
 
@@ -831,34 +492,17 @@ async def get_root_cause_analysis(
 async def get_deviations_by_activity(
     dataset_id: str,
     model_id: str,
-    session: AsyncSession = Depends(get_session),
+    db: DBSession,
 ):
-    """
-    Get deviation aggregation by activity.
-
-    Identifies which activities cause the most conformance issues.
-    """
+    """Get deviation aggregation by activity."""
     from src.features.process_mining.services.root_cause import root_cause_analyzer
 
-    logger.info("deviations_by_activity_started", dataset_id=dataset_id, model_id=model_id)
-
-    # Get event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
-    event_log = log_result.scalar_one_or_none()
-    if not event_log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-
-    # Get process model
-    model_result = await session.execute(select(ProcessModel).where(ProcessModel.id == model_id))
-    model = model_result.scalar_one_or_none()
-    if not model:
-        raise HTTPException(status_code=404, detail="Process model not found")
+    event_log = await _get_dataset_or_404(db, dataset_id)
+    model = await _get_model_or_404(db, model_id)
 
     try:
         return root_cause_analyzer.aggregate_deviations_by_activity(event_log, model)
-
     except Exception as e:
-        logger.error("deviations_by_activity_failed", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to aggregate deviations: {e!s}") from e
 
 
@@ -866,34 +510,17 @@ async def get_deviations_by_activity(
 async def get_deviations_by_position(
     dataset_id: str,
     model_id: str,
-    session: AsyncSession = Depends(get_session),
+    db: DBSession,
 ):
-    """
-    Get deviation aggregation by position in trace.
-
-    Identifies at which point in the process deviations occur most frequently.
-    """
+    """Get deviation aggregation by position in trace."""
     from src.features.process_mining.services.root_cause import root_cause_analyzer
 
-    logger.info("deviations_by_position_started", dataset_id=dataset_id, model_id=model_id)
-
-    # Get event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
-    event_log = log_result.scalar_one_or_none()
-    if not event_log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-
-    # Get process model
-    model_result = await session.execute(select(ProcessModel).where(ProcessModel.id == model_id))
-    model = model_result.scalar_one_or_none()
-    if not model:
-        raise HTTPException(status_code=404, detail="Process model not found")
+    event_log = await _get_dataset_or_404(db, dataset_id)
+    model = await _get_model_or_404(db, model_id)
 
     try:
         return root_cause_analyzer.aggregate_deviations_by_position(event_log, model)
-
     except Exception as e:
-        logger.error("deviations_by_position_failed", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to aggregate deviations: {e!s}") from e
 
 
@@ -901,43 +528,16 @@ async def get_deviations_by_position(
 async def get_attribute_correlation(
     dataset_id: str,
     model_id: str,
-    attribute: str = Query(
-        "resource", description="Attribute to analyze (e.g., resource, department)"
-    ),
-    session: AsyncSession = Depends(get_session),
+    db: DBSession,
+    attribute: str = Query("resource", description="Attribute to analyze"),
 ):
-    """
-    Analyze correlation between case attributes and conformance deviations.
-
-    Identifies which attribute values (e.g., specific resources or departments)
-    are associated with more conformance violations.
-    """
+    """Analyze correlation between case attributes and conformance deviations."""
     from src.features.process_mining.services.root_cause import root_cause_analyzer
 
-    logger.info(
-        "attribute_correlation_started",
-        dataset_id=dataset_id,
-        model_id=model_id,
-        attribute=attribute,
-    )
-
-    # Get event log
-    log_result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
-    event_log = log_result.scalar_one_or_none()
-    if not event_log:
-        raise HTTPException(status_code=404, detail="Event log not found")
-
-    # Get process model
-    model_result = await session.execute(select(ProcessModel).where(ProcessModel.id == model_id))
-    model = model_result.scalar_one_or_none()
-    if not model:
-        raise HTTPException(status_code=404, detail="Process model not found")
+    event_log = await _get_dataset_or_404(db, dataset_id)
+    model = await _get_model_or_404(db, model_id)
 
     try:
         return root_cause_analyzer.analyze_attribute_correlation(event_log, model, attribute)
-
     except Exception as e:
-        logger.error("attribute_correlation_failed", error=str(e), attribute=attribute)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to analyze attribute correlation: {e!s}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Failed to analyze attribute correlation: {e!s}") from e

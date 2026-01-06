@@ -48,9 +48,23 @@ def test_get_dataset_columns(api_client):
     url = f"{API_V1}/datasets/{context.dataset_id}/columns"
     headers = {"Authorization": f"Bearer {context.access_token}"}
     
-    # Wait for initial processing if needed (checking if job completed)
-    # Ideally we should poll the job, but for simplicitly we assume sync or fast async
-    time.sleep(2) 
+    # Wait for initial processing to complete (status: awaiting_mapping)
+    max_retries = 30
+    ready = False
+    for _ in range(max_retries):
+        url_status = f"{API_V1}/datasets/{context.dataset_id}"
+        resp_status = api_client.get(url_status, headers=headers)
+        if resp_status.status_code == 200:
+            status = resp_status.json().get("status")
+            if status == "awaiting_mapping":
+                ready = True
+                break
+            if status == "error":
+                pytest.fail(f"Dataset processing failed: {resp_status.json().get('error_message')}")
+        time.sleep(1)
+    
+    if not ready:
+        pytest.fail("Timeout waiting for dataset to be ready for column detection")
     
     response = api_client.get(url, headers=headers)
     assert response.status_code == 200

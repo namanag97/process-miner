@@ -90,4 +90,3 @@ class VisualizationService:
 
 
 # Singleton instance
-visualization_service = VisualizationService()

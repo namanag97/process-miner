@@ -624,7 +624,7 @@ async def ingest_dataset_task(
                 duckdb_ingestion_service,
             )
             from src.platform.models import AsyncJob
-            from src.platform.storage.storage import storage_service
+            from src.platform.infrastructure.object_storage import get_storage_client
 
             # Load dataset and file
             result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
@@ -665,9 +665,10 @@ async def ingest_dataset_task(
                 meta={"status": "Reading file from storage", "progress": 10},
             )
 
-            file_content = await storage_service.backend.retrieve(
-                uploaded_file.storage_path
-            )
+            # Retrieve file using the object storage client (matches upload/validation)
+            storage_client = get_storage_client()
+            file_obj = storage_client.download_fileobj("raw", uploaded_file.storage_path)
+            file_content = file_obj.read()
 
             self.update_state(
                 state="PROGRESS",

@@ -37,11 +37,10 @@ Simulation enables experimentation without real process changes:
 import json
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.dependencies import get_db
+from src.api.dependencies import DBSession, ServiceContainer
 from src.features.process_mining.models import Dataset, ProcessCase, ProcessEvent, ProcessModel
 from src.features.process_mining.schemas import (
     PlayOutRequest,
@@ -49,8 +48,6 @@ from src.features.process_mining.schemas import (
     SimulationRequest,
     SimulationResponse,
 )
-from src.features.process_mining.filtering.service import filtering_service
-from src.features.process_mining.simulation.service import simulation_service
 from src.platform.core.logging_config import get_logger
 from src.platform.core.safe_unpickler import safe_loads
 
@@ -59,11 +56,11 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/simulation", tags=["Simulation"])
 
 
-@router.post("/models/{model_id}/play-out", response_model=PlayOutResponse)
 async def play_out_model(
     model_id: str,
     request: PlayOutRequest,
-    db: AsyncSession = Depends(get_db),
+    db: DBSession,
+    container: ServiceContainer,
 ) -> PlayOutResponse:
     """Generate synthetic event log from a process model."""
     logger.info("playing_out_model", model_id=model_id, num_traces=request.num_traces)
@@ -80,7 +77,7 @@ async def play_out_model(
 
     # BUG-028 FIX: Use safe_loads instead of pickle.loads to prevent RCE
     model_data = safe_loads(model.serialized_model)
-    pm4py_log = simulation_service.play_out(model_data, model.model_format, request.num_traces)
+    pm4py_log = container.simulation.play_out(model_data, model.model_format, request.num_traces)
 
     activities = set()
     for trace in pm4py_log:
@@ -130,11 +127,11 @@ async def play_out_model(
     )
 
 
-@router.post("/datasets/{dataset_id}/simulate", response_model=SimulationResponse)
 async def simulate_scenario(
     dataset_id: str,
     request: SimulationRequest,
-    db: AsyncSession = Depends(get_db),
+    db: DBSession,
+    container: ServiceContainer,
 ) -> SimulationResponse:
     """Run what-if simulation on an event log."""
     logger.info(
@@ -148,8 +145,8 @@ async def simulate_scenario(
     if not event_log:
         raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
 
-    pm4py_log = filtering_service.to_pm4py_log(event_log)
-    simulation_result = simulation_service.simulate_scenario(pm4py_log, request.modifications)
+    pm4py_log = container.filtering.to_pm4py_log(event_log)
+    simulation_result = container.simulation.simulate_scenario(pm4py_log, request.modifications)
 
     return SimulationResponse(
         dataset_id=dataset_id,
@@ -160,11 +157,11 @@ async def simulate_scenario(
     )
 
 
-@router.post("/datasets/{dataset_id}/capacity-plan")
 async def estimate_capacity(
     dataset_id: str,
     target_throughput: float,
-    db: AsyncSession = Depends(get_db),
+    db: DBSession,
+    container: ServiceContainer,
 ) -> dict[str, Any]:
     """Estimate resource requirements for target throughput."""
     logger.info("estimating_capacity", dataset_id=dataset_id, target_throughput=target_throughput)
@@ -176,7 +173,7 @@ async def estimate_capacity(
     if not event_log:
         raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
 
-    pm4py_log = filtering_service.to_pm4py_log(event_log)
-    capacity_result = simulation_service.estimate_capacity(pm4py_log, target_throughput)
+    pm4py_log = container.filtering.to_pm4py_log(event_log)
+    capacity_result = container.simulation.estimate_capacity(pm4py_log, target_throughput)
 
     return {"dataset_id": dataset_id, **capacity_result}

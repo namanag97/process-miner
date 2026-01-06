@@ -75,7 +75,6 @@ from src.features.process_mining.models.lookup_tables import (
     Activity,
     Resource,
     get_or_create_activity,
-    get_or_create_activity,
     get_or_create_resource,
 )
 

@@ -756,5 +756,5 @@ class MiningService:
         }
 
 
-# Singleton instance
+# Singleton instance for backward compatibility
 mining_service = MiningService()

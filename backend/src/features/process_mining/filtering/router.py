@@ -40,9 +40,8 @@ import json
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import DBSession, ServiceContainer
 from src.features.process_mining.models import Dataset, ProcessCase, ProcessEvent

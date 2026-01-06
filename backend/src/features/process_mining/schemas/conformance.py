@@ -9,17 +9,34 @@ Contains schemas for:
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.features.process_mining.enums import ConformanceMethod
 from src.shared.schemas import PaginatedResponse
+
+# UUID regex pattern for validation
+UUID_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
 
 
 class ConformanceCheckRequest(BaseModel):
     """Request for conformance checking."""
 
-    dataset_id: str
-    model_id: str
+    dataset_id: str = Field(
+        ...,
+        min_length=36,
+        max_length=36,
+        pattern=UUID_PATTERN,
+        description="Dataset UUID for conformance check",
+        examples=["123e4567-e89b-12d3-a456-426614174000"],
+    )
+    model_id: str = Field(
+        ...,
+        min_length=36,
+        max_length=36,
+        pattern=UUID_PATTERN,
+        description="Process model UUID for conformance check",
+        examples=["123e4567-e89b-12d3-a456-426614174000"],
+    )
     method: ConformanceMethod = ConformanceMethod.TOKEN_REPLAY
 
 

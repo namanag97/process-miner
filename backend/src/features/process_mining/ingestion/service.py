@@ -578,5 +578,5 @@ class IngestionService:
 
 
 # DEPRECATED: Singleton pattern removed. Use Container.ingestion instead.
-# ingestion_service = IngestionService()
+ingestion_service = IngestionService()
 

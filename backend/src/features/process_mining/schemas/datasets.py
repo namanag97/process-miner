@@ -13,6 +13,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from src.shared.base_schemas import ColumnMappingBase, CreatedAtMixin, IDMixin
 from src.shared.schemas import PaginatedResponse
 
 # =============================================================================
@@ -20,22 +21,15 @@ from src.shared.schemas import PaginatedResponse
 # =============================================================================
 
 
-class ColumnMapping(BaseModel):
-    """CSV column mapping for ingestion."""
 
-    case_id: str = Field(..., description="Column name for case ID")
-    activity: str = Field(..., description="Column name for activity")
-    timestamp: str = Field(..., description="Column name for timestamp")
-    resource: str | None = Field(None, description="Column name for resource")
+class ColumnMapping(ColumnMappingBase):
+    """CSV column mapping for ingestion (alias for ColumnMappingBase)."""
+    pass
 
 
-class IngestRequest(BaseModel):
-    """Request to trigger background ingestion with column mapping."""
-
-    case_id_column: str = Field(..., description="Column name for case ID")
-    activity_column: str = Field(..., description="Column name for activity")
-    timestamp_column: str = Field(..., description="Column name for timestamp")
-    resource_column: str | None = Field(None, description="Column name for resource")
+class IngestRequest(ColumnMappingBase):
+    """Request to trigger background ingestion with column mapping (alias for ColumnMappingBase)."""
+    pass
 
 
 class PresignedUploadRequest(BaseModel):
@@ -133,47 +127,38 @@ class DatasetUploadRequest(BaseModel):
 # =============================================================================
 
 
-class DatasetResponse(BaseModel):
-    """Dataset response."""
 
-    id: str
+class DatasetResponse(IDMixin, CreatedAtMixin, BaseModel):
+    """Dataset response with optional detail fields."""
+
     name: str
     source_format: str
     total_events: int
     total_cases: int
     total_activities: int
     activities: list[str] = []
-    created_at: datetime
-    source_file: str | None = None  # FE expects this for display
-    status: str = "ready"  # Dataset lifecycle: unstructured, analyzing, ready, error
-    # Job tracking for progress visibility
+    source_file: str | None = None
+    status: str = "ready"
     validation_job_id: str | None = None
     ingestion_job_id: str | None = None
-    # File metadata
     file_size_bytes: int | None = None
+    # Detail fields (optional)
+    statistics: dict[str, Any] | None = None
+    updated_at: datetime | None = None
+    error_message: str | None = None
 
     @model_validator(mode="before")
     @classmethod
     def parse_json_fields(cls, data: Any) -> Any:
         """Auto-parse activities_json to activities list."""
         if hasattr(data, "__dict__"):
-            # ORM object - convert to dict with relevant fields
             data = {
                 k: getattr(data, k)
                 for k in [
-                    "id",
-                    "name",
-                    "source_format",
-                    "total_events",
-                    "total_cases",
-                    "total_activities",
-                    "activities_json",
-                    "created_at",
-                    "source_file",
-                    "status",
-                    "validation_job_id",
-                    "ingestion_job_id",
-                    "file_size_bytes",
+                    "id", "name", "source_format", "total_events", "total_cases",
+                    "total_activities", "activities_json", "created_at", "source_file",
+                    "status", "validation_job_id", "ingestion_job_id", "file_size_bytes",
+                    "statistics", "updated_at", "error_message",
                 ]
                 if hasattr(data, k)
             }
@@ -214,12 +199,11 @@ class DatasetListResponse(PaginatedResponse):
 
 
 class DatasetDetailResponse(DatasetResponse):
-    """Detailed dataset response with statistics."""
+    """Detailed dataset response (alias for DatasetResponse)."""
+    pass
 
-    source_file: str | None
-    statistics: dict[str, Any] | None
-    updated_at: datetime | None
-    error_message: str | None = None
+
+
 
 
 # =============================================================================
