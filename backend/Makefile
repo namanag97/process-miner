@@ -111,3 +111,44 @@ reset-dev: clean-dev
 	rm -f process_mining.db data/app.db 2>/dev/null || true
 	$(PYTHON) -m alembic upgrade head
 	@echo "✅ Dev environment reset"
+
+# ============================================================================
+# Temporal Workflow Orchestration
+# ============================================================================
+
+.PHONY: temporal-up temporal-down temporal-logs temporal-ui temporal-workers temporal-stop
+
+temporal-up:
+	@echo "🚀 Starting Temporal server..."
+	@docker-compose -f docker-compose.temporal.yml up -d
+	@echo "✅ Temporal server running"
+	@echo "   - gRPC API: localhost:7233"
+	@echo "   - Web UI: http://localhost:8088"
+
+temporal-down:
+	@echo "⏹️  Stopping Temporal server..."
+	@docker-compose -f docker-compose.temporal.yml down
+	@echo "✅ Temporal server stopped"
+
+temporal-logs:
+	@docker-compose -f docker-compose.temporal.yml logs -f temporal
+
+temporal-ui:
+	@echo "🌐 Opening Temporal Web UI..."
+	@open http://localhost:8088 2>/dev/null || xdg-open http://localhost:8088 2>/dev/null || echo "Open http://localhost:8088 in your browser"
+
+temporal-workers:
+	@echo "🏃 Starting Temporal workers..."
+	@echo "Not yet implemented - will start all workers"
+	# TODO: Implement in Phase 3
+	# $(PYTHON) -m src.platform.temporal.workers.ingestion_worker &
+	# $(PYTHON) -m src.platform.temporal.workers.analysis_worker &
+	# $(PYTHON) -m src.platform.temporal.workers.ml_worker &
+
+temporal-stop:
+	@echo "⏹️  Stopping Temporal workers..."
+	@pkill -f "temporal.workers" 2>/dev/null || echo "No workers running"
+
+temporal-status:
+	@echo "📊 Temporal status:"
+	@docker-compose -f docker-compose.temporal.yml ps
