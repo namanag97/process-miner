@@ -2,6 +2,8 @@
 
 Handles triggering the ingestion job after mapping is confirmed.
 Part of 4-Phase Upload Architecture: Upload → Validate → Map → Ingest
+
+Now uses Temporal workflows for durable execution (with Celery fallback).
 """
 
 from fastapi import APIRouter
@@ -52,12 +54,12 @@ async def trigger_ingestion(
     dataset_id: str,
     user: CurrentUser,
 ) -> JobStatusResponse:
-    """Trigger background ingestion job."""
+    """Trigger background ingestion job using Temporal workflow."""
     from datetime import datetime
     from uuid import uuid4
 
     from src.platform.core.enums import JobStatus
-    from src.platform.infrastructure.tasks import ingest_dataset_task
+    from src.platform.temporal.compat import dispatch_workflow, is_temporal_enabled
 
     # Verify permission
     _, dataset = await require_dataset_permission(
@@ -99,18 +101,28 @@ async def trigger_ingestion(
 
     await db.commit()
 
-    # Queue Celery task
-    task = ingest_dataset_task.delay(dataset_id, job.id)
+    # Dispatch workflow (Temporal or Celery based on feature flag)
+    result = await dispatch_workflow(
+        workflow_type="dataset_ingestion",
+        args={
+            "dataset_id": dataset_id,
+            "job_id": job.id,
+            "storage_key": dataset.storage_key,
+        },
+        entity_type="dataset",
+        entity_id=dataset_id,
+    )
 
-    # Update job with task_id
-    job.task_id = task.id
+    # Update job with task/workflow ID
+    job.task_id = result.get("task_id") or result.get("workflow_id")
     await db.commit()
 
     logger.info(
         "ingestion_triggered",
         dataset_id=dataset_id,
         job_id=job.id,
-        task_id=task.id,
+        workflow_id=result.get("workflow_id"),
+        temporal_enabled=is_temporal_enabled(),
     )
 
     return JobStatusResponse(
@@ -120,7 +132,10 @@ async def trigger_ingestion(
         progress=0,
         stage="queued",
         created_at=job.created_at,
-        result={"task_id": task.id, "message": "Ingestion job queued"},
+        result={
+            "workflow_id": result.get("workflow_id"),
+            "message": "Ingestion job queued",
+        },
     )
 
 
@@ -147,12 +162,12 @@ async def trigger_reingest(
     dataset_id: str,
     user: CurrentUser,
 ) -> JobStatusResponse:
-    """Trigger re-ingestion with updated mapping."""
+    """Trigger re-ingestion with updated mapping using Temporal workflow."""
     from datetime import datetime
     from uuid import uuid4
 
     from src.platform.core.enums import JobStatus
-    from src.platform.infrastructure.tasks import ingest_dataset_task
+    from src.platform.temporal.compat import dispatch_workflow, is_temporal_enabled
 
     # Verify permission
     _, dataset = await require_dataset_permission(
@@ -198,18 +213,29 @@ async def trigger_reingest(
 
     await db.commit()
 
-    # Queue Celery task (same as regular ingest, but could clear existing data)
-    task = ingest_dataset_task.delay(dataset_id, job.id)
+    # Dispatch workflow (Temporal or Celery based on feature flag)
+    result = await dispatch_workflow(
+        workflow_type="dataset_ingestion",
+        args={
+            "dataset_id": dataset_id,
+            "job_id": job.id,
+            "storage_key": dataset.storage_key,
+            "reingest": True,
+        },
+        entity_type="dataset",
+        entity_id=dataset_id,
+    )
 
-    # Update job with task_id
-    job.task_id = task.id
+    # Update job with task/workflow ID
+    job.task_id = result.get("task_id") or result.get("workflow_id")
     await db.commit()
 
     logger.info(
         "reingest_triggered",
         dataset_id=dataset_id,
         job_id=job.id,
-        task_id=task.id,
+        workflow_id=result.get("workflow_id"),
+        temporal_enabled=is_temporal_enabled(),
     )
 
     return JobStatusResponse(
@@ -219,5 +245,8 @@ async def trigger_reingest(
         progress=0,
         stage="queued",
         created_at=job.created_at,
-        result={"task_id": task.id, "message": "Re-ingestion job queued"},
+        result={
+            "workflow_id": result.get("workflow_id"),
+            "message": "Re-ingestion job queued",
+        },
     )
