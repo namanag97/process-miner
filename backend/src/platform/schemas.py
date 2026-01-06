@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src.shared.schemas import ErrorResponse, PaginatedResponse, PaginationParams
+from src.shared.schemas import PaginatedResponse
 
 if TYPE_CHECKING:
     from src.features.process_mining.schemas.datasets import DatasetResponse

@@ -8,7 +8,6 @@ import psutil
 
 from .models import (
     DevLogEntry,
-    HeartbeatMessage,
     LogLevel,
     SystemMetrics,
     create_log_entry,

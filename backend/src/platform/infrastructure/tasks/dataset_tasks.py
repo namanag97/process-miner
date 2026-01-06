@@ -297,7 +297,6 @@ async def validate_uploaded_file_task(
                 unified_ingestion_service,
             )
             from src.platform.infrastructure.object_storage import get_storage_client
-            from src.platform.models import Project
             from src.features.process_mining.services.ingestion.unified import (
                 unified_ingestion_service,
             )
@@ -666,7 +665,7 @@ async def ingest_dataset_task(
             )
 
             file_content = await storage_service.backend.retrieve(
-                f"{dataset_id}/{uploaded_file.filename}"
+                uploaded_file.storage_path
             )
 
             self.update_state(

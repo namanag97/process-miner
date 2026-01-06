@@ -44,7 +44,7 @@ from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 
 from src.api.dependencies import CurrentUser, DBSession
-from src.features.process_mining.models import Dataset, DatasetMetadata, DatasetStatus
+from src.features.process_mining.models import Dataset
 from src.features.process_mining.schemas import (
     DatasetDetailResponse,
     DatasetListResponse,

@@ -6,7 +6,6 @@ Part of 4-Phase Upload Architecture: Upload → Validate → Map → Ingest
 
 import os
 import tempfile
-import time
 from datetime import datetime
 from uuid import uuid4
 
@@ -14,7 +13,7 @@ import aiofiles
 from fastapi import APIRouter, File, Form, Request, Response, UploadFile
 
 from src.api.dependencies import CurrentUser, DBSession
-from src.features.process_mining.models import Dataset, DatasetStatus
+from src.features.process_mining.models import Dataset, DatasetStatus, UploadedFile
 from src.features.process_mining.schemas import (
     DatasetResponse,
     PresignedUploadRequest,
@@ -22,7 +21,7 @@ from src.features.process_mining.schemas import (
 )
 from src.platform.core.config import get_settings
 from src.platform.core.exceptions import InvalidFileError, ProcessingError, ValidationError
-from src.platform.core.logging_config import get_logger, log_operation
+from src.platform.core.logging_config import get_logger
 from src.platform.core.rate_limit import limiter
 
 logger = get_logger(__name__)
@@ -265,7 +264,6 @@ async def confirm_upload_complete(
     current_user: CurrentUser,
 ) -> dict:
     """Trigger validation after S3 upload complete."""
-    from sqlalchemy import select
 
     from src.platform.core.permissions import Permission
     from src.platform.workspaces.authorization import require_dataset_permission
@@ -422,6 +420,18 @@ async def upload_dataset(
         )
 
         db.add(dataset)
+
+        # Create UploadedFile record (required for ingestion)
+        uploaded_file_record = UploadedFile(
+            dataset_id=dataset_id,
+            filename=filename,
+            storage_path=storage_key,
+            size_bytes=total_size,
+            mime_type=file.content_type,
+            checksum=None
+        )
+        db.add(uploaded_file_record)
+
         await db.commit()
 
         # Queue validation job

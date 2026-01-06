@@ -37,13 +37,13 @@ Projects are organizational containers for process mining analyses:
 import json
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Path, Query
+from fastapi import APIRouter, Path, Query
 from sqlalchemy import func, select, update
 
 from src.api.dependencies import CurrentUser, DBSession
 from src.features.process_mining.models import Dataset
 from src.features.process_mining.schemas import DatasetResponse
-from src.platform.core.exceptions import ConflictError, NotFoundError, ValidationError
+from src.platform.core.exceptions import ConflictError
 from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
 from src.platform.core.validation import (

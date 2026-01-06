@@ -38,7 +38,7 @@ from sqlalchemy import delete, func, select
 from src.api.dependencies import CurrentUser, DBSession
 from src.platform.core.error_messages import ErrorMessages
 from src.platform.core.exceptions import ConflictError, NotFoundError
-from src.platform.core.logging_config import get_logger, log_operation
+from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
 from src.platform.core.validation import calculate_total_pages, validate_uuid
 from src.platform.models import Organization, Project, Workspace, WorkspaceMember

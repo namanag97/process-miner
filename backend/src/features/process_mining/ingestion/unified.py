@@ -235,5 +235,6 @@ class UnifiedIngestionService:
         return standardized
 
 
-# Singleton instance
-unified_ingestion_service = UnifiedIngestionService()
+# DEPRECATED: Singleton pattern removed. Use Container.ingestion instead.
+# unified_ingestion_service = UnifiedIngestionService()
+

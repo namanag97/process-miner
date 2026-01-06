@@ -15,7 +15,6 @@ Usage:
         return service.ingest(data, mapping)
 """
 
-from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 
 from sqlalchemy.ext.asyncio import AsyncSession

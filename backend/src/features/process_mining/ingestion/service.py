@@ -15,7 +15,6 @@ from pathlib import Path
 from typing import Any
 
 from pm4py.objects.log.importer.xes import importer as xes_importer
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.features.process_mining.models import (
     Dataset,
@@ -36,9 +35,9 @@ class IngestionService:
     Handles CSV, XES file parsing and event log creation.
     """
 
+
     async def ingest_csv(
         self,
-        session: AsyncSession,
         file_content: bytes,
         filename: str,
         name: str | None = None,
@@ -68,7 +67,6 @@ class IngestionService:
         # Create dataset
         dataset_name = name or Path(filename).stem
         dataset = await self._create_dataset(
-            session,
             name=dataset_name,
             source_file=filename,
             source_format="csv",
@@ -77,13 +75,12 @@ class IngestionService:
         )
 
         # Store the file and create UploadedFile record
-        await self._store_file(session, file_content, filename, dataset.id)
+        await self._store_file(file_content, filename, dataset.id)
 
         return dataset
 
     async def ingest_xes(
         self,
-        session: AsyncSession,
         file_content: bytes,
         filename: str,
         name: str | None = None,
@@ -97,7 +94,6 @@ class IngestionService:
         # Create dataset
         dataset_name = name or Path(filename).stem
         dataset = await self._create_dataset(
-            session,
             name=dataset_name,
             source_file=filename,
             source_format="xes",
@@ -105,13 +101,12 @@ class IngestionService:
         )
 
         # Store the file and create UploadedFile record
-        await self._store_file(session, file_content, filename, dataset.id)
+        await self._store_file(file_content, filename, dataset.id)
 
         return dataset
 
     async def ingest_file(
         self,
-        session: AsyncSession,
         file_content: bytes,
         filename: str,
         name: str | None = None,
@@ -129,7 +124,7 @@ class IngestionService:
         start_time = time.perf_counter()
 
         if extension == ".xes":
-            result = await self.ingest_xes(session, file_content, filename, name)
+            result = await self.ingest_xes(file_content, filename, name)
             duration_ms = (time.perf_counter() - start_time) * 1000
             logger.info(
                 "ingest_file_completed",
@@ -175,7 +170,6 @@ class IngestionService:
             )
 
             result = await self.ingest_csv(
-                session,
                 file_content,
                 filename,
                 name,
@@ -200,7 +194,6 @@ class IngestionService:
 
     async def store_only(
         self,
-        session: AsyncSession,
         file_content: bytes,
         filename: str,
         name: str | None = None,
@@ -216,8 +209,6 @@ class IngestionService:
             Dataset with status=UNSTRUCTURED
         """
         import hashlib
-
-        from src.platform.storage.storage import storage_service
 
         logger.info("store_only_started", filename=filename, name=name)
         start_time = time.perf_counter()
@@ -236,11 +227,11 @@ class IngestionService:
             total_events=0,
             total_activities=0,
         )
-        session.add(dataset)
-        await session.flush()
+        self.session.add(dataset)
+        await self.session.flush()
 
         # Store raw file
-        storage_path = await storage_service.store_dataset_file(file_content, dataset.id, filename)
+        storage_path = await self.storage.store_dataset_file(file_content, dataset.id, filename)
 
         # Create UploadedFile record
         uploaded_file = UploadedFile(
@@ -250,9 +241,9 @@ class IngestionService:
             size_bytes=len(file_content),
             checksum=hashlib.sha256(file_content).hexdigest(),
         )
-        session.add(uploaded_file)
-        await session.flush()
-        await session.refresh(dataset)
+        self.session.add(uploaded_file)
+        await self.session.flush()
+        await self.session.refresh(dataset)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info(
@@ -361,7 +352,6 @@ class IngestionService:
 
     async def _create_dataset(
         self,
-        session: AsyncSession,
         name: str,
         source_file: str,
         source_format: str,
@@ -393,9 +383,9 @@ class IngestionService:
             statistics_json=json.dumps(precomputed_stats) if precomputed_stats else None,
             status=DatasetStatus.READY.value,  # FIX: Explicitly set status after successful parsing
         )
-        session.add(dataset)
+        self.session.add(dataset)
         # Flush to ensure dataset.id is populated before creating related objects
-        await session.flush()
+        await self.session.flush()
 
         # Create cases and events
         for case_id, case_events in cases_dict.items():
@@ -415,9 +405,9 @@ class IngestionService:
                 start_time=min(timestamps) if timestamps else None,
                 end_time=max(timestamps) if timestamps else None,
             )
-            session.add(case)
+            self.session.add(case)
             # Flush to ensure case.id is populated before creating events
-            await session.flush()
+            await self.session.flush()
 
             for event_data in case_events:
                 # Extract attributes (non-standard fields)
@@ -434,10 +424,10 @@ class IngestionService:
                     resource=event_data.get("resource"),
                     attributes_json=json.dumps(attributes) if attributes else None,
                 )
-                session.add(event)
+                self.session.add(event)
 
-        await session.flush()
-        await session.refresh(dataset)
+        await self.session.flush()
+        await self.session.refresh(dataset)
 
         return dataset
 
@@ -560,7 +550,6 @@ class IngestionService:
 
     async def _store_file(
         self,
-        session,
         content: bytes,
         filename: str,
         dataset_id: str,
@@ -570,10 +559,9 @@ class IngestionService:
         import hashlib
 
         from src.features.process_mining.models import UploadedFile
-        from src.platform.storage.storage import storage_service
 
         # Store to filesystem/S3
-        storage_path = await storage_service.store_dataset_file(content, dataset_id, filename)
+        storage_path = await self.storage.store_dataset_file(content, dataset_id, filename)
 
         # Create DB record
         uploaded_file = UploadedFile(
@@ -584,10 +572,11 @@ class IngestionService:
             mime_type=mime_type,
             checksum=hashlib.sha256(content).hexdigest(),
         )
-        session.add(uploaded_file)
+        self.session.add(uploaded_file)
 
         return storage_path
 
 
-# Singleton instance
-ingestion_service = IngestionService()
+# DEPRECATED: Singleton pattern removed. Use Container.ingestion instead.
+# ingestion_service = IngestionService()
+

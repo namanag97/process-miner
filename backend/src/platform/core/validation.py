@@ -7,7 +7,6 @@ Provides reusable validation functions for API endpoints:
 """
 
 import re
-from typing import Any
 
 from fastapi import HTTPException
 

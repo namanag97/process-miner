@@ -5,7 +5,6 @@ Contains schemas used by multiple layers:
 - Error responses
 """
 
-from typing import Any
 
 from pydantic import BaseModel, Field
 

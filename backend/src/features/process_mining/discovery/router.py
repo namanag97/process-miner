@@ -43,8 +43,7 @@ import time
 from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 
-from src.api.dependencies import CurrentUser, DBSession
-from src.features.process_mining.discovery.service import mining_service
+from src.api.dependencies import CurrentUser, DBSession, ServiceContainer
 from src.features.process_mining.enums import MinerType
 from src.features.process_mining.models import Dataset, ProcessModel
 from src.features.process_mining.schemas import (
@@ -72,13 +71,13 @@ router = APIRouter(prefix="/discovery", tags=["Discovery"])
 
 
 @router.get("/miners", response_model=list[MinerInfo])
-async def list_miners():
+async def list_miners(container: ServiceContainer):
     """
     List available mining algorithms.
 
     Returns information about each algorithm including its output format.
     """
-    miners = mining_service.get_available_miners()
+    miners = container.discovery.get_available_miners()
     return [MinerInfo(**m) for m in miners]
 
 
@@ -91,6 +90,7 @@ async def list_miners():
 async def discover_model(
     db: DBSession,
     user: CurrentUser,
+    container: ServiceContainer,
     request: DiscoverRequest,
     async_mode: bool = True,  # BUG-019 FIX: Default to async to prevent API blocking
 ):
@@ -229,7 +229,7 @@ async def discover_model(
     start_time = time.perf_counter()
 
     try:
-        model_data, model_format = mining_service.discover(event_log, miner_type)
+        model_data, model_format = container.discovery.discover(event_log, miner_type)
     except Exception as e:
         logger.error("discovery_failed", dataset_id=request.dataset_id, error=str(e), exc_info=True)
         raise DiscoveryError(f"Discovery failed: {e!s}", miner_type=miner_type.value)
@@ -238,10 +238,10 @@ async def discover_model(
     model_name = request.model_name or f"{event_log.name}_{miner_type.value}"
 
     # Serialize model (legacy pickle for backward compatibility)
-    serialized = mining_service.serialize_model(model_data)
+    serialized = container.discovery.serialize_model(model_data)
 
     # Generate graph JSON for frontend visualization (new architecture)
-    graph_json = mining_service.serialize_to_graph_json(model_data, model_format)
+    graph_json = container.discovery.serialize_to_graph_json(model_data, model_format)
     graph_structure_json = None
     if graph_json:
         import json as json_module
@@ -258,11 +258,11 @@ async def discover_model(
             if model_format.value == "petri_net":
                 net, im, fm = model_data
             else:
-                net, im, fm = mining_service.tree_to_petri_net(model_data)
+                net, im, fm = container.discovery.tree_to_petri_net(model_data)
 
-            fitness_result = mining_service.evaluate_fitness(event_log, net, im, fm)
+            fitness_result = container.discovery.evaluate_fitness(event_log, net, im, fm)
             fitness = fitness_result.get("fitness")
-            precision = mining_service.evaluate_precision(event_log, net, im, fm)
+            precision = container.discovery.evaluate_precision(event_log, net, im, fm)
         except Exception as e:
             logger.warning(
                 "quality_metrics_failed",

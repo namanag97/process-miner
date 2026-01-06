@@ -62,10 +62,9 @@ from src.platform.core.error_messages import ErrorMessages
 from src.platform.core.exceptions import (
     AuthenticationError,
     ConflictError,
-    NotFoundError,
     ProcessingError,
 )
-from src.platform.core.logging_config import get_logger, log_operation
+from src.platform.core.logging_config import get_logger
 from src.platform.core.security import (
     TokenPair,
     create_token_pair,

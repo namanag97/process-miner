@@ -11,7 +11,7 @@ from fastapi import APIRouter, Query
 from sqlalchemy import func, select, text
 
 from src.api.dependencies import CurrentUser, DBSession
-from src.features.process_mining.models import Dataset, ProcessCase, ProcessEvent
+from src.features.process_mining.models import ProcessCase, ProcessEvent
 from src.features.process_mining.schemas import (
     ActivityDetailResponse,
     CaseListResponse,
@@ -19,7 +19,6 @@ from src.features.process_mining.schemas import (
     StatisticsResponse,
     VariantResponse,
 )
-from src.platform.core.exceptions import ProcessNotFoundError
 from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
 from src.platform.workspaces.authorization import require_dataset_permission
@@ -269,7 +268,7 @@ async def get_activities(
 # =============================================================================
 
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class EventResponse(BaseModel):
