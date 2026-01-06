@@ -48,7 +48,6 @@ async def discover_model(
     """Discover a process model from an event log."""
     import json
     from src.platform.core.enums import EntityType, JobStatus, JobType
-    from src.platform.infrastructure.tasks import perform_discovery_task
     from src.platform.models import AsyncJob
 
     logger.info("discovery_started", dataset_id=request.dataset_id, miner_type=str(request.miner_type), async_mode=async_mode)
@@ -70,8 +69,10 @@ async def discover_model(
     except ValueError:
         raise InvalidInputError(f"Invalid miner type: {request.miner_type}. Valid: {[m.value for m in MinerType]}", field="miner_type")
 
-    # Async mode - offload to Celery
+    # Async mode - offload to Temporal workflow
     if async_mode:
+        from src.platform.temporal.compat import dispatch_workflow, is_temporal_enabled
+
         async_job = AsyncJob(
             user_id=user.id, job_type=JobType.DISCOVERY.value, status=JobStatus.QUEUED.value,
             entity_type=EntityType.MODEL.value,
@@ -81,19 +82,33 @@ async def discover_model(
         await db.commit()
 
         try:
-            task = perform_discovery_task.delay(dataset_id=request.dataset_id, miner_type=miner_type.value, model_name=request.model_name)
-            async_job.task_id = task.id
+            result = await dispatch_workflow(
+                workflow_type="process_discovery",
+                args={
+                    "dataset_id": request.dataset_id,
+                    "miner_type": miner_type.value,
+                    "model_name": request.model_name,
+                    "job_id": async_job.id,
+                },
+                entity_type="analysis",
+                entity_id=request.dataset_id,
+            )
+            async_job.task_id = result.get("task_id") or result.get("workflow_id")
             await db.commit()
         except Exception as e:
-            logger.error("celery_task_failed", job_id=async_job.id, error=str(e))
+            logger.error("workflow_dispatch_failed", job_id=async_job.id, error=str(e))
             async_job.status = JobStatus.FAILED.value
-            async_job.error_message = f"Failed to queue task: {e}"
+            async_job.error_message = f"Failed to queue workflow: {e}"
             await db.commit()
-            raise DiscoveryError(f"Failed to start discovery task: {e}", miner_type=miner_type.value)
+            raise DiscoveryError(f"Failed to start discovery workflow: {e}", miner_type=miner_type.value)
 
-        logger.info("async_discovery_started", job_id=async_job.id, task_id=task.id)
-        return JSONResponse(status_code=202, content={"job_id": async_job.id, "task_id": task.id, "status": "queued",
-                                                      "message": "Discovery started. Use /api/v1/jobs/{job_id} to check status."})
+        logger.info("async_discovery_started", job_id=async_job.id, workflow_id=result.get("workflow_id"), temporal_enabled=is_temporal_enabled())
+        return JSONResponse(status_code=202, content={
+            "job_id": async_job.id,
+            "workflow_id": result.get("workflow_id"),
+            "status": "queued",
+            "message": "Discovery started. Use /api/v1/jobs/{job_id} to check status.",
+        })
 
     # Sync mode
     start_time = time.perf_counter()

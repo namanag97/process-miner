@@ -22,17 +22,20 @@ from src.features.process_mining.models.dataset import (
 from src.features.process_mining.models.uploaded_file import UploadedFile
 
 # Event models
-from src.features.process_mining.models.events import ProcessCase, ProcessEvent
+from src.features.process_mining.models.events_models import ProcessCase, ProcessEvent
+
+# Variant models
+from src.features.process_mining.models.variants import ProcessVariant
 
 # Analysis models
-from src.features.process_mining.models.analysis import (
+from src.features.process_mining.models.analysis_models import (
     Analysis,
     AnalyticsCache,
     ConformanceResult,
 )
 
 # Process model
-from src.features.process_mining.models.process_model import (
+from src.features.process_mining.models.process_model_models import (
     GraphCache,
     ProcessModel,
     ProcessModelMetrics,
@@ -92,6 +95,7 @@ __all__ = [
     # Models - Events
     "ProcessCase",
     "ProcessEvent",
+    "ProcessVariant",
     # Models - Process Model
     "ProcessModel",
     "ProcessModelMetrics",

@@ -27,9 +27,13 @@ class Organization(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
     plan: Mapped[str] = mapped_column(String(50), default="free", nullable=False)
+    
+    # Settings and feature flags (JSON)
+    settings_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)  # Soft delete
 
     # Relationships
     workspaces: Mapped[list["Workspace"]] = relationship(
@@ -54,12 +58,18 @@ class Workspace(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    
+    # Audit trail
+    created_by: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=False, index=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     organization: Mapped["Organization"] = relationship(back_populates="workspaces")
+    creator: Mapped["User"] = relationship(foreign_keys=[created_by], lazy="selectin")
     projects: Mapped[list["Project"]] = relationship(
         back_populates="workspace",
         lazy="selectin",
@@ -82,10 +92,14 @@ class User(Base):
     )
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     auth_provider: Mapped[str] = mapped_column(String(50), default="local", nullable=False)
     auth_provider_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     role: Mapped[str] = mapped_column(String(50), default="member", nullable=False)
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    
+    # User preferences (UI settings, default algorithm params)
+    preferences_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -129,9 +143,13 @@ class Project(Base):
     workspace_id: Mapped[str | None] = mapped_column(
         ForeignKey("workspaces.id", ondelete="SET NULL"), nullable=True
     )
+    created_by: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=False, index=True
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     tags_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    settings_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # Project-level defaults
 
     # Statistics
     total_files: Mapped[int] = mapped_column(Integer, default=0)
@@ -139,9 +157,11 @@ class Project(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)  # Soft delete
 
     # Relationships
     workspace: Mapped[Optional["Workspace"]] = relationship(back_populates="projects")
+    creator: Mapped["User"] = relationship(foreign_keys=[created_by], lazy="selectin")
     # NOTE: Bidirectional relationship to Feature layer (Dataset) REMOVED for proper layering.
     # To get datasets for a project, use: Dataset.query.filter_by(project_id=project.id)
     # This maintains Platform ← Feature direction only (Feature references Platform, not vice versa).

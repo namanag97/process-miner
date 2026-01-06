@@ -29,42 +29,40 @@ def upgrade() -> None:
     - dag_definition_edges → Temporal workflow logic
     - dag_runs → Temporal workflow executions
     - dag_run_steps → Temporal activity executions
+    
+    Note: COMMENT ON is PostgreSQL-specific; skip for SQLite.
     """
-    # Add deprecation comment to dag_definitions table
-    op.execute(
-        "COMMENT ON TABLE dag_definitions IS "
-        "'DEPRECATED: Migrate to Temporal workflows. See src.platform.temporal'"
-    )
-    
-    # Add deprecation comment to dag_definition_steps table
-    op.execute(
-        "COMMENT ON TABLE dag_definition_steps IS "
-        "'DEPRECATED: Use Temporal activities instead'"
-    )
-    
-    # Add deprecation comment to dag_definition_edges table
-    op.execute(
-        "COMMENT ON TABLE dag_definition_edges IS "
-        "'DEPRECATED: Workflow logic now handled by Temporal'"
-    )
-    
-    # Add deprecation comment to dag_runs table
-    op.execute(
-        "COMMENT ON TABLE dag_runs IS "
-        "'DEPRECATED: Use Temporal workflow executions instead'"
-    )
-    
-    # Add deprecation comment to dag_run_steps table
-    op.execute(
-        "COMMENT ON TABLE dag_run_steps IS "
-        "'DEPRECATED: Use Temporal activity results instead'"
-    )
+    bind = op.get_bind()
+    if bind.dialect.name == "postgresql":
+        op.execute(
+            "COMMENT ON TABLE dag_definitions IS "
+            "'DEPRECATED: Migrate to Temporal workflows. See src.platform.temporal'"
+        )
+        op.execute(
+            "COMMENT ON TABLE dag_definition_steps IS "
+            "'DEPRECATED: Use Temporal activities instead'"
+        )
+        op.execute(
+            "COMMENT ON TABLE dag_definition_edges IS "
+            "'DEPRECATED: Workflow logic now handled by Temporal'"
+        )
+        op.execute(
+            "COMMENT ON TABLE dag_runs IS "
+            "'DEPRECATED: Use Temporal workflow executions instead'"
+        )
+        op.execute(
+            "COMMENT ON TABLE dag_run_steps IS "
+            "'DEPRECATED: Use Temporal activity results instead'"
+        )
 
 
 def downgrade() -> None:
     """Remove deprecation comments."""
-    op.execute("COMMENT ON TABLE dag_definitions IS NULL")
-    op.execute("COMMENT ON TABLE dag_definition_steps IS NULL")
-    op.execute("COMMENT ON TABLE dag_definition_edges IS NULL")
-    op.execute("COMMENT ON TABLE dag_runs IS NULL")
-    op.execute("COMMENT ON TABLE dag_run_steps IS NULL")
+    bind = op.get_bind()
+    if bind.dialect.name == "postgresql":
+        op.execute("COMMENT ON TABLE dag_definitions IS NULL")
+        op.execute("COMMENT ON TABLE dag_definition_steps IS NULL")
+        op.execute("COMMENT ON TABLE dag_definition_edges IS NULL")
+        op.execute("COMMENT ON TABLE dag_runs IS NULL")
+        op.execute("COMMENT ON TABLE dag_run_steps IS NULL")
+

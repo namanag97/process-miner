@@ -22,6 +22,8 @@ Usage:
 import argparse
 import json
 import sys
+import re
+import ast
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
@@ -77,6 +79,49 @@ def fetch_recent_logs(api_url: str = "http://localhost:8001", limit: int = 200) 
         sys.exit(1)
 
 
+def parse_text_logs(filepath: str) -> List[Dict]:
+    """Parse custom text log format."""
+    logs = []
+    # Regex: [Timestamp] [Category] [Action] → Payload
+    pattern = re.compile(r"^\[(?P<timestamp>[^\]]+)\] \[(?P<category>[^\]]+)\] \[(?P<action>[^\]]+)\] → (?P<payload>.*)$")
+
+    try:
+        with open(filepath, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                match = pattern.match(line)
+                if match:
+                    data = match.groupdict()
+                    payload_str = data["payload"]
+                    
+                    try:
+                        payload = json.loads(payload_str)
+                    except json.JSONDecodeError:
+                        try:
+                            payload = ast.literal_eval(payload_str)
+                        except:
+                            payload = payload_str
+
+                    logs.append({
+                        "timestamp": data["timestamp"],
+                        "level": "INFO",
+                        "category": data["category"],
+                        "action": data["action"],
+                        "message": f"[{data['category']}] {data['action']}",
+                        "data": payload
+                    })
+        
+        if logs:
+            print(f"✓ Parsed {len(logs)} text log entries from {filepath}")
+        return logs
+        
+    except Exception:
+        return []
+
+
 def load_logs_from_file(filepath: str) -> List[Dict]:
     """Load logs from JSON export file.
 
@@ -125,8 +170,13 @@ def load_logs_from_file(filepath: str) -> List[Dict]:
     except FileNotFoundError:
         print(f"❌ File not found: {filepath}", file=sys.stderr)
         sys.exit(1)
-    except json.JSONDecodeError as e:
-        print(f"❌ Invalid JSON in {filepath}: {e}", file=sys.stderr)
+    except json.JSONDecodeError:
+        # Try parsing as text log
+        logs = parse_text_logs(filepath)
+        if logs:
+            return logs
+
+        print(f"❌ Invalid JSON and failed to parse text logs in {filepath}", file=sys.stderr)
         sys.exit(1)
 
 

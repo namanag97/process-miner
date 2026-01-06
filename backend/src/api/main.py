@@ -36,6 +36,7 @@ from src.api.routers import (
     projects_router,
     simulation_router,
     visualization_router,
+    workflows_api_router,
     workflows_router,
     workspaces_router,
 )
@@ -501,6 +502,7 @@ For support, please contact the developer team or refer to the internal document
     # Platform Infrastructure Routers
     # =========================================================================
     app.include_router(jobs_router, prefix=settings.api_prefix)
+    app.include_router(workflows_api_router, prefix=settings.api_prefix)  # Temporal workflow status
     app.include_router(dags_router, prefix=settings.api_prefix)
     app.include_router(audit_router, prefix=settings.api_prefix)
     app.include_router(dev_log_router, prefix=settings.api_prefix)

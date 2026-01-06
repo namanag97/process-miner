@@ -78,6 +78,8 @@ Table async_jobs {
   started_at DATETIME
   completed_at DATETIME
   updated_at DATETIME
+  workflow_id VARCHAR(255)
+  workflow_run_id VARCHAR(255)
 }
 Ref: async_jobs.parent_job_id > async_jobs.id
 
@@ -125,6 +127,7 @@ Table datasets {
   filter_config_json TEXT
   is_filtered BOOLEAN [not null]
   filter_stats_json TEXT
+  workflow_id VARCHAR(255)
   created_at DATETIME [not null]
   updated_at DATETIME
 }
