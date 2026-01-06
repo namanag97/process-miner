@@ -1,11 +1,24 @@
-"""Temporal Workers.
+"""Temporal Workers Package.
 
-Worker entrypoints for each task queue.
+Exports worker entry points and utilities.
 """
 
-__all__: list[str] = []
+from src.platform.temporal.workers.analysis import (
+    main as run_analysis_worker,
+)
+from src.platform.temporal.workers.analysis import (
+    run_analysis_worker as run_analysis_worker_async,
+)
+from src.platform.temporal.workers.ingestion import (
+    main as run_ingestion_worker,
+)
+from src.platform.temporal.workers.ingestion import (
+    run_ingestion_worker as run_ingestion_worker_async,
+)
 
-# Workers will be implemented in Phase 3
-# - ingestion_worker
-# - analysis_worker
-# - ml_worker
+__all__ = [
+    "run_analysis_worker",
+    "run_analysis_worker_async",
+    "run_ingestion_worker",
+    "run_ingestion_worker_async",
+]

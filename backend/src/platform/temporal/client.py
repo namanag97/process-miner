@@ -4,15 +4,13 @@ Provides async client for connecting to Temporal server.
 Manages connection lifecycle and provides singleton access.
 """
 
-from functools import lru_cache
-from typing import Optional
 
 from temporalio.client import Client
 
 from src.platform.temporal.config import get_temporal_config
 
 # Module-level client cache
-_client: Optional[Client] = None
+_client: Client | None = None
 
 
 async def get_temporal_client() -> Client:
@@ -54,7 +52,7 @@ async def close_temporal_client() -> None:
         _client = None
 
 
-def get_temporal_client_sync() -> Optional[Client]:
+def get_temporal_client_sync() -> Client | None:
     """Get cached client without creating (for sync contexts).
 
     Returns:

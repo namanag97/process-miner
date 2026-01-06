@@ -7,9 +7,9 @@ Usage:
     from src.platform.temporal.compat import dispatch_workflow
 
     # Routes to Celery or Temporal based on USE_TEMPORAL env var
-    job_id = await dispatch_workflow(
+    result = await dispatch_workflow(
         workflow_type="dataset_ingestion",
-        args={"dataset_id": "123"},
+        args={"dataset_id": "123", "storage_key": "..."},
     )
 """
 
@@ -44,8 +44,7 @@ async def dispatch_workflow(
 
     if config.use_temporal or USE_TEMPORAL:
         return await _dispatch_temporal(workflow_type, args, entity_type, entity_id)
-    else:
-        return await _dispatch_celery(workflow_type, args, entity_type, entity_id)
+    return await _dispatch_celery(workflow_type, args, entity_type, entity_id)
 
 
 async def _dispatch_celery(
@@ -55,9 +54,14 @@ async def _dispatch_celery(
     entity_id: str | None,
 ) -> dict[str, str]:
     """Route to existing Celery tasks."""
+    from src.platform.infrastructure.tasks.analysis_tasks import (
+        perform_conformance_task,
+        perform_discovery_task,
+    )
     from src.platform.infrastructure.tasks.dataset_tasks import (
         ingest_dataset_task,
         validate_dataset_task,
+        validate_uploaded_file_task,
     )
 
     job_id = str(uuid4())
@@ -65,7 +69,10 @@ async def _dispatch_celery(
     # Map workflow types to Celery tasks
     task_map = {
         "validate_dataset": validate_dataset_task,
+        "validate_uploaded_file": validate_uploaded_file_task,
         "dataset_ingestion": ingest_dataset_task,
+        "process_discovery": perform_discovery_task,
+        "conformance_check": perform_conformance_task,
     }
 
     task = task_map.get(workflow_type)
@@ -93,6 +100,14 @@ async def _dispatch_temporal(
     """Route to Temporal workflows."""
     from src.platform.temporal.client import get_temporal_client
     from src.platform.temporal.config import get_temporal_config
+    from src.platform.temporal.workflows.analysis import (
+        ConformanceCheckWorkflow,
+        ProcessDiscoveryWorkflow,
+    )
+    from src.platform.temporal.workflows.ingestion import (
+        DatasetIngestionWorkflow,
+        DatasetValidationWorkflow,
+    )
 
     config = get_temporal_config()
     client = await get_temporal_client()
@@ -105,15 +120,23 @@ async def _dispatch_temporal(
     workflow_map = {
         "validate_dataset": {
             "queue": config.QUEUE_INGESTION,
-            # "workflow": ValidationWorkflow,  # TODO: Import when created
+            "workflow": DatasetValidationWorkflow,
+        },
+        "validate_uploaded_file": {
+            "queue": config.QUEUE_INGESTION,
+            "workflow": DatasetValidationWorkflow,
         },
         "dataset_ingestion": {
             "queue": config.QUEUE_INGESTION,
-            # "workflow": DatasetIngestionWorkflow,  # TODO: Import when created
+            "workflow": DatasetIngestionWorkflow,
         },
         "process_discovery": {
             "queue": config.QUEUE_ANALYSIS,
-            # "workflow": AnalysisWorkflow,  # TODO: Import when created
+            "workflow": ProcessDiscoveryWorkflow,
+        },
+        "conformance_check": {
+            "queue": config.QUEUE_ANALYSIS,
+            "workflow": ConformanceCheckWorkflow,
         },
     }
 
@@ -121,20 +144,84 @@ async def _dispatch_temporal(
     if mapping is None:
         raise ValueError(f"Unknown workflow type for Temporal: {workflow_type}")
 
-    # TODO: Uncomment when workflows are implemented
-    # handle = await client.start_workflow(
-    #     mapping["workflow"].run,
-    #     args=[args],
-    #     id=workflow_id,
-    #     task_queue=mapping["queue"],
-    # )
+    # Start workflow
+    handle = await client.start_workflow(
+        mapping["workflow"].run,
+        args=[args.get("dataset_id", args.get("entity_id"))] + list(args.values())[1:],
+        id=workflow_id,
+        task_queue=mapping["queue"],
+    )
 
-    # For now, return placeholder
     return {
         "job_id": job_id,
         "workflow_id": workflow_id,
-        "workflow_run_id": "pending-implementation",
+        "workflow_run_id": handle.result_run_id,
     }
+
+
+async def get_workflow_status(workflow_id: str) -> dict[str, Any]:
+    """Get the status of a Temporal workflow.
+
+    Args:
+        workflow_id: The workflow ID
+
+    Returns:
+        dict with status, current activity, and result if completed
+    """
+    from src.platform.temporal.client import get_temporal_client
+
+    client = await get_temporal_client()
+    handle = client.get_workflow_handle(workflow_id)
+
+    try:
+        desc = await handle.describe()
+        status = desc.status.name if desc.status else "UNKNOWN"
+
+        result = None
+        if status == "COMPLETED":
+            result = await handle.result()
+
+        return {
+            "workflow_id": workflow_id,
+            "status": status,
+            "start_time": desc.start_time.isoformat() if desc.start_time else None,
+            "close_time": desc.close_time.isoformat() if desc.close_time else None,
+            "result": result,
+        }
+    except Exception as e:
+        return {
+            "workflow_id": workflow_id,
+            "status": "ERROR",
+            "error": str(e),
+        }
+
+
+async def cancel_workflow(workflow_id: str) -> dict[str, Any]:
+    """Cancel a running Temporal workflow.
+
+    Args:
+        workflow_id: The workflow ID to cancel
+
+    Returns:
+        dict with cancellation result
+    """
+    from src.platform.temporal.client import get_temporal_client
+
+    client = await get_temporal_client()
+    handle = client.get_workflow_handle(workflow_id)
+
+    try:
+        await handle.cancel()
+        return {
+            "workflow_id": workflow_id,
+            "status": "cancelled",
+        }
+    except Exception as e:
+        return {
+            "workflow_id": workflow_id,
+            "status": "error",
+            "error": str(e),
+        }
 
 
 def is_temporal_enabled() -> bool:

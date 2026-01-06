@@ -139,11 +139,17 @@ temporal-ui:
 
 temporal-workers:
 	@echo "🏃 Starting Temporal workers..."
-	@echo "Not yet implemented - will start all workers"
-	# TODO: Implement in Phase 3
-	# $(PYTHON) -m src.platform.temporal.workers.ingestion_worker &
-	# $(PYTHON) -m src.platform.temporal.workers.analysis_worker &
-	# $(PYTHON) -m src.platform.temporal.workers.ml_worker &
+	@$(PYTHON) -m src.platform.temporal.workers.ingestion &
+	@$(PYTHON) -m src.platform.temporal.workers.analysis &
+	@echo "✅ Workers started (ingestion + analysis)"
+
+temporal-ingestion-worker:
+	@echo "🏃 Starting ingestion worker..."
+	$(PYTHON) -m src.platform.temporal.workers.ingestion
+
+temporal-analysis-worker:
+	@echo "🏃 Starting analysis worker..."
+	$(PYTHON) -m src.platform.temporal.workers.analysis
 
 temporal-stop:
 	@echo "⏹️  Stopping Temporal workers..."

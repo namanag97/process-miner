@@ -1,0 +1,519 @@
+Table organizations {
+  id VARCHAR(36) [pk, not null]
+  name VARCHAR(255) [not null]
+  slug VARCHAR(100) [not null]
+  plan VARCHAR(50) [not null]
+  created_at DATETIME [not null]
+  updated_at DATETIME
+}
+
+
+Table projects {
+  id VARCHAR(36) [pk, not null]
+  workspace_id VARCHAR(36)
+  name VARCHAR(255) [not null]
+  description TEXT
+  tags_json TEXT
+  total_files INTEGER [not null]
+  total_analyses INTEGER [not null]
+  created_at DATETIME [not null]
+  updated_at DATETIME
+}
+Ref: projects.workspace_id > workspaces.id
+
+
+Table users {
+  id VARCHAR(36) [pk, not null]
+  org_id VARCHAR(36)
+  email VARCHAR(255) [not null]
+  name VARCHAR(255)
+  auth_provider VARCHAR(50) [not null]
+  auth_provider_id VARCHAR(255)
+  role VARCHAR(50) [not null]
+  password_hash VARCHAR(255)
+  created_at DATETIME [not null]
+  last_login_at DATETIME
+}
+Ref: users.org_id > organizations.id
+
+
+Table workspaces {
+  id VARCHAR(36) [pk, not null]
+  org_id VARCHAR(36) [not null]
+  name VARCHAR(255) [not null]
+  description TEXT
+  created_at DATETIME [not null]
+  updated_at DATETIME
+}
+Ref: workspaces.org_id > organizations.id
+
+
+Table workspace_members {
+  id VARCHAR(36) [pk, not null]
+  workspace_id VARCHAR(36) [not null]
+  user_id VARCHAR(36) [not null]
+  role VARCHAR(20) [not null]
+  joined_at DATETIME [not null]
+}
+Ref: workspace_members.user_id > users.id
+Ref: workspace_members.workspace_id > workspaces.id
+
+
+Table async_jobs {
+  id VARCHAR(36) [pk, not null]
+  task_id VARCHAR(255)
+  user_id VARCHAR(36)
+  job_type VARCHAR(50) [not null]
+  status VARCHAR(20) [not null]
+  progress INTEGER [not null]
+  stage VARCHAR(100)
+  entity_type VARCHAR(50)
+  entity_id VARCHAR(36)
+  parent_job_id VARCHAR(36)
+  parameters_json TEXT
+  result_json TEXT
+  error TEXT
+  error_message TEXT
+  created_at DATETIME [not null]
+  started_at DATETIME
+  completed_at DATETIME
+  updated_at DATETIME
+}
+Ref: async_jobs.parent_job_id > async_jobs.id
+
+
+Table error_logs {
+  id VARCHAR(36) [pk, not null]
+  timestamp DATETIME [not null]
+  level VARCHAR(20) [not null]
+  exception_type VARCHAR(255) [not null]
+  exception_message TEXT [not null]
+  stack_trace TEXT
+  request_id VARCHAR(36)
+  user_id VARCHAR(36)
+  endpoint VARCHAR(255)
+  method VARCHAR(10)
+  context_json TEXT
+  resolved BOOLEAN [not null]
+  resolved_at DATETIME
+  resolved_by VARCHAR(36)
+  notes TEXT
+}
+
+
+Table datasets {
+  id VARCHAR(36) [pk, not null]
+  name VARCHAR(255) [not null]
+  source_file VARCHAR(500)
+  source_format VARCHAR(20) [not null]
+  project_id VARCHAR(36)
+  total_cases INTEGER [not null]
+  total_events INTEGER [not null]
+  total_activities INTEGER [not null]
+  activities_json TEXT
+  statistics_json TEXT
+  status VARCHAR(20) [not null]
+  error_message TEXT
+  mapping_json TEXT
+  column_suggestions_json TEXT
+  detected_columns_json TEXT
+  file_size_bytes INTEGER
+  storage_key VARCHAR(500)
+  validation_job_id VARCHAR(36)
+  ingestion_job_id VARCHAR(36)
+  source_dataset_id VARCHAR(36)
+  filter_config_json TEXT
+  is_filtered BOOLEAN [not null]
+  filter_stats_json TEXT
+  created_at DATETIME [not null]
+  updated_at DATETIME
+}
+Ref: datasets.validation_job_id > async_jobs.id
+Ref: datasets.project_id > projects.id
+Ref: datasets.ingestion_job_id > async_jobs.id
+Ref: datasets.source_dataset_id > datasets.id
+
+
+Table dataset_columns {
+  id VARCHAR(36) [pk, not null]
+  dataset_id VARCHAR(36) [not null]
+  name VARCHAR(255) [not null]
+  dtype VARCHAR(50) [not null]
+  position INTEGER [not null]
+  sample_values_json TEXT
+  null_count INTEGER [not null]
+  null_percentage FLOAT [not null]
+  unique_count INTEGER [not null]
+  suggested_role VARCHAR(50)
+  suggestion_confidence FLOAT
+  created_at DATETIME [not null]
+}
+Ref: dataset_columns.dataset_id > datasets.id
+
+
+Table dataset_column_mappings {
+  id VARCHAR(36) [pk, not null]
+  dataset_id VARCHAR(36) [not null]
+  case_id_column VARCHAR(255) [not null]
+  activity_column VARCHAR(255) [not null]
+  timestamp_column VARCHAR(255) [not null]
+  timestamp_format VARCHAR(100)
+  resource_column VARCHAR(255)
+  additional_columns_json TEXT
+  confidence_scores_json TEXT
+  auto_mapped BOOLEAN [not null]
+  created_at DATETIME [not null]
+  updated_at DATETIME
+}
+Ref: dataset_column_mappings.dataset_id > datasets.id
+
+
+Table dataset_metadata {
+  id VARCHAR(36) [pk, not null]
+  dataset_id VARCHAR(36) [not null]
+  total_events INTEGER [not null]
+  total_cases INTEGER [not null]
+  total_activities INTEGER [not null]
+  total_variants INTEGER [not null]
+  first_event_at DATETIME
+  last_event_at DATETIME
+  avg_case_duration FLOAT
+  min_case_duration FLOAT
+  max_case_duration FLOAT
+  total_resources INTEGER
+  computed_at DATETIME [not null]
+  computation_time_ms INTEGER
+}
+Ref: dataset_metadata.dataset_id > datasets.id
+
+
+Table uploaded_files {
+  id VARCHAR(36) [pk, not null]
+  dataset_id VARCHAR(36) [not null]
+  filename VARCHAR(500) [not null]
+  storage_path VARCHAR(1000) [not null]
+  size_bytes INTEGER
+  mime_type VARCHAR(100)
+  checksum VARCHAR(64)
+  created_at DATETIME [not null]
+}
+Ref: uploaded_files.dataset_id > datasets.id
+
+
+Table process_cases {
+  id VARCHAR(36) [pk, not null]
+  dataset_id VARCHAR(36) [not null]
+  case_id VARCHAR(255) [not null]
+  variant_key TEXT
+  start_time DATETIME
+  end_time DATETIME
+}
+Ref: process_cases.dataset_id > datasets.id
+
+
+Table process_events {
+  id VARCHAR(36) [pk, not null]
+  case_ref_id VARCHAR(36) [not null]
+  activity_id INTEGER
+  resource_id INTEGER
+  activity VARCHAR(255) [not null]
+  resource VARCHAR(255)
+  timestamp DATETIME [not null]
+  attributes_json TEXT
+}
+Ref: process_events.case_ref_id > process_cases.id
+Ref: process_events.resource_id > lookup_resources.id
+Ref: process_events.activity_id > lookup_activities.id
+
+
+Table analyses {
+  id VARCHAR(36) [pk, not null]
+  dataset_id VARCHAR(36) [not null]
+  name VARCHAR(255) [not null]
+  analysis_type VARCHAR(50) [not null]
+  config_json TEXT
+  status VARCHAR(20) [not null]
+  error_message TEXT
+  result_summary_json TEXT
+  result_json TEXT
+  model_id VARCHAR(36)
+  created_at DATETIME [not null]
+  completed_at DATETIME
+}
+Ref: analyses.model_id > process_models.id
+Ref: analyses.dataset_id > datasets.id
+
+
+Table conformance_results {
+  id VARCHAR(36) [pk, not null]
+  dataset_id VARCHAR(36) [not null]
+  model_id VARCHAR(36) [not null]
+  fitness FLOAT [not null]
+  precision FLOAT
+  method VARCHAR(50) [not null]
+  generalization FLOAT
+  simplicity FLOAT
+  f_score FLOAT
+  non_fitting_traces INTEGER
+  average_alignment_cost FLOAT
+  diagnostics_json TEXT
+  created_at DATETIME [not null]
+}
+Ref: conformance_results.dataset_id > datasets.id
+Ref: conformance_results.model_id > process_models.id
+
+
+Table analytics_cache {
+  id VARCHAR(36) [pk, not null]
+  dataset_id VARCHAR(36) [not null]
+  metric_type VARCHAR(50) [not null]
+  result_json TEXT
+  computed_at DATETIME [not null]
+  ttl_seconds INTEGER [not null]
+}
+Ref: analytics_cache.dataset_id > datasets.id
+
+
+Table process_models {
+  id VARCHAR(36) [pk, not null]
+  name VARCHAR(255) [not null]
+  dataset_id VARCHAR(36)
+  miner_type VARCHAR(50) [not null]
+  model_format VARCHAR(50) [not null]
+  serialized_model BLOB
+  standard_content_path VARCHAR(500)
+  graph_structure_json TEXT
+  metadata_json TEXT
+  fitness FLOAT
+  precision FLOAT
+  created_at DATETIME [not null]
+}
+Ref: process_models.dataset_id > datasets.id
+
+
+Table process_model_metrics {
+  id VARCHAR(36) [pk, not null]
+  model_id VARCHAR(36) [not null]
+  total_activities INTEGER
+  total_transitions INTEGER
+  complexity_score FLOAT
+  fitness_score FLOAT
+  precision_score FLOAT
+  computed_at DATETIME [not null]
+  created_at DATETIME [not null]
+  updated_at DATETIME [not null]
+}
+Ref: process_model_metrics.model_id > process_models.id
+
+
+Table graph_cache {
+  id VARCHAR(36) [pk, not null]
+  model_id VARCHAR(36) [not null]
+  abstraction_level INTEGER [not null]
+  layout_algorithm VARCHAR(50) [not null]
+  cached_layout_json TEXT
+  expires_at DATETIME
+  created_at DATETIME [not null]
+  updated_at DATETIME [not null]
+}
+Ref: graph_cache.model_id > process_models.id
+
+
+Table prediction_models {
+  id VARCHAR(36) [pk, not null]
+  dataset_id VARCHAR(36) [not null]
+  target_type VARCHAR(50) [not null]
+  algorithm VARCHAR(50) [not null]
+  model_binary BLOB
+  metrics_json TEXT
+  trained_at DATETIME [not null]
+}
+Ref: prediction_models.dataset_id > datasets.id
+
+
+Table predictions {
+  id VARCHAR(36) [pk, not null]
+  model_id VARCHAR(36) [not null]
+  case_prefix_json TEXT
+  prediction_json TEXT
+  confidence FLOAT
+  predicted_at DATETIME [not null]
+}
+Ref: predictions.model_id > prediction_models.id
+
+
+Table recommendations {
+  id VARCHAR(36) [pk, not null]
+  dataset_id VARCHAR(36) [not null]
+  case_id VARCHAR(255) [not null]
+  signal_type VARCHAR(50) [not null]
+  signal_data_json TEXT
+  action_type VARCHAR(50) [not null]
+  action_params_json TEXT
+  priority VARCHAR(20) [not null]
+  state VARCHAR(20) [not null]
+  created_at DATETIME [not null]
+}
+Ref: recommendations.dataset_id > datasets.id
+
+
+Table social_networks {
+  id VARCHAR(36) [pk, not null]
+  dataset_id VARCHAR(36) [not null]
+  network_type VARCHAR(50) [not null]
+  graph_json TEXT
+  metrics_json TEXT
+  created_at DATETIME [not null]
+}
+Ref: social_networks.dataset_id > datasets.id
+
+
+Table activity_mappings {
+  id VARCHAR(36) [pk, not null]
+  dataset_id VARCHAR(36) [not null]
+  name VARCHAR(200) [not null]
+  description TEXT
+  level INTEGER [not null]
+  mapping_rules TEXT [not null]
+  created_at DATETIME [not null]
+  updated_at DATETIME [not null]
+}
+Ref: activity_mappings.dataset_id > datasets.id
+
+
+Table hierarchical_process_models {
+  id VARCHAR(36) [pk, not null]
+  mapping_id VARCHAR(36) [not null]
+  level INTEGER [not null]
+  graph_structure_json TEXT [not null]
+  pnml_path VARCHAR(500)
+  activity_count INTEGER [not null]
+  edge_count INTEGER [not null]
+  created_at DATETIME [not null]
+  updated_at DATETIME [not null]
+}
+Ref: hierarchical_process_models.mapping_id > activity_mappings.id
+
+
+Table ocel2_event_types {
+  id VARCHAR(36) [pk, not null]
+  name VARCHAR(255) [not null]
+  attributes_schema JSON
+}
+
+
+Table ocel2_object_types {
+  id VARCHAR(36) [pk, not null]
+  name VARCHAR(255) [not null]
+  attributes_schema JSON
+}
+
+
+Table ocel2_events {
+  id VARCHAR(36) [pk, not null]
+  event_type_id VARCHAR(36) [not null]
+  activity VARCHAR(255) [not null]
+  timestamp DATETIME [not null]
+  attributes JSON
+  source_dataset_id VARCHAR(36)
+  created_at DATETIME [not null]
+}
+Ref: ocel2_events.event_type_id > ocel2_event_types.id
+Ref: ocel2_events.source_dataset_id > datasets.id
+
+
+Table ocel2_objects {
+  id VARCHAR(36) [pk, not null]
+  object_type_id VARCHAR(36) [not null]
+  object_id VARCHAR(255) [not null]
+  attributes JSON
+  created_at DATETIME [not null]
+}
+Ref: ocel2_objects.object_type_id > ocel2_object_types.id
+
+
+Table ocel2_e2o_relations {
+  id VARCHAR(36) [pk, not null]
+  event_id VARCHAR(36) [not null]
+  object_id VARCHAR(36) [not null]
+  qualifier VARCHAR(50) [not null]
+}
+Ref: ocel2_e2o_relations.object_id > ocel2_objects.id
+Ref: ocel2_e2o_relations.event_id > ocel2_events.id
+
+
+Table ocel2_o2o_relations {
+  id VARCHAR(36) [pk, not null]
+  source_object_id VARCHAR(36) [not null]
+  target_object_id VARCHAR(36) [not null]
+  qualifier VARCHAR(50) [not null]
+  attributes JSON
+  created_at DATETIME [not null]
+}
+Ref: ocel2_o2o_relations.source_object_id > ocel2_objects.id
+Ref: ocel2_o2o_relations.target_object_id > ocel2_objects.id
+
+
+Table ocel2_object_attribute_changes {
+  id VARCHAR(36) [pk, not null]
+  object_id VARCHAR(36) [not null]
+  event_id VARCHAR(36)
+  attribute_name VARCHAR(255) [not null]
+  old_value TEXT
+  new_value TEXT
+  changed_at DATETIME [not null]
+}
+Ref: ocel2_object_attribute_changes.object_id > ocel2_objects.id
+Ref: ocel2_object_attribute_changes.event_id > ocel2_events.id
+
+
+Table lookup_activities {
+  id INTEGER [pk, not null, increment]
+  dataset_id VARCHAR(36) [not null]
+  name VARCHAR(255) [not null]
+}
+Ref: lookup_activities.dataset_id > datasets.id
+
+
+Table lookup_resources {
+  id INTEGER [pk, not null, increment]
+  dataset_id VARCHAR(36) [not null]
+  name VARCHAR(255) [not null]
+}
+Ref: lookup_resources.dataset_id > datasets.id
+
+
+Table ocel_logs {
+  id VARCHAR(36) [pk, not null]
+  name VARCHAR(255) [not null]
+  source_file VARCHAR(500)
+  source_format VARCHAR(20) [not null]
+  total_events INTEGER [not null]
+  total_objects INTEGER [not null]
+  total_object_types INTEGER [not null]
+  metadata_json TEXT
+  ocel_data BLOB
+  created_at DATETIME [not null]
+}
+
+
+Table ocel_object_types {
+  id VARCHAR(36) [pk, not null]
+  dataset_id VARCHAR(36) [not null]
+  name VARCHAR(255) [not null]
+  object_count INTEGER [not null]
+  attributes_schema_json TEXT
+}
+Ref: ocel_object_types.dataset_id > ocel_logs.id
+
+
+Table oc_petri_nets {
+  id VARCHAR(36) [pk, not null]
+  dataset_id VARCHAR(36) [not null]
+  name VARCHAR(255) [not null]
+  object_types_json TEXT
+  serialized_model BLOB
+  created_at DATETIME [not null]
+}
+Ref: oc_petri_nets.dataset_id > ocel_logs.id
+
