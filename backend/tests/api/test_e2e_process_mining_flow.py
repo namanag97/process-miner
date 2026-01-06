@@ -9,6 +9,11 @@ Tests the complete happy path workflow:
 5. Poll for ingestion completion
 6. Run process discovery
 7. Verify results are semantically correct
+
+Temporal Mode:
+    This test works with both Celery and Temporal backends.
+    Set USE_TEMPORAL=true environment variable to use Temporal workflows.
+    Default: Temporal is enabled (USE_TEMPORAL=true as of Phase 6 MVP).
 """
 
 import asyncio
