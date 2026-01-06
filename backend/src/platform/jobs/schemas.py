@@ -6,7 +6,7 @@ Request and response models for async job management endpoints.
 from pydantic import BaseModel
 
 from src.features.process_mining.schemas import JobStatusResponse
-from src.platform.schemas import PaginatedResponse
+from src.shared.schemas import PaginatedResponse
 
 
 # =============================================================================

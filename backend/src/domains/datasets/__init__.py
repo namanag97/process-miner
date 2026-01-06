@@ -26,3 +26,6 @@ APIs:
 - GET /datasets/{id} - Get dataset details
 - DELETE /datasets/{id} - Delete dataset
 """
+
+# NOTE: API routers should be imported directly from src.domains.datasets.api
+# NOT from this module to avoid circular imports

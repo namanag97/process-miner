@@ -1,24 +1,15 @@
 """Datasets Domain Services.
 
-Services for dataset lifecycle management:
-- Ingestion pipeline (DuckDB-based parsing)
-- Storage service (S3/MinIO)
-- Validation service
-- Metadata computation
-- Event streaming for job progress
+Dataset management and ingestion services.
 """
 
-from src.features.process_mining.ingestion.service import IngestionService
-from src.features.process_mining.services.ingestion.stream import (
-    EventStreamManager,
-    EventType,
-    event_stream_manager,
+# Re-export from process_mining for backward compatibility
+from src.features.process_mining.ingestion import (
+    IngestionService,
+    ingestion_service,
 )
 
 __all__ = [
     "IngestionService",
-    "EventStreamManager",
-    "EventType",
-    "event_stream_manager",
+    "ingestion_service",
 ]
-

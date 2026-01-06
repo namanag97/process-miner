@@ -16,20 +16,21 @@ Provides process mining and analytics endpoints:
 
 from fastapi import APIRouter
 
-# Re-export from current locations for gradual migration
-# Note: analytics.py from datasets is moved here as it's analysis, not data management
+# Import routers from domain locations
+from src.domains.analysis.api.analytics import router as analytics_router
+from src.domains.analysis.api.conformance import router as conformance_router
+from src.domains.analysis.api.discovery import router as discovery_router
+from src.domains.analysis.api.filtering import router as filtering_router
+from src.domains.analysis.api.ocpm import router as ocpm_router
+from src.domains.analysis.api.organizational import router as organizational_router
+from src.domains.analysis.api.predictions import router as predictions_router
+from src.domains.analysis.api.simulation import router as simulation_router
+from src.domains.analysis.api.statistics import router as statistics_router
+from src.domains.analysis.api.visualization import router as visualization_router
+
+# Re-export from current locations for gradual migration (analyses, workflows, business_use_cases)
 from src.features.process_mining.analyses import router as analyses_router
-from src.features.process_mining.analytics import router as analytics_router
-from src.features.process_mining.api.datasets.analytics import router as statistics_router
 from src.features.process_mining.business_use_cases import router as business_use_cases_router
-from src.features.process_mining.conformance import router as conformance_router
-from src.features.process_mining.discovery import router as discovery_router
-from src.features.process_mining.filtering import router as filtering_router
-from src.features.process_mining.ocpm import router as ocpm_router
-from src.features.process_mining.organizational import router as organizational_router
-from src.features.process_mining.predictions import router as predictions_router
-from src.features.process_mining.simulation import router as simulation_router
-from src.features.process_mining.visualization import router as visualization_router
 from src.features.process_mining.workflows import router as workflows_router
 
 # Combined analysis router

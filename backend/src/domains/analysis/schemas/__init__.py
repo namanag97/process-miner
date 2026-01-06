@@ -1,57 +1,22 @@
 """Analysis Domain Schemas.
 
-Request/Response schemas for analysis operations:
-- Statistics schemas
-- Discovery schemas
-- Conformance schemas
-- Analytics schemas
-- Visualization schemas
+Pydantic schemas for analysis operations.
 """
 
-from src.features.process_mining.schemas import (
-    # Statistics & Analytics
-    ActivityDetailResponse,
-    CaseListResponse,
-    CaseResponse,
-    EventResponse,
-    StatisticsResponse,
-    VariantResponse,
-)
-from src.features.process_mining.schemas.analytics import (
-    BottleneckAnalysisResponse,
-    CycleTimeResponse,
-)
-from src.features.process_mining.schemas.conformance import (
-    ConformanceCheckResponse,
-    TokenReplayResponse,
-)
-from src.features.process_mining.schemas.discovery import (
-    DiscoveryRequest,
-    DiscoveryResponse,
-)
-from src.features.process_mining.schemas.visualization import (
-    DFGResponse,
-    GraphLayoutResponse,
-)
+# Import from local domain schemas
+from src.domains.analysis.schemas.analytics import AnalyticsSchema
+from src.domains.analysis.schemas.conformance import ConformanceSchema
+from src.domains.analysis.schemas.discovery import DiscoveryRequest, DiscoveryResponse
+from src.domains.analysis.schemas.visualization import VisualizationSchema
 
 __all__ = [
-    # Statistics
-    "StatisticsResponse",
-    "CaseResponse",
-    "CaseListResponse",
-    "EventResponse",
-    "VariantResponse",
-    "ActivityDetailResponse",
     # Discovery
     "DiscoveryRequest",
     "DiscoveryResponse",
     # Conformance
-    "ConformanceCheckResponse",
-    "TokenReplayResponse",
+    "ConformanceSchema",
     # Analytics
-    "BottleneckAnalysisResponse",
-    "CycleTimeResponse",
+    "AnalyticsSchema",
     # Visualization
-    "DFGResponse",
-    "GraphLayoutResponse",
+    "VisualizationSchema",
 ]

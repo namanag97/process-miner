@@ -9,6 +9,14 @@ Each domain follows Domain-Driven Design principles with:
 - Clear boundaries and responsibilities
 - Domain-specific models, schemas, services
 - Minimal cross-domain dependencies
+
+Domain Structure:
+- api/: FastAPI routers for the domain
+- models/: SQLAlchemy ORM models
+- schemas/: Pydantic request/response schemas
+- services/: Business logic services
+- tasks/: Background tasks (Celery/async)
+- README.md: Domain boundary documentation
 """
 
 from src.domains import admin, analysis, datasets

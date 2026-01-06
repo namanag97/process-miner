@@ -8,13 +8,13 @@ from fastapi import APIRouter
 from sqlalchemy import select
 
 from src.api.dependencies import CurrentUser, DBSession
-from src.features.process_mining.models import DatasetStatus, DatasetColumnMapping
-from src.features.process_mining.schemas.analysis import JobStatusResponse
+from src.domains.datasets.models import DatasetStatus, DatasetColumnMapping
+from src.domains.datasets.schemas import JobStatusResponse
 from src.platform.core.exceptions import ValidationError
 from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
 from src.platform.models import AsyncJob
-from src.platform.workspaces.authorization import require_dataset_permission
+from src.domains.admin.services import require_dataset_permission
 
 logger = get_logger(__name__)
 

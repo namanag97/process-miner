@@ -10,12 +10,12 @@ Provides dataset lifecycle management endpoints:
 
 from fastapi import APIRouter
 
-# Re-export from current locations for gradual migration
-from src.features.process_mining.api.datasets.crud import router as crud_router
-from src.features.process_mining.api.datasets.export import router as export_router
-from src.features.process_mining.api.datasets.ingest import router as ingest_router
-from src.features.process_mining.api.datasets.mapping import router as mapping_router
-from src.features.process_mining.api.datasets.upload import router as upload_router
+# Import routers from domain locations
+from src.domains.datasets.api.crud import router as crud_router
+from src.domains.datasets.api.export import router as export_router
+from src.domains.datasets.api.ingestion import router as ingest_router
+from src.domains.datasets.api.mapping import router as mapping_router
+from src.domains.datasets.api.upload import router as upload_router
 
 # Combined datasets router
 router = APIRouter(prefix="/datasets", tags=["Datasets"])

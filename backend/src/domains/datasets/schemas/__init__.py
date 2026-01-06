@@ -1,33 +1,43 @@
 """Datasets Domain Schemas.
 
-Request/Response schemas for dataset operations:
-- Upload schemas (presigned, direct)
-- Column mapping schemas
-- Dataset CRUD schemas
-- Ingestion schemas
+Pydantic schemas for dataset operations.
 """
 
-from src.features.process_mining.schemas.datasets import (
+# Import from local domain schemas
+from src.domains.datasets.schemas.dataset import (
+    ColumnDetectionResponse,
     ColumnMapping,
+    ColumnTypeInfo,
     DatasetDetailResponse,
     DatasetListResponse,
     DatasetResponse,
-    DatasetUploadRequest,
-    IngestRequest,
+    DownloadResponse,
+    MappingResponse,
+    MappingUpdateRequest,
+    PreviewResponse,
     PresignedUploadRequest,
     PresignedUploadResponse,
 )
 
+# Import job status from features (will be in shared location later)
+from src.features.process_mining.schemas.analysis import JobStatusResponse
+
 __all__ = [
+    # Dataset CRUD
+    "DatasetResponse",
+    "DatasetDetailResponse",
+    "DatasetListResponse",
     # Upload
     "PresignedUploadRequest",
     "PresignedUploadResponse",
-    "DatasetUploadRequest",
+    "DownloadResponse",
     # Mapping
+    "ColumnDetectionResponse",
+    "ColumnTypeInfo",
     "ColumnMapping",
-    "IngestRequest",
-    # CRUD
-    "DatasetResponse",
-    "DatasetListResponse",
-    "DatasetDetailResponse",
+    "MappingResponse",
+    "MappingUpdateRequest",
+    "PreviewResponse",
+    # Jobs
+    "JobStatusResponse",
 ]

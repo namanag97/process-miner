@@ -1,11 +1,10 @@
 """Datasets Domain Tasks.
 
-Background tasks for dataset processing:
-- File validation
-- Data ingestion
+Background tasks for dataset processing.
 """
 
-from src.platform.infrastructure.tasks import (
+# Re-export from platform for backward compatibility
+from src.platform.infrastructure.tasks.dataset_tasks import (
     ingest_dataset_task,
     validate_uploaded_file_task,
 )

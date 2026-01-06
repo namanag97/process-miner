@@ -34,3 +34,6 @@ APIs:
 - GET /visualization/dfg - DFG visualization
 - POST /predictions/next-activity - Predict next activity
 """
+
+# NOTE: API routers should be imported directly from src.domains.analysis.api
+# NOT from this module to avoid circular imports

@@ -1,38 +1,42 @@
 """Analysis Domain Services.
 
-Services for process mining and analytics:
-- Discovery service (process model discovery)
-- Conformance service (conformance checking)
-- Analytics service (performance analysis)
-- Visualization service (graph rendering)
-- Prediction service (ML predictions)
-- Event log loader (data access)
+Process mining and analytics services.
 """
 
-from src.features.process_mining.analytics.service import analytics_service
-from src.features.process_mining.conformance.service import conformance_service
-from src.features.process_mining.discovery.service import MiningService
-from src.features.process_mining.filtering.service import filtering_service
-from src.features.process_mining.organizational.service import organizational_service
-from src.features.process_mining.predictions.service import prediction_service
-from src.features.process_mining.services.loader import EventLogLoader, event_log_loader
-from src.features.process_mining.simulation.service import simulation_service
-from src.features.process_mining.visualization.service import visualization_service
+# Re-export from process_mining for backward compatibility
+from src.features.process_mining.analytics import AnalyticsService, analytics_service
+from src.features.process_mining.conformance import ConformanceService, conformance_service
+from src.features.process_mining.discovery import DiscoveryService, discovery_service
+from src.features.process_mining.filtering import FilteringService, filtering_service
+from src.features.process_mining.ocpm import OCPMService, ocpm_service
+from src.features.process_mining.organizational import (
+    OrganizationalService,
+    organizational_service,
+)
+from src.features.process_mining.predictions import PredictionService, prediction_service
+from src.features.process_mining.simulation import SimulationService, simulation_service
+from src.features.process_mining.visualization import (
+    VisualizationService,
+    visualization_service,
+)
 
 __all__ = [
-    # Core analysis services
-    "MiningService",
+    "DiscoveryService",
+    "discovery_service",
+    "ConformanceService",
     "conformance_service",
+    "AnalyticsService",
     "analytics_service",
+    "VisualizationService",
     "visualization_service",
-    # Advanced services
+    "PredictionService",
     "prediction_service",
+    "FilteringService",
     "filtering_service",
+    "OrganizationalService",
     "organizational_service",
+    "SimulationService",
     "simulation_service",
-    # Data access
-    "EventLogLoader",
-    "event_log_loader",
+    "OCPMService",
+    "ocpm_service",
 ]
-
-

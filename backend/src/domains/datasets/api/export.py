@@ -9,14 +9,13 @@ from uuid import uuid4
 from fastapi import APIRouter, Query
 
 from src.api.dependencies import CurrentUser, DBSession
-from src.features.process_mining.models import DatasetStatus
-from src.features.process_mining.schemas.analysis import JobStatusResponse
-from src.features.process_mining.schemas.datasets import DownloadResponse
+from src.domains.datasets.models import DatasetStatus
+from src.domains.datasets.schemas import JobStatusResponse, DownloadResponse
 from src.platform.core.exceptions import NotFoundError, ValidationError
 from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
 from src.platform.models import AsyncJob
-from src.platform.workspaces.authorization import require_dataset_permission
+from src.domains.admin.services import require_dataset_permission
 
 logger = get_logger(__name__)
 

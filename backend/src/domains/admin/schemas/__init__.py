@@ -1,22 +1,39 @@
 """Admin Domain Schemas.
 
-Re-exports platform schemas for domain-based access.
+Pydantic schemas for admin operations.
 """
 
-from src.platform.organizations.schemas import (
-    OrganizationCreate,
+# Import from local domain schemas
+from src.domains.admin.schemas.schemas import (
+    CurrentUserResponse,
     OrganizationResponse,
-    OrganizationUpdate,
-)
-from src.platform.workspaces.schemas import (
-    WorkspaceCreate,
+    ProjectCreateRequest,
+    ProjectDetailResponse,
+    ProjectListResponse,
+    ProjectResponse,
+    ProjectUpdateRequest,
+    UserResponse,
+    WorkspaceCreateRequest,
+    WorkspaceDetailResponse,
+    WorkspaceListResponse,
+    WorkspaceMemberResponse,
     WorkspaceResponse,
+    WorkspaceUpdateRequest,
 )
 
 __all__ = [
-    "OrganizationCreate",
     "OrganizationResponse",
-    "OrganizationUpdate",
-    "WorkspaceCreate",
+    "UserResponse",
+    "CurrentUserResponse",
     "WorkspaceResponse",
+    "WorkspaceMemberResponse",
+    "WorkspaceListResponse",
+    "WorkspaceDetailResponse",
+    "WorkspaceCreateRequest",
+    "WorkspaceUpdateRequest",
+    "ProjectResponse",
+    "ProjectListResponse",
+    "ProjectDetailResponse",
+    "ProjectCreateRequest",
+    "ProjectUpdateRequest",
 ]

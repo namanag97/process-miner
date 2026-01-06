@@ -13,8 +13,8 @@ import aiofiles
 from fastapi import APIRouter, File, Form, Request, Response, UploadFile
 
 from src.api.dependencies import CurrentUser, DBSession
-from src.features.process_mining.models import Dataset, DatasetStatus, UploadedFile
-from src.features.process_mining.schemas import (
+from src.domains.datasets.models import Dataset, DatasetStatus, UploadedFile
+from src.domains.datasets.schemas import (
     DatasetResponse,
     PresignedUploadRequest,
     PresignedUploadResponse,

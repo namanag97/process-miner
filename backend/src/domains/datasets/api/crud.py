@@ -44,15 +44,15 @@ from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 
 from src.api.dependencies import CurrentUser, DBSession
-from src.features.process_mining.models import Dataset
-from src.features.process_mining.schemas.datasets import (
+from src.domains.datasets.models import Dataset
+from src.domains.datasets.schemas import (
     DatasetDetailResponse,
     DatasetListResponse,
     DatasetResponse,
 )
 from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
-from src.platform.workspaces.authorization import require_dataset_permission
+from src.domains.admin.services import require_dataset_permission
 
 logger = get_logger(__name__)
 

@@ -3,40 +3,32 @@
 Re-exports all process mining models from the feature modules.
 """
 
-# Enums
-from src.features.process_mining.models.enums import (
-    AnalysisStatus,
-    AnalysisType,
-    DatasetStatus,
-)
+# =============================================================================
+# Re-exports from new domain locations for backward compatibility
+# =============================================================================
 
-# Core models - Dataset
-from src.features.process_mining.models.dataset import (
+# Datasets Domain
+from src.domains.datasets.models import (
     Dataset,
     DatasetColumn,
     DatasetColumnMapping,
     DatasetMetadata,
+    DatasetStatus,
     UploadedFile,
 )
 
-# Events
-from src.features.process_mining.models.events import (
-    ProcessCase,
-    ProcessEvent,
-)
-
-# Process Models
-from src.features.process_mining.models.process_model import (
-    GraphCache,
-    ProcessModel,
-    ProcessModelMetrics,
-)
-
-# Analysis
-from src.features.process_mining.models.analysis import (
+# Analysis Domain
+from src.domains.analysis.models import (
     Analysis,
+    AnalysisStatus,
+    AnalysisType,
     AnalyticsCache,
     ConformanceResult,
+    GraphCache,
+    ProcessCase,
+    ProcessEvent,
+    ProcessModel,
+    ProcessModelMetrics,
 )
 
 # Predictions

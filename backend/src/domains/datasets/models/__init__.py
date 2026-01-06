@@ -1,27 +1,23 @@
 """Datasets Domain Models.
 
-Core data models for dataset management:
-- Dataset: Main event log entity
-- DatasetColumn: Detected columns
-- DatasetColumnMapping: User-defined mappings
-- UploadedFile: File tracking
-- DatasetMetadata: Computed metadata
+Core models for dataset management.
 """
 
-from src.features.process_mining.models import (
+# Import from local domain models
+from src.domains.datasets.models.dataset import (
     Dataset,
     DatasetColumn,
     DatasetColumnMapping,
     DatasetMetadata,
-    DatasetStatus,
-    UploadedFile,
 )
+from src.domains.datasets.models.enums import DatasetStatus
+from src.domains.datasets.models.uploaded_file import UploadedFile
 
 __all__ = [
     "Dataset",
-    "DatasetStatus",
     "DatasetColumn",
     "DatasetColumnMapping",
     "DatasetMetadata",
+    "DatasetStatus",
     "UploadedFile",
 ]

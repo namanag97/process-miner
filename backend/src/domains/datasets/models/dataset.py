@@ -17,11 +17,6 @@ from .enums import DatasetStatus
 if TYPE_CHECKING:
     from src.platform.models import Project
 
-    from .analysis import Analysis
-    from .events import ProcessCase
-    from .organizational import ActivityMapping
-    from .process_model import ProcessModel
-
 
 class Dataset(Base):
     """Uploaded dataset metadata."""
@@ -77,31 +72,9 @@ class Dataset(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
-    # Relationships
-    cases: Mapped[list["ProcessCase"]] = relationship(
-        back_populates="dataset", cascade="all, delete-orphan", lazy="raise"
-    )
-    models: Mapped[list["ProcessModel"]] = relationship(
-        back_populates="source_dataset", lazy="select"
-    )
-    source_dataset: Mapped[Optional["Dataset"]] = relationship(
-        "Dataset", remote_side="Dataset.id", foreign_keys=[source_dataset_id], lazy="selectin"
-    )
-    filtered_datasets: Mapped[list["Dataset"]] = relationship(
-        "Dataset", back_populates="source_dataset", foreign_keys=[source_dataset_id], lazy="select"
-    )
-    # One-way relationship to Project (Platform layer doesn't back-reference for proper layering)
-    project: Mapped[Optional["Project"]] = relationship()
-    uploaded_file: Mapped[Optional["UploadedFile"]] = relationship(
-        back_populates="dataset", uselist=False, lazy="selectin"
-    )
-    analyses: Mapped[list["Analysis"]] = relationship(
-        back_populates="dataset", cascade="all, delete-orphan", lazy="select"
-    )
-    activity_mappings: Mapped[list["ActivityMapping"]] = relationship(
-        back_populates="dataset", cascade="all, delete-orphan", lazy="select"
-    )
-    
+    # Relationships (use forward references for all relationships to avoid circular imports)
+    # uploaded_file relationship moved to uploaded_file.py
+
     # NEW: 4-Phase Upload Architecture relationships
     columns: Mapped[list["DatasetColumn"]] = relationship(
         back_populates="dataset", cascade="all, delete-orphan", lazy="select"
@@ -112,25 +85,6 @@ class Dataset(Base):
     metadata_record: Mapped[Optional["DatasetMetadata"]] = relationship(
         back_populates="dataset", uselist=False, cascade="all, delete-orphan", lazy="selectin"
     )
-
-
-class UploadedFile(Base):
-    """Raw uploaded file metadata."""
-
-    __tablename__ = "uploaded_files"
-
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    dataset_id: Mapped[str] = mapped_column(
-        ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False, unique=True
-    )
-    filename: Mapped[str] = mapped_column(String(500), nullable=False)
-    storage_path: Mapped[str] = mapped_column(String(1000), nullable=False)
-    size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    mime_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    checksum: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-
-    dataset: Mapped["Dataset"] = relationship(back_populates="uploaded_file")
 
 
 class DatasetColumn(Base):

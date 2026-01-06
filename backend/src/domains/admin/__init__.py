@@ -19,3 +19,6 @@ APIs:
 - CRUD /workspaces - Workspace management
 - CRUD /projects - Project management
 """
+
+# NOTE: API routers should be imported directly from src.domains.admin.api
+# NOT from this module to avoid circular imports

@@ -30,6 +30,7 @@ from src.api.routers import (
     jobs_router,
     ocpm_router,
     organizational_router,
+    organizations_router,
     predictions_router,
     projects_router,
     simulation_router,
@@ -37,7 +38,6 @@ from src.api.routers import (
     workflows_router,
     workspaces_router,
 )
-from src.platform.admin.router import router as admin_router
 from src.platform.audit.router import router as audit_router
 from src.platform.core.config import get_settings
 from src.platform.core.exceptions import AppException
@@ -47,7 +47,6 @@ from src.platform.devconsole.streaming import router as dev_logs_stream_router
 from src.platform.devtools.dev_data import router as dev_data_router
 from src.platform.health.router import mark_startup_complete
 from src.platform.infrastructure.database import close_database, init_database
-from src.platform.organizations.router import router as organizations_router
 
 settings = get_settings()
 
@@ -464,27 +463,40 @@ For support, please contact the developer team or refer to the internal document
     # Include health router (replaces inline /health endpoint)
     app.include_router(health_router)
 
-    # Include API routers with prefix
+    # =========================================================================
+    # Admin Domain Routers
+    # =========================================================================
     app.include_router(auth_router, prefix=settings.api_prefix)
-    app.include_router(organizations_router, prefix=settings.api_prefix)  # New: Organizations
-    app.include_router(admin_router, prefix=settings.api_prefix)  # New: Admin
-    app.include_router(audit_router, prefix=settings.api_prefix)  # New: Audit
+    app.include_router(organizations_router, prefix=settings.api_prefix)
     app.include_router(workspaces_router, prefix=settings.api_prefix)
     app.include_router(projects_router, prefix=settings.api_prefix)
+
+    # =========================================================================
+    # Datasets Domain Routers
+    # =========================================================================
     app.include_router(datasets_router, prefix=settings.api_prefix)
+
+    # =========================================================================
+    # Analysis Domain Routers
+    # =========================================================================
     app.include_router(analyses_router, prefix=settings.api_prefix)
     app.include_router(discovery_router, prefix=settings.api_prefix)
-    app.include_router(visualization_router, prefix=settings.api_prefix)
     app.include_router(conformance_router, prefix=settings.api_prefix)
-    app.include_router(business_use_cases_router, prefix=settings.api_prefix)  # Phase 9
-    app.include_router(ocpm_router, prefix=settings.api_prefix)
-    app.include_router(workflows_router, prefix=settings.api_prefix)
-    app.include_router(filtering_router, prefix=settings.api_prefix)
     app.include_router(analytics_router, prefix=settings.api_prefix)
-    app.include_router(organizational_router, prefix=settings.api_prefix)
+    app.include_router(visualization_router, prefix=settings.api_prefix)
     app.include_router(predictions_router, prefix=settings.api_prefix)
+    app.include_router(filtering_router, prefix=settings.api_prefix)
+    app.include_router(organizational_router, prefix=settings.api_prefix)
     app.include_router(simulation_router, prefix=settings.api_prefix)
-    app.include_router(jobs_router, prefix=settings.api_prefix)  # Job-Centric Architecture
+    app.include_router(ocpm_router, prefix=settings.api_prefix)
+    app.include_router(business_use_cases_router, prefix=settings.api_prefix)
+    app.include_router(workflows_router, prefix=settings.api_prefix)
+
+    # =========================================================================
+    # Platform Infrastructure Routers
+    # =========================================================================
+    app.include_router(jobs_router, prefix=settings.api_prefix)
+    app.include_router(audit_router, prefix=settings.api_prefix)
     app.include_router(dev_log_router, prefix=settings.api_prefix)
     app.include_router(dev_logs_stream_router, prefix=settings.api_prefix)
     app.include_router(dev_data_router, prefix=settings.api_prefix)

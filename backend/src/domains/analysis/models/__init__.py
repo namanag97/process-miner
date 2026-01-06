@@ -1,46 +1,35 @@
 """Analysis Domain Models.
 
-Core data models for process mining analysis:
-- ProcessCase: Case/trace representation
-- ProcessEvent: Individual events
-- ProcessModel: Discovered process models
-- Analysis: Stored analysis results
-- ConformanceResult: Conformance checking results
-- PredictionModel: ML prediction models
+Core models for process mining analysis.
 """
 
-from src.features.process_mining.models import (
+# Import from local domain models
+from src.domains.analysis.models.analysis import (
     Analysis,
-    AnalysisStatus,
-    AnalysisType,
     AnalyticsCache,
     ConformanceResult,
+)
+from src.domains.analysis.models.enums import AnalysisStatus, AnalysisType
+from src.domains.analysis.models.events import ProcessCase, ProcessEvent
+from src.domains.analysis.models.process_model import (
     GraphCache,
-    Prediction,
-    PredictionModel,
-    ProcessCase,
-    ProcessEvent,
     ProcessModel,
     ProcessModelMetrics,
-    Recommendation,
 )
 
 __all__ = [
-    # Core analysis models
+    # Enums
+    "AnalysisType",
+    "AnalysisStatus",
+    # Events
     "ProcessCase",
     "ProcessEvent",
+    # Process Models
     "ProcessModel",
     "ProcessModelMetrics",
     "GraphCache",
-    # Analysis records
+    # Analysis
     "Analysis",
-    "AnalysisType",
-    "AnalysisStatus",
-    "AnalyticsCache",
-    # Conformance
     "ConformanceResult",
-    # Predictions
-    "PredictionModel",
-    "Prediction",
-    "Recommendation",
+    "AnalyticsCache",
 ]
