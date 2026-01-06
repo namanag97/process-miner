@@ -89,4 +89,4 @@ class VisualizationService:
         raise ValueError(f"Visualization not supported for: {model_format}")
 
 
-# Singleton instance
+visualization_service = VisualizationService()

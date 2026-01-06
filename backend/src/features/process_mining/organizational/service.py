@@ -277,3 +277,4 @@ class OrganizationalService:
         }
 
 
+organizational_service = OrganizationalService()

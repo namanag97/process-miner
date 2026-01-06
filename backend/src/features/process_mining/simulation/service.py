@@ -172,3 +172,4 @@ class SimulationService:
         return new_log
 
 
+simulation_service = SimulationService()

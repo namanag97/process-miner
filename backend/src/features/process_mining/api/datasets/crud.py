@@ -45,7 +45,7 @@ from sqlalchemy import func, select
 
 from src.api.dependencies import CurrentUser, DBSession
 from src.features.process_mining.models import Dataset
-from src.features.process_mining.schemas import (
+from src.features.process_mining.schemas.datasets import (
     DatasetDetailResponse,
     DatasetListResponse,
     DatasetResponse,

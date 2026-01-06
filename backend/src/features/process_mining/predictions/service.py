@@ -240,3 +240,4 @@ class PredictionService:
         return sorted(activities)
 
 
+prediction_service = PredictionService()
