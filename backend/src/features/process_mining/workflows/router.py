@@ -1,4 +1,34 @@
-"""Workflows API Router - Pipeline Automation."""
+"""Workflows API Router - Pipeline Automation.
+
+Reusable multi-step analysis pipelines.
+
+## Business Context
+Workflows automate sequences of analysis steps:
+- Combine upload → mapping → ingestion → discovery → conformance
+- Schedule recurring analyses
+- Reuse analysis configurations across datasets
+
+## Testing Instructions
+
+### Test Flow
+1. **List Templates**: `GET /api/v1/workflows/templates` → Predefined workflows
+2. **Create Workflow**: `POST /api/v1/workflows`
+   ```json
+   {"name": "My Pipeline", "steps": [{"type": "discovery", "params": {"miner": "inductive"}}]}
+   ```
+3. **List Workflows**: `GET /api/v1/workflows`
+4. **Get Workflow**: `GET /api/v1/workflows/{workflow_id}`
+5. **Run Workflow**: `POST /api/v1/workflows/{id}/run`
+   ```json
+   {"dataset_id": "{id}", "params": {}}
+   ```
+6. **List Runs**: `GET /api/v1/workflows/{id}/runs`
+7. **Get Run**: `GET /api/v1/workflows/runs/{run_id}`
+
+### Common Errors
+- **400**: Invalid workflow steps
+- **404**: Workflow, Run, or Dataset not found
+"""
 
 import json
 import time

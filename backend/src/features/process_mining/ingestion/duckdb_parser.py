@@ -222,14 +222,14 @@ class DuckDBParser:
                 ):
                     col_info["suggested_role"] = "case_id"
                     if not suggestions["case_id_column"]:
-                        suggestions["case_id_column"] = col_name
+                        suggestions["case_id_column"] = {"column": col_name, "confidence": 0.9}
 
                 elif any(
                     x in name_lower for x in ["activity", "action", "event", "task", "concept"]
                 ):
                     col_info["suggested_role"] = "activity"
                     if not suggestions["activity_column"]:
-                        suggestions["activity_column"] = col_name
+                        suggestions["activity_column"] = {"column": col_name, "confidence": 0.9}
 
                 elif (
                     any(x in name_lower for x in ["time", "date", "stamp"])
@@ -237,14 +237,14 @@ class DuckDBParser:
                 ):
                     col_info["suggested_role"] = "timestamp"
                     if not suggestions["timestamp_column"]:
-                        suggestions["timestamp_column"] = col_name
+                        suggestions["timestamp_column"] = {"column": col_name, "confidence": 0.9}
 
                 elif any(
                     x in name_lower for x in ["resource", "user", "actor", "agent", "employee"]
                 ):
                     col_info["suggested_role"] = "resource"
                     if not suggestions["resource_column"]:
-                        suggestions["resource_column"] = col_name
+                        suggestions["resource_column"] = {"column": col_name, "confidence": 0.8}
 
                 columns.append(col_info)
 

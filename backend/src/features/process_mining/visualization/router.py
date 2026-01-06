@@ -1,6 +1,33 @@
 """Visualization Router - Graph Data for Frontend.
 
 Endpoints returning structured data for React visualization libraries.
+
+## Business Context
+Visualization endpoints provide graph data for the Process Explorer UI:
+- **DFG**: Directly-Follows Graph showing activity flow and frequencies
+- **Petri Net**: Formal process model structure (places, transitions, arcs)
+- **SVG Export**: Rendered images for download/embedding
+- **Explorer Data**: All-in-one endpoint for the Process Explorer component
+
+## Testing Instructions
+
+### Prerequisites
+1. Have a dataset in READY status (completed ingestion)
+2. Optionally have a discovered process model
+
+### Endpoints
+- **DFG Data**: `GET /api/v1/visualization/{dataset_id}/dfg`
+- **DFG with Timing**: `GET /api/v1/visualization/{dataset_id}/dfg?include_performance=true`
+- **DFG SVG**: `GET /api/v1/visualization/{dataset_id}/dfg/svg`
+- **Petri Net**: `GET /api/v1/visualization/models/{model_id}/petri`
+- **Model SVG**: `GET /api/v1/visualization/models/{model_id}/svg`
+- **Footprints**: `GET /api/v1/visualization/{dataset_id}/footprints`
+- **Explorer Data**: `GET /api/v1/visualization/{dataset_id}/explorer-data`
+
+### Common Errors
+- **404**: Dataset or Model not found
+- **409**: Dataset not ready (complete ingestion first)
+- **400**: Model has no serialized data (rediscover)
 """
 
 import time

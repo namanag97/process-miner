@@ -1,16 +1,33 @@
 """Workspaces Router.
 
 Endpoints for managing workspaces within an organization.
-Aligned with target SaaS architecture for multi-tenant process mining platform.
+Workspaces provide multi-tenant isolation for process mining projects.
 
-Target Architecture Flow:
-1. Authorization Check → Member? → Permission? → Execute → Database
+## Business Context
+Workspaces are collaboration containers within an organization:
+- Each workspace can have multiple members with different roles (owner, admin, editor, viewer)
+- Projects (containing datasets/event logs) are organized within workspaces
+- Authorization is enforced at the workspace level
 
-Hardened with:
-- UUID validation for all path parameters
-- Typed exception handling (NotFoundError, ConflictError)
-- Proper authorization checks via AuthorizationService
-- Consistent error response structure
+## Testing Instructions
+
+### Prerequisites
+1. Register a user: `POST /api/v1/auth/register` → Get `access_token`
+2. Add `Authorization: Bearer {access_token}` header to all requests
+
+### Test Flow
+1. **List Workspaces**: `GET /api/v1/workspaces` → Returns user's workspaces
+2. **Create Workspace**: `POST /api/v1/workspaces?org_id={org_id}` with `{"name": "Test Workspace"}`
+3. **Get Workspace**: `GET /api/v1/workspaces/{workspace_id}` → Returns workspace with projects
+4. **Update Workspace**: `PUT /api/v1/workspaces/{workspace_id}` with `{"name": "Updated Name"}`
+5. **Manage Members**: `GET/POST/PUT/DELETE /api/v1/workspaces/{workspace_id}/members`
+6. **Delete Workspace**: `DELETE /api/v1/workspaces/{workspace_id}` (owner only)
+
+### Common Errors
+- **401**: Missing or invalid JWT token
+- **403**: User doesn't have required permission (check workspace membership)
+- **404**: Workspace or Organization not found (verify UUID is correct)
+- **422**: Invalid UUID format or missing required fields
 """
 
 from datetime import datetime, timezone

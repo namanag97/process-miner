@@ -5,9 +5,10 @@ Part of 4-Phase Upload Architecture: Upload → Validate → Map → Ingest
 """
 
 from fastapi import APIRouter
+from sqlalchemy import select
 
 from src.api.dependencies import CurrentUser, DBSession
-from src.features.process_mining.models import Dataset, DatasetStatus
+from src.features.process_mining.models import Dataset, DatasetStatus, DatasetColumnMapping
 from src.features.process_mining.schemas.analysis import JobStatusResponse
 from src.platform.core.exceptions import ValidationError
 from src.platform.core.logging_config import get_logger
@@ -52,71 +53,82 @@ async def trigger_ingestion(
     user: CurrentUser,
 ) -> JobStatusResponse:
     """Trigger background ingestion job."""
-    from datetime import datetime
-    from uuid import uuid4
+    try:
+        from datetime import datetime
+        from uuid import uuid4
 
-    from src.platform.core.enums import JobStatus
-    from src.platform.infrastructure.tasks import ingest_dataset_task
+        from src.platform.core.enums import JobStatus
+        from src.platform.infrastructure.tasks import ingest_dataset_task
 
-    # Verify permission
-    _, dataset = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_UPDATE
-    )
-
-    # Check status
-    valid_statuses = [DatasetStatus.MAPPED.value, DatasetStatus.ERROR.value]
-    if dataset.status not in valid_statuses:
-        raise ValidationError(
-            f"Dataset must be in MAPPED or ERROR state. Current: {dataset.status}"
+        # Verify permission
+        _, dataset = await require_dataset_permission(
+            db, dataset_id, user, Permission.DATASET_UPDATE
         )
 
-    # Check mapping exists
-    if not dataset.column_mapping and not dataset.mapping_json:
-        raise ValidationError("No column mapping found. Submit mapping first.")
+        # Check status
+        valid_statuses = [DatasetStatus.MAPPED.value, DatasetStatus.ERROR.value]
+        if dataset.status not in valid_statuses:
+            raise ValidationError(
+                f"Dataset must be in MAPPED or ERROR state. Current: {dataset.status}"
+            )
 
-    # Create async job record
-    job = AsyncJob(
-        id=str(uuid4()),
-        job_type="ingest_dataset",
-        status=JobStatus.PENDING.value,
-        entity_type="dataset",
-        entity_id=dataset_id,
-        user_id=user.id,
-        created_at=datetime.utcnow(),
-    )
-    db.add(job)
+        # Check mapping exists
+        mapping_result = await db.execute(
+            select(DatasetColumnMapping).where(DatasetColumnMapping.dataset_id == dataset_id)
+        )
+        mapping = mapping_result.scalar_one_or_none()
+        
+        if not mapping and not dataset.mapping_json:
+            raise ValidationError("No column mapping found. Submit mapping first.")
 
-    # Update dataset status
-    dataset.status = DatasetStatus.INGESTING.value
-    dataset.ingestion_job_id = job.id
-    dataset.error_message = None
+        # Create async job record
+        job = AsyncJob(
+            id=str(uuid4()),
+            job_type="ingest_dataset",
+            status=JobStatus.PENDING.value,
+            entity_type="dataset",
+            entity_id=dataset_id,
+            user_id=user.id,
+            created_at=datetime.utcnow(),
+        )
+        db.add(job)
 
-    await db.commit()
+        # Update dataset status
+        dataset.status = DatasetStatus.INGESTING.value
+        dataset.ingestion_job_id = job.id
+        dataset.error_message = None
 
-    # Queue Celery task
-    task = ingest_dataset_task.delay(dataset_id, job.id)
+        await db.commit()
 
-    # Update job with task_id
-    job.task_id = task.id
-    await db.commit()
+        # Queue Celery task
+        task = ingest_dataset_task.delay(dataset_id, job.id)
 
-    logger.info(
-        "ingestion_triggered",
-        dataset_id=dataset_id,
-        job_id=job.id,
-        task_id=task.id,
-    )
+        # Update job with task_id
+        job.task_id = task.id
+        await db.commit()
 
-    return JobStatusResponse(
-        job_id=job.id,
-        task_id=task.id,
-        status=JobStatus.PENDING.value,
-        job_type="ingest_dataset",
-        entity_type="dataset",
-        entity_id=dataset_id,
-        progress=0,
-        message="Ingestion job queued",
-    )
+        logger.info(
+            "ingestion_triggered",
+            dataset_id=dataset_id,
+            job_id=job.id,
+            task_id=task.id,
+        )
+
+        return JobStatusResponse(
+            job_id=job.id,
+            task_id=task.id,
+            status=JobStatus.PENDING.value,
+            job_type="ingest_dataset",
+            entity_type="dataset",
+            entity_id=dataset_id,
+            progress=0,
+            message="Ingestion job queued",
+        )
+    except Exception as e:
+        import traceback
+        with open("/tmp/ingest_error_500.txt", "w") as f:
+            traceback.print_exc(file=f)
+        raise e
 
 
 @router.post(
@@ -166,7 +178,12 @@ async def trigger_reingest(
         )
 
     # Check mapping exists
-    if not dataset.column_mapping and not dataset.mapping_json:
+    mapping_result = await db.execute(
+        select(DatasetColumnMapping).where(DatasetColumnMapping.dataset_id == dataset_id)
+    )
+    mapping = mapping_result.scalar_one_or_none()
+
+    if not mapping and not dataset.mapping_json:
         raise ValidationError("No column mapping found. Submit mapping first.")
 
     # Create async job record

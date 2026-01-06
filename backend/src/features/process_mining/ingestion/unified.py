@@ -68,7 +68,7 @@ class UnifiedIngestionService:
                 # Use DuckDB for CSV (10x faster)
                 result = self.duckdb_service.detect_columns(file_content)
                 response = {
-                    "columns": [c["name"] for c in result["columns"]],
+                    "columns": result["columns"],
                     "suggestions": self._standardize_suggestions(result["suggestions"]),
                     "sample_rows": [],
                     "row_count": result["row_count"],

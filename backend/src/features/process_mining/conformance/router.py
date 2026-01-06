@@ -1,6 +1,43 @@
 """Conformance Checking API Router.
 
 Endpoints for checking conformance between event logs and process models.
+
+## Business Context
+Conformance checking compares actual process execution (event logs) against
+expected process (models) to find deviations:
+- **Fitness**: How well does the log fit the model? (0-1, higher is better)
+- **Precision**: How much extra behavior does the model allow? (0-1, higher is better)
+- **Generalization**: How well does the model generalize? (0-1)
+- **Simplicity**: How simple/readable is the model? (0-1)
+
+## Testing Instructions
+
+### Prerequisites
+1. Have a dataset in READY status
+2. Discover a process model: `POST /api/v1/discovery/discover`
+3. Get both dataset_id and model_id
+
+### Test Flow
+1. **Check Conformance**:
+   ```
+   POST /api/v1/conformance/check
+   {"dataset_id": "{id}", "model_id": "{id}", "method": "token_replay"}
+   ```
+2. **Get Quality Metrics**: `GET /api/v1/conformance/quality/{dataset_id}/{model_id}`
+3. **Get Diagnostics**: `GET /api/v1/conformance/diagnostics/{dataset_id}/{model_id}`
+4. **Get Deviations**: `GET /api/v1/conformance/deviations/{dataset_id}/{model_id}`
+5. **Root Cause Analysis**: `GET /api/v1/conformance/root-cause/{dataset_id}/{model_id}`
+6. **List Results**: `GET /api/v1/conformance/results`
+7. **Import PNML/BPMN**: `POST /api/v1/conformance/import-model`
+
+### Methods
+- `token_replay`: Fast, good for quick checks
+- `alignment`: More accurate, slower (for detailed analysis)
+
+### Common Errors
+- **400**: Model has no serialized data (rediscover)
+- **404**: Dataset or Model not found
+- **409**: Dataset not ready (complete ingestion first)
 """
 
 import json

@@ -16,10 +16,10 @@ def test_create_project(api_client):
     headers = {"Authorization": f"Bearer {context.access_token}"}
     payload = {
         "name": "Test Project",
-        "workspace_id": context.workspace_id,
         "description": "Created by automated tests"
     }
-    response = api_client.post(url, json=payload, headers=headers)
+    params = {"workspace_id": context.workspace_id}
+    response = api_client.post(url, json=payload, headers=headers, params=params)
     assert response.status_code == 201
     data = response.json()
     assert data["name"] == "Test Project"

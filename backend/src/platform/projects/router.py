@@ -1,14 +1,37 @@
 """Projects Router.
 
 Endpoints for managing projects (folders for organizing datasets/event logs).
-Projects are organized within workspaces for multi-tenant collaboration.
 
-Hardened with:
-- UUID validation for all path parameters
-- Typed exception handling
-- Authorization via workspace permissions
-- Search query sanitization
-- Consistent error responses
+## Business Context
+Projects are organizational containers for process mining analyses:
+- Each project belongs to a workspace and can contain multiple datasets (event logs)
+- Datasets are uploaded to projects, then mapped and ingested for analysis
+- Process discovery, conformance checking, and analytics are performed on datasets
+
+## Testing Instructions
+
+### Prerequisites
+1. Create a workspace: `POST /api/v1/workspaces?org_id={org_id}`
+2. Have the workspace_id ready for project creation
+
+### Test Flow
+1. **Create Project**: `POST /api/v1/projects?workspace_id={workspace_id}`
+   ```json
+   {"name": "Order Process Analysis", "description": "P2P process mining"}
+   ```
+2. **List Projects**: `GET /api/v1/projects` or `GET /api/v1/projects?workspace_id={id}`
+3. **Get Project**: `GET /api/v1/projects/{project_id}` → Returns project with datasets
+4. **Update Project**: `PUT /api/v1/projects/{project_id}`
+5. **Add Dataset**: `POST /api/v1/projects/{project_id}/files/{dataset_id}`
+6. **Archive/Restore**: `POST /api/v1/projects/{project_id}/archive` or `/restore`
+7. **Delete Project**: `DELETE /api/v1/projects/{project_id}`
+
+### Common Errors
+- **401**: Missing or invalid JWT token
+- **403**: User doesn't have permission (not a workspace member)
+- **404**: Project or Workspace not found
+- **409**: Conflict (dataset already in project, project already archived)
+- **422**: Invalid UUID format
 """
 
 import json

@@ -1,6 +1,20 @@
 """Audit Router - Audit logging endpoints.
 
-Stub implementation for audit logging. To be expanded with full functionality.
+Track user actions for compliance and debugging.
+
+## Business Context
+Audit logging captures who did what and when:
+- User actions (login, create, update, delete)
+- API requests for compliance
+- **Currently a stub** - returns empty data
+
+## Testing Instructions
+- **Get Logs**: `GET /api/v1/audit/logs?page=1&action_type=CREATE`
+- **Create Log**: `POST /api/v1/audit/logs` (currently discards)
+
+## Note
+This is a placeholder implementation returning empty results.
+Full audit logging would store records in a dedicated table.
 """
 
 from datetime import datetime, timezone

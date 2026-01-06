@@ -1,6 +1,28 @@
 """Analyses Router.
 
-Endpoints for managing saved analyses (discovery, conformance, variants, etc.).
+Manage saved analyses (discovery, conformance, variants, etc.).
+
+## Business Context
+Analyses are saved results of process mining operations:
+- Link discovery/conformance/analytics results to datasets
+- Enable comparison and historical tracking
+- Queue heavy computations as background tasks
+
+## Testing Instructions
+
+### Test Flow
+1. **Get Metadata**: `GET /api/v1/analyses/metadata` → See available analysis types
+2. **Create Analysis**: `POST /api/v1/analyses?dataset_id={id}`
+   ```json
+   {"name": "My Analysis", "analysis_type": "dfg_discovery", "config": {}}
+   ```
+   → Returns 202 (queued for processing)
+3. **List Analyses**: `GET /api/v1/analyses?dataset_id={id}`
+4. **Get Analysis**: `GET /api/v1/analyses/{analysis_id}?include_results=true`
+5. **Delete Analysis**: `DELETE /api/v1/analyses/{analysis_id}`
+
+### Common Errors
+- **404**: Dataset or Analysis not found
 """
 
 import json

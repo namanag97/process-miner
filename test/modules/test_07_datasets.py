@@ -33,6 +33,8 @@ def test_upload_dataset(api_client):
     }
     
     response = api_client.post(url, headers=headers, files=files, data=data)
+    if response.status_code not in [200, 201]:
+        print(f"Dataset Upload Failed: {response.status_code} - {response.text}")
     assert response.status_code in [200, 201]
     data = response.json()
     context.dataset_id = data["id"]
@@ -53,25 +55,59 @@ def test_get_dataset_columns(api_client):
     response = api_client.get(url, headers=headers)
     assert response.status_code == 200
     data = response.json()
-    # assert "columns" in data
+    print(f"Detected Columns: {[c['name'] for c in data['columns']]}")
+    assert len(data["columns"]) >= 3
 
 def test_map_dataset(api_client):
     """Test mapping dataset columns"""
     if not context.dataset_id:
         pytest.skip("No dataset ID available")
         
-    url = f"{API_V1}/datasets/{context.dataset_id}/mapping"
+    url_get = f"{API_V1}/datasets/{context.dataset_id}"
     headers = {"Authorization": f"Bearer {context.access_token}"}
-    
-    # Basic mapping based on standard names
+
+    # Wait for dataset to be processed (columnd detection) and ready for mapping
+    import time
+    max_retries = 30
+    for _ in range(max_retries):
+        resp = api_client.get(url_get, headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        print(f"Dataset Status: {data['status']}")
+        if data["status"] in ["awaiting_mapping", "error"]:
+            if data["status"] == "error":
+                pytest.fail(f"Dataset processing failed: {data.get('error_message')}")
+            break
+        time.sleep(1)
+    else:
+        pytest.fail("Timeout waiting for dataset to be ready for mapping")
+
+    url = f"{API_V1}/datasets/{context.dataset_id}/mapping"
+
+    # Get available columns to map correctly (sample_log.csv vs dummy_log.csv)
+    url_cols = f"{API_V1}/datasets/{context.dataset_id}/columns"
+    resp_cols = api_client.get(url_cols, headers=headers)
+    assert resp_cols.status_code == 200
+    available_cols = [c['name'] for c in resp_cols.json()['columns']]
+    print(f"Mapping using columns: {available_cols}")
+
+    # Helper to find column case-insensitive
+    def find_col(keywords, default):
+        for col in available_cols:
+            if any(k in col.lower() for k in keywords):
+                return col
+        return default
+
+    # Basic mapping based on standard names or XES standard
     payload = {
-        "case_id_column": "case_id",
-        "activity_column": "activity",
-        "timestamp_column": "timestamp",
-        "format": "csv"
+        "case_id_column": find_col(["case", "trace", "id"], "case_id"),
+        "activity_column": find_col(["concept:name", "activity", "action"], "activity"),
+        "timestamp_column": find_col(["time:timestamp", "timestamp", "date"], "timestamp")
     }
     
     response = api_client.post(url, json=payload, headers=headers)
+    if response.status_code != 200:
+        print(f"Mapping Failed: {response.status_code} - {response.text}")
     assert response.status_code == 200
     context.dataset_mapped = True
 

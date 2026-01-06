@@ -1,7 +1,35 @@
 """Analytics Router - Performance Analytics API.
 
-Provides endpoints for bottleneck detection, rework analysis, service times,
-cycle times, throughput metrics, and performance dashboards.
+Performance analysis endpoints for process mining insights.
+
+## Business Context
+Analytics provides operational insights from process execution:
+- **Bottlenecks**: Activities with high waiting times slowing the process
+- **Rework**: Repeated activities indicating inefficiency or errors
+- **Service Times**: How long each activity takes to execute
+- **Cycle Time**: End-to-end case duration statistics
+- **Throughput**: Cases completed per time period
+
+## Testing Instructions
+
+### Prerequisites
+1. Have a dataset in READY status with ingested events
+
+### Endpoints (all require dataset_id in path)
+- **Bottlenecks**: `GET /api/v1/analytics/datasets/{id}/bottlenecks`
+- **Rework**: `GET /api/v1/analytics/datasets/{id}/rework`
+- **Service Times**: `GET /api/v1/analytics/datasets/{id}/service-times`
+- **Cycle Time**: `GET /api/v1/analytics/datasets/{id}/cycle-time`
+- **Throughput**: `GET /api/v1/analytics/datasets/{id}/throughput`
+- **Patterns**: `GET /api/v1/analytics/datasets/{id}/patterns?min_support=0.1`
+- **Rework Chains**: `GET /api/v1/analytics/datasets/{id}/rework-chains`
+- **Dashboard**: `GET /api/v1/analytics/datasets/{id}/performance`
+
+### Caching
+Results are cached for 1 hour. Subsequent calls return cached data.
+
+### Common Errors
+- **404**: Dataset not found (verify dataset_id UUID)
 """
 
 from typing import cast

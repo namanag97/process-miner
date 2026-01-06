@@ -1,7 +1,36 @@
 """Organizations Router.
 
-Organization management endpoints for multi-tenant SaaS platform.
-11 endpoints per API specification.
+Multi-tenant organization management for the Process Mining SaaS platform.
+
+## Business Context
+Organizations are the top-level tenant container:
+- Each user belongs to one organization
+- Organizations contain workspaces, which contain projects and datasets
+- Members have roles: owner, admin, member, viewer
+
+## Testing Instructions
+
+### Prerequisites
+- Register a user: `POST /api/v1/auth/register` → Creates user + org automatically
+- Get org_id from `GET /api/v1/auth/me`
+
+### Endpoints
+1. **List Orgs**: `GET /api/v1/organizations/` → User's organizations
+2. **Create Org**: `POST /api/v1/organizations/` with `{"name": "My Company"}`
+3. **Get Org**: `GET /api/v1/organizations/{org_id}`
+4. **Update Org**: `PUT /api/v1/organizations/{org_id}` (admin only)
+5. **Delete Org**: `DELETE /api/v1/organizations/{org_id}` (owner only)
+6. **List Members**: `GET /api/v1/organizations/{org_id}/members`
+7. **Invite Member**: `POST /api/v1/organizations/{org_id}/members/invite`
+8. **Remove Member**: `DELETE /api/v1/organizations/{org_id}/members/{user_id}`
+9. **Update Role**: `PUT /api/v1/organizations/{org_id}/members/{user_id}/role`
+10. **Billing**: `GET /api/v1/organizations/{org_id}/billing` (placeholder)
+11. **Usage**: `GET /api/v1/organizations/{org_id}/usage`
+
+### Common Errors
+- **403**: Not a member of this organization
+- **404**: Organization not found
+- **422**: Slug already exists, invalid input
 """
 
 from datetime import datetime

@@ -1,6 +1,41 @@
 """Discovery Router - Process Mining Algorithms.
 
-Endpoints for running mining algorithms and managing discovered models.
+Endpoints for discovering process models from event logs using various mining algorithms.
+
+## Business Context
+Process discovery is the core of process mining - it automatically extracts
+process models from event log data:
+- **Alpha Miner**: Discovers workflow nets, good for structured processes
+- **Inductive Miner**: Most robust, produces sound process trees (recommended)
+- **Heuristics Miner**: Handles noise well, produces heuristics nets
+- **DFG**: Simple directly-follows graph for quick visualization
+
+## Testing Instructions
+
+### Prerequisites
+1. Have a dataset in READY status (completed ingestion)
+2. Get dataset_id from `GET /api/v1/datasets`
+
+### Test Flow
+1. **List Miners**: `GET /api/v1/discovery/miners` → See available algorithms
+2. **Discover Model** (async, recommended):
+   ```
+   POST /api/v1/discovery/discover?async_mode=true
+   {"dataset_id": "{id}", "miner_type": "inductive", "model_name": "My Model"}
+   ```
+   → Returns job_id (202 Accepted)
+3. **Poll Job**: `GET /api/v1/jobs/{job_id}` until status == "completed"
+4. **List Models**: `GET /api/v1/discovery/models`
+5. **Get Model**: `GET /api/v1/discovery/models/{model_id}`
+6. **Delete Model**: `DELETE /api/v1/discovery/models/{model_id}`
+
+### Miner Types
+`alpha`, `inductive`, `heuristics`, `dfg`
+
+### Common Errors
+- **400**: Dataset not in READY status (complete ingestion first)
+- **404**: Dataset or Model not found
+- **422**: Invalid miner_type (check /miners endpoint)
 """
 
 import time

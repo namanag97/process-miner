@@ -297,6 +297,11 @@ async def validate_uploaded_file_task(
                 unified_ingestion_service,
             )
             from src.platform.infrastructure.object_storage import get_storage_client
+            from src.platform.models import Project
+            from src.features.process_mining.services.ingestion.unified import (
+                unified_ingestion_service,
+            )
+            from src.platform.infrastructure.object_storage import get_storage_client
 
             # Load dataset
             result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))

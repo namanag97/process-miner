@@ -448,6 +448,16 @@ async def upload_dataset(
             file_size_bytes=total_size,
         )
 
+    except InvalidFileError:
+        raise
+    except ValidationError:
+        raise
+    except Exception as e:
+        logger.exception("direct_upload_failed_exception", error=str(e))
+        raise ProcessingError(f"Upload failed: {str(e)}")
     finally:
         if temp_file_path and os.path.exists(temp_file_path):
-            os.unlink(temp_file_path)
+            try:
+                os.unlink(temp_file_path)
+            except Exception:
+                pass

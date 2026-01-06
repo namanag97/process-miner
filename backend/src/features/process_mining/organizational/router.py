@@ -1,7 +1,30 @@
 """Organizational Mining Router - Social Network Analysis API.
 
-Provides endpoints for handover networks, working together networks,
-resource similarity, role discovery, and resource profiling.
+Resource and team behavior analysis from event logs.
+
+## Business Context
+Organizational mining analyzes how people work together:
+- **Handover Network**: Who passes work to whom
+- **Collaboration Network**: Who works on same cases
+- **Resource Similarity**: Who does similar activities
+- **Role Discovery**: Cluster resources by behavior
+- **Resource Profiles**: Performance per individual
+
+## Testing Instructions
+
+### Prerequisites
+1. Have a dataset with a "resource" column mapped
+
+### Endpoints
+- **Handover**: `GET /api/v1/organizational/datasets/{id}/handover-network`
+- **Collaboration**: `GET /api/v1/organizational/datasets/{id}/collaboration-network`
+- **Similarity**: `GET /api/v1/organizational/datasets/{id}/resource-similarity`
+- **Roles**: `GET /api/v1/organizational/datasets/{id}/roles`
+- **Profile**: `GET /api/v1/organizational/datasets/{id}/resources/{name}/profile`
+- **Workload**: `GET /api/v1/organizational/datasets/{id}/workload`
+
+### Common Errors
+- **404**: Dataset not found
 """
 
 from fastapi import APIRouter, Depends, HTTPException

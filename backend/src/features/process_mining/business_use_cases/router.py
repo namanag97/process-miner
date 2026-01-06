@@ -1,6 +1,32 @@
 """Business Use Cases API Router - P2P, O2C, Supply Chain, Customer Journey.
 
-Phase 9 - Business Use Cases Layer.
+Industry-specific process mining templates.
+
+## Business Context
+Pre-built analyses for common business scenarios:
+- **P2P (Procure-to-Pay)**: Maverick detection, audit reports
+- **O2C (Order-to-Cash)**: Cross-region comparison, log splitting
+- **Supply Chain**: Monte Carlo simulation of process changes
+- **Customer Journey**: Drop-off funnel analysis
+
+## Testing Instructions
+
+### P2P Endpoints
+- **Detect Mavericks**: `GET /api/v1/business/p2p/mavericks/{dataset_id}/{model_id}?threshold=0.8`
+- **Audit Report**: `GET /api/v1/business/p2p/audit-report/{dataset_id}/{model_id}`
+
+### O2C Endpoints
+- **Split Log**: `GET /api/v1/business/o2c/split-log/{id}?attribute=region&value=US`
+- **Compare**: `GET /api/v1/business/o2c/compare/{id1}/{id2}`
+
+### Supply Chain
+- **Simulate**: `POST /api/v1/business/supply-chain/simulate/{id}?activity_duration_reduction=0.2`
+
+### Customer Journey
+- **Drop-offs**: `GET /api/v1/business/customer-journey/dropoffs/{id}?expected_path=Browse,Cart,Pay`
+
+### Common Errors
+- **404**: Dataset or Reference model not found
 """
 
 import time

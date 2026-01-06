@@ -1,7 +1,43 @@
 """Predictions Router - ML Predictions API.
 
-Provides endpoints for training prediction models and making predictions
-for next activity, remaining time, and process outcomes.
+Machine learning for predictive process monitoring.
+
+## Business Context
+Predictions enable proactive process management:
+- **Next Activity**: What activity is likely to come next?
+- **Remaining Time**: How long until case completion?
+- Use for SLA monitoring, resource planning, and interventions
+
+## Testing Instructions
+
+### Train a Predictor
+```
+POST /api/v1/predictions/datasets/{dataset_id}/train
+{"target_type": "next_activity", "algorithm": "decision_tree"}
+```
+→ Returns job_id (training runs async by default)
+
+### Test Flow
+1. **Train Model**: `POST /api/v1/predictions/datasets/{id}/train`
+2. **Check Job**: `GET /api/v1/predictions/jobs/{job_id}` until completed
+3. **List Predictors**: `GET /api/v1/predictions/datasets/{id}/predictors`
+4. **Get Predictor**: `GET /api/v1/predictions/predictors/{predictor_id}`
+5. **Predict**:
+   ```
+   POST /api/v1/predictions/predictors/{id}/predict
+   {"case_prefix": ["Activity A", "Activity B"]}
+   ```
+6. **Batch Predict**: `POST /api/v1/predictions/predictors/{id}/predict-batch`
+
+### Target Types
+`next_activity`, `remaining_time`
+
+### Algorithms
+`decision_tree`, `random_forest`, `gradient_boosting`
+
+### Common Errors
+- **404**: Dataset or Predictor not found
+- **400**: Model has no data (retrain)
 """
 
 import json

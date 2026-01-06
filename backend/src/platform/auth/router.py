@@ -1,13 +1,58 @@
 """Auth Router.
 
-JWT-based authentication with local username/password and future OAuth support.
-Supports both real auth (AUTH_ENABLED=true) and mock auth for development.
+JWT-based authentication for the Process Mining SaaS platform.
+
+## Business Context
+Authentication flow for multi-tenant process mining:
+1. Users register and automatically get an organization + default workspace
+2. JWT tokens (access + refresh) are issued on login
+3. Access tokens expire after 30 minutes, use refresh endpoint to renew
+4. All protected endpoints require `Authorization: Bearer {access_token}` header
+
+## Testing Instructions
+
+### Registration Flow
+```bash
+POST /api/v1/auth/register
+{
+  "email": "test@example.com",
+  "password": "SecurePass123!",  # Min 8 chars, needs uppercase, lowercase, digit
+  "name": "Test User"
+}
+# Returns: access_token, refresh_token, user info
+```
+
+### Login Flow
+```bash
+POST /api/v1/auth/login
+{"email": "test@example.com", "password": "SecurePass123!"}
+# Returns: access_token, refresh_token
+```
+
+### Token Refresh
+```bash
+POST /api/v1/auth/refresh
+{"refresh_token": "{your_refresh_token}"}
+# Returns: new access_token, refresh_token pair
+```
+
+### Get Current User
+```bash
+GET /api/v1/auth/me
+Headers: Authorization: Bearer {access_token}
+# Returns: user + organization + workspaces
+```
+
+### Common Errors
+- **401**: Invalid credentials or expired token
+- **409**: Email already registered (use login instead)
+- **422**: Password doesn't meet requirements
 """
 
 from datetime import datetime
 from uuid import uuid4
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import select
 

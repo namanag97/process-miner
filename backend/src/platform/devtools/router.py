@@ -1,8 +1,29 @@
-"""Dev Logging Router - Development-only endpoint for frontend log aggregation.
+"""Dev Logging Router - Development-only log aggregation.
 
-Receives log entries from frontend and appends them to dev-logs/app.log.
+Frontend log collection for development debugging.
 
-BUG-037 FIX: Disabled in production to prevent log-bombing DoS attacks.
+## Business Context
+Aggregates frontend logs for debugging during development:
+- Receives log entries from React frontend
+- Writes to `dev-logs/app.log` in project root
+- **Only available when DEBUG=true** (disabled in production)
+
+## Testing Instructions
+
+### Prerequisites
+- Set `DEBUG=true` in environment or settings
+
+### Endpoints
+- **Post Log**: `POST /api/v1/dev/log`
+  ```json
+  {"type": "FE-ACTION", "source": "Button:Submit", "message": "clicked"}
+  ```
+- **Get Logs**: `GET /api/v1/dev/logs?lines=100`
+- **Clear Logs**: `DELETE /api/v1/dev/logs`
+
+### Common Errors
+- **404**: Endpoint disabled (DEBUG=false in production)
+- **413**: Log message too large (max 10KB)
 """
 
 from datetime import datetime

@@ -1,12 +1,40 @@
 """Object-Centric Process Mining (OCPM) API Router.
 
-Provides endpoints for OCEL 2.0 file handling and object-centric process mining:
+OCEL 2.0 support for multi-object process mining.
+
+## Business Context
+OCPM handles processes with multiple interacting object types (e.g., Order, Item, Package):
 - Upload OCEL files (JSON, SQLite, XML formats)
-- List and retrieve OCEL logs
-- Object type analysis
-- Object-Centric Petri Net discovery
-- Object-Centric DFG discovery
-- Flattening to traditional event logs
+- Analyze relationships between object types
+- Discover Object-Centric Petri Nets
+- Flatten to traditional event logs for standard analysis
+
+## Testing Instructions
+
+### Upload OCEL
+```
+POST /api/v1/ocpm/upload (multipart form)
+- file: .jsonocel/.sqlite/.xmlocel file
+- name: optional display name
+```
+
+### Test Flow
+1. **Upload**: `POST /api/v1/ocpm/upload` → Returns dataset_id
+2. **List Logs**: `GET /api/v1/ocpm/logs`
+3. **Get Statistics**: `GET /api/v1/ocpm/datasets/{id}/statistics`
+4. **Object Types**: `GET /api/v1/ocpm/datasets/{id}/object-types`
+5. **OC-DFG**: `GET /api/v1/ocpm/datasets/{id}/oc-dfg`
+6. **Discover OC-PN**: `POST /api/v1/ocpm/discover` → Returns job_id (async)
+7. **Flatten**: `POST /api/v1/ocpm/datasets/{id}/flatten` (form: object_type)
+
+### Supported Formats
+- `.jsonocel` - OCEL 2.0 JSON
+- `.sqlite` - OCEL 2.0 SQLite database
+- `.xmlocel` - OCEL 2.0 XML
+
+### Common Errors
+- **400**: Invalid OCEL format or parsing error
+- **404**: OCEL log not found
 """
 
 import json

@@ -55,7 +55,8 @@ class Settings(BaseSettings):
     cache_enabled: bool = True
     cache_default_ttl: int = 3600  # 1 hour
 
-    # Object Storage (S3/MinIO)
+    # Object Storage (S3/MinIO/Local)
+    storage_type: str = "s3"  # "s3" or "local"
     s3_endpoint_url: str | None = None  # None = AWS S3, set URL for MinIO
     s3_access_key_id: str = "minioadmin"
     s3_secret_access_key: str = "minioadmin"

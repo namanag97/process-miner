@@ -1,6 +1,37 @@
 """Simulation Router - Process Simulation API.
 
-Provides endpoints for model play-out, what-if simulation, and capacity planning.
+What-if analysis and synthetic log generation.
+
+## Business Context
+Simulation enables experimentation without real process changes:
+- **Play-Out**: Generate synthetic logs from discovered models
+- **What-If**: Test process modifications and see predicted impact
+- **Capacity Planning**: Estimate resources for target throughput
+
+## Testing Instructions
+
+### Prerequisites
+1. Have a discovered process model (from discovery endpoints)
+2. Or have a dataset in READY status
+
+### Test Flow
+1. **Play-Out Model**:
+   ```
+   POST /api/v1/simulation/models/{model_id}/play-out
+   {"num_traces": 100}
+   ```
+   → Creates new dataset with synthetic events
+2. **What-If Simulation**:
+   ```
+   POST /api/v1/simulation/datasets/{id}/simulate
+   {"modifications": [{"activity": "Review", "duration_delta": -0.5}]}
+   ```
+   → Returns original vs simulated metrics
+3. **Capacity Plan**: `POST /api/v1/simulation/datasets/{id}/capacity-plan?target_throughput=100`
+
+### Common Errors
+- **404**: Model or Dataset not found
+- **400**: Model has no serialized data
 """
 
 import json

@@ -1,10 +1,39 @@
 """Filtering Router - Event Log Filtering API.
 
-Provides endpoints for filtering event logs using various criteria:
-- Time-based filtering
-- Variant-based filtering (top-k, coverage)
-- Activity-based filtering
-- Performance-based filtering (duration, case size)
+Create filtered subsets of event logs for targeted analysis.
+
+## Business Context
+Filtering allows analysts to focus on specific process segments:
+- **Time-based**: Filter by date range
+- **Variant-based**: Keep top-k variants or by coverage %
+- **Activity-based**: Include/exclude specific activities
+- **Performance-based**: Filter by case duration or size
+
+## Testing Instructions
+
+### Prerequisites
+1. Have a dataset in READY status
+
+### Test Flow
+1. **Get Options**: `GET /api/v1/filtering/datasets/{id}/options` → Shows available filter values
+2. **Preview Filter**: `POST /api/v1/filtering/datasets/{id}/preview`
+   ```json
+   {"filters": [{"type": "variant_top_k", "params": {"k": 10}}]}
+   ```
+   → Returns impact without saving
+3. **Apply Filter**: `POST /api/v1/filtering/datasets/{id}/apply`
+   ```json
+   {"filters": [...], "name": "Top 10 Variants", "save_result": true}
+   ```
+   → Creates new filtered dataset
+4. **List Results**: `GET /api/v1/filtering/datasets/{id}/results`
+5. **Templates**: `GET /api/v1/filtering/templates`
+
+### Filter Types
+`time_range`, `variant_top_k`, `variant_coverage`, `activity_include`, `activity_exclude`, `duration_range`, `case_size`
+
+### Common Errors
+- **404**: Dataset not found
 """
 
 import json
