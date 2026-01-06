@@ -7,7 +7,10 @@ Components:
 - repository: Database CRUD operations
 - engine: DAG execution logic (topological sort, ready check)
 - service: Business logic layer
-- router: FastAPI endpoints
+- registry: Task function registration
+- executor: Step execution engine
+- templates: Predefined workflow templates
+- tasks: DAG-compatible task functions
 """
 
 from src.platform.dag.models import (
@@ -19,8 +22,22 @@ from src.platform.dag.models import (
     DAGRunStep,
     DAGStepStatus,
 )
+from src.platform.dag.registry import (
+    DAGContext,
+    TaskResult,
+    TaskRegistry,
+    dag_task,
+    task_registry,
+)
+from src.platform.dag.templates import (
+    TEMPLATES,
+    get_template,
+    list_templates,
+)
+from src.platform.dag.executor import DAGExecutor
 
 __all__ = [
+    # Models
     "DAGDefinition",
     "DAGDefinitionStep",
     "DAGDefinitionEdge",
@@ -28,4 +45,17 @@ __all__ = [
     "DAGRunStep",
     "DAGRunStatus",
     "DAGStepStatus",
+    # Registry
+    "DAGContext",
+    "TaskResult",
+    "TaskRegistry",
+    "dag_task",
+    "task_registry",
+    # Templates
+    "TEMPLATES",
+    "get_template",
+    "list_templates",
+    # Executor
+    "DAGExecutor",
 ]
+

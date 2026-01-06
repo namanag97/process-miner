@@ -1,7 +1,7 @@
 """Add DAG orchestration tables.
 
 Revision ID: 015_dag_orchestration
-Revises: 014_add_lookup_tables
+Revises: 8e4879a6c308
 Create Date: 2026-01-06
 
 Adds tables for DAG-based workflow orchestration:
@@ -18,7 +18,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "015_dag_orchestration"
-down_revision = "014_add_lookup_tables"
+down_revision = "8e4879a6c308"
 branch_labels = None
 depends_on = None
 
@@ -57,16 +57,13 @@ def upgrade() -> None:
         sa.Column("timeout_seconds", sa.Integer, nullable=True, server_default="3600"),
         sa.Column("position", sa.Integer, nullable=False),
         sa.Column("created_at", sa.DateTime, nullable=False),
+        # Inline unique constraint for SQLite compatibility
+        sa.UniqueConstraint("dag_definition_id", "name", name="uq_dag_definition_steps_name"),
     )
     op.create_index(
         "ix_dag_definition_steps_dag_id",
         "dag_definition_steps",
         ["dag_definition_id"],
-    )
-    op.create_unique_constraint(
-        "uq_dag_definition_steps_name",
-        "dag_definition_steps",
-        ["dag_definition_id", "name"],
     )
 
     # === 3. dag_definition_edges: Dependencies between steps ===
@@ -92,16 +89,13 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("condition_json", sa.Text, nullable=True),  # Optional conditional logic
+        # Inline unique constraint for SQLite compatibility
+        sa.UniqueConstraint("dag_definition_id", "from_step_id", "to_step_id", name="uq_dag_definition_edges_from_to"),
     )
     op.create_index(
         "ix_dag_definition_edges_dag_id",
         "dag_definition_edges",
         ["dag_definition_id"],
-    )
-    op.create_unique_constraint(
-        "uq_dag_definition_edges_from_to",
-        "dag_definition_edges",
-        ["dag_definition_id", "from_step_id", "to_step_id"],
     )
 
     # === 4. dag_runs: Execution instances of DAGs ===
