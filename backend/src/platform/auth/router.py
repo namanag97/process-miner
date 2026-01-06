@@ -7,13 +7,20 @@ Supports both real auth (AUTH_ENABLED=true) and mock auth for development.
 from datetime import datetime
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import select
 
 from src.api.dependencies import CurrentUser, DBSession
 from src.platform.core.config import get_settings
-from src.platform.core.logging_config import get_logger
+from src.platform.core.error_messages import ErrorMessages
+from src.platform.core.exceptions import (
+    AuthenticationError,
+    ConflictError,
+    NotFoundError,
+    ProcessingError,
+)
+from src.platform.core.logging_config import get_logger, log_operation
 from src.platform.core.security import (
     TokenPair,
     create_token_pair,
@@ -194,16 +201,15 @@ async def register(
 
     Returns JWT tokens for immediate authentication.
     """
-    # Check if user already exists (email already normalized by validator)
     existing = await db.execute(select(User).filter(User.email == request.email))
     if existing.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "code": "EMAIL_ALREADY_EXISTS",
-                "message": "An account with this email already exists",
-                "field": "email",
-            },
+        logger.warning(
+            "registration_email_exists",
+            email=request.email[:3] + "***",  # Mask email for privacy
+        )
+        raise ConflictError(
+            message=ErrorMessages.resource_already_exists("Account", request.email),
+            details={"field": "email", "code": "EMAIL_ALREADY_EXISTS"},
         )
 
     # Create organization with unique slug
@@ -222,13 +228,10 @@ async def register(
         org_slug = f"{base_slug[:45]}-{suffix}"
         suffix += 1
         if suffix > 100:  # Safety limit
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={
-                    "code": "ORG_SLUG_CONFLICT",
-                    "message": "Could not generate unique organization slug",
-                    "field": "organization_name",
-                },
+            logger.error("org_slug_generation_failed", base_slug=base_slug)
+            raise ConflictError(
+                message="Could not generate unique organization slug. Please try a different organization name.",
+                details={"field": "organization_name", "code": "ORG_SLUG_CONFLICT"},
             )
 
     org = Organization(
@@ -304,17 +307,17 @@ async def login(
     user = result.scalar_one_or_none()
 
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
+        logger.debug("login_failed_user_not_found", email=request.email[:3] + "***")
+        raise AuthenticationError(
+            message=ErrorMessages.invalid_credentials(),
         )
 
     # Verify password (skip in dev mode if no password hash)
     if settings.auth_enabled:
         if not user.password_hash or not verify_password(request.password, user.password_hash):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password",
+            logger.warning("login_failed_invalid_password", user_id=user.id)
+            raise AuthenticationError(
+                message=ErrorMessages.invalid_credentials(),
             )
 
     # Update last login
@@ -347,9 +350,9 @@ async def refresh_token(
     user = result.scalar_one_or_none()
 
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
+        logger.warning("token_refresh_user_not_found", user_id=token_data.sub)
+        raise AuthenticationError(
+            message=ErrorMessages.token_invalid(),
         )
 
     # Generate new tokens
@@ -416,13 +419,12 @@ async def change_password(
     current_user: CurrentUser,
 ) -> dict[str, str]:
     """Change password for logged in user."""
-    # Verify current password
     if not current_user.password_hash or not verify_password(
         request.current_password, current_user.password_hash
     ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Current password is incorrect",
+        logger.warning("change_password_failed", user_id=current_user.id, reason="invalid_current_password")
+        raise AuthenticationError(
+            message="Current password is incorrect. Please verify and try again.",
         )
 
     # Update password
@@ -480,12 +482,11 @@ async def reset_password(
 
     Note: Token validation not implemented - placeholder.
     """
-    # In production: validate token, find user, update password
     logger.warning("reset_password_attempted", msg="Token validation not implemented")
 
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Password reset token validation not yet implemented",
+    raise ProcessingError(
+        message="Password reset token validation is not yet available. Please contact support.",
+        details={"code": "NOT_IMPLEMENTED"},
     )
 
 

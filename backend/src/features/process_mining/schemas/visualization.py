@@ -14,7 +14,6 @@ from src.features.process_mining.schemas.datasets import (
     VariantResponse,
 )
 
-
 # =============================================================================
 # Directly-Follows Graph (DFG)
 # =============================================================================

@@ -22,7 +22,7 @@ from src.features.process_mining.schemas import (
 )
 from src.platform.core.config import get_settings
 from src.platform.core.exceptions import InvalidFileError, ProcessingError, ValidationError
-from src.platform.core.logging_config import get_logger
+from src.platform.core.logging_config import get_logger, log_operation
 from src.platform.core.rate_limit import limiter
 
 logger = get_logger(__name__)
@@ -66,9 +66,14 @@ def validate_file_extension(filename: str) -> None:
 
     ext = os.path.splitext(filename)[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
-        logger.warning("upload_rejected_extension", filename=filename, extension=ext)
+        logger.warning(
+            "upload_rejected_extension",
+            filename=filename,
+            extension=ext,
+            allowed=list(ALLOWED_EXTENSIONS),
+        )
         raise InvalidFileError(
-            f"Invalid file type '{ext}'. Allowed: {', '.join(ALLOWED_EXTENSIONS)}",
+            f"File type '{ext}' is not supported. Please upload a CSV or XES file.",
             filename=filename,
             expected_types=list(ALLOWED_EXTENSIONS),
         )
@@ -159,7 +164,11 @@ async def create_presigned_upload(
     db: DBSession,
     current_user: CurrentUser,
 ) -> PresignedUploadResponse:
-    """Generate presigned URL for direct client-to-S3 upload."""
+    """Generate presigned URL for direct client-to-S3 upload.
+    
+    Creates a dataset record and returns a presigned S3 URL for direct upload.
+    After uploading, call POST /datasets/{id}/uploaded to trigger validation.
+    """
     from src.platform.core.permissions import Permission
     from src.platform.infrastructure.object_storage import get_storage_client
     from src.platform.workspaces.authorization import require_project_permission
@@ -330,7 +339,11 @@ async def upload_dataset(
     name: str | None = Form(None),
     project_id: str | None = Form(None, description="Project ID to assign dataset to"),
 ) -> DatasetResponse:
-    """Upload and store an event log file."""
+    """Upload and store an event log file.
+    
+    Validates, stores, and queues the file for processing.
+    Use presigned upload for files larger than 50MB.
+    """
     from src.platform.core.permissions import Permission
     from src.platform.infrastructure.object_storage import get_storage_client
     from src.platform.infrastructure.tasks import validate_uploaded_file_task

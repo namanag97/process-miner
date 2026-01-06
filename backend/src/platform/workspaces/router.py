@@ -19,8 +19,9 @@ from fastapi import APIRouter, Path, Query
 from sqlalchemy import delete, func, select
 
 from src.api.dependencies import CurrentUser, DBSession
+from src.platform.core.error_messages import ErrorMessages
 from src.platform.core.exceptions import ConflictError, NotFoundError
-from src.platform.core.logging_config import get_logger
+from src.platform.core.logging_config import get_logger, log_operation
 from src.platform.core.permissions import Permission
 from src.platform.core.validation import calculate_total_pages, validate_uuid
 from src.platform.models import Organization, Project, Workspace, WorkspaceMember
@@ -191,7 +192,7 @@ async def create_workspace(
     # Verify user belongs to this organization
     if user.org_id != org_id:
         raise ConflictError(
-            message="Cannot create workspace in an organization you don't belong to"
+            message=ErrorMessages.permission_denied("create a workspace", "Organization"),
         )
 
     # Create workspace
@@ -345,7 +346,9 @@ async def add_project_to_workspace(
 
     # Check if project is already in this workspace
     if project.workspace_id == workspace_id:
-        raise ConflictError(message="Project is already in this workspace")
+        raise ConflictError(
+            message=ErrorMessages.resource_conflict("Project", "already in this workspace"),
+        )
 
     # Move project to workspace
     project.workspace_id = workspace_id
@@ -393,7 +396,9 @@ async def remove_project_from_workspace(
 
     # Verify project is in this workspace
     if project.workspace_id != workspace_id:
-        raise ConflictError(message="Project is not in this workspace")
+        raise ConflictError(
+            message=ErrorMessages.resource_conflict("Project", "not in this workspace"),
+        )
 
     # Remove project from workspace
     project.workspace_id = None
@@ -491,7 +496,9 @@ async def add_workspace_member(
         )
     )
     if existing.scalar_one_or_none():
-        raise ConflictError(message="User is already a member of this workspace")
+        raise ConflictError(
+            message=ErrorMessages.resource_already_exists("Member", request.user_id),
+        )
 
     # Add member
     from uuid import uuid4
@@ -605,7 +612,9 @@ async def remove_workspace_member(
 
     # Cannot remove self
     if user_id == user.id:
-        raise ConflictError(message="Cannot remove yourself from the workspace")
+        raise ConflictError(
+            message="You cannot remove yourself from the workspace. Please ask another admin.",
+        )
 
     # Delete membership
     await db.delete(member)
