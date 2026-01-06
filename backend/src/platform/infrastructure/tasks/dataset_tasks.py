@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from .base import AsyncSessionLocal, AsyncTask, celery_app
+from src.platform.models import Project
 
 logger = structlog.get_logger(__name__)
 
