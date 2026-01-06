@@ -2,7 +2,7 @@
 
 Consolidated architecture:
 - Platform: Auth, organizations, workspaces, projects, health, jobs, DAGs
-- Process Mining: Discovery, conformance, analytics, visualization, etc.
+- Process Mining: Discovery, conformance, analytics, visualization, datasets, etc.
 """
 
 # ============================================================================
@@ -34,13 +34,14 @@ from src.features.process_mining.ocpm import router as ocpm_router
 from src.features.process_mining.organizational import router as organizational_router
 from src.features.process_mining.predictions import router as predictions_router
 from src.features.process_mining.simulation import router as simulation_router
+from src.features.process_mining.statistics import router as statistics_router
 from src.features.process_mining.visualization import router as visualization_router
 from src.features.process_mining.workflows import router as workflows_router
 
 # ============================================================================
-# Datasets Routers (from domains until migrated)
+# Datasets Routers (from features/process_mining/datasets)
 # ============================================================================
-from src.domains.datasets.api import (
+from src.features.process_mining.datasets.api import (
     crud_router as datasets_crud_router,
     export_router as datasets_export_router,
     ingest_router as datasets_ingest_router,
@@ -48,9 +49,6 @@ from src.domains.datasets.api import (
     router as datasets_router,
     upload_router as datasets_upload_router,
 )
-
-# Statistics router (from domains.analysis until migrated)
-from src.domains.analysis.api.statistics import router as statistics_router
 
 __all__ = [
     # Platform - Users
@@ -63,7 +61,7 @@ __all__ = [
     "dev_log_router",
     "health_router",
     "jobs_router",
-    # Datasets (temporary from domains)
+    # Datasets
     "datasets_router",
     "datasets_crud_router",
     "datasets_upload_router",

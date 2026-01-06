@@ -1,35 +1,128 @@
-"""Analysis Domain Models.
+"""Feature Models - Process Mining Domain.
 
-Core models for process mining analysis.
+All process mining models consolidated in one location.
 """
 
-# Import from local domain models
-from src.domains.analysis.models.analysis import (
+# Enums
+from src.features.process_mining.models.enums import (
+    AnalysisStatus,
+    AnalysisType,
+    DatasetStatus,
+)
+
+# Dataset models
+from src.features.process_mining.models.dataset import (
+    Dataset,
+    DatasetColumn,
+    DatasetColumnMapping,
+    DatasetMetadata,
+)
+
+# Uploaded file
+from src.features.process_mining.models.uploaded_file import UploadedFile
+
+# Event models
+from src.features.process_mining.models.events import ProcessCase, ProcessEvent
+
+# Analysis models
+from src.features.process_mining.models.analysis import (
     Analysis,
     AnalyticsCache,
     ConformanceResult,
 )
-from src.domains.analysis.models.enums import AnalysisStatus, AnalysisType
-from src.domains.analysis.models.events import ProcessCase, ProcessEvent
-from src.domains.analysis.models.process_model import (
+
+# Process model
+from src.features.process_mining.models.process_model import (
     GraphCache,
     ProcessModel,
     ProcessModelMetrics,
 )
 
+# Predictions
+from src.features.process_mining.models.prediction import (
+    Prediction,
+    PredictionModel,
+    Recommendation,
+)
+
+# Organizational Mining
+from src.features.process_mining.models.organizational import (
+    ActivityMapping,
+    HierarchicalProcessModel,
+    SocialNetwork,
+)
+
+# OCEL 2.0 models
+from src.features.process_mining.models.ocel2 import (
+    E2ORelation,
+    O2ORelation,
+    ObjectAttributeChange,
+    OCEL2Event,
+    OCEL2EventType,
+    OCEL2Object,
+    OCEL2ObjectType,
+)
+
+# Lookup tables for normalized values
+from src.features.process_mining.models.lookup_tables import (
+    Activity,
+    Resource,
+    get_or_create_activity,
+    get_or_create_resource,
+)
+
+# OCEL Service Models
+from src.features.process_mining.models.ocel import (
+    OCELLog,
+    OCELObjectType,
+    OCPetriNet,
+)
+
 __all__ = [
     # Enums
+    "DatasetStatus",
     "AnalysisType",
     "AnalysisStatus",
-    # Events
+    # Models - Dataset
+    "Dataset",
+    "DatasetColumn",
+    "DatasetColumnMapping",
+    "DatasetMetadata",
+    "UploadedFile",
+    # Models - Events
     "ProcessCase",
     "ProcessEvent",
-    # Process Models
+    # Models - Process Model
     "ProcessModel",
     "ProcessModelMetrics",
     "GraphCache",
-    # Analysis
+    # Models - Analysis
     "Analysis",
     "ConformanceResult",
     "AnalyticsCache",
+    # Models - Organizational
+    "ActivityMapping",
+    "SocialNetwork",
+    "HierarchicalProcessModel",
+    # Models - Prediction
+    "PredictionModel",
+    "Prediction",
+    "Recommendation",
+    # OCEL 2.0
+    "OCEL2Event",
+    "OCEL2EventType",
+    "OCEL2Object",
+    "OCEL2ObjectType",
+    "E2ORelation",
+    "O2ORelation",
+    "ObjectAttributeChange",
+    # Lookup Tables
+    "Activity",
+    "Resource",
+    "get_or_create_activity",
+    "get_or_create_resource",
+    # OCEL Models (Service Layer)
+    "OCELLog",
+    "OCELObjectType",
+    "OCPetriNet",
 ]
