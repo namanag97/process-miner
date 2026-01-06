@@ -1,14 +1,9 @@
-"""Platform layer schemas - Re-exports from platform.users for backward compatibility.
+"""Platform User Schemas.
 
-Contains schemas for:
-- Generic pagination
-- Organizations, Workspaces, Users
-- Projects
-- Error responses
+Pydantic schemas for user administration operations.
 """
 
-# Re-export from platform.users for backward compatibility
-from src.platform.users.schemas import (  # noqa: E402
+from src.platform.users.schemas.schemas import (
     CurrentUserResponse,
     OrganizationResponse,
     ProjectCreateRequest,
@@ -28,9 +23,9 @@ from src.platform.users.schemas import (  # noqa: E402
 __all__ = [
     "OrganizationResponse",
     "UserResponse",
-    "WorkspaceMemberResponse",
     "CurrentUserResponse",
     "WorkspaceResponse",
+    "WorkspaceMemberResponse",
     "WorkspaceListResponse",
     "WorkspaceDetailResponse",
     "WorkspaceCreateRequest",

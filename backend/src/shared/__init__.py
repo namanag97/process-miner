@@ -21,6 +21,8 @@ from src.shared.base_schemas import (
     SuccessResponse,
     ErrorResponse,
     JobResponse,
+    BaseEntityResponse,
+    BaseTaskResponse,
 )
 from src.shared.container import Container
 from src.shared.base_repository import BaseRepository, ReadOnlyRepository
@@ -39,6 +41,8 @@ __all__ = [
     "SuccessResponse",
     "ErrorResponse",
     "JobResponse",
+    "BaseEntityResponse",
+    "BaseTaskResponse",
     # Legacy
     "constants",
     "types",

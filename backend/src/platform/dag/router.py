@@ -10,6 +10,8 @@ from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from src.shared.base_schemas import BaseEntityResponse, BaseSchema, BaseTaskResponse
+
 from src.api.dependencies import CurrentUser, DBSession
 from src.platform.core.logging_config import get_logger
 from src.platform.dag.service import DAGService
@@ -93,8 +95,12 @@ class EdgeResponse(BaseModel):
     to_step_id: str
 
 
-class DefinitionResponse(BaseModel):
-    """DAG definition response."""
+class DefinitionResponse(BaseSchema):
+    """DAG definition response.
+    
+    Uses BaseSchema for ORM compatibility. Note: Does not extend
+    BaseEntityResponse since we only need created_at, not updated_at.
+    """
 
     id: str
     name: str
@@ -113,29 +119,33 @@ class DefinitionListResponse(BaseModel):
     total: int
 
 
-class RunStepResponse(BaseModel):
-    """Step status within a run."""
+class RunStepResponse(BaseSchema):
+    """Step status within a run.
+    
+    Similar to BaseTaskResponse but without created_at/updated_at since
+    step timing is tracked via started_at/completed_at relative to the run.
+    """
 
     id: str
     name: str
     task_name: str
-    status: str
-    started_at: datetime | None = None
-    completed_at: datetime | None = None
-    error_message: str | None = None
+    status: str = Field(..., description="Step status (pending/running/completed/failed)")
+    started_at: datetime | None = Field(None, description="Step start time")
+    completed_at: datetime | None = Field(None, description="Step completion time")
+    error_message: str | None = Field(None, description="Error details if failed")
 
 
-class RunResponse(BaseModel):
-    """DAG run response."""
+class RunResponse(BaseTaskResponse):
+    """DAG run response.
+    
+    Extends BaseTaskResponse which provides:
+    - id, created_at, updated_at (from BaseEntityResponse)
+    - status, started_at, completed_at, error_message (from BaseTaskResponse)
+    """
 
-    id: str
-    definition_id: str
-    status: str
-    trigger_type: str | None = None
-    created_at: datetime
-    started_at: datetime | None = None
-    completed_at: datetime | None = None
-    steps: list[RunStepResponse]
+    definition_id: str = Field(..., description="ID of the DAG definition")
+    trigger_type: str | None = Field(None, description="How the run was triggered")
+    steps: list[RunStepResponse] = Field(default_factory=list, description="Step statuses")
 
 
 class RunListResponse(BaseModel):
@@ -505,7 +515,10 @@ def _run_to_response(dag_run) -> RunResponse:
         status=dag_run.status,
         trigger_type=dag_run.trigger_type,
         created_at=dag_run.created_at,
+        updated_at=None,  # DAGRun doesn't track updates
         started_at=dag_run.started_at,
         completed_at=dag_run.completed_at,
+        error_message=dag_run.error_message,
         steps=steps,
     )
+

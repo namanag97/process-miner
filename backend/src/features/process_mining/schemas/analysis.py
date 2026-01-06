@@ -12,7 +12,6 @@ Schema organization:
 - organizational: Social networks and resources
 - predictions: ML-based predictions
 - simulation: Play-out and what-if analysis
-- workflows: Automated workflow definitions
 - analyses: Saved analysis state and patterns
 """
 
@@ -122,7 +121,7 @@ from src.features.process_mining.schemas.visualization import (
     ProcessExplorerDataResponse,
 )
 
-# Workflows
+# Workflows (legacy - superceded by DAGs)
 from src.features.process_mining.schemas.workflows import (
     WorkflowCreateRequest,
     WorkflowResponse,
@@ -205,13 +204,6 @@ __all__ = [
     "PlayOutResponse",
     "SimulationRequest",
     "SimulationResponse",
-    # Workflows
-    "WorkflowStep",
-    "WorkflowCreateRequest",
-    "WorkflowResponse",
-    "WorkflowRunRequest",
-    "WorkflowRunResponse",
-    "WorkflowTemplate",
     # Analyses
     "AnalysisCreateRequest",
     "AnalysisResponse",
@@ -220,4 +212,11 @@ __all__ = [
     "UploadedFileResponse",
     "PatternResponse",
     "PerformanceDashboardResponse",
+    # Workflows (legacy)
+    "WorkflowStep",
+    "WorkflowTemplate",
+    "WorkflowCreateRequest",
+    "WorkflowResponse",
+    "WorkflowRunRequest",
+    "WorkflowRunResponse",
 ]

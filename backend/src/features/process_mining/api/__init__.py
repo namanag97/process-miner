@@ -14,7 +14,6 @@ from src.features.process_mining.organizational import router as organizational_
 from src.features.process_mining.predictions import router as predictions_router
 from src.features.process_mining.simulation import router as simulation_router
 from src.features.process_mining.visualization import router as visualization_router
-from src.features.process_mining.workflows import router as workflows_router
 
 __all__ = [
     "analyses_router",
@@ -29,5 +28,5 @@ __all__ = [
     "predictions_router",
     "simulation_router",
     "visualization_router",
-    "workflows_router",
 ]
+

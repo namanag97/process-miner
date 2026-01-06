@@ -5,18 +5,8 @@ This package contains well-bounded business domains:
 - datasets: Data upload, ingestion, storage, connectors
 - analysis: Process mining, analytics, visualization
 
-Each domain follows Domain-Driven Design principles with:
-- Clear boundaries and responsibilities
-- Domain-specific models, schemas, services
-- Minimal cross-domain dependencies
-
-Domain Structure:
-- api/: FastAPI routers for the domain
-- models/: SQLAlchemy ORM models
-- schemas/: Pydantic request/response schemas
-- services/: Business logic services
-- tasks/: Background tasks (Celery/async)
-- README.md: Domain boundary documentation
+Note: Admin routers and some infrastructure have been migrated to:
+- src.platform.users (models, schemas, routers)
 """
 
 from src.domains import admin, analysis, datasets

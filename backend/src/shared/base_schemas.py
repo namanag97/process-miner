@@ -156,6 +156,50 @@ class JobResponse(BaseSchema):
 
 
 # =============================================================================
+# Consolidated Entity Responses (Phase 4 Schema Consolidation)
+# =============================================================================
+
+
+class BaseEntityResponse(IDMixin, TimestampMixin, BaseSchema):
+    """Base response for any persisted entity with ID and timestamps.
+    
+    Use this as a base class for API responses that represent database entities.
+    Provides consistent id, created_at, and updated_at fields.
+    
+    Example:
+        class DatasetResponse(BaseEntityResponse):
+            name: str
+            status: str
+    """
+    pass
+
+
+class BaseTaskResponse(BaseEntityResponse):
+    """Base response for async tasks/jobs with execution status.
+    
+    Extends BaseEntityResponse with status and timing fields for
+    long-running operations like DAG runs, analysis jobs, etc.
+    
+    Example:
+        class DAGRunResponse(BaseTaskResponse):
+            definition_id: str
+            steps: list[StepResponse]
+    """
+    
+    status: str = Field(..., description="Current status (pending/running/completed/failed)")
+    started_at: datetime | None = Field(None, description="Execution start time")
+    completed_at: datetime | None = Field(None, description="Execution end time")
+    error_message: str | None = Field(None, description="Error details if failed")
+    
+    @property
+    def duration_seconds(self) -> float | None:
+        """Calculate execution duration in seconds."""
+        if self.started_at and self.completed_at:
+            return (self.completed_at - self.started_at).total_seconds()
+        return None
+
+
+# =============================================================================
 # Statistics Mixins
 # =============================================================================
 

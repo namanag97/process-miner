@@ -1,24 +1,44 @@
 """API routers - Central registry for all API routers.
 
-Following Domain-Driven Design architecture:
-- Admin Domain: Auth, organizations, workspaces, projects
-- Datasets Domain: Upload, mapping, ingestion, CRUD
-- Analysis Domain: Discovery, conformance, analytics, visualization
-- Platform: Infrastructure (jobs, health, devtools)
+Consolidated architecture:
+- Platform: Auth, organizations, workspaces, projects, health, jobs, DAGs
+- Process Mining: Discovery, conformance, analytics, visualization, etc.
 """
 
 # ============================================================================
-# Admin Domain Routers
+# Platform Routers (Users & Infrastructure)
 # ============================================================================
-from src.domains.admin.api import (
+from src.platform.users.api import (
     auth_router,
     organizations_router,
     projects_router,
     workspaces_router,
 )
 
+# Platform Infrastructure
+from src.platform.dag.router import router as dags_router
+from src.platform.devtools.router import router as dev_log_router
+from src.platform.health.router import router as health_router
+from src.platform.jobs.router import router as jobs_router
+
 # ============================================================================
-# Datasets Domain Routers
+# Process Mining Feature Routers
+# ============================================================================
+from src.features.process_mining.analyses import router as analyses_router
+from src.features.process_mining.analytics import router as analytics_router
+from src.features.process_mining.business_use_cases import router as business_use_cases_router
+from src.features.process_mining.conformance import router as conformance_router
+from src.features.process_mining.discovery import router as discovery_router
+from src.features.process_mining.filtering import router as filtering_router
+from src.features.process_mining.ocpm import router as ocpm_router
+from src.features.process_mining.organizational import router as organizational_router
+from src.features.process_mining.predictions import router as predictions_router
+from src.features.process_mining.simulation import router as simulation_router
+from src.features.process_mining.visualization import router as visualization_router
+from src.features.process_mining.workflows import router as workflows_router
+
+# ============================================================================
+# Datasets Routers (from domains until migrated)
 # ============================================================================
 from src.domains.datasets.api import (
     crud_router as datasets_crud_router,
@@ -29,47 +49,28 @@ from src.domains.datasets.api import (
     upload_router as datasets_upload_router,
 )
 
-# ============================================================================
-# Analysis Domain Routers
-# ============================================================================
-from src.domains.analysis.api import (
-    analyses_router,
-    analytics_router,
-    business_use_cases_router,
-    conformance_router,
-    discovery_router,
-    filtering_router,
-    ocpm_router,
-    organizational_router,
-    predictions_router,
-    simulation_router,
-    statistics_router,
-    visualization_router,
-    workflows_router,
-)
-
-# ============================================================================
-# Platform Infrastructure Routers
-# ============================================================================
-from src.platform.dag.router import router as dags_router
-from src.platform.devtools.router import router as dev_log_router
-from src.platform.health.router import router as health_router
-from src.platform.jobs.router import router as jobs_router
+# Statistics router (from domains.analysis until migrated)
+from src.domains.analysis.api.statistics import router as statistics_router
 
 __all__ = [
-    # Admin domain
+    # Platform - Users
     "auth_router",
     "organizations_router",
     "workspaces_router",
     "projects_router",
-    # Datasets domain
+    # Platform - Infrastructure
+    "dags_router",
+    "dev_log_router",
+    "health_router",
+    "jobs_router",
+    # Datasets (temporary from domains)
     "datasets_router",
     "datasets_crud_router",
     "datasets_upload_router",
     "datasets_mapping_router",
     "datasets_ingest_router",
     "datasets_export_router",
-    # Analysis domain
+    # Process Mining Features
     "statistics_router",
     "analyses_router",
     "analytics_router",
@@ -83,9 +84,4 @@ __all__ = [
     "ocpm_router",
     "business_use_cases_router",
     "workflows_router",
-    # Platform infrastructure
-    "dags_router",
-    "dev_log_router",
-    "health_router",
-    "jobs_router",
 ]

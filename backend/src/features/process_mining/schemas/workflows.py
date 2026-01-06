@@ -1,92 +1,82 @@
-"""Workflow schemas - Automated workflow definitions and execution.
+"""Workflow Schemas.
 
-Contains schemas for:
-- Workflow steps and definitions
-- Workflow creation and response
-- Workflow runs and templates
+Schemas for workflow orchestration (legacy - superceded by DAGs).
+These are kept for backward compatibility with existing API contracts.
 """
 
-import json
 from datetime import datetime
-from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, Field
 
 
 class WorkflowStep(BaseModel):
-    """Workflow step definition."""
+    """A step in a workflow."""
 
-    name: str
-    type: str  # ingest, discover, check_conformance, export
-    params: dict[str, Any] = Field(default_factory=dict)
+    name: str = Field(..., description="Step name")
+    task_type: str = Field(..., description="Type of task to execute")
+    config: dict | None = Field(default=None, description="Step configuration")
+    depends_on: list[str] = Field(default_factory=list, description="Dependencies")
+
+
+class WorkflowTemplate(BaseModel):
+    """Predefined workflow template."""
+
+    id: str = Field(..., description="Template ID")
+    name: str = Field(..., description="Template name")
+    description: str | None = Field(default=None, description="Template description")
+    steps: list[WorkflowStep] = Field(default_factory=list, description="Workflow steps")
 
 
 class WorkflowCreateRequest(BaseModel):
-    """Request to create a workflow."""
+    """Request to create a new workflow."""
 
-    name: str
-    steps: list[WorkflowStep]
-    schedule: str | None = None  # Cron expression
+    name: str = Field(..., min_length=1, max_length=255, description="Workflow name")
+    description: str | None = Field(default=None, max_length=1000, description="Description")
+    template_id: str | None = Field(default=None, description="Template to use")
+    steps: list[WorkflowStep] = Field(default_factory=list, description="Custom steps")
+    dataset_id: str | None = Field(default=None, description="Associated dataset")
 
 
 class WorkflowResponse(BaseModel):
     """Workflow response."""
 
-    id: str
-    name: str
-    steps: list[WorkflowStep] = []
-    schedule: str | None
-    is_active: bool
-    created_at: datetime
+    id: str = Field(..., description="Workflow ID")
+    name: str = Field(..., description="Workflow name")
+    description: str | None = Field(default=None, description="Description")
+    status: str = Field(default="draft", description="Workflow status")
+    steps: list[WorkflowStep] = Field(default_factory=list, description="Workflow steps")
+    dataset_id: str | None = Field(default=None, description="Associated dataset")
+    created_at: datetime | None = Field(default=None, description="Creation time")
+    updated_at: datetime | None = Field(default=None, description="Last update time")
 
-    @model_validator(mode="before")
-    @classmethod
-    def parse_json_fields(cls, data: Any) -> Any:
-        """Auto-parse steps_json to steps list."""
-        if hasattr(data, "__dict__"):
-            data = {
-                k: getattr(data, k)
-                for k in ["id", "name", "steps_json", "schedule", "is_active", "created_at"]
-                if hasattr(data, k)
-            }
-        if isinstance(data, dict):
-            if data.get("steps_json"):
-                try:
-                    data["steps"] = json.loads(data["steps_json"])
-                except (json.JSONDecodeError, TypeError):
-                    data["steps"] = []
-            elif "steps" not in data:
-                data["steps"] = []
-        return data
-
-    model_config = ConfigDict(from_attributes=True)
+    model_config = {"from_attributes": True}
 
 
 class WorkflowRunRequest(BaseModel):
     """Request to run a workflow."""
 
-    dataset_id: str | None = None
-    params: dict[str, Any] = Field(default_factory=dict)
+    parameters: dict = Field(default_factory=dict, description="Runtime parameters")
 
 
 class WorkflowRunResponse(BaseModel):
-    """Workflow run response."""
+    """Response for a workflow run."""
 
-    id: str
-    workflow_id: str
-    dataset_id: str | None
-    status: str
-    started_at: datetime | None
-    completed_at: datetime | None
-    error: str | None
+    id: str = Field(..., description="Run ID")
+    workflow_id: str = Field(..., description="Workflow ID")
+    status: str = Field(..., description="Run status")
+    started_at: datetime | None = Field(default=None, description="Start time")
+    completed_at: datetime | None = Field(default=None, description="Completion time")
+    result: dict | None = Field(default=None, description="Run result")
+    error: str | None = Field(default=None, description="Error message if failed")
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = {"from_attributes": True}
 
 
-class WorkflowTemplate(BaseModel):
-    """Pre-defined workflow template."""
-
-    id: str
-    name: str
-    description: str
-    steps: list[WorkflowStep]
+__all__ = [
+    "WorkflowStep",
+    "WorkflowTemplate",
+    "WorkflowCreateRequest",
+    "WorkflowResponse",
+    "WorkflowRunRequest",
+    "WorkflowRunResponse",
+]

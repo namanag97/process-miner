@@ -12,8 +12,8 @@ from src.features.process_mining.models import (
     Analysis,
     Dataset,
     ProcessModel,
-    Workflow,
 )
+from src.platform.dag.models import DAGDefinition, DAGRun
 from src.platform.models import AsyncJob, Project
 from src.shared.base_repository import BaseRepository
 
@@ -82,30 +82,32 @@ class ProcessModelRepository(BaseRepository[ProcessModel]):
         return result.scalar_one_or_none()
 
 
-class WorkflowRepository(BaseRepository[Workflow]):
-    """Repository for Workflow aggregate."""
+class DAGDefinitionRepository(BaseRepository[DAGDefinition]):
+    """Repository for DAGDefinition aggregate."""
     
-    model_class = Workflow
+    model_class = DAGDefinition
     
-    async def get_by_dataset(self, dataset_id: str) -> list[Workflow]:
-        """Get all workflows for a dataset."""
+    async def get_active(self) -> list[DAGDefinition]:
+        """Get all active DAG definitions."""
         stmt = (
-            select(Workflow)
-            .where(Workflow.dataset_id == dataset_id)
-            .order_by(Workflow.created_at.desc())
+            select(DAGDefinition)
+            .where(DAGDefinition.is_active == True)
+            .order_by(DAGDefinition.created_at.desc())
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
     
-    async def get_active(self, dataset_id: str) -> list[Workflow]:
-        """Get active workflows for a dataset."""
+    async def get_by_name(self, name: str) -> DAGDefinition | None:
+        """Get DAG definition by name."""
         stmt = (
-            select(Workflow)
-            .where(Workflow.dataset_id == dataset_id)
-            .where(Workflow.status == "active")
+            select(DAGDefinition)
+            .where(DAGDefinition.name == name)
+            .where(DAGDefinition.is_active == True)
+            .order_by(DAGDefinition.version.desc())
+            .limit(1)
         )
         result = await self._session.execute(stmt)
-        return list(result.scalars().all())
+        return result.scalar_one_or_none()
 
 
 class ProjectRepository(BaseRepository[Project]):
@@ -235,7 +237,7 @@ def get_repositories(session: AsyncSession) -> dict:
     return {
         "analysis": AnalysisRepository(session),
         "process_model": ProcessModelRepository(session),
-        "workflow": WorkflowRepository(session),
+        "dag_definition": DAGDefinitionRepository(session),
         "project": ProjectRepository(session),
         "dataset": DatasetRepositoryV2(session),
         "job": JobRepository(session),

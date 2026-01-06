@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from src.features.process_mining.predictions.service import PredictionService
     from src.features.process_mining.simulation.service import SimulationService
     from src.features.process_mining.visualization.service import VisualizationService
-    from src.features.process_mining.workflows.service import WorkflowService
+    from src.platform.dag.service import DAGService
     from src.platform.jobs.service import JobService
     from src.platform.storage.storage import StorageService
 
@@ -126,10 +126,10 @@ class Container:
         return OCPMService()
     
     @cached_property
-    def workflows(self) -> "WorkflowService":
-        """Workflow management service."""
-        from src.features.process_mining.workflows.service import WorkflowService
-        return WorkflowService()
+    def dags(self) -> "DAGService":
+        """DAG workflow orchestration service."""
+        from src.platform.dag.service import DAGService
+        return DAGService(self._session)
     
     # =========================================================================
     # Platform Services

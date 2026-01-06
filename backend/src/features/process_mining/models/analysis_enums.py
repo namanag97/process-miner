@@ -1,21 +1,9 @@
-"""Process Mining Enums.
+"""Analysis Domain Enums.
 
-Status and type enumerations for datasets and analyses.
+Status and type enumerations for process mining analyses.
 """
 
 from enum import Enum
-
-
-class DatasetStatus(str, Enum):
-    """Dataset lifecycle states."""
-
-    PENDING = "pending"
-    VALIDATING = "validating"
-    AWAITING_MAPPING = "awaiting_mapping"
-    MAPPED = "mapped"
-    INGESTING = "ingesting"
-    READY = "ready"
-    ERROR = "error"
 
 
 class AnalysisType(str, Enum):

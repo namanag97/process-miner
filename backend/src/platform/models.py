@@ -20,9 +20,9 @@ from src.platform.core.enums import JobStatus
 from src.shared.database import Base
 
 # =============================================================================
-# Admin Domain Models (Re-exported from domains.admin for backward compatibility)
+# Admin Domain Models (Re-exported from platform.users)
 # =============================================================================
-from src.domains.admin.models import (  # noqa: E402
+from src.platform.users import (  # noqa: E402
     Organization,
     Project,
     User,
