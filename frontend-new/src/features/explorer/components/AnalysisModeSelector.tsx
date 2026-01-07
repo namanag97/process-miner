@@ -119,7 +119,6 @@ export function AnalysisModeSelector({
                 const minerTypeMap: Record<string, string> = {
                     dfg_discovery: 'dfg',
                     alpha_miner: 'alpha',
-                    // alpha_plus_miner: 'alpha_plus', // DEPRECATED in PM4Py 2.3+
                     inductive_miner: 'inductive',
                     inductive_infrequent: 'inductive_infrequent',
                     heuristic_miner: 'heuristics',
@@ -134,43 +133,23 @@ export function AnalysisModeSelector({
                     transition_system: 'transition_system',
                 };
 
-                const minerType = minerTypeMap[selectedType] || selectedType;
+                const minerType = (minerTypeMap[selectedType] || selectedType) as 'alpha' | 'inductive' | 'heuristic' | 'split';
 
-                const response = await fetch(`${apiBaseUrl}/discovery/discover`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        dataset_id: datasetId,
-                        miner_type: minerType,
-                        model_name: `${typeInfo?.name || selectedType} Model`,
-                    }),
+                const result = await sdk.discovery.discover({
+                    datasetId,
+                    minerType,
+                    modelName: `${typeInfo?.name || selectedType} Model`,
                 });
 
-                if (!response.ok) {
-                    const errData = await response.json().catch(() => ({}));
-                    throw new Error(errData.detail || `Discovery failed: ${response.status}`);
-                }
-
-                const result = await response.json();
-                onAnalysisStarted?.(result.job_id || result.id);
+                onAnalysisStarted?.(result.jobId || result.modelId || '');
             } else {
                 // For other analysis types, use the analyses endpoint
-                const response = await fetch(`${apiBaseUrl}/analyses?dataset_id=${datasetId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        name: `${typeInfo?.name || selectedType} Analysis`,
-                        analysis_type: selectedType,
-                        config,
-                    }),
+                const result = await sdk.analyses.create(datasetId, {
+                    name: `${typeInfo?.name || selectedType} Analysis`,
+                    analysisType: selectedType,
+                    config,
                 });
 
-                if (!response.ok) {
-                    const errData = await response.json().catch(() => ({}));
-                    throw new Error(errData.detail || `Analysis failed: ${response.status}`);
-                }
-
-                const result = await response.json();
                 onAnalysisStarted?.(result.id);
             }
 

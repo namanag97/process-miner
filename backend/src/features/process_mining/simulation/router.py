@@ -37,10 +37,10 @@ Simulation enables experimentation without real process changes:
 import json
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
 
-from src.api.dependencies import DBSession, ServiceContainer
+from src.api.dependencies import CurrentUser, DBSession, ServiceContainer
 from src.features.process_mining.models import Dataset, ProcessCase, ProcessEvent, ProcessModel
 from src.features.process_mining.schemas import (
     PlayOutRequest,
@@ -49,17 +49,21 @@ from src.features.process_mining.schemas import (
     SimulationResponse,
 )
 from src.platform.core.logging_config import get_logger
+from src.platform.core.permissions import Permission
 from src.platform.core.safe_unpickler import safe_loads
+from src.platform.workspaces.authorization import require_dataset_permission
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/simulation", tags=["Simulation"])
 
 
+@router.post("/models/{model_id}/play-out", response_model=PlayOutResponse)
 async def play_out_model(
     model_id: str,
     request: PlayOutRequest,
     db: DBSession,
+    user: CurrentUser,
     container: ServiceContainer,
 ) -> PlayOutResponse:
     """Generate synthetic event log from a process model."""
@@ -71,6 +75,10 @@ async def play_out_model(
 
     if not model:
         raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
+
+    # Check permission on source dataset if exists
+    if model.dataset_id:
+        await require_dataset_permission(db, model.dataset_id, user, Permission.DATASET_READ)
 
     if not model.serialized_model:
         raise HTTPException(status_code=400, detail="Model has no serialized data")
@@ -127,13 +135,16 @@ async def play_out_model(
     )
 
 
+@router.post("/datasets/{dataset_id}/simulate", response_model=SimulationResponse)
 async def simulate_scenario(
     dataset_id: str,
     request: SimulationRequest,
     db: DBSession,
+    user: CurrentUser,
     container: ServiceContainer,
 ) -> SimulationResponse:
     """Run what-if simulation on an event log."""
+    await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
     logger.info(
         "simulating_scenario", dataset_id=dataset_id, modifications=len(request.modifications)
     )
@@ -157,13 +168,16 @@ async def simulate_scenario(
     )
 
 
+@router.post("/datasets/{dataset_id}/capacity-plan")
 async def estimate_capacity(
     dataset_id: str,
-    target_throughput: float,
     db: DBSession,
+    user: CurrentUser,
     container: ServiceContainer,
+    target_throughput: float = Query(..., description="Target throughput"),
 ) -> dict[str, Any]:
     """Estimate resource requirements for target throughput."""
+    await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
     logger.info("estimating_capacity", dataset_id=dataset_id, target_throughput=target_throughput)
 
     query = select(Dataset).where(Dataset.id == dataset_id)

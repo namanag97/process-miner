@@ -59,10 +59,12 @@ async def _get_pm4py_log(dataset_id: str, db: DBSession, container: ServiceConta
     return container.filtering.to_pm4py_log(event_log)
 
 
+@router.get("/datasets/{dataset_id}/handover-network", response_model=SocialNetworkResponse)
 async def get_handover_network(
-    dataset_id: str, db: DBSession, container: ServiceContainer
+    dataset_id: str, db: DBSession, user: CurrentUser, container: ServiceContainer
 ) -> SocialNetworkResponse:
     """Discover handover of work network."""
+    await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
     logger.info("getting_handover_network", dataset_id=dataset_id)
     pm4py_log = await _get_pm4py_log(dataset_id, db, container)
     result = container.organizational.discover_handover_network(pm4py_log)
@@ -75,10 +77,12 @@ async def get_handover_network(
     )
 
 
+@router.get("/datasets/{dataset_id}/collaboration-network", response_model=SocialNetworkResponse)
 async def get_collaboration_network(
-    dataset_id: str, db: DBSession, container: ServiceContainer
+    dataset_id: str, db: DBSession, user: CurrentUser, container: ServiceContainer
 ) -> SocialNetworkResponse:
     """Discover working together network."""
+    await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
     logger.info("getting_collaboration_network", dataset_id=dataset_id)
     pm4py_log = await _get_pm4py_log(dataset_id, db, container)
     result = container.organizational.discover_working_together_network(pm4py_log)
@@ -91,10 +95,12 @@ async def get_collaboration_network(
     )
 
 
+@router.get("/datasets/{dataset_id}/resource-similarity", response_model=SocialNetworkResponse)
 async def get_resource_similarity(
-    dataset_id: str, db: DBSession, container: ServiceContainer
+    dataset_id: str, db: DBSession, user: CurrentUser, container: ServiceContainer
 ) -> SocialNetworkResponse:
     """Discover resource similarity based on activities."""
+    await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
     logger.info("getting_resource_similarity", dataset_id=dataset_id)
     pm4py_log = await _get_pm4py_log(dataset_id, db, container)
     result = container.organizational.discover_resource_similarity(pm4py_log)
@@ -107,10 +113,12 @@ async def get_resource_similarity(
     )
 
 
+@router.get("/datasets/{dataset_id}/roles", response_model=list[ResourceRoleResponse])
 async def get_roles(
-    dataset_id: str, db: DBSession, container: ServiceContainer
+    dataset_id: str, db: DBSession, user: CurrentUser, container: ServiceContainer
 ) -> list[ResourceRoleResponse]:
     """Discover organizational roles."""
+    await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
     logger.info("getting_roles", dataset_id=dataset_id)
     pm4py_log = await _get_pm4py_log(dataset_id, db, container)
     result = container.organizational.discover_roles(pm4py_log)
@@ -121,19 +129,22 @@ async def get_roles(
     "/datasets/{dataset_id}/resources/{resource}/profile", response_model=ResourceProfileResponse
 )
 async def get_resource_profile(
-    dataset_id: str, resource: str, db: DBSession, container: ServiceContainer
+    dataset_id: str, resource: str, db: DBSession, user: CurrentUser, container: ServiceContainer
 ) -> ResourceProfileResponse:
     """Get detailed profile for a specific resource."""
+    await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
     logger.info("getting_resource_profile", dataset_id=dataset_id, resource=resource)
     pm4py_log = await _get_pm4py_log(dataset_id, db, container)
     result = container.organizational.get_resource_profile(pm4py_log, resource)
     return ResourceProfileResponse(**result)
 
 
+@router.get("/datasets/{dataset_id}/workload", response_model=ResourceWorkloadResponse)
 async def get_workload(
-    dataset_id: str, db: DBSession, container: ServiceContainer
+    dataset_id: str, db: DBSession, user: CurrentUser, container: ServiceContainer
 ) -> ResourceWorkloadResponse:
     """Get workload distribution across resources."""
+    await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
     logger.info("getting_workload", dataset_id=dataset_id)
     pm4py_log = await _get_pm4py_log(dataset_id, db, container)
     result = container.organizational.get_resource_workload(pm4py_log)

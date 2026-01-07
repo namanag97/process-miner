@@ -1,7 +1,9 @@
 /**
  * KPI Hooks
  *
- * TanStack Query hooks for KPI/quality metrics operations.
+ * Additional TanStack Query hooks for KPI/audit operations.
+ * Note: useAutomation, useDeadlines, useRework, useUnwantedActivities
+ * are exported from useAnalytics.ts
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -9,53 +11,16 @@ import { sdk } from '../sdk';
 import { queryKeys } from './queryKeys';
 
 // ============================================
-// Query Hooks
+// Audit Hooks
 // ============================================
 
 /**
- * Fetch automation metrics for a dataset
+ * Fetch audit logs
  */
-export function useAutomation(datasetId: string | null) {
+export function useAuditLogs(params?: { startDate?: string; endDate?: string }) {
     return useQuery({
-        queryKey: queryKeys.kpi.automation(datasetId ?? ''),
-        queryFn: () => sdk.kpi.getAutomation(datasetId!),
-        enabled: !!datasetId,
-        staleTime: 5 * 60 * 1000, // 5 minutes
-    });
-}
-
-/**
- * Fetch deadline/SLA compliance metrics for a dataset
- */
-export function useDeadlines(datasetId: string | null) {
-    return useQuery({
-        queryKey: queryKeys.kpi.deadlines(datasetId ?? ''),
-        queryFn: () => sdk.kpi.getDeadlines(datasetId!),
-        enabled: !!datasetId,
-        staleTime: 5 * 60 * 1000,
-    });
-}
-
-/**
- * Fetch unwanted activities/rework metrics for a dataset
- */
-export function useUnwantedActivities(datasetId: string | null) {
-    return useQuery({
-        queryKey: queryKeys.kpi.unwantedActivities(datasetId ?? ''),
-        queryFn: () => sdk.kpi.getUnwantedActivities(datasetId!),
-        enabled: !!datasetId,
-        staleTime: 5 * 60 * 1000,
-    });
-}
-
-/**
- * Fetch rework metrics for a dataset (uses analytics API)
- */
-export function useRework(datasetId: string | null) {
-    return useQuery({
-        queryKey: queryKeys.analytics.rework(datasetId ?? ''),
-        queryFn: () => sdk.analytics.getRework(datasetId!),
-        enabled: !!datasetId,
-        staleTime: 5 * 60 * 1000,
+        queryKey: queryKeys.audit.logs(params),
+        queryFn: () => sdk.audit.list(params),
+        staleTime: 1 * 60 * 1000, // 1 minute
     });
 }

@@ -20,5 +20,8 @@ export { useEventLogsList, useDataset } from '@/src/api/hooks';
 // Re-export query keys for direct access
 export { queryKeys } from '@/src/api/hooks';
 
+// Alias useDataset as useLogDetail for backward compatibility
+export { useDataset as useLogDetail } from '@/src/api/hooks';
+
 // Process Graph Hook for CytoscapeCanvas
 export { useProcessGraph } from './useProcessGraph';
