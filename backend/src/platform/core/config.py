@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     app_name: str = "Process Mining API"
     app_version: str = "1.0.0"
     debug: bool = True
+    environment: str = "development"  # development, staging, production
 
     # API
     api_prefix: str = "/api/v1"
@@ -38,6 +39,13 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = "sqlite+aiosqlite:///./data/db/process_mining.db"
+    read_database_url: str | None = None  # Optional read replica for CQRS (defaults to database_url)
+    
+    # CQRS Connection Pool Settings
+    write_pool_size: int = 10
+    write_pool_max_overflow: int = 5
+    read_pool_size: int = 50
+    read_pool_max_overflow: int = 20
 
     # File Storage
     upload_dir: Path = Path("./data/uploads")
