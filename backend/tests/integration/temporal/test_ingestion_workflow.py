@@ -30,7 +30,7 @@ class TestDatasetIngestionWorkflow:
         ingestion_worker: Worker,
         test_dataset: TestDataset,
     ):
-        """Test complete ingestion flow: validate → parse → bulk_copy → compute_stats."""
+        """Test complete ingestion flow: validate → parse → compute_stats (Parquet-only)."""
         config = get_temporal_config()
         client = temporal_env.client
 
@@ -62,6 +62,9 @@ class TestDatasetIngestionWorkflow:
         assert "total_activities" in result
         assert result["total_cases"] > 0
         assert result["total_events"] > 0
+        # Parquet-only: verify parquet_s3_key is returned
+        assert "parquet_s3_key" in result
+        assert result["parquet_s3_key"] is not None
 
     async def test_ingestion_workflow_id_format(
         self,
@@ -125,15 +128,15 @@ class TestDatasetIngestionWorkflow:
 
         result = await handle.result()
 
-        # Verify result structure
+        # Verify result structure (Parquet-only architecture)
         required_fields = [
             "dataset_id",
             "status",
             "total_cases",
             "total_events",
             "total_activities",
-            "cases_inserted",
-            "events_inserted",
+            "parquet_s3_key",
+            "parquet_size_bytes",
         ]
 
         for field in required_fields:

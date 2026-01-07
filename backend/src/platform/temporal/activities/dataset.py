@@ -313,42 +313,36 @@ async def parse_to_parquet_activity(input: ParseToParquetInput) -> ParseToParque
                 events_data.extend(batch.to_pylist())
             activity.heartbeat("events_converted")
 
-        # Parquet-First Strategy: Write events to S3 as Parquet
+        # Parquet-Only Strategy: Write events to S3 as Parquet (MANDATORY)
+        # This is now the authoritative storage for event data
         parquet_s3_key = None
         parquet_size_bytes = None
 
         activity.heartbeat("writing_parquet_to_s3")
-        try:
-            parquet_key = f"parsed/{input.dataset_id}/events.parquet"
+        
+        parquet_key = f"parsed/{input.dataset_id}/events.parquet"
 
-            # Write to bytes buffer
-            parquet_buffer = io.BytesIO()
-            pq.write_table(events_table, parquet_buffer, compression="snappy")
-            parquet_bytes = parquet_buffer.getvalue()
-            parquet_size_bytes = len(parquet_bytes)
+        # Write to bytes buffer
+        parquet_buffer = io.BytesIO()
+        pq.write_table(events_table, parquet_buffer, compression="snappy")
+        parquet_bytes = parquet_buffer.getvalue()
+        parquet_size_bytes = len(parquet_bytes)
 
-            # Upload to S3
-            storage_client.upload_fileobj(
-                bucket_type="cache",
-                key=parquet_key,
-                file_obj=io.BytesIO(parquet_bytes),
-                content_type="application/octet-stream",
-            )
+        # Upload to S3 (this MUST succeed - it's the only storage for events)
+        storage_client.upload_fileobj(
+            bucket_type="cache",
+            key=parquet_key,
+            file_obj=io.BytesIO(parquet_bytes),
+            content_type="application/octet-stream",
+        )
 
-            parquet_s3_key = parquet_key
-            logger.info(
-                "parquet_written_to_s3",
-                dataset_id=input.dataset_id,
-                parquet_key=parquet_key,
-                parquet_size_mb=round(parquet_size_bytes / (1024 * 1024), 2),
-            )
-        except Exception as e:
-            # Parquet write failure is not fatal - we still have the data in memory
-            logger.warning(
-                "parquet_write_failed",
-                dataset_id=input.dataset_id,
-                error=str(e),
-            )
+        parquet_s3_key = parquet_key
+        logger.info(
+            "parquet_written_to_s3",
+            dataset_id=input.dataset_id,
+            parquet_key=parquet_key,
+            parquet_size_mb=round(parquet_size_bytes / (1024 * 1024), 2),
+        )
 
         logger.info(
             "parse_to_parquet_activity_completed",
@@ -359,13 +353,15 @@ async def parse_to_parquet_activity(input: ParseToParquetInput) -> ParseToParque
             parquet_s3_key=parquet_s3_key,
         )
 
+        # NOTE: cases_data and events_data are no longer returned since we don't
+        # write events to PostgreSQL anymore. Parquet in S3 is the authoritative source.
         return ParseToParquetOutput(
             dataset_id=input.dataset_id,
             total_cases=stats["total_cases"],
             total_events=stats["total_events"],
             total_activities=stats["total_activities"],
-            cases_data=cases_data,
-            events_data=events_data,
+            cases_data=[],  # No longer used - kept for backwards compatibility
+            events_data=[],  # No longer used - kept for backwards compatibility
             statistics=stats,
             parquet_s3_key=parquet_s3_key,
             parquet_size_bytes=parquet_size_bytes,

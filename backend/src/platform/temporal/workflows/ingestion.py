@@ -10,7 +10,6 @@ from temporalio.common import RetryPolicy
 
 with workflow.unsafe.imports_passed_through():
     from src.platform.temporal.activities.types import (
-        BulkCopyInput,
         ComputeStatsInput,
         DetectColumnsInput,
         ParseToParquetInput,
@@ -22,12 +21,13 @@ with workflow.unsafe.imports_passed_through():
 class DatasetIngestionWorkflow:
     """Workflow for ingesting a dataset from upload to ready state.
 
-    Steps:
+    Parquet-Only Architecture:
     1. Validate file format (magic bytes)
-    2. Detect columns and compute AI suggestions
-    3. Parse CSV/XES with DuckDB to cases/events
-    4. Bulk copy to PostgreSQL
-    5. Compute statistics and metadata
+    2. Parse CSV/XES with DuckDB to Parquet (stored in S3)
+    3. Compute statistics and metadata (stored in PostgreSQL)
+
+    Event data is stored ONLY in S3 Parquet - NOT duplicated in PostgreSQL.
+    Analytics queries read directly from S3 Parquet via DuckDB.
     """
 
     @workflow.run
@@ -55,7 +55,6 @@ class DatasetIngestionWorkflow:
         """
         # Import activities inside workflow
         from src.platform.temporal.activities.dataset import (
-            bulk_copy_to_db_activity,
             compute_statistics_activity,
             parse_to_parquet_activity,
             validate_file_activity,
@@ -84,7 +83,8 @@ class DatasetIngestionWorkflow:
                 "error": validate_result.error_message,
             }
 
-        # Step 2: Parse with DuckDB (long-running, with heartbeat)
+        # Step 2: Parse with DuckDB and write to S3 Parquet (long-running, with heartbeat)
+        # NOTE: Events are stored ONLY in S3 Parquet - NOT in PostgreSQL
         parse_result = await workflow.execute_activity(
             parse_to_parquet_activity,
             ParseToParquetInput(
@@ -100,19 +100,15 @@ class DatasetIngestionWorkflow:
             retry_policy=retry_policy,
         )
 
-        # Step 3: Bulk copy to database
-        bulk_result = await workflow.execute_activity(
-            bulk_copy_to_db_activity,
-            BulkCopyInput(
-                dataset_id=dataset_id,
-                cases_data=parse_result.cases_data,
-                events_data=parse_result.events_data,
-            ),
-            start_to_close_timeout=timedelta(minutes=10),
-            retry_policy=retry_policy,
-        )
+        # Verify Parquet was written successfully (required for Parquet-Only architecture)
+        if not parse_result.parquet_s3_key:
+            return {
+                "dataset_id": dataset_id,
+                "status": "failed",
+                "error": "Failed to write events to S3 Parquet",
+            }
 
-        # Step 4: Compute statistics (include parquet metadata for Parquet-First strategy)
+        # Step 3: Compute statistics (metadata stored in PostgreSQL only)
         stats_with_parquet = {
             **parse_result.statistics,
             "parquet_s3_key": parse_result.parquet_s3_key,
@@ -134,9 +130,8 @@ class DatasetIngestionWorkflow:
             "total_cases": parse_result.total_cases,
             "total_events": parse_result.total_events,
             "total_activities": parse_result.total_activities,
-            "cases_inserted": bulk_result.cases_inserted,
-            "events_inserted": bulk_result.events_inserted,
             "parquet_s3_key": parse_result.parquet_s3_key,
+            "parquet_size_bytes": parse_result.parquet_size_bytes,
         }
 
 
