@@ -43,7 +43,9 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 
-from src.api.dependencies import DBSession, ServiceContainer
+from src.api.dependencies import CurrentUser, DBSession, ServiceContainer
+from src.platform.workspaces.authorization import require_dataset_permission
+from src.platform.core.permissions import Permission
 from src.features.process_mining.models import Dataset, ProcessCase, ProcessEvent
 from src.features.process_mining.schemas import (
     FilterConfig,
@@ -74,6 +76,7 @@ async def apply_filters(
     dataset_id: str,
     request: FilterRequest,
     db: DBSession,
+    user: CurrentUser,
     container: ServiceContainer,
 ) -> FilteredLogResponse:
     """
@@ -84,17 +87,10 @@ async def apply_filters(
     """
     logger.info("applying_filters", dataset_id=dataset_id, filter_count=len(request.filters))
 
-    # Get source log with cases and events
-    query = select(Dataset).where(Dataset.id == dataset_id)
-    result = await db.execute(query)
-    source_log = result.scalar_one_or_none()
-
-    if not source_log:
-        logger.error("apply_filters_dataset_not_found", dataset_id=dataset_id, filter_count=len(request.filters))
-        raise HTTPException(
-            status_code=404,
-            detail=f"Dataset not found: {dataset_id}. Cannot apply filters to non-existent dataset."
-        )
+    # BUG-072 FIX: Require dataset permission instead of direct DB access
+    _, source_log = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_READ
+    )
 
     # Convert to PM4Py log
     pm4py_log = container.filtering.to_pm4py_log(source_log)
@@ -221,6 +217,7 @@ async def preview_filters(
     dataset_id: str,
     request: FilterPreviewRequest,
     db: DBSession,
+    user: CurrentUser,
     container: ServiceContainer,
 ) -> FilterPreviewResponse:
     """
@@ -230,17 +227,10 @@ async def preview_filters(
     """
     logger.info("previewing_filters", dataset_id=dataset_id, filter_count=len(request.filters))
 
-    # Get source log
-    query = select(Dataset).where(Dataset.id == dataset_id)
-    result = await db.execute(query)
-    source_log = result.scalar_one_or_none()
-
-    if not source_log:
-        logger.error("preview_filters_dataset_not_found", dataset_id=dataset_id, filter_count=len(request.filters))
-        raise HTTPException(
-            status_code=404,
-            detail=f"Dataset not found: {dataset_id}. Cannot preview filters for non-existent dataset."
-        )
+    # BUG-072 FIX: Require dataset permission
+    _, source_log = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_READ
+    )
 
     # Convert to PM4Py log
     pm4py_log = container.filtering.to_pm4py_log(source_log)
@@ -276,6 +266,7 @@ async def preview_filters(
 async def get_filter_options(
     dataset_id: str,
     db: DBSession,
+    user: CurrentUser,
     container: ServiceContainer,
 ) -> FilterOptionsResponse:
     """
@@ -286,17 +277,10 @@ async def get_filter_options(
     """
     logger.info("getting_filter_options", dataset_id=dataset_id)
 
-    # Get source log
-    query = select(Dataset).where(Dataset.id == dataset_id)
-    result = await db.execute(query)
-    source_log = result.scalar_one_or_none()
-
-    if not source_log:
-        logger.error("get_filter_options_dataset_not_found", dataset_id=dataset_id)
-        raise HTTPException(
-            status_code=404,
-            detail=f"Dataset not found: {dataset_id}. Cannot get filter options for non-existent dataset."
-        )
+    # BUG-072 FIX: Require dataset permission
+    _, source_log = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_READ
+    )
 
     # Convert to PM4Py log
     pm4py_log = container.filtering.to_pm4py_log(source_log)
@@ -316,23 +300,17 @@ async def get_filter_options(
 async def list_filtered_logs(
     dataset_id: str,
     db: DBSession,
+    user: CurrentUser,
 ) -> FilteredLogListResponse:
     """
     List all filtered versions of an event log.
     """
     logger.info("listing_filtered_logs", source_dataset_id=dataset_id)
 
-    # Get source log
-    query = select(Dataset).where(Dataset.id == dataset_id)
-    result = await db.execute(query)
-    source_log = result.scalar_one_or_none()
-
-    if not source_log:
-        logger.error("list_filtered_logs_dataset_not_found", dataset_id=dataset_id)
-        raise HTTPException(
-            status_code=404,
-            detail=f"Dataset not found: {dataset_id}. Cannot list filtered versions of non-existent dataset."
-        )
+    # BUG-072 FIX: Require dataset permission
+    _, source_log = await require_dataset_permission(
+        db, dataset_id, user, Permission.DATASET_READ
+    )
 
     # Get filtered logs
     query = (
@@ -395,11 +373,15 @@ async def delete_filtered_log(
     dataset_id: str,
     filtered_id: str,
     db: DBSession,
+    user: CurrentUser,
 ) -> dict[str, Any]:
     """
     Delete a filtered log.
     """
     logger.info("deleting_filtered_log", source_dataset_id=dataset_id, filtered_id=filtered_id)
+
+    # BUG-072 FIX: Require dataset permission for delete
+    await require_dataset_permission(db, dataset_id, user, Permission.DATASET_DELETE)
 
     # Verify the filtered log exists and belongs to the source log
     query = (

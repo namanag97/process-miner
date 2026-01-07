@@ -66,7 +66,7 @@ export function ProjectsListPage() {
             year: 'numeric',
           })
           : '-',
-      sorter: (a, b) => {
+      sorter: (a: Project, b: Project) => {
         const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
         const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
         return dateA - dateB;

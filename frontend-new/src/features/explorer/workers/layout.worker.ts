@@ -46,13 +46,13 @@ function buildElkGraph(nodes: GraphNode[], edges: GraphEdge[]): ElkNode {
             'elk.layered.spacing.nodeNodeBetweenLayers': '100',
             'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
         },
-        children: nodes.map(node => ({
+        children: nodes.map((node: any) => ({
             id: node.id,
             width: node.width || 150,
             height: node.height || 50,
             labels: [{ text: node.label }],
         })),
-        edges: edges.map(edge => ({
+        edges: edges.map((edge: any) => ({
             id: edge.id,
             sources: [edge.source],
             targets: [edge.target],
@@ -84,7 +84,7 @@ self.onmessage = async (event: MessageEvent<LayoutMessage>) => {
                 width: child.width || 150,
                 height: child.height || 50,
             })),
-            edges: (layoutedGraph.edges || []).map(edge => ({
+            edges: (layoutedGraph.edges || []).map((edge: any) => ({
                 id: edge.id,
                 sections: edge.sections,
             })),

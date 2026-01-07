@@ -58,14 +58,20 @@ class OCPMService:
             PM4Py OCEL object
         """
         suffix = self._get_suffix_for_format(source_format)
+        tmp_path = None
 
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-            tmp.write(content)
-            tmp_path = tmp.name
         try:
+            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+                tmp.write(content)
+                tmp_path = tmp.name
             return pm4py.read_ocel(tmp_path)
         finally:
-            os.unlink(tmp_path)
+            # BUG-071 FIX: Ensure temp file is always cleaned up
+            if tmp_path and os.path.exists(tmp_path):
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass  # Best effort cleanup
 
     def _get_suffix_for_format(self, source_format: str) -> str:
         """Get file suffix for OCEL format.
@@ -612,52 +618,101 @@ class OCPMService:
 
         This enables deep object-centric queries without re-parsing the blob.
         """
-        # 1. Create Event Types
+        # 1. Get or Create Event Types (BUG-085 FIX: avoid IntegrityError)
+        from sqlalchemy import select as sa_select
+        
         event_types = {}
         activities = self.get_activities(ocel)
         for act in activities:
-            et = OCEL2EventType(name=act)
-            session.add(et)
+            # Check if exists
+            result = await session.execute(
+                sa_select(OCEL2EventType).where(
+                    OCEL2EventType.dataset_id == source_dataset_id,
+                    OCEL2EventType.name == act
+                )
+            )
+            et = result.scalar_one_or_none()
+            
+            if not et:
+                # BUG-083 & 084 FIX: Add dataset_id for multi-tenancy
+                et = OCEL2EventType(name=act, dataset_id=source_dataset_id)
+                session.add(et)
+            
             event_types[act] = et
 
-        # 2. Create Object Types
+        # 2. Get or Create Object Types (BUG-085 FIX: avoid IntegrityError)
         object_types = {}
         ot_names = self.get_object_types(ocel)
         for ot in ot_names:
-            obj_type = OCEL2ObjectType(name=ot)
-            session.add(obj_type)
+            # Check if exists
+            result = await session.execute(
+                sa_select(OCEL2ObjectType).where(
+                    OCEL2ObjectType.dataset_id == source_dataset_id,
+                    OCEL2ObjectType.name == ot
+                )
+            )
+            obj_type = result.scalar_one_or_none()
+            
+            if not obj_type:
+                # BUG-083 & 084 FIX: Add dataset_id for multi-tenancy
+                obj_type = OCEL2ObjectType(name=ot, dataset_id=source_dataset_id)
+                session.add(obj_type)
+            
             object_types[ot] = obj_type
 
         await session.flush()  # Get IDs
 
-        # 3. Create Objects
+        # 3. Create Objects (BUG-080 FIX: Extract attributes)
         objects = {}
         for ot in ot_names:
             obj_ids = self.get_objects_by_type(ocel, ot)
             for oid in obj_ids:
+                # BUG-080 FIX: Extract attributes from ocel.objects DataFrame
+                obj_attrs = {}
+                if hasattr(ocel, 'objects') and ocel.objects is not None:
+                    try:
+                        # Find object row in DataFrame
+                        obj_row = ocel.objects[ocel.objects['ocel:oid'] == oid]
+                        if not obj_row.empty:
+                            # Extract non-standard columns as attributes
+                            for col in obj_row.columns:
+                                if not col.startswith('ocel:'):
+                                    obj_attrs[col] = str(obj_row[col].iloc[0])
+                    except Exception:
+                        pass  # Best effort
+                
                 obj = OCEL2Object(
                     object_type_id=object_types[ot].id,
                     object_id=oid,
-                    attributes={},  # Could be populated from ocel.objects
+                    attributes=obj_attrs,  # BUG-080 FIX: Store actual attributes
                 )
                 session.add(obj)
                 objects[oid] = obj
 
         await session.flush()
 
-        # 4. Create Events and E2O Relations
+        # 4. Create Events and E2O Relations (BUG-080 FIX: Extract event attributes)
         events_df = ocel.events
         for _, row in events_df.iterrows():
             activity = row["ocel:activity"]
             timestamp = row["ocel:timestamp"]
-            row["ocel:eid"]
+            event_id = row["ocel:eid"]
+
+            # BUG-080 FIX: Extract event attributes from non-standard columns
+            event_attrs = {}
+            for col in events_df.columns:
+                if not col.startswith('ocel:') and col not in ['ocel:activity', 'ocel:timestamp', 'ocel:eid']:
+                    try:
+                        event_attrs[col] = str(row[col])
+                    except Exception:
+                        pass
 
             event = OCEL2Event(
                 event_type_id=event_types[activity].id,
                 activity=activity,
                 timestamp=timestamp,
                 source_dataset_id=source_dataset_id,
-                attributes={},  # Could be populated from other cols
+                attributes=event_attrs,  # BUG-080 FIX: Store actual attributes
             )
             session.add(event)
 
@@ -665,19 +720,20 @@ class OCPMService:
             # In OCEL 2.0/PM4Py, related objects are in columns prefixed with ocel:type:
             for col in events_df.columns:
                 if col.startswith("ocel:type:"):
-                    col.replace("ocel:type:", "")
+                    # BUG-079 FIX: Actually use the result of replace()
+                    object_type_name = col.replace("ocel:type:", "")
                     related_val = row[col]
                     if related_val and isinstance(related_val, (list, set)):
                         for r_oid in related_val:
                             if r_oid in objects:
                                 rel = E2ORelation(
-                                    event=event, object=objects[r_oid], qualifier="involved"
+                                    event=event, object=objects[r_oid], qualifier=object_type_name or "involved"
                                 )
                                 session.add(rel)
                     elif related_val and isinstance(related_val, str):
                         if related_val in objects:
                             rel = E2ORelation(
-                                event=event, object=objects[related_val], qualifier="involved"
+                                event=event, object=objects[related_val], qualifier=object_type_name or "involved"
                             )
                             session.add(rel)
 

@@ -35,8 +35,9 @@ class OCELLog(Base):
     # Metadata
     metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Raw Data (deferred loading for performance)
-    ocel_data: Mapped[bytes | None] = deferred(mapped_column(LargeBinary, nullable=True))
+    # BUG-077 FIX: Store reference to file instead of large binary blob
+    # File is stored in local filesystem via LocalOCELStorage
+    ocel_storage_key: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

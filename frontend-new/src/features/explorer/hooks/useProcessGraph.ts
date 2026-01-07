@@ -60,7 +60,7 @@ export interface LegacyDFGData {
  * Convert new graph_structure_json format to CytoscapeCanvas props
  */
 function convertNewFormat(data: GraphStructureJSON): ProcessGraphData {
-    const nodes: ProcessNode[] = data.nodes.map(node => ({
+    const nodes: ProcessNode[] = data.nodes.map((node: any) => ({
         id: node.id,
         label: node.label,
         frequency: node.frequency,
@@ -68,7 +68,7 @@ function convertNewFormat(data: GraphStructureJSON): ProcessGraphData {
         isEnd: node.is_end,
     }));
 
-    const edges: ProcessEdge[] = data.edges.map(edge => ({
+    const edges: ProcessEdge[] = data.edges.map((edge: any) => ({
         id: edge.id,
         source: edge.source,
         target: edge.target,
@@ -94,7 +94,7 @@ function convertNewFormat(data: GraphStructureJSON): ProcessGraphData {
  * Convert legacy DFG format to CytoscapeCanvas props
  */
 function convertLegacyFormat(data: LegacyDFGData): ProcessGraphData {
-    const nodes: ProcessNode[] = data.nodes.map(node => ({
+    const nodes: ProcessNode[] = data.nodes.map((node: any) => ({
         id: node.id,
         label: node.label,
         frequency: node.frequency,

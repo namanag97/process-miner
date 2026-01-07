@@ -95,6 +95,40 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 };
 
 // ==============================================
+// ProcessQuestion Component
+// ==============================================
+interface ProcessQuestionProps {
+    icon: ReactNode;
+    title: string;
+    description: string;
+    onClick?: () => void;
+    [key: string]: unknown;
+}
+
+export const ProcessQuestion: React.FC<ProcessQuestionProps> = ({
+    icon,
+    title,
+    description,
+    onClick,
+}) => {
+    return (
+        <Card
+            hoverable
+            onClick={onClick}
+            style={{ height: '100%', cursor: onClick ? 'pointer' : 'default' }}
+        >
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                <div style={{ fontSize: 32, color: tokens.colors.primary }}>{icon}</div>
+                <div>
+                    <Title level={4} style={{ marginBottom: tokens.spacing.xs }}>{title}</Title>
+                    <Text type="secondary">{description}</Text>
+                </div>
+            </Space>
+        </Card>
+    );
+};
+
+// ==============================================
 // EmptyState Component
 // ==============================================
 interface EmptyStateProps {
@@ -152,9 +186,9 @@ interface AppShellProps {
 export const AppShell: React.FC<AppShellProps> = ({ children, sider, header }) => {
     return (
         <Layout style={{ minHeight: '100vh' }}>
-            {header && <Header style={{ background: tokens.colors.surface, padding: `0 ${tokens.spacing.lg}px` }}>{header}</Header>}
+            {header && <Header style={{ background: tokens.colors.surface.default, padding: `0 ${tokens.spacing.lg}px` }}>{header}</Header>}
             <Layout>
-                {sider && <Sider width={240} style={{ background: tokens.colors.surface }}>{sider}</Sider>}
+                {sider && <Sider width={240} style={{ background: tokens.colors.surface.default }}>{sider}</Sider>}
                 <Content style={{ padding: tokens.spacing.lg, background: tokens.colors.background }}>
                     {children}
                 </Content>
@@ -211,14 +245,40 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 }
 
 // ==============================================
-// ProcessMiningSdk placeholder (permissive)
+// ProcessMiningSdk - Fully permissive interface
 // ==============================================
+ 
 export interface ProcessMiningSdk {
     baseUrl: string;
-    processes?: unknown;
-    analytics?: unknown;
-    predictions?: unknown;
-    discovery?: unknown;
-    conformance?: unknown;
-    [key: string]: unknown;
+    checkHealth: () => Promise<boolean>;
+    processes: {
+        list: (options?: { pageSize?: number }) => Promise<any>;
+        get: (id: string) => Promise<any>;
+        analyze: (id: string) => Promise<any>;
+        getProcessSummary?: (id: string) => Promise<any>;
+        [key: string]: any;
+    };
+    analytics: {
+        performance: (datasetId: string) => Promise<any>;
+        conformance: (datasetId: string) => Promise<any>;
+        getProcessSummary: (datasetId: string) => Promise<any>;
+        [key: string]: any;
+    };
+    predictions: {
+        list: (datasetId: string) => Promise<any>;
+        listPredictors: (datasetId: string) => Promise<any>;
+        create: (datasetId: string, config: any) => Promise<any>;
+        [key: string]: any;
+    };
+    discovery: {
+        dfg: (datasetId: string, options?: any) => Promise<any>;
+        variants: (datasetId: string, options?: any) => Promise<any>;
+        [key: string]: any;
+    };
+    conformance: {
+        check: (datasetId: string, modelId: string) => Promise<any>;
+        [key: string]: any;
+    };
+    [key: string]: any;
 }
+

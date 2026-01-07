@@ -130,7 +130,7 @@ export function GraphViewer({
 
     // Convert to Cytoscape elements
     const elements = useMemo(() => {
-        const nodes = graphNodes.map(node => ({
+        const nodes = graphNodes.map((node: any) => ({
             data: {
                 id: node.id,
                 label: node.type === 'transition' ? '' : node.label,

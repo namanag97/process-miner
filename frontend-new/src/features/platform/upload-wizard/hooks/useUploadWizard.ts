@@ -35,10 +35,10 @@ interface PresignedUploadResponse {
 const API_BASE = env.API_BASE_URL;
 
 // API helpers (using instrumentedFetch for DevConsole logging)
-async function fetchPreview(datasetId: string, rows: number = 10): Promise<DataPreview> {
+async function fetchPreview(datasetId: string, rows = 10): Promise<DataPreview> {
     console.log('[API:fetchPreview] Request started', { datasetId, rows });
     devLog.info('API:fetchPreview', 'Fetching dataset preview', { datasetId, rows });
-    const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/${datasetId}/preview?rows=${rows}`);
+    const res = await fetch(`${API_BASE}/api/v1/datasets/${datasetId}/preview?rows=${rows}`);
     if (!res.ok) {
         const errorData = await res.json().catch(() => ({ detail: 'Failed to fetch preview' }));
         console.error('[API:fetchPreview] Request failed', { status: res.status, error: errorData });
@@ -54,7 +54,7 @@ async function fetchPreview(datasetId: string, rows: number = 10): Promise<DataP
 async function fetchSheets(datasetId: string): Promise<SheetsResponse> {
     console.log('[API:fetchSheets] Request started', { datasetId });
     devLog.info('API:fetchSheets', 'Fetching dataset sheets', { datasetId });
-    const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/${datasetId}/sheets`);
+    const res = await fetch(`${API_BASE}/api/v1/datasets/${datasetId}/sheets`);
     if (!res.ok) {
         const errorData = await res.json().catch(() => ({ detail: 'Failed to fetch sheets' }));
         console.error('[API:fetchSheets] Request failed', { status: res.status, error: errorData });
@@ -76,7 +76,7 @@ async function startIngestion(datasetId: string, mapping: ColumnMapping): Promis
     devLog.info('API:startIngestion', 'Starting dataset ingestion', { datasetId, mapping });
 
     try {
-        const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/${datasetId}/ingest`, {
+        const res = await fetch(`${API_BASE}/api/v1/datasets/${datasetId}/ingest`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(mapping),
@@ -114,7 +114,7 @@ async function startIngestion(datasetId: string, mapping: ColumnMapping): Promis
 
 async function checkJobStatus(jobId: string): Promise<{ id: string; status: string; progress?: number; error?: string }> {
     devLog.info('API:checkJobStatus', 'Polling job status', { jobId });
-    const res = await instrumentedFetch(`${API_BASE}/api/v1/jobs/${jobId}`);
+    const res = await fetch(`${API_BASE}/api/v1/jobs/${jobId}`);
     if (!res.ok) {
         const errorData = await res.json().catch(() => ({ detail: 'Failed to check job status' }));
         devLog.error('API:checkJobStatus', `Failed: ${res.status}`, { jobId, error: errorData });
@@ -125,7 +125,7 @@ async function checkJobStatus(jobId: string): Promise<{ id: string; status: stri
     return { id: jobId, ...data };
 }
 
-async function getPresignedUrl(filename: string, fileSize: number, projectId: string, contentType: string = 'text/csv'): Promise<PresignedUploadResponse> {
+async function getPresignedUrl(filename: string, fileSize: number, projectId: string, contentType = 'text/csv'): Promise<PresignedUploadResponse> {
     const reqData = {
         filename,
         fileSize,
@@ -136,7 +136,7 @@ async function getPresignedUrl(filename: string, fileSize: number, projectId: st
     console.log('[API] getPresignedUrl request', reqData);
     devLog.info('API', 'Requesting presigned upload URL', reqData);
 
-    const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/presign`, {
+    const res = await fetch(`${API_BASE}/api/v1/datasets/presign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -182,7 +182,7 @@ async function triggerValidation(datasetId: string): Promise<{ task_id: string }
     console.log('[API] triggerValidation request', reqData);
     devLog.info('API', 'Triggering dataset validation', reqData);
 
-    const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/${datasetId}/uploaded`, {
+    const res = await fetch(`${API_BASE}/api/v1/datasets/${datasetId}/uploaded`, {
         method: 'POST',
     });
 
@@ -383,7 +383,7 @@ export function useUploadWizard(_projectId: string, initialDatasetId?: string) {
                 console.log('[UploadWizard:uploadFileDirect] Uploading file directly to backend...');
                 devLog.info('UploadWizard:uploadFileDirect', 'Uploading to /api/v1/datasets/');
 
-                const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/`, {
+                const res: Response = await instrumentedFetch(`${API_BASE}/api/v1/datasets/`, {
                     method: 'POST',
                     body: formData,
                     // Don't set Content-Type - browser will set it with boundary

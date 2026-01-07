@@ -106,7 +106,7 @@ export function MapDataStep({ preview, mapping, onMappingChange, onNext, onBack 
         field: keyof ColumnMapping,
         label: string,
         icon: React.ReactNode,
-        required: boolean = true
+        required = true
     ) => {
         const value = localMapping[field];
         const suggestion = suggestions[field.replace('_column', '')];

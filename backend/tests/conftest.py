@@ -100,6 +100,10 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Create an async HTTP client for testing with DB override."""
     from src.platform.infrastructure.database import get_session
+    from src.platform.health.router import mark_startup_complete
+    
+    # Mark startup complete so health probes pass
+    mark_startup_complete()
     
     async def override_get_db():
         yield db_session
@@ -110,7 +114,8 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(
         transport=transport,
         base_url="http://test",
-        headers={"Content-Type": "application/json"},
+        # NOTE: Do NOT set Content-Type here - httpx sets it automatically
+        # based on the request type (JSON, multipart form, etc.)
     ) as ac:
         yield ac
     
@@ -120,7 +125,10 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 @pytest_asyncio.fixture(scope="function")
 async def auth_client(client: AsyncClient, seeded_user: User) -> AsyncClient:
     """HTTP client with auth headers for the seeded user."""
+    # For tests, we set a header that the mock auth will recognize
+    # In dev mode, auth can be bypassed with email query param
     client.headers["Authorization"] = "Bearer test-token"
+    client.headers["X-Test-User-Email"] = seeded_user.email
     return client
 
 

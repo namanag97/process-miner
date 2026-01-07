@@ -277,7 +277,19 @@ class AnalyticsService:
         }
 
     def get_service_times(self, pm4py_log: PM4PyLog) -> list[dict[str, Any]]:
-        """Get service time statistics per activity."""
+        """Get sojourn time statistics per activity.
+
+        NOTE: This metric is named 'service_times' for historical reasons, but it
+        actually measures SOJOURN TIME - the time from when an activity starts until
+        the NEXT activity starts. This includes both processing time and any waiting
+        time before the next activity.
+
+        True service time (actual time spent on an activity) would require explicit
+        start and complete timestamps for each activity, which standard event logs
+        often don't have.
+
+        BUG-087: Previously mislabeled as 'service time'.
+        """
         logger.info("computing_service_times", traces=len(pm4py_log))
         start = time.perf_counter()
 
@@ -336,7 +348,18 @@ class AnalyticsService:
             for trace in pm4py_log:
                 timestamps = [evt.get("time:timestamp") for evt in trace if "time:timestamp" in evt]
                 if len(timestamps) >= 2:
-                    durations.append((max(timestamps) - min(timestamps)).total_seconds())
+                    # BUG-086 FIX: Handle timezone-aware timestamps properly
+                    try:
+                        from datetime import timezone
+                        normalized_ts = []
+                        for ts in timestamps:
+                            if hasattr(ts, 'tzinfo') and ts.tzinfo is not None:
+                                normalized_ts.append(ts.astimezone(timezone.utc))
+                            else:
+                                normalized_ts.append(ts)
+                        durations.append((max(normalized_ts) - min(normalized_ts)).total_seconds())
+                    except (TypeError, ValueError):
+                        durations.append((max(timestamps) - min(timestamps)).total_seconds())
 
         if not durations:
             return {

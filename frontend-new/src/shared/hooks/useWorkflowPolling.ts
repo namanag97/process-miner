@@ -60,7 +60,7 @@ const TERMINAL_STATUSES: WorkflowStatus[] = ['completed', 'failed', 'cancelled',
  */
 export function useWorkflowPolling(
     workflowId: string | null,
-    pollingIntervalMs: number = 1000
+    pollingIntervalMs = 1000
 ): WorkflowProgress | null {
     const [shouldPoll, setShouldPoll] = useState(true);
 

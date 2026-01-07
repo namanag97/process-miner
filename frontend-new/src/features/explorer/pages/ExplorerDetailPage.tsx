@@ -27,8 +27,6 @@ import {
 import { tokens, toast, logAction, logError, ErrorBoundary, type ActivityDetail } from '@/src/shared/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 
-const { Text } = Typography;
-
 // Import components
 import { CytoscapeCanvas } from '../components/CytoscapeCanvas';
 import type { ProcessNode, ProcessEdge } from '../components/CytoscapeCanvas';
@@ -69,6 +67,8 @@ import {
   extractErrorMessages,
   getFallbackStatus,
 } from '../utils/fallbackData';
+
+const { Text } = Typography;
 
 const log = createLogger('ExplorerDetailPage');
 
@@ -510,7 +510,7 @@ export function ExplorerDetailPage() {
 
     const nodesCSV = [
       ['Activity', 'Frequency', 'Is Start', 'Is End'].join(','),
-      ...dfgNodes.map(node =>
+      ...dfgNodes.map((node: any) =>
         [
           `"${node.label}"`,
           node.frequency,
@@ -522,7 +522,7 @@ export function ExplorerDetailPage() {
 
     const edgesCSV = [
       ['Source', 'Target', 'Frequency', 'Avg Duration (s)'].join(','),
-      ...dfgEdges.map(edge =>
+      ...dfgEdges.map((edge: any) =>
         [
           `"${edge.source}"`,
           `"${edge.target}"`,

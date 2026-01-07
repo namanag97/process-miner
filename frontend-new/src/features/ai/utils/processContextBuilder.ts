@@ -35,9 +35,13 @@ export function buildProcessContext(summary: ProcessSummaryData, processName: st
   // Throughput
   lines.push('### Throughput Metrics');
   lines.push(`- Total Cases: ${summary.throughput.totalCases.toLocaleString()}`);
-  lines.push(`- Completed Cases: ${summary.throughput.completedCases.toLocaleString()}`);
+  if (summary.throughput.completedCases !== undefined) {
+    lines.push(`- Completed Cases: ${summary.throughput.completedCases.toLocaleString()}`);
+  }
   lines.push(`- Cases per Day: ${summary.throughput.casesPerDay.toFixed(1)}`);
-  lines.push(`- Cases per Week: ${summary.throughput.casesPerWeek.toFixed(1)}`);
+  if (summary.throughput.casesPerWeek !== undefined) {
+    lines.push(`- Cases per Week: ${summary.throughput.casesPerWeek.toFixed(1)}`);
+  }
   lines.push('');
 
   // Bottlenecks

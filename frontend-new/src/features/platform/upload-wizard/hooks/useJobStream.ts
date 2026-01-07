@@ -124,7 +124,7 @@ export function useJobStream(jobId: string | null, options: UseJobStreamOptions 
 
         const poll = async () => {
             try {
-                const response = await instrumentedFetch(`/api/v1/jobs/${jobId}`);
+                const response = await fetch(`/api/v1/jobs/${jobId}`);
                 if (response.ok) {
                     const data = await response.json();
                     const event: JobStreamEvent = {

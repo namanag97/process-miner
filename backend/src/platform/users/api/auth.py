@@ -528,9 +528,10 @@ async def reset_password(
     """
     logger.warning("reset_password_attempted", msg="Token validation not implemented")
 
-    raise ProcessingError(
-        message="Password reset token validation is not yet available. Please contact support.",
-        details={"code": "NOT_IMPLEMENTED"},
+    # Return HTTP 501 Not Implemented instead of 500
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Password reset token validation is not yet available. Please contact support.",
     )
 
 

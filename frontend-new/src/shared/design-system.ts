@@ -8,6 +8,23 @@
 // ==============================================
 // Design Tokens
 // ==============================================
+// ==============================================
+// Toast (using antd message)
+// ==============================================
+import { message } from 'antd';
+
+// ==============================================
+// SDK Context (implements ProcessMiningSdk)
+// ==============================================
+import React, { createContext, useContext, ReactNode } from 'react';
+import apiClient from '../api/client';
+import type { ProcessMiningSdk } from './components';
+
+// ==============================================
+// Loading/Error State Components (inline)
+// ==============================================
+import { Spin, Alert, Button, Card, Table } from 'antd';
+
 export const tokens: {
     colors: {
         primary: string;
@@ -19,7 +36,11 @@ export const tokens: {
         textSecondary: string;
         border: string;
         background: string;
-        surface: string;
+        surface: {
+            default: string;
+            card: string;
+            elevated: string;
+        };
         neutral: Record<number | string, string>;
         [key: string]: unknown;
     };
@@ -27,6 +48,7 @@ export const tokens: {
     borderRadius: Record<string | number, number>;
     fontSize: Record<string | number, number>;
     radius: Record<string | number, number>;
+    fontWeight: Record<string | number, number>;
     [key: string]: unknown;
 } = {
     colors: {
@@ -39,7 +61,11 @@ export const tokens: {
         textSecondary: 'rgba(0, 0, 0, 0.45)',
         border: '#d9d9d9',
         background: '#f0f2f5',
-        surface: '#ffffff',
+        surface: {
+            default: '#ffffff',
+            card: '#ffffff',
+            elevated: '#fafafa',
+        },
         neutral: {
             0: '#ffffff',
             50: '#fafafa',
@@ -70,6 +96,12 @@ export const tokens: {
         0: 0, 1: 2, 2: 4, 3: 6, 4: 8, 6: 12, 8: 16,
         sm: 4, md: 8, lg: 16,
     },
+    fontWeight: {
+        normal: 400,
+        medium: 500,
+        semibold: 600,
+        bold: 700,
+    },
 };
 
 // ==============================================
@@ -96,11 +128,6 @@ export const logResponse = (method: string, url: string, status: number, duratio
     console.log(`[Response] ${method} ${url} - ${status}${typeof duration === 'number' ? ` (${duration}ms)` : ''}`, data || '');
 };
 
-// ==============================================
-// Toast (using antd message)
-// ==============================================
-import { message } from 'antd';
-
 export const toast = {
     success: (content: string) => message.success(content),
     error: (content: string) => message.error(content),
@@ -108,16 +135,98 @@ export const toast = {
     info: (content: string) => message.info(content),
 };
 
-// ==============================================
-// SDK Context (simplified)
-// ==============================================
-import React, { createContext, useContext, ReactNode } from 'react';
-import apiClient from '../api/client';
+// Create SDK implementation that wraps apiClient
+const createSDKInstance = (baseUrl: string): ProcessMiningSdk => {
+    const sdk: ProcessMiningSdk = {
+        baseUrl,
 
-interface SDKContextType {
-    apiClient: typeof apiClient;
-    baseUrl: string;
-}
+        // Health check method
+        checkHealth: async () => {
+            try {
+                const response = await apiClient.get('/health');
+                return response.status === 200;
+            } catch {
+                return false;
+            }
+        },
+
+        // Processes module
+        processes: {
+            list: async (options?: { pageSize?: number }) => {
+                const { data } = await apiClient.get('/processes', { params: options });
+                return data;
+            },
+            get: async (id: string) => {
+                const { data } = await apiClient.get(`/processes/${id}`);
+                return data;
+            },
+            analyze: async (id: string) => {
+                const { data } = await apiClient.post(`/processes/${id}/analyze`);
+                return data;
+            },
+            getProcessSummary: async (id: string) => {
+                const { data } = await apiClient.get(`/processes/${id}/summary`);
+                return data;
+            },
+        },
+
+        // Analytics module
+        analytics: {
+            performance: async (datasetId: string) => {
+                const { data } = await apiClient.get(`/analytics/${datasetId}/performance`);
+                return data;
+            },
+            conformance: async (datasetId: string) => {
+                const { data } = await apiClient.get(`/analytics/${datasetId}/conformance`);
+                return data;
+            },
+            getProcessSummary: async (datasetId: string) => {
+                const { data } = await apiClient.get(`/analytics/${datasetId}/summary`);
+                return data;
+            },
+        },
+
+        // Predictions module
+        predictions: {
+            list: async (datasetId: string) => {
+                const { data } = await apiClient.get(`/predictions/${datasetId}`);
+                return data;
+            },
+            listPredictors: async (datasetId: string) => {
+                const { data } = await apiClient.get(`/predictions/${datasetId}/predictors`);
+                return data;
+            },
+            create: async (datasetId: string, config: any) => {
+                const { data } = await apiClient.post(`/predictions/${datasetId}`, config);
+                return data;
+            },
+        },
+
+        // Discovery module
+        discovery: {
+            dfg: async (datasetId: string, options?: any) => {
+                const { data } = await apiClient.get(`/discovery/${datasetId}/dfg`, { params: options });
+                return data;
+            },
+            variants: async (datasetId: string, options?: any) => {
+                const { data } = await apiClient.get(`/discovery/${datasetId}/variants`, { params: options });
+                return data;
+            },
+        },
+
+        // Conformance module
+        conformance: {
+            check: async (datasetId: string, modelId: string) => {
+                const { data } = await apiClient.post(`/conformance/${datasetId}/check`, { modelId });
+                return data;
+            },
+        },
+    };
+
+    return sdk;
+};
+
+type SDKContextType = ProcessMiningSdk;
 
 const SDKContext = createContext<SDKContextType | null>(null);
 
@@ -125,10 +234,8 @@ export const useSDK = (): SDKContextType => {
     const context = useContext(SDKContext);
     if (!context) {
         // Fallback for components used outside provider
-        return {
-            apiClient,
-            baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:8000',
-        };
+        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+        return createSDKInstance(baseUrl);
     }
     return context;
 };
@@ -139,10 +246,8 @@ interface SDKProviderProps {
 }
 
 export const SDKProvider: React.FC<SDKProviderProps> = ({ children, baseUrl }) => {
-    const value: SDKContextType = {
-        apiClient,
-        baseUrl: baseUrl || import.meta.env.VITE_API_URL || 'http://localhost:8000',
-    };
+    const url = baseUrl || import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const value: SDKContextType = createSDKInstance(url);
     return React.createElement(SDKContext.Provider, { value }, children);
 };
 
@@ -171,11 +276,19 @@ export const queryKeys = {
         performance: () => [...queryKeys.analytics.all, 'performance'] as const,
         conformance: () => [...queryKeys.analytics.all, 'conformance'] as const,
         logs: () => [...queryKeys.analytics.all, 'logs'] as const,
+        rework: (datasetId: string) => [...queryKeys.analytics.all, 'rework', datasetId] as const,
     },
     explorer: {
         all: ['explorer'] as const,
         processes: () => [...queryKeys.explorer.all, 'processes'] as const,
         process: (id: string) => [...queryKeys.explorer.all, 'process', id] as const,
+        data: (id: string) => [...queryKeys.explorer.all, 'data', id] as const,
+    },
+    discovery: {
+        all: ['discovery'] as const,
+        dfg: (id: string) => ['discovery', 'dfg', id] as const,
+        variants: (id: string) => ['discovery', 'variants', id] as const,
+        activities: (id: string) => ['discovery', 'activities', id] as const,
     },
     kpi: {
         all: ['kpi'] as const,
@@ -190,6 +303,15 @@ export const queryKeys = {
         all: ['datasets'] as const,
         list: () => [...queryKeys.datasets.all, 'list'] as const,
         detail: (id: string) => [...queryKeys.datasets.all, 'detail', id] as const,
+    },
+    conformance: {
+        all: ['conformance'] as const,
+        check: (datasetId: string, modelId?: string) => ['conformance', 'check', datasetId, modelId] as const,
+    },
+    processes: {
+        all: ['processes'] as const,
+        list: () => [...queryKeys.processes.all, 'list'] as const,
+        detail: (id: string) => [...queryKeys.processes.all, 'detail', id] as const,
     },
 };
 
@@ -210,14 +332,37 @@ export interface PerformanceData {
     medianDuration: number;
     p95Duration: number;
     totalCases: number;
-    cycleTime?: number | { avgSeconds: number };
-    [key: string]: unknown;
+    cycleTime: {
+        avgSeconds: number;
+        minSeconds: number;
+        maxSeconds: number;
+        medianSeconds: number;
+        p75Seconds?: number;
+        p95Seconds?: number;
+    };
+    throughput: {
+        casesPerDay: number;
+        casesPerWeek?: number;
+        casesPerMonth?: number;
+        totalCases?: number;
+    };
+    topBottlenecks: Array<{
+        activity: string;
+        avgWaitingTime: number;
+        impactScore: number;
+    }>;
 }
 
 export interface ReworkData {
     reworkRate: number;
+    reworkPercentage: number;
     totalReworkCases: number;
     averageReworkLoops: number;
+    reworkActivities: Array<{
+        activity: string;
+        reworkCount: number;
+        percentage: number;
+    }>;
 }
 
 export interface ProcessSummaryData {
@@ -226,34 +371,43 @@ export interface ProcessSummaryData {
     description?: string;
     caseCount: number;
     eventCount: number;
-    throughput?: number | {
-        totalCases?: number;
+    throughput: {
+        totalCases: number;
         completedCases?: number;
-        casesPerDay?: number;
+        casesPerDay: number;
         casesPerWeek?: number;
     };
-    cycleTime?: number | {
-        avgSeconds?: number;
-        medianSeconds?: number;
-        minSeconds?: number;
-        maxSeconds?: number;
+    cycleTime: {
+        avgSeconds: number;
+        medianSeconds: number;
+        minSeconds: number;
+        maxSeconds: number;
     };
-    bottlenecks?: Array<{
+    bottlenecks: Array<{
         activity: string;
         avgWaitTime: number;
-        avgWaitingTimeSeconds?: number;
-        isBottleneck?: boolean;
-        severity?: 'low' | 'medium' | 'high' | string;
+        avgWaitingTimeSeconds: number;
+        isBottleneck: boolean;
+        severity: 'low' | 'medium' | 'high';
     }>;
-    rework?: {
+    rework: {
         rate: number;
         count: number;
-        reworkPercentage?: number;
-        totalReworkCases?: number;
-        activities?: Array<{ activity: string; count: number }>;
+        reworkPercentage: number;
+        totalReworkCases: number;
+        activities: Array<{
+            activity: string;
+            count: number;
+            reworkCount: number;
+            reworkPercentage: number;
+        }>;
     };
-    patterns?: unknown;
-    [key: string]: unknown; // Allow additional fields
+    patterns: Array<{
+        pattern: string[];
+        support: number;
+        frequency?: number;
+    }>;
+    [key: string]: unknown;
 }
 
 
@@ -326,15 +480,10 @@ export const luminaTheme = {
 // ==============================================
 // Re-export UI Components
 // ==============================================
-export { PageHeader, MetricCard, EmptyState, AppShell, ErrorBoundary, ProcessMiningSdk } from './components';
-
-// ==============================================
-// Loading/Error State Components (inline)
-// ==============================================
-import { Spin, Alert, Button, Card } from 'antd';
+export { PageHeader, MetricCard, ProcessQuestion, EmptyState, AppShell, ErrorBoundary, ProcessMiningSdk } from './components';
 
 interface LoadingStateProps {
-    type?: 'card' | 'inline' | 'page';
+    type?: 'card' | 'inline' | 'page' | 'fullPage';
     rows?: number;
 }
 
@@ -365,32 +514,35 @@ export const QueryError: React.FC<QueryErrorProps> = ({ error, onRetry }) => {
 // ==============================================
 // Placeholder KPI Hooks (stub implementations)
 // ==============================================
+// eslint-disable-next-line @typescript-eslint/no-empty-function
+const noopRefetch = () => { };
+
 export const useAutomation = (_datasetId: string) => ({
     data: null,
     isLoading: false,
     error: null,
-    refetch: () => { },
+    refetch: noopRefetch,
 });
 
 export const useDeadlines = (_datasetId: string) => ({
     data: null,
     isLoading: false,
     error: null,
-    refetch: () => { },
+    refetch: noopRefetch,
 });
 
 export const useUnwantedActivities = (_datasetId: string) => ({
     data: null,
     isLoading: false,
     error: null,
-    refetch: () => { },
+    refetch: noopRefetch,
 });
 
 export const useKPIPerformance = (_datasetId: string) => ({
     data: null,
     isLoading: false,
     error: null,
-    refetch: () => { },
+    refetch: noopRefetch,
 });
 
 // ==============================================
@@ -400,41 +552,160 @@ export const usePerformance = (_datasetId: string) => ({
     data: null,
     isLoading: false,
     error: null,
-    refetch: () => { },
+    refetch: noopRefetch,
 });
 
 export const useCycleTime = (_datasetId: string) => ({
     data: null,
     isLoading: false,
     error: null,
-    refetch: () => { },
+    refetch: noopRefetch,
 });
 
 export const useThroughput = (_datasetId: string) => ({
     data: null,
     isLoading: false,
     error: null,
-    refetch: () => { },
+    refetch: noopRefetch,
 });
 
 export const useProcess = (_datasetId: string) => ({
     data: null,
     isLoading: false,
     error: null,
-    refetch: () => { },
+    refetch: noopRefetch,
 });
 
 export const useRework = (_datasetId: string) => ({
     data: null,
     isLoading: false,
     error: null,
-    refetch: () => { },
+    refetch: noopRefetch,
 });
 
 export const useAuditLogs = (_dateFilter?: { start?: Date; end?: Date }) => ({
     data: null,
     isLoading: false,
     error: null,
-    refetch: () => { },
+    refetch: noopRefetch,
 });
 
+
+// ==============================================
+// Missing Type Exports (DFG, Variant, etc.)
+// ==============================================
+
+export interface DFGNode {
+    id: string;
+    label: string;
+    frequency: number;
+    isStart?: boolean;
+    isEnd?: boolean;
+}
+
+export interface DFGEdge {
+    source: string;
+    target: string;
+    frequency: number;
+    avgDuration?: number;
+}
+
+export interface DFGData {
+    nodes: DFGNode[];
+    edges: DFGEdge[];
+    startActivities?: Record<string, number>;
+    endActivities?: Record<string, number>;
+}
+
+export interface Variant {
+    key: string;
+    activities: string[];
+    caseCount: number;
+    frequencyPercent: number;
+    avgDuration: number | null;
+}
+
+export interface AuditLogEntry {
+    id: string;
+    timestamp: string;
+    event: string;
+    userId?: string;
+    details?: Record<string, unknown>;
+}
+
+export interface ProcessQuestion {
+    id: string;
+    question: string;
+    answer?: string;
+}
+
+// ==============================================
+// DataTable Component
+// ==============================================
+
+export interface DataTableColumn<T = unknown> {
+    key: string;
+    title: string;
+    dataIndex?: keyof T | string;
+    render?: (value: unknown, record: T) => React.ReactNode;
+    width?: number | string;
+    sorter?: boolean | ((a: T, b: T) => number);
+}
+
+interface DataTableProps<T> {
+    columns: DataTableColumn<T>[];
+    data?: T[];
+    dataSource?: T[];
+    loading?: boolean;
+    searchable?: boolean;
+    searchPlaceholder?: string;
+    onRowClick?: (record: T) => void;
+    onRefresh?: () => void | Promise<void>;
+    rowKey?: string | ((record: T) => string);
+    pagination?: any;
+}
+
+export const DataTable = <T extends Record<string, any>>(props: DataTableProps<T>) => {
+    const { data, dataSource, columns, loading, onRowClick, rowKey = 'id', pagination, ...rest } = props;
+    const source = data || dataSource || [];
+
+    return React.createElement(Table, {
+        ...rest,
+        dataSource: source,
+        columns: columns as any,
+        loading,
+        rowKey,
+        pagination,
+        onRow: onRowClick ? (record: T) => ({
+            onClick: () => onRowClick(record),
+            style: { cursor: 'pointer' }
+        }) : undefined,
+    });
+};
+
+// ==============================================
+// Instrumented Fetch
+// ==============================================
+
+export const instrumentedFetch = async <T = unknown>(
+    url: string,
+    options?: RequestInit
+): Promise<T> => {
+    const start = performance.now();
+    const method = options?.method || 'GET';
+    logRequest(method, url, options?.body);
+    try {
+        const response = await fetch(url, options);
+        const duration = Math.round(performance.now() - start);
+        if (!response.ok) {
+            logError('fetch', `HTTP ${response.status}`, { url });
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json() as T;
+        logResponse(method, url, response.status, duration);
+        return data;
+    } catch (error) {
+        logError('fetch', error as Error, { url });
+        throw error;
+    }
+};

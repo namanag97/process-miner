@@ -68,7 +68,7 @@ export function ResourcesTab({ datasetId }: ResourcesTabProps) {
   }
 
   // Transform the data
-  const resources: ResourceData[] = (workloadData?.resources ?? []).map(r => ({
+  const resources: ResourceData[] = (workloadData?.resources ?? []).map((r: any) => ({
     name: r.resource,
     caseCount: r.caseCount,
     eventCount: r.eventCount,
@@ -76,11 +76,11 @@ export function ResourcesTab({ datasetId }: ResourcesTabProps) {
     workloadPercent: r.workloadPercent,
   }));
 
-  const handovers: HandoverData[] = (handoverData?.edges ?? []).map(e => ({
+  const handovers: HandoverData[] = (handoverData?.edges ?? []).map((e: any) => ({
     from: e.source,
     to: e.target,
     frequency: e.frequency,
-  })).sort((a, b) => b.frequency - a.frequency);
+  })).sort((a: any, b: any) => b.frequency - a.frequency);
 
   const uniqueResources = resources.length;
   const totalHandovers = handovers.reduce((sum, h) => sum + h.frequency, 0);

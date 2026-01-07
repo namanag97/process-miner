@@ -59,6 +59,7 @@ class FilteringService:
         pm4py_log: PM4PyLog,
         start_time: datetime,
         end_time: datetime,
+        mode: str = "traces",  # BUG-088 FIX: Default to 'traces' to avoid breaking trace integrity
     ) -> PM4PyLog:
         """
         Filter events within a time range.
@@ -67,6 +68,9 @@ class FilteringService:
             pm4py_log: PM4Py event log
             start_time: Start of time range (inclusive)
             end_time: End of time range (inclusive)
+            mode: Filter mode - 'traces' keeps complete traces where any event
+                  falls in range (preserves trace integrity), 'events' filters
+                  individual events (can break traces by removing middle events)
 
         Returns:
             Filtered PM4Py log
@@ -75,6 +79,7 @@ class FilteringService:
             "filtering_time_range",
             start_time=start_time.isoformat(),
             end_time=end_time.isoformat(),
+            mode=mode,
             original_traces=len(pm4py_log),
         )
         start = time.perf_counter()
@@ -83,7 +88,7 @@ class FilteringService:
             pm4py_log,
             start_time.strftime("%Y-%m-%d %H:%M:%S"),
             end_time.strftime("%Y-%m-%d %H:%M:%S"),
-            mode="events",
+            mode=mode,
         )
 
         duration = (time.perf_counter() - start) * 1000
@@ -441,9 +446,10 @@ class FilteringService:
         )
         start = time.perf_counter()
 
+        # BUG-089 FIX: PM4Py expects list of tuples, not flat list
         filtered = pm4py.filter_directly_follows_relation(
             pm4py_log,
-            [activity_a, activity_b],
+            [(activity_a, activity_b)],
             retain=retain,
         )
 
@@ -482,9 +488,10 @@ class FilteringService:
         )
         start = time.perf_counter()
 
+        # BUG-090 FIX: PM4Py expects list of tuples, not flat list
         filtered = pm4py.filter_eventually_follows_relation(
             pm4py_log,
-            [activity_a, activity_b],
+            [(activity_a, activity_b)],
             retain=retain,
         )
 

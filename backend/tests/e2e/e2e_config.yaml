@@ -1,0 +1,31 @@
+# E2E API Testing Configuration
+
+base_url: "http://localhost:8001"
+api_prefix: "/api/v1"
+timeout_seconds: 30
+max_retries: 2
+
+# Authentication
+test_user:
+  email: "test@example.com"
+  role: "admin"
+
+# Test execution
+parallel_workers: 5
+rate_limit_per_minute: 100
+
+# Bug detection
+slow_request_threshold_ms: 5000
+enable_schema_validation: true
+
+# Reporting
+bug_report_dir: "tests/e2e/bug_reports"
+update_bug_tracker: true
+
+# Endpoint filters (exclude certain endpoints from batch testing)
+exclude_patterns:
+  - "/docs"
+  - "/redoc"
+  - "/openapi.json"
+  - "/health"
+  - "/_health"

@@ -85,7 +85,7 @@ export interface BackendObservability {
 
 let globalMetrics: SystemMetrics | null = null;
 let globalTraceSpans: TraceSpan[] = [];
-let globalListeners: Set<() => void> = new Set();
+const globalListeners: Set<() => void> = new Set();
 const MAX_TRACE_SPANS = 100;
 
 function notifyMetricsListeners() {
@@ -126,7 +126,7 @@ function addTraceSpan(span: TraceSpan) {
  * // Show circuit breaker status
  * {circuitBreakers.pm4py === 'open' && <Alert type="warning" />}
  */
-export function useBackendLogs(enabled: boolean = true): BackendObservability {
+export function useBackendLogs(enabled = true): BackendObservability {
   const eventSourceRef = useRef<EventSource | null>(null);
   const seenIdsRef = useRef<Set<string>>(new Set());
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -364,7 +364,7 @@ export function useBackendLogs(enabled: boolean = true): BackendObservability {
         clearTimeout(reconnectTimeoutRef.current);
       }
     };
-  }, [connect, enabled]);
+  }, [connect, enabled, defaultState]);
 
   return state;
 }

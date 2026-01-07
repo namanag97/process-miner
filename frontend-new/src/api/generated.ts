@@ -429,7 +429,7 @@ export interface ConformanceListResponse {
  */
 export type ConformanceMethod = (typeof ConformanceMethod)[keyof typeof ConformanceMethod];
 
-// eslint-disable-next-line @typescript-eslint/no-redeclare
+ 
 export const ConformanceMethod = {
   token_replay: 'token_replay',
   alignment: 'alignment',
@@ -1153,7 +1153,7 @@ export interface MinerInfo {
  */
 export type MinerType = (typeof MinerType)[keyof typeof MinerType];
 
-// eslint-disable-next-line @typescript-eslint/no-redeclare
+ 
 export const MinerType = {
   alpha: 'alpha',
   alpha_plus: 'alpha_plus',

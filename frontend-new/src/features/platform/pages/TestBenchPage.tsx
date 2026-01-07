@@ -353,7 +353,7 @@ export function TestBenchPage() {
   // Load datasets on mount
   useState(() => {
     sdk.processes.list({ pageSize: 20 }).then(res => {
-      const items = res.items.map(i => ({ id: i.id, name: i.name }));
+      const items = res.items.map((i: any) => ({ id: i.id, name: i.name }));
       setDatasets(items);
       if (items.length > 0) {
         setSelectedDatasetId(items[0].id);

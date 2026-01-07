@@ -60,11 +60,7 @@ export function ConformanceTab({ datasetId, projectId }: ConformanceTabProps) {
       try {
         // Attempt to get conformance data
         // Note: Using 'default' as modelId - if no model exists, this will fail gracefully
-        const result = await sdk.conformance.check({
-          datasetId,
-          modelId: 'default',
-          method: 'token_replay',
-        });
+        const result = await sdk.conformance.check(datasetId, 'default');
         return result;
       } catch (e) {
         // If conformance check fails (no model), return null and show placeholder

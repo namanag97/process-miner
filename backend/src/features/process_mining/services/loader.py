@@ -387,8 +387,14 @@ class EventLogLoader:
         conn = self._get_connection()
 
         try:
-            # BUG-032 FIX: parameterized query (limit_clause handled separately as it's an int)
-            limit_clause = f"LIMIT {int(top_k)}" if top_k else ""
+            # BUG-032 FIX: parameterized query
+            # BUG-070 FIX: Validate top_k is a positive integer before using in query
+            limit_clause = ""
+            if top_k is not None:
+                validated_limit = int(top_k)
+                if validated_limit <= 0:
+                    raise ValueError(f"top_k must be positive, got {validated_limit}")
+                limit_clause = f"LIMIT {validated_limit}"
 
             # OPTIMIZED: Group by pre-computed variant_key (O(Cases)) instead of aggregating events (O(Events))
             query = f"""

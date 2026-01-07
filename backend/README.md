@@ -2,6 +2,15 @@
 
 A local-first Process Mining SaaS built with FastAPI and PM4Py, following Domain-Driven Design principles.
 
+## 🤖 AI Agent Documentation
+
+**New to this codebase?** Start here:
+
+- **[AI Agent Guide](file:///Users/namanagarwal/system/backend/AI_AGENT_GUIDE.md)** - Complete guide for AI agents (navigation, patterns, workflows)
+- **[Architecture](file:///Users/namanagarwal/system/backend/ARCHITECTURE.md)** - Platform/Feature layer separation
+- **[System Overview](file:///Users/namanagarwal/system/SYSTEM_OVERVIEW.md)** - Full-stack architecture (Backend + Frontend)
+- **[Agent Handoff](file:///Users/namanagarwal/system/backend/AGENT_HANDOFF.md)** - Current refactoring status and remaining work
+
 ## Features
 
 - **Event Log Management**: Upload CSV/XES files, view variants, activities

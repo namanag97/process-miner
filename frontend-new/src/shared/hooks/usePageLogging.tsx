@@ -90,7 +90,7 @@ export function usePageLogging(
                 correlationId: correlationIdRef.current,
             });
         };
-    }, [pageName]); // Only on mount/unmount
+    }, [pageName, location.pathname, location.search, metadata, params]); // Only on mount/unmount
 
     // Log route changes within the same page
     useEffect(() => {
@@ -101,7 +101,7 @@ export function usePageLogging(
                 search: location.search || undefined,
             });
         }
-    }, [location.pathname, location.search, pageName, logRouteChanges]);
+    }, [location.pathname, location.search, pageName, logRouteChanges, params]);
 
     // Track render count
     useEffect(() => {
@@ -176,7 +176,7 @@ export function withPageLogging<P extends object>(
 ) {
     return function WithPageLogging(props: P) {
         const pageLogger = usePageLogging(pageName);
-        return <WrappedComponent { ...props } pageLogger = { pageLogger } />;
+        return <WrappedComponent {...props} pageLogger={pageLogger} />;
     };
 }
 

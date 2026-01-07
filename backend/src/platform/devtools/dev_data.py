@@ -30,11 +30,13 @@ def _check_debug():
 async def list_tables() -> list[str]:
     """List all tables in the database."""
     _check_debug()
-    
+
     async with get_session_context() as session:
-        def get_tables(conn):
-            return inspect(conn).get_table_names()
-            
+        def get_tables(sync_session):
+            # Use the bind (engine/connection) for inspection, not the session itself
+            inspector = inspect(sync_session.bind)
+            return inspector.get_table_names()
+
         tables = await session.run_sync(get_tables)
         return sorted(tables)
 

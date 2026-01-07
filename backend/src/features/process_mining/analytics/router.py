@@ -84,11 +84,12 @@ async def get_bottlenecks(
     """Detect process bottlenecks based on waiting times."""
     logger.info("getting_bottlenecks", dataset_id=dataset_id)
 
-    # Try cache first
-    cache_key = f"bottlenecks:{dataset_id}"
+    # BUG-091 FIX: Include CACHE_VERSION in cache key
+    cache_key = f"bottlenecks:{CACHE_VERSION}:{dataset_id}"
     cached = cache_service.get(cache_key)
     if cached:
-        return cast(BottleneckListResponse, cached)
+        # BUG-092 FIX: Reconstruct from dict
+        return BottleneckListResponse(**cached)
 
     pm4py_log, _ = await _get_pm4py_log(dataset_id, db, container)
     result = container.analytics.detect_bottlenecks(pm4py_log)
@@ -98,8 +99,8 @@ async def get_bottlenecks(
         total_bottlenecks=result["total_bottlenecks"],
     )
 
-    # Cache for 1 hour
-    cache_service.set(cache_key, response, ttl=3600)
+    # BUG-092 FIX: Convert to dict before caching to avoid msgpack TypeError
+    cache_service.set(cache_key, response.model_dump(), ttl=3600)
     return response
 
 
@@ -112,11 +113,12 @@ async def get_rework(
     """Analyze rework (repeated activities) in cases."""
     logger.info("getting_rework", dataset_id=dataset_id)
 
-    # Try cache first
-    cache_key = f"rework:{dataset_id}"
+    # BUG-091 FIX: Include CACHE_VERSION in cache key
+    cache_key = f"rework:{CACHE_VERSION}:{dataset_id}"
     cached = cache_service.get(cache_key)
     if cached:
-        return cast(ReworkListResponse, cached)
+        # BUG-092 FIX: Reconstruct from dict
+        return ReworkListResponse(**cached)
 
     pm4py_log, _ = await _get_pm4py_log(dataset_id, db, container)
     result = container.analytics.analyze_rework(pm4py_log)
@@ -127,8 +129,8 @@ async def get_rework(
         rework_percentage=result["rework_percentage"],
     )
 
-    # Cache for 1 hour
-    cache_service.set(cache_key, response, ttl=3600)
+    # BUG-092 FIX: Convert to dict before caching
+    cache_service.set(cache_key, response.model_dump(), ttl=3600)
     return response
 
 
@@ -141,18 +143,19 @@ async def get_service_times(
     """Get service time statistics per activity."""
     logger.info("getting_service_times", dataset_id=dataset_id)
 
-    # Try cache first
-    cache_key = f"service_times:{dataset_id}"
+    # BUG-091 FIX: Include CACHE_VERSION in cache key
+    cache_key = f"service_times:{CACHE_VERSION}:{dataset_id}"
     cached = cache_service.get(cache_key)
     if cached:
-        return cast(list[ServiceTimeResponse], cached)
+        # BUG-092 FIX: Reconstruct from list of dicts
+        return [ServiceTimeResponse(**s) for s in cached]
 
     pm4py_log, _ = await _get_pm4py_log(dataset_id, db, container)
     result = container.analytics.get_service_times(pm4py_log)
     response = [ServiceTimeResponse(**s) for s in result]
 
-    # Cache for 1 hour
-    cache_service.set(cache_key, response, ttl=3600)
+    # BUG-092 FIX: Convert to list of dicts before caching
+    cache_service.set(cache_key, [r.model_dump() for r in response], ttl=3600)
     return response
 
 
@@ -215,11 +218,12 @@ async def get_rework_chains(
     """
     logger.info("getting_rework_chains", dataset_id=dataset_id)
 
-    # Try cache first
-    cache_key = f"rework_chains:{dataset_id}"
+    # BUG-091 FIX: Include CACHE_VERSION in cache key
+    cache_key = f"rework_chains:{CACHE_VERSION}:{dataset_id}"
     cached = cache_service.get(cache_key)
     if cached:
-        return cast(ReworkChainListResponse, cached)
+        # BUG-092 FIX: Reconstruct from dict
+        return ReworkChainListResponse(**cached)
 
     pm4py_log, _ = await _get_pm4py_log(dataset_id, db, container)
     result = container.analytics.detect_rework_chains(pm4py_log)
@@ -233,8 +237,8 @@ async def get_rework_chains(
         chains_percentage=result["chains_percentage"],
     )
 
-    # Cache for 1 hour
-    cache_service.set(cache_key, response, ttl=3600)
+    # BUG-092 FIX: Convert to dict before caching
+    cache_service.set(cache_key, response.model_dump(), ttl=3600)
     return response
 
 
