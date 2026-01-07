@@ -140,7 +140,7 @@ class InvalidFileError(ValidationError):
         expected_types: list[str] | None = None,
         **kwargs,
     ):
-        details = {}
+        details: dict[str, Any] = {}
         if filename:
             details["filename"] = filename
         if expected_types:
@@ -321,7 +321,7 @@ class IngestionError(ProcessingError):
         line_number: int | None = None,
         **kwargs,
     ):
-        details = {}
+        details: dict[str, Any] = {}
         if filename:
             details["filename"] = filename
         if line_number:
@@ -344,7 +344,7 @@ class TimeoutError(ProcessingError):
         timeout_seconds: float | None = None,
         **kwargs,
     ):
-        details = {}
+        details: dict[str, Any] = {}
         if operation:
             details["operation"] = operation
         if timeout_seconds:

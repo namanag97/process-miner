@@ -177,7 +177,7 @@ async def list_operations(
 
         try:
             # List workflows from Temporal
-            workflows: list[dict] = []
+            workflows: list[OperationStatus] = []
             async for workflow in client.list_workflows(query=query):
                 if len(workflows) >= offset + limit:
                     break

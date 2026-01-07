@@ -54,7 +54,7 @@ class BaseCommand(ABC):
             workspace_id: str
     """
 
-    correlation_id: str = field(default_factory=lambda: str(uuid4()))
+    correlation_id: str = field(default_factory=lambda: str(uuid4()), kw_only=True)
 
     @property
     def command_type(self) -> str:
@@ -63,19 +63,35 @@ class BaseCommand(ABC):
 
 
 class CommandHandler(ABC, Generic[T]):
-    """Abstract handler for processing commands.
+    """Handler with injected dependencies."""
 
-    Each command type has exactly one handler. Handlers should:
-    - Validate the command
-    - Execute the write operation
-    - Emit domain events on success
-    - Raise exceptions on failure
+    def __init__(
+        self,
+        db: "AsyncSession",
+        event_store: "EventStore | None" = None,
+    ):
+        self.db = db
+        self.event_store = event_store
 
-    Example:
-        class CreateDatasetHandler(CommandHandler[CreateDatasetCommand]):
-            async def handle(self, cmd: CreateDatasetCommand) -> Dataset:
-                # Validate, create, emit event, return result
-    """
+    async def emit_event(
+        self,
+        aggregate_type: str,
+        aggregate_id: str,
+        event_type: str,
+        payload: dict[str, Any],
+    ) -> None:
+        """Emit domain event."""
+        if self.event_store:
+            from src.shared.events import EventEnvelope
+
+            await self.event_store.append(
+                EventEnvelope(
+                    aggregate_type=aggregate_type,
+                    aggregate_id=aggregate_id,
+                    event_type=event_type,
+                    payload=payload,
+                )
+            )
 
     @abstractmethod
     async def handle(self, command: T) -> Any:

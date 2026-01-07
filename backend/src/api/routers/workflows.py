@@ -73,11 +73,15 @@ async def list_workflows(
     result = await db.execute(query)
     workflows = result.scalars().all()
 
+    # Calculate page number from offset
+    current_page = (offset // limit) + 1 if limit > 0 else 1
+
     return WorkflowListResponse(
         items=[WorkflowResponse.model_validate(w) for w in workflows],
         total=total,
-        
-        
+        page=current_page,
+        page_size=limit,
+        pages=(total + limit - 1) // limit if total > 0 else 0,
     )
 
 

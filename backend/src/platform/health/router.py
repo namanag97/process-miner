@@ -118,9 +118,11 @@ async def check_database() -> ComponentHealth:
     start = time.perf_counter()
     try:
         # Simple connectivity check with 5-second timeout
-        async with asyncio.timeout(5.0):
+        async def check_db():
             async with async_engine.connect() as conn:
                 await conn.execute(text("SELECT 1"))
+
+        await asyncio.wait_for(check_db(), timeout=5.0)
 
         latency = (time.perf_counter() - start) * 1000
         return ComponentHealth(

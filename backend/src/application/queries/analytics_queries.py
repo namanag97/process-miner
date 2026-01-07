@@ -16,7 +16,7 @@ import duckdb
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.application.queries import BaseQuery, QueryHandler, PaginatedResult
+from src.application.queries import BaseQuery, QueryHandler
 
 
 # =============================================================================
@@ -30,9 +30,8 @@ class GetBottlenecksQuery(BaseQuery):
     
     dataset_id: str
     limit: int = 10
-    
+
     def validate(self) -> None:
-        super().validate()
         if not self.dataset_id:
             raise ValueError("Dataset ID is required")
 
@@ -42,9 +41,8 @@ class GetCycleTimeQuery(BaseQuery):
     """Get cycle time (case duration) statistics."""
     
     dataset_id: str
-    
+
     def validate(self) -> None:
-        super().validate()
         if not self.dataset_id:
             raise ValueError("Dataset ID is required")
 
@@ -52,11 +50,10 @@ class GetCycleTimeQuery(BaseQuery):
 @dataclass
 class GetReworkQuery(BaseQuery):
     """Get rework analysis - repeated activities."""
-    
+
     dataset_id: str
-    
+
     def validate(self) -> None:
-        super().validate()
         if not self.dataset_id:
             raise ValueError("Dataset ID is required")
 
@@ -64,12 +61,11 @@ class GetReworkQuery(BaseQuery):
 @dataclass
 class GetVariantsQuery(BaseQuery):
     """Get process variants (unique activity sequences)."""
-    
+
     dataset_id: str
     min_frequency: int = 1
-    
+
     def validate(self) -> None:
-        super().validate()
         if not self.dataset_id:
             raise ValueError("Dataset ID is required")
 
@@ -77,11 +73,10 @@ class GetVariantsQuery(BaseQuery):
 @dataclass
 class GetDFGQuery(BaseQuery):
     """Get Directly-Follows Graph data."""
-    
+
     dataset_id: str
-    
+
     def validate(self) -> None:
-        super().validate()
         if not self.dataset_id:
             raise ValueError("Dataset ID is required")
 
@@ -221,9 +216,10 @@ class GetBottlenecksHandler(AnalyticsQueryHandlerBase):
         cached = await self.get_cached(query)
         if cached:
             return cached
-        
+
+        assert self.duckdb is not None, "DuckDB connection is required"
         parquet_path = await self.get_parquet_path(query.dataset_id)
-        
+
         # DuckDB query - compute wait times between activities
         sql = f"""
             WITH events AS (
@@ -297,9 +293,10 @@ class GetCycleTimeHandler(AnalyticsQueryHandlerBase):
         cached = await self.get_cached(query)
         if cached:
             return cached
-        
+
+        assert self.duckdb is not None, "DuckDB connection is required"
         parquet_path = await self.get_parquet_path(query.dataset_id)
-        
+
         sql = f"""
             WITH case_times AS (
                 SELECT 
@@ -349,9 +346,10 @@ class GetReworkHandler(AnalyticsQueryHandlerBase):
         cached = await self.get_cached(query)
         if cached:
             return cached
-        
+
+        assert self.duckdb is not None, "DuckDB connection is required"
         parquet_path = await self.get_parquet_path(query.dataset_id)
-        
+
         sql = f"""
             WITH activity_counts AS (
                 SELECT 

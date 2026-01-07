@@ -51,8 +51,9 @@ class GetCycleTimeHandler(QueryHandler[GetCycleTimeQuery, CycleTimeResult]):
     """
 
     def __init__(self, db: AsyncSession, duckdb: DuckDBManager):
+        super().__init__(duckdb_conn=duckdb.get_connection() if duckdb else None)
         self.db = db
-        self.duckdb = duckdb
+        self.duckdb_manager = duckdb
 
     async def handle(self, query: GetCycleTimeQuery) -> CycleTimeResult:
         """Execute cycle time analysis query.
@@ -81,9 +82,9 @@ class GetCycleTimeHandler(QueryHandler[GetCycleTimeQuery, CycleTimeResult]):
         dataset = result.scalar_one_or_none()
 
         if not dataset:
-            raise NotFoundError(f"Dataset {query.dataset_id} not found")
+            raise NotFoundError(resource="Dataset", resource_id=query.dataset_id)
 
-        if not dataset.parquet_path:
+        if not dataset.parquet_s3_key:
             # Return zeros if no parquet data
             return CycleTimeResult(
                 dataset_id=query.dataset_id,
@@ -98,7 +99,7 @@ class GetCycleTimeHandler(QueryHandler[GetCycleTimeQuery, CycleTimeResult]):
         # Query DuckDB for cycle time statistics
         try:
             cycle_time = self._compute_cycle_time(
-                dataset.parquet_path,
+                dataset.parquet_s3_key,
                 query.dataset_id,
                 query.filters,
             )
@@ -123,6 +124,7 @@ class GetCycleTimeHandler(QueryHandler[GetCycleTimeQuery, CycleTimeResult]):
         filters: dict,
     ) -> CycleTimeResult:
         """Compute cycle time statistics using DuckDB SQL."""
+        assert self.duckdb is not None, "DuckDB connection is required"
         # Build filter clause
         where_clause = ""
         if filters:

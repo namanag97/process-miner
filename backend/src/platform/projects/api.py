@@ -14,6 +14,11 @@ from src.features.process_mining.models import Dataset
 from src.features.process_mining.schemas import (
     DatasetResponse,
 )
+from src.platform.core.exceptions import (
+    BadRequestError,
+    NotFoundError,
+    ProcessingError,
+)
 from src.platform.core.logging_config import get_logger
 from src.platform.devconsole import log_error, log_info
 from src.platform.users import Project, Workspace, WorkspaceMember
@@ -220,7 +225,7 @@ async def get_project(
                 error_code="PROJ_NOT_FOUND",
                 project_id=project_id,
             )
-            raise ProjectNotFoundError(project_id=project_id)
+            raise NotFoundError(resource="Project", resource_id=project_id)
         raise
 
     # Get datasets for this project
@@ -294,7 +299,7 @@ async def update_project(
                 error_code="PROJ_NOT_FOUND",
                 project_id=project_id,
             )
-            raise ProjectNotFoundError(project_id=project_id)
+            raise NotFoundError(resource="Project", resource_id=project_id)
         raise
 
     if request.name is not None:
@@ -369,7 +374,7 @@ async def delete_project(
                 error_code="PROJ_NOT_FOUND",
                 project_id=project_id,
             )
-            raise ProjectNotFoundError(project_id=project_id)
+            raise NotFoundError(resource="Project", resource_id=project_id)
         raise
 
     # Get dataset count for logging

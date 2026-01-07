@@ -70,7 +70,7 @@ class IngestDatasetHandler(CommandHandler[IngestDatasetCommand]):
         dataset = result.scalar_one_or_none()
 
         if not dataset:
-            raise NotFoundError(f"Dataset {command.dataset_id} not found")
+            raise NotFoundError(resource="Dataset", resource_id=command.dataset_id)
 
         if dataset.status != DatasetStatus.MAPPED.value:
             raise ValidationError(
@@ -119,7 +119,7 @@ class IngestDatasetHandler(CommandHandler[IngestDatasetCommand]):
 
         if dataset:
             dataset.status = DatasetStatus.READY.value
-            dataset.parquet_path = parquet_path
+            dataset.parquet_s3_key = parquet_path
             dataset.total_events = total_events
             dataset.total_cases = total_cases
             dataset.total_activities = total_activities
