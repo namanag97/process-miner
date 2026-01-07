@@ -39,10 +39,11 @@ from src.api.routers import (
     projects_router,
     quality_metrics_router,
     simulation_router,
+    statistics_router,  # Dataset statistics, cases, variants, events
     # telemetry_router,  # TODO: Create telemetry router
     visualization_router,
     workflows_api_router,
-    workflows_router,
+    # workflows_router,  # REMOVED - legacy broken router, use /operations API instead
     workspaces_router,
 )
 from src.infra.audit.router import router as audit_router
@@ -651,6 +652,8 @@ Headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
     # Datasets Domain Routers
     # =========================================================================
     app.include_router(datasets_router, prefix=settings.api_prefix)
+    # Statistics router provides /{dataset_id}/statistics, /cases, /variants, /activities, /events, /metadata
+    app.include_router(statistics_router, prefix=f"{settings.api_prefix}/datasets", tags=["Datasets"])
 
     # =========================================================================
     # Analysis Domain Routers
@@ -667,7 +670,7 @@ Headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
     app.include_router(simulation_router, prefix=settings.api_prefix)
     app.include_router(ocpm_router, prefix=settings.api_prefix)
     app.include_router(business_use_cases_router, prefix=settings.api_prefix)
-    app.include_router(workflows_router, prefix=settings.api_prefix)
+    # workflows_router REMOVED - was legacy broken router, use /operations API instead
     app.include_router(algorithms_router, prefix=settings.api_prefix)  # Algorithm registry
     app.include_router(quality_metrics_router, prefix=settings.api_prefix)  # Quality metrics
 

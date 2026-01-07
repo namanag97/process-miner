@@ -77,7 +77,9 @@ from src.features.process_mining.schemas.analysis import (
     TieredDFGResponse,
     TrainPredictorRequest,
     UploadedFileResponse,
-    VariantListResponse,
+    # Analytics variants (renamed to avoid conflict with datasets.VariantResponse)
+    AnalyticsVariantListResponse,
+    AnalyticsVariantResponse,
     WorkflowCreateRequest,
     WorkflowResponse,
     WorkflowRunRequest,
@@ -225,7 +227,10 @@ __all__ = [
     "TieredDFGResponse",
     "TrainPredictorRequest",
     "UploadedFileResponse",
-    "VariantListResponse",
+    # Analytics variants (for CQRS queries)
+    "AnalyticsVariantListResponse",
+    "AnalyticsVariantResponse",
+    # Datasets variant (for data exploration)
     "VariantResponse",
     "WorkflowCreateRequest",
     "WorkflowResponse",

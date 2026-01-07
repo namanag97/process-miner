@@ -28,6 +28,8 @@ from src.features.process_mining.schemas.analyses import (
     UploadedFileResponse,
 )
 from src.features.process_mining.schemas.analytics import (
+    AnalyticsVariantListResponse,
+    AnalyticsVariantResponse,
     BottleneckListResponse,
     BottleneckResponse,
     CycleTimeResponse,
@@ -37,7 +39,6 @@ from src.features.process_mining.schemas.analytics import (
     ReworkResponse,
     ServiceTimeResponse,
     ThroughputResponse,
-    VariantListResponse,
 )
 
 # Conformance - Checking and Alignment
@@ -217,7 +218,9 @@ __all__ = [
     # Predictions
     "TrainPredictorRequest",
     "UploadedFileResponse",
-    "VariantListResponse",
+    # Analytics Variants (renamed from VariantListResponse to avoid conflict with datasets.VariantResponse)
+    "AnalyticsVariantListResponse",
+    "AnalyticsVariantResponse",
     "WorkflowCreateRequest",
     "WorkflowResponse",
     "WorkflowRunRequest",

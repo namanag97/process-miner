@@ -132,7 +132,7 @@ async def detect_columns(dataset_id: str, storage_key: str) -> ColumnDetectionRe
     activity.heartbeat("detecting_columns")
 
     try:
-        from src.features.process_mining.services.ingestion.unified import (
+        from src.features.process_mining.ingestion import (
             unified_ingestion_service,
         )
         from src.infra.infrastructure.object_storage import get_storage_client
@@ -271,8 +271,8 @@ async def process_chunk(
 
     try:
         from src.features.process_mining.models import ProcessCase, ProcessEvent
-        from src.features.process_mining.services.ingestion.duckdb import (
-            duckdb_ingestion_service,
+        from src.features.process_mining.ingestion import (
+            duckdb_parser as duckdb_ingestion_service,
         )
         from src.infra.infrastructure.database import async_session_maker
         from src.infra.infrastructure.object_storage import get_storage_client

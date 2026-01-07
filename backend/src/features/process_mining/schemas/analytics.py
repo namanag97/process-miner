@@ -99,12 +99,17 @@ class CycleTimeResponse(BaseModel):
 
 
 # =============================================================================
-# Process Variants
+# Process Variants (Analytics-specific - simple schema for CQRS queries)
 # =============================================================================
 
 
-class VariantResponse(BaseModel):
-    """Single process variant."""
+class AnalyticsVariantResponse(BaseModel):
+    """Single process variant for analytics queries (CQRS read model).
+
+    Note: This is a simpler schema than datasets.VariantResponse.
+    Use this for analytics/performance endpoints.
+    Use datasets.VariantResponse for data exploration endpoints.
+    """
 
     variant_id: int
     activities: list[str] = Field(description="Sequence of activities in this variant")
@@ -112,11 +117,11 @@ class VariantResponse(BaseModel):
     percentage: float = Field(description="Percentage of total cases")
 
 
-class VariantListResponse(BaseModel):
-    """Process variants analysis results."""
+class AnalyticsVariantListResponse(BaseModel):
+    """Process variants analysis results from CQRS query."""
 
     dataset_id: str
-    variants: list[VariantResponse]
+    variants: list[AnalyticsVariantResponse]
     total_variants: int
     total_cases: int
 

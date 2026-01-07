@@ -1,7 +1,7 @@
 # Process Mining SaaS - Backend Makefile
 # Python-specific development commands
 
-.PHONY: help install lint format typecheck security test run dev restart stop clean
+.PHONY: help install lint format typecheck security test run dev restart stop clean check-imports
 
 # Use the virtual environment Python
 PYTHON = .venv/bin/python
@@ -11,19 +11,20 @@ PORT = 8001
 help:
 	@echo "Backend Development Commands"
 	@echo ""
-	@echo "  make install   - Install dependencies"
-	@echo "  make lint      - Run Ruff linter"
-	@echo "  make format    - Format code with Ruff"
-	@echo "  make typecheck - Run mypy type checker"
-	@echo "  make security  - Run Bandit security scanner"
-	@echo "  make test      - Run pytest tests"
-	@echo "  make test-cov  - Run tests with coverage"
-	@echo "  make check     - Run all checks"
+	@echo "  make install      - Install dependencies"
+	@echo "  make lint         - Run Ruff linter"
+	@echo "  make format       - Format code with Ruff"
+	@echo "  make typecheck    - Run mypy type checker"
+	@echo "  make security     - Run Bandit security scanner"
+	@echo "  make check-imports - Check import-linter + canonical paths"
+	@echo "  make test         - Run pytest tests"
+	@echo "  make test-cov     - Run tests with coverage"
+	@echo "  make check        - Run all checks (lint, format, types, security, imports)"
 	@echo ""
-	@echo "  make dev       - Start dev server (auto-restart, kills port first)"
-	@echo "  make run       - Start dev server (simple)"
-	@echo "  make restart   - Restart dev server"
-	@echo "  make stop      - Stop dev server"
+	@echo "  make dev          - Start dev server (auto-restart, kills port first)"
+	@echo "  make run          - Start dev server (simple)"
+	@echo "  make restart      - Restart dev server"
+	@echo "  make stop         - Stop dev server"
 
 install:
 	$(PIP) install -e ".[dev,observability]"
@@ -46,13 +47,19 @@ typecheck:
 security:
 	$(PYTHON) -m bandit -r src/ -c pyproject.toml
 
+check-imports:
+	@echo "🔍 Checking import linter constraints..."
+	.venv/bin/lint-imports
+	@echo "🔍 Checking for deprecated import paths..."
+	$(PYTHON) scripts/check_canonical_imports.py
+
 test:
 	$(PYTHON) -m pytest tests/ -v --tb=short
 
 test-cov:
 	$(PYTHON) -m pytest tests/ -v --cov=src --cov-report=html --cov-report=term
 
-check: lint format-check typecheck security
+check: lint format-check typecheck security check-imports
 	@echo "✅ All checks passed"
 
 run:
@@ -139,17 +146,17 @@ temporal-ui:
 
 temporal-workers:
 	@echo "🏃 Starting Temporal workers..."
-	@$(PYTHON) -m src.platform.temporal.workers.ingestion &
-	@$(PYTHON) -m src.platform.temporal.workers.analysis &
+	@$(PYTHON) -m src.infra.temporal.workers.ingestion &
+	@$(PYTHON) -m src.infra.temporal.workers.analysis &
 	@echo "✅ Workers started (ingestion + analysis)"
 
 temporal-ingestion-worker:
 	@echo "🏃 Starting ingestion worker..."
-	$(PYTHON) -m src.platform.temporal.workers.ingestion
+	$(PYTHON) -m src.infra.temporal.workers.ingestion
 
 temporal-analysis-worker:
 	@echo "🏃 Starting analysis worker..."
-	$(PYTHON) -m src.platform.temporal.workers.analysis
+	$(PYTHON) -m src.infra.temporal.workers.analysis
 
 temporal-stop:
 	@echo "⏹️  Stopping Temporal workers..."

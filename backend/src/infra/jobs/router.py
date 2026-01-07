@@ -275,7 +275,7 @@ async def stream_job_progress(
 
     from fastapi.responses import StreamingResponse
 
-    from src.features.process_mining.services.ingestion.stream import (
+    from src.infra.jobs.stream import (
         EventType,
         SSEEvent,
         event_stream_manager,

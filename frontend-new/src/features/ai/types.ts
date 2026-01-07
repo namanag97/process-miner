@@ -27,7 +27,13 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
-  insights?: ProcessInsight[];
+  insights?: Array<{
+    type: string;
+    title: string;
+    description: string;
+    severity?: 'high' | 'medium' | 'low' | 'info';
+    data?: Record<string, unknown>;
+  }>;
   isLoading?: boolean;
 }
 

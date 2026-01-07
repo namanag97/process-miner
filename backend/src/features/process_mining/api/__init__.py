@@ -1,8 +1,11 @@
-"""Process mining API routers."""
+"""Process mining API routers.
+
+Note: Dataset routers are in src.features.process_mining.datasets.api (canonical path).
+This module re-exports other feature routers for convenience.
+"""
 
 from src.features.process_mining.analyses import router as analyses_router
 from src.features.process_mining.analytics import router as analytics_router
-from src.features.process_mining.api.datasets import router as datasets_router
 from src.features.process_mining.business_use_cases import (
     router as business_use_cases_router,
 )
@@ -20,7 +23,6 @@ __all__ = [
     "analytics_router",
     "business_use_cases_router",
     "conformance_router",
-    "datasets_router",
     "discovery_router",
     "filtering_router",
     "ocpm_router",

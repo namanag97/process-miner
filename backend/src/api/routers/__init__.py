@@ -58,7 +58,10 @@ from src.features.process_mining.predictions import router as predictions_router
 from src.features.process_mining.simulation import router as simulation_router
 from src.features.process_mining.statistics import router as statistics_router
 from src.features.process_mining.visualization import router as visualization_router
-from src.features.process_mining.workflows import router as workflows_router
+
+# Legacy workflows_router removed - was broken, all endpoints threw errors
+# Use /operations API for workflow status and /workflows for database records
+# from src.features.process_mining.workflows import router as workflows_router
 
 # DAG system removed - use Temporal workflows via /operations API
 # from src.infra.dag.router import router as dags_router
@@ -109,6 +112,6 @@ __all__ = [
     # "telemetry_router",  # TODO: Create telemetry router
     "visualization_router",
     "workflows_api_router",
-    "workflows_router",
+    # "workflows_router",  # REMOVED - legacy broken router
     "workspaces_router",
 ]

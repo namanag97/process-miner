@@ -30,14 +30,14 @@ from src.application.queries.analytics_queries import (
 )
 from src.application.queries.get_variants import GetVariantsQuery
 from src.features.process_mining.schemas import (
+    AnalyticsVariantListResponse,
+    AnalyticsVariantResponse,
     BottleneckListResponse,
     BottleneckResponse,
     CycleTimeResponse,
     ReworkListResponse,
     ReworkResponse,
     ThroughputResponse,
-    VariantListResponse,
-    VariantResponse,
 )
 from src.infra.core.logging_config import get_logger
 
@@ -167,26 +167,29 @@ async def get_rework(
     )
 
 
-@router.get("/datasets/{dataset_id}/variants", response_model=VariantListResponse)
+@router.get("/datasets/{dataset_id}/variants", response_model=AnalyticsVariantListResponse)
 async def get_variants(
     dataset_id: str,
     user: CurrentUser,
     query_bus: QueryBusDep,
     top_n: int = 20,
-) -> VariantListResponse:
+) -> AnalyticsVariantListResponse:
     """Get process variants (unique activity sequences).
 
     Uses CQRS QueryBus to dispatch GetVariantsQuery.
+    Returns simplified variant data for analytics dashboards.
+
+    Note: For detailed variant exploration, use GET /datasets/{id}/variants instead.
     """
     logger.info("get_variants", dataset_id=dataset_id, user_id=user.id)
 
     query = GetVariantsQuery(dataset_id=dataset_id, top_n=top_n)
     result = await query_bus.dispatch(query)
 
-    return VariantListResponse(
+    return AnalyticsVariantListResponse(
         dataset_id=dataset_id,
         variants=[
-            VariantResponse(
+            AnalyticsVariantResponse(
                 variant_id=v.variant_id,
                 activities=v.activities,
                 case_count=v.case_count,

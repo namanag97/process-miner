@@ -132,7 +132,7 @@ async def detect_columns(ctx: DAGContext, params: dict[str, Any]) -> TaskResult:
     logger.info("detect_columns_started", dataset_id=dataset_id, run_id=ctx.run_id)
 
     try:
-        from src.features.process_mining.services.ingestion.unified import (
+        from src.features.process_mining.ingestion import (
             unified_ingestion_service,
         )
 
@@ -253,8 +253,8 @@ async def ingest_dataset(ctx: DAGContext, params: dict[str, Any]) -> TaskResult:
         if not file_content:
             return TaskResult.fail("file_content not found")
 
-        from src.features.process_mining.services.ingestion.duckdb import (
-            duckdb_ingestion_service,
+        from src.features.process_mining.ingestion import (
+            duckdb_parser as duckdb_ingestion_service,
         )
 
         # Parse with DuckDB

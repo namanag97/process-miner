@@ -280,3 +280,31 @@ type = "forbidden"
 source_modules = ["src.infra.core"]
 forbidden_modules = ["src.infra.auth", "src.infra.users", "src.infra.workspaces", "src.infra.projects", "src.infra.infrastructure"]
 
+# =============================================================================
+# Anti-Duplication Contracts - Enforce Canonical Import Paths
+# =============================================================================
+# These contracts prevent imports from deprecated/duplicate code paths.
+# Canonical paths:
+#   - Models: src.features.process_mining.models
+#   - Datasets API: src.features.process_mining.datasets.api
+#   - Ingestion: src.features.process_mining.ingestion
+# =============================================================================
+
+# Contract 6: Forbid imports from deprecated api/datasets path (deleted)
+[[tool.importlinter.contracts]]
+name = "No Deprecated API Datasets Path"
+type = "forbidden"
+source_modules = ["src"]
+forbidden_modules = ["src.features.process_mining.api.datasets"]
+
+# Contract 7: Forbid imports from deprecated datasets/models path (deleted)
+[[tool.importlinter.contracts]]
+name = "No Deprecated Datasets Models Path"
+type = "forbidden"
+source_modules = ["src"]
+forbidden_modules = ["src.features.process_mining.datasets.models"]
+
+# Note: Ingestion shim contracts removed due to import-linter "shared descendants" limitation.
+# The custom script (scripts/check_canonical_imports.py) validates canonical import paths instead.
+# Shim modules are scheduled for removal after all external imports are migrated.
+
