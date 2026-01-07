@@ -7,8 +7,7 @@
 
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Button, Space, Typography, Popconfirm, Row, Col, message, Dropdown } from 'antd';
-import type { MenuProps } from 'antd';
+import { Card, Button, Space, Typography, Popconfirm, Row, Col, message, Dropdown, type MenuProps } from 'antd';
 import {
   UploadOutlined,
   DatabaseOutlined,
@@ -27,8 +26,7 @@ import { useProjectDetail, useDeleteProject } from '../hooks';
 import { DataSourcesList } from '../components/DataSourcesList';
 import { SimpleUploadModal } from '../components/SimpleUploadModal';
 import { AnalyzeModal } from '../components/AnalyzeModal';
-import { toDataSources } from '../types';
-import type { DataSourceInfo } from '../types';
+import { toDataSources, type DataSourceInfo } from '../types';
 
 const { Text, Title } = Typography;
 

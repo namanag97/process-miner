@@ -8,7 +8,7 @@
  * - Resource utilization
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation, useSearchParams, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Row, Col, Card, Tabs, Select, Space, Typography, Skeleton, Alert } from 'antd';
@@ -41,7 +41,7 @@ export function AnalyticsPage() {
     queryFn: () => sdk.processes.list({ pageSize: 50 }),
   });
 
-  const logs = logsData?.items ?? [];
+  const logs = useMemo(() => logsData?.items ?? [], [logsData?.items]);
 
   // Read datasetId from URL query param or auto-select first log
   useEffect(() => {

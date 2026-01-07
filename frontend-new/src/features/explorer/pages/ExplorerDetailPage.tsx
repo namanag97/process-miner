@@ -28,32 +28,30 @@ import { tokens, toast, logAction, logError, ErrorBoundary, type ActivityDetail 
 import { createLogger } from '../../../shared/lib/logger';
 
 // Import components
-import { CytoscapeCanvas } from '../components/CytoscapeCanvas';
-import type { ProcessNode, ProcessEdge } from '../components/CytoscapeCanvas';
+import { CytoscapeCanvas, type ProcessNode, type ProcessEdge } from '../components/CytoscapeCanvas';
 import { ProcessKPIBar } from '../components/ProcessKPIBar';
 import { VariantPanel } from '../components/VariantPanel';
 import { ActivityDetailsPanel } from '../components/ActivityDetailsPanel';
 import { EdgeDetailsPanel } from '../components/EdgeDetailsPanel';
 import { FilterPanel } from '../components/FilterPanel';
 import { CaseCoverageGauge } from '../components/CaseCoverageGauge';
-import { ActivitiesPanel } from '../components/ActivitiesPanel';
-import type { ActivityItem } from '../components/ActivitiesPanel';
+import { ActivitiesPanel, type ActivityItem } from '../components/ActivitiesPanel';
 
 // Import hooks - using unified useExplorerData for optimal performance
 import { useExplorerData, useLogDetail } from '../hooks';
 
 // Import types
-import type {
-  DFGNodeData,
-  DFGEdgeData,
-  ProcessedVariant,
-  ProcessKPIs,
-  FilterOptions,
-  AppliedFilter,
-  EdgeDetail,
-  ActivityData,
+import {
+  hasReworkInVariant,
+  type DFGNodeData,
+  type DFGEdgeData,
+  type ProcessedVariant,
+  type ProcessKPIs,
+  type FilterOptions,
+  type AppliedFilter,
+  type EdgeDetail,
+  type ActivityData,
 } from '../types';
-import { hasReworkInVariant } from '../types';
 
 // Import mock data and fallback utilities
 import {

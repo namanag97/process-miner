@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Table, Button, Space, Typography, Tag, Modal, Form, Select, Card, Skeleton } from 'antd';
 import {
@@ -43,7 +43,7 @@ export function PredictionsPage() {
 
   // Data Fetching
   const { data: processesData } = useAIProcesses({});
-  const processes = processesData?.items || [];
+  const processes = useMemo(() => processesData?.items || [], [processesData?.items]);
 
   const [selectedLogId, setSelectedLogId] = useState<string>('');
 

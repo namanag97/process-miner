@@ -114,15 +114,24 @@ function addTraceSpan(span: TraceSpan) {
 // Hook
 // =============================================================================
 
+const DEFAULT_STATE: BackendObservability = {
+  connected: false,
+  metrics: null,
+  lastHeartbeat: null,
+  circuitBreakers: {},
+  errorCount: 0,
+  slowRequests: 0,
+};
+
 /**
  * Hook that connects to backend SSE stream and provides observability data.
- * 
+ *
  * @example
  * const { connected, metrics, circuitBreakers } = useBackendLogs();
- * 
+ *
  * // Show real-time RPS
  * {metrics?.requests_per_second} req/s
- * 
+ *
  * // Show circuit breaker status
  * {circuitBreakers.pm4py === 'open' && <Alert type="warning" />}
  */
@@ -132,16 +141,7 @@ export function useBackendLogs(enabled = true): BackendObservability {
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttempts = useRef(0);
 
-  const defaultState: BackendObservability = {
-    connected: false,
-    metrics: null,
-    lastHeartbeat: null,
-    circuitBreakers: {},
-    errorCount: 0,
-    slowRequests: 0,
-  };
-
-  const [state, setState] = useState<BackendObservability>(defaultState);
+  const [state, setState] = useState<BackendObservability>(DEFAULT_STATE);
 
   const connect = useCallback(() => {
     // Only in development
@@ -350,7 +350,7 @@ export function useBackendLogs(enabled = true): BackendObservability {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
       }
-      setState(defaultState);
+      setState(DEFAULT_STATE);
       return;
     }
 

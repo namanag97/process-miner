@@ -2,11 +2,10 @@
  * WorkspaceHeader - Header component showing workspace context and breadcrumbs
  */
 
-import { Breadcrumb, Dropdown, Space, Typography, theme } from 'antd';
+import { Breadcrumb, Dropdown, Space, Typography, theme, type MenuProps } from 'antd';
 import { HomeOutlined, AppstoreOutlined, DownOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { useWorkspace, type Workspace } from '../../../../shared/context/UserContext';
-import type { MenuProps } from 'antd';
 
 const { Text } = Typography;
 

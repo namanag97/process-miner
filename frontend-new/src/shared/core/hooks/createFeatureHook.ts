@@ -173,14 +173,14 @@ interface OptimisticUpdateConfig<TData, TVariables> {
 
 /**
  * Creates mutation callbacks for optimistic updates
+ * Note: This must be called within a React component/hook context (useQueryClient requirement)
  */
 export function createOptimisticUpdate<TData, TVariables>(
-  config: OptimisticUpdateConfig<TData, TVariables>
+  config: OptimisticUpdateConfig<TData, TVariables>,
+  queryClient: ReturnType<typeof useQueryClient>
 ) {
   return {
     onMutate: async (variables: TVariables) => {
-      const queryClient = useQueryClient();
-
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: config.queryKey });
 
@@ -196,7 +196,6 @@ export function createOptimisticUpdate<TData, TVariables>(
     },
 
     onError: (_err: unknown, _variables: TVariables, context: { previousData?: TData } | undefined) => {
-      const queryClient = useQueryClient();
       // Rollback on error
       if (context?.previousData) {
         queryClient.setQueryData(config.queryKey, context.previousData);
@@ -204,7 +203,6 @@ export function createOptimisticUpdate<TData, TVariables>(
     },
 
     onSettled: () => {
-      const queryClient = useQueryClient();
       // Refetch after mutation
       queryClient.invalidateQueries({ queryKey: config.queryKey });
     },
