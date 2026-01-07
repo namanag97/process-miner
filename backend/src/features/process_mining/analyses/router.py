@@ -31,7 +31,7 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
-from src.api.dependencies import DBSession
+from src.api.dependencies import ReadDBSession
 from src.features.process_mining.models import Analysis, AnalysisStatus, Dataset
 from src.features.process_mining.schemas import (
     AnalysisCreateRequest,
@@ -86,7 +86,7 @@ def _analysis_to_response(analysis: Analysis) -> AnalysisResponse:
 
 @router.post("", response_model=AnalysisResponse, status_code=202)
 async def create_analysis(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
     request: AnalysisCreateRequest,
 ) -> AnalysisResponse:
@@ -141,7 +141,7 @@ async def create_analysis(
 
 @router.get("", response_model=AnalysisListResponse)
 async def list_analyses(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str | None = Query(None, description="Filter by event log ID"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -178,7 +178,7 @@ async def list_analyses(
 
 @router.get("/{analysis_id}", response_model=AnalysisDetailResponse)
 async def get_analysis(
-    db: DBSession,
+    db: ReadDBSession,
     analysis_id: str,
     include_results: bool = Query(True, description="Include full DFG/variants/statistics"),
 ) -> AnalysisDetailResponse:
@@ -253,7 +253,7 @@ async def get_analysis(
 
 @router.delete("/{analysis_id}", status_code=204)
 async def delete_analysis(
-    db: DBSession,
+    db: ReadDBSession,
     analysis_id: str,
 ) -> None:
     """
@@ -278,7 +278,7 @@ async def delete_analysis(
 
 @router.get("/log/{dataset_id}", response_model=list[AnalysisResponse])
 async def list_analyses_for_log(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
 ) -> list[AnalysisResponse]:
     """

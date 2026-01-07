@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Query
 
-from src.api.dependencies import CurrentUser, DBSession
+from src.api.dependencies import CurrentUser
 from src.features.process_mining.models import DatasetStatus
 from src.features.process_mining.schemas.analysis import JobStatusResponse
 from src.features.process_mining.schemas.datasets import DownloadResponse
@@ -54,7 +54,7 @@ Returns job ID to track export progress.
     },
 )
 async def export_dataset(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
     user: CurrentUser,
     export_format: str = Query("csv", pattern=r"^(csv|xes|parquet)$"),
@@ -119,7 +119,7 @@ Returns a temporary URL that expires after 1 hour.
     },
 )
 async def download_original_file(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
     user: CurrentUser,
 ) -> DownloadResponse:

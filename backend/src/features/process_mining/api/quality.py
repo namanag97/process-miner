@@ -6,7 +6,7 @@ API endpoints for computing and retrieving process model quality metrics.
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
-from src.api.dependencies import CurrentUser, DBSession
+from src.api.dependencies import CurrentUser
 from src.features.process_mining.services.quality_service import QualityService
 from src.platform.core.exceptions import ResourceNotFoundError
 from src.platform.core.logging_config import get_logger
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/models", tags=["Quality Metrics"])
 
 @router.post("/{model_id}/evaluate")
 async def evaluate_model(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     model_id: str,
     dataset_id: str = Query(..., description="Dataset to evaluate against"),
@@ -62,7 +62,7 @@ async def evaluate_model(
 
 @router.get("/{model_id}/metrics")
 async def get_model_metrics(
-    db: DBSession,
+    db: ReadDBSession,
     model_id: str,
 ):
     """Get stored quality metrics for a process model.

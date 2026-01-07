@@ -9,7 +9,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 
-from src.api.dependencies import CurrentUser, DBSession, ServiceContainer
+from src.api.dependencies import CurrentUser, ServiceContainer
 from src.features.process_mining.enums import MinerType
 from src.features.process_mining.models import Dataset, DatasetStatus, ProcessModel
 from src.features.process_mining.schemas import (
@@ -49,7 +49,7 @@ async def list_miners(container: ServiceContainer):
 
 @router.post("/discover")
 async def discover_model(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     container: ServiceContainer,
     request: DiscoverRequest,
@@ -193,7 +193,7 @@ async def discover_model(
 
 @router.get("/models", response_model=ModelListResponse)
 async def list_models(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -236,7 +236,7 @@ async def list_models(
 
 
 @router.get("/models/{model_id}", response_model=ModelResponse)
-async def get_model(db: DBSession, user: CurrentUser, model_id: str):
+async def get_model(db: ReadDBSession, user: CurrentUser, model_id: str):
     """Get details of a discovered process model."""
     model = (
         await db.execute(select(ProcessModel).where(ProcessModel.id == model_id))
@@ -256,7 +256,7 @@ async def get_model(db: DBSession, user: CurrentUser, model_id: str):
 
 
 @router.delete("/models/{model_id}")
-async def delete_model(db: DBSession, user: CurrentUser, model_id: str):
+async def delete_model(db: ReadDBSession, user: CurrentUser, model_id: str):
     """Delete a discovered process model.
 
     Requires DATASET_UPDATE permission on the model's dataset.

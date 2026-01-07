@@ -40,7 +40,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Path, Query
 from sqlalchemy import func, select, update
 
-from src.api.dependencies import CurrentUser, DBSession
+from src.api.dependencies import CurrentUser, ReadDBSession
 from src.features.process_mining.models import Dataset
 from src.features.process_mining.schemas import DatasetResponse
 from src.platform.core.exceptions import ConflictError
@@ -88,7 +88,7 @@ def _dataset_to_response(dataset: Dataset) -> DatasetResponse:
 
 @router.post("", response_model=ProjectResponse, status_code=201)
 async def create_project(
-    db: DBSession,
+    db: ReadDBSession,
     request: ProjectCreateRequest,
     user: CurrentUser,
     workspace_id: str = Query(..., description="Workspace ID to associate project with (required)"),
@@ -132,7 +132,7 @@ async def create_project(
 
 @router.get("", response_model=ProjectListResponse)
 async def list_projects(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
@@ -208,7 +208,7 @@ async def list_projects(
 
 @router.get("/{project_id}", response_model=ProjectDetailResponse)
 async def get_project(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     project_id: str = Path(..., description="Project ID (UUID format)"),
 ) -> ProjectDetailResponse:
@@ -248,7 +248,7 @@ async def get_project(
 
 @router.put("/{project_id}", response_model=ProjectResponse)
 async def update_project(
-    db: DBSession,
+    db: ReadDBSession,
     request: ProjectUpdateRequest,
     user: CurrentUser,
     project_id: str = Path(..., description="Project ID (UUID format)"),
@@ -286,7 +286,7 @@ async def update_project(
 
 @router.delete("/{project_id}", status_code=204)
 async def delete_project(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     project_id: str = Path(..., description="Project ID (UUID format)"),
 ) -> None:
@@ -324,7 +324,7 @@ async def delete_project(
 
 @router.post("/{project_id}/files/{dataset_id}", response_model=ProjectDetailResponse)
 async def add_file_to_project(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     project_id: str = Path(..., description="Project ID (UUID format)"),
     dataset_id: str = Path(..., description="Dataset ID (UUID format)"),
@@ -375,7 +375,7 @@ async def add_file_to_project(
 
 @router.delete("/{project_id}/files/{dataset_id}", status_code=204)
 async def remove_file_from_project(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     project_id: str = Path(..., description="Project ID (UUID format)"),
     dataset_id: str = Path(..., description="Dataset ID (UUID format)"),
@@ -432,7 +432,7 @@ async def remove_file_from_project(
 
 @router.post("/{project_id}/archive", response_model=ProjectResponse)
 async def archive_project(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     project_id: str = Path(..., description="Project ID (UUID format)"),
 ) -> ProjectResponse:
@@ -479,7 +479,7 @@ async def archive_project(
 
 @router.post("/{project_id}/restore", response_model=ProjectResponse)
 async def restore_project(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     project_id: str = Path(..., description="Project ID (UUID format)"),
 ) -> ProjectResponse:

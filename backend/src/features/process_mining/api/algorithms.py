@@ -5,7 +5,7 @@ API endpoints for querying algorithm metadata and recommendations.
 
 from fastapi import APIRouter, Query
 
-from src.api.dependencies import DBSession
+from src.api.dependencies import ReadDBSession
 from src.features.process_mining.services.algorithm_registry_service import AlgorithmRegistryService
 from src.platform.core.exceptions import ResourceNotFoundError
 from src.platform.core.logging_config import get_logger
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/algorithms", tags=["Algorithms"])
 
 @router.get("")
 async def list_algorithms(
-    db: DBSession,
+    db: ReadDBSession,
     category: str | None = Query(
         None, description="Filter by category (discovery, conformance, declarative, enhancement)"
     ),
@@ -45,7 +45,7 @@ async def list_algorithms(
 
 @router.get("/recommend")
 async def recommend_algorithm(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str = Query(..., description="Dataset to analyze for recommendation"),
     use_case: str | None = Query(
         None, description="Optimization goal: quick, quality, noisy, declarative"
@@ -69,7 +69,7 @@ async def recommend_algorithm(
 
 @router.get("/{algorithm_id}")
 async def get_algorithm(
-    db: DBSession,
+    db: ReadDBSession,
     algorithm_id: str,
 ):
     """Get detailed information about a specific algorithm.
@@ -90,7 +90,7 @@ async def get_algorithm(
 
 @router.get("/{algorithm_id}/parameters")
 async def get_algorithm_parameters(
-    db: DBSession,
+    db: ReadDBSession,
     algorithm_id: str,
 ):
     """Get parameters for a specific algorithm.

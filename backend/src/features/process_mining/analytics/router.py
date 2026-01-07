@@ -34,7 +34,6 @@ Results are cached for 1 hour. Subsequent calls return cached data.
 
 from fastapi import APIRouter
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import CurrentUser, ReadDBSession, ServiceContainer
 from src.features.process_mining.models import Dataset

@@ -47,7 +47,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import ValidationError
 from sqlalchemy import func, select
 
-from src.api.dependencies import DBSession, ServiceContainer
+from src.api.dependencies import ReadDBSession, ServiceContainer
 from src.features.process_mining.enums import ConformanceMethod, ModelFormat
 from src.features.process_mining.models import (
     ConformanceResult,
@@ -76,7 +76,7 @@ router = APIRouter(prefix="/conformance", tags=["Conformance"])
 # =============================================================================
 
 
-async def _get_dataset_or_404(db: DBSession, dataset_id: str) -> Dataset:
+async def _get_dataset_or_404(db: ReadDBSession, dataset_id: str) -> Dataset:
     """Get dataset or raise 404."""
     result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
@@ -85,7 +85,7 @@ async def _get_dataset_or_404(db: DBSession, dataset_id: str) -> Dataset:
     return dataset
 
 
-async def _get_model_or_404(db: DBSession, model_id: str) -> ProcessModel:
+async def _get_model_or_404(db: ReadDBSession, model_id: str) -> ProcessModel:
     """Get process model or raise 404."""
     result = await db.execute(select(ProcessModel).where(ProcessModel.id == model_id))
     model = result.scalar_one_or_none()
@@ -104,7 +104,7 @@ async def _get_model_or_404(db: DBSession, model_id: str) -> ProcessModel:
 @router.post("/check", response_model=ConformanceResponse)
 async def check_conformance(
     request: ConformanceCheckRequest,
-    db: DBSession,
+    db: ReadDBSession,
     container: ServiceContainer,
     auto_discover: bool = Query(False, description="Auto-discover model if model_id not provided"),
 ):
@@ -181,7 +181,7 @@ async def check_conformance(
 
 @router.get("/results", response_model=ConformanceListResponse)
 async def list_conformance_results(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str | None = Query(None),
     model_id: str | None = Query(None),
     page: int = Query(1, ge=1),
@@ -230,7 +230,7 @@ async def list_conformance_results(
 
 
 @router.get("/results/{result_id}", response_model=ConformanceResponse)
-async def get_conformance_result(result_id: str, db: DBSession):
+async def get_conformance_result(result_id: str, db: ReadDBSession):
     """Get a specific conformance check result."""
     result = await db.execute(select(ConformanceResult).where(ConformanceResult.id == result_id))
     record = result.scalar_one_or_none()
@@ -254,7 +254,7 @@ async def get_conformance_result(result_id: str, db: DBSession):
 
 
 @router.delete("/results/{result_id}")
-async def delete_conformance_result(result_id: str, db: DBSession):
+async def delete_conformance_result(result_id: str, db: ReadDBSession):
     """Delete a conformance check result."""
     result = await db.execute(select(ConformanceResult).where(ConformanceResult.id == result_id))
     record = result.scalar_one_or_none()
@@ -269,7 +269,7 @@ async def delete_conformance_result(result_id: str, db: DBSession):
 async def get_conformance_diagnostics(
     dataset_id: str,
     model_id: str,
-    db: DBSession,
+    db: ReadDBSession,
     container: ServiceContainer,
 ):
     """Get detailed conformance diagnostics for a log-model pair."""
@@ -297,7 +297,7 @@ async def get_conformance_diagnostics(
 async def get_deviations(
     dataset_id: str,
     model_id: str,
-    db: DBSession,
+    db: ReadDBSession,
     container: ServiceContainer,
     threshold: float = Query(0.8, ge=0.0, le=1.0),
 ):
@@ -324,7 +324,7 @@ async def get_deviations(
 async def get_alignment_diagnostics(
     dataset_id: str,
     model_id: str,
-    db: DBSession,
+    db: ReadDBSession,
     container: ServiceContainer,
     max_cases: int = Query(100, ge=1, le=1000),
 ):
@@ -377,7 +377,7 @@ async def list_conformance_methods():
 async def get_quality_metrics(
     dataset_id: str,
     model_id: str,
-    db: DBSession,
+    db: ReadDBSession,
     container: ServiceContainer,
 ):
     """Get full quality metrics for a log-model pair (fitness, precision, generalization, simplicity)."""
@@ -409,7 +409,7 @@ async def get_quality_metrics(
 
 @router.post("/import-model")
 async def import_reference_model(
-    db: DBSession,
+    db: ReadDBSession,
     container: ServiceContainer,
     project_id: str = Query(..., description="Project ID to store the model under"),
     model_name: str = Query(..., description="Name for the imported model"),
@@ -485,7 +485,7 @@ async def import_reference_model(
 async def get_root_cause_analysis(
     dataset_id: str,
     model_id: str,
-    db: DBSession,
+    db: ReadDBSession,
     container: ServiceContainer,
     attributes: str = Query(
         "resource", description="Comma-separated list of attributes to analyze"
@@ -518,7 +518,7 @@ async def get_root_cause_analysis(
 async def get_deviations_by_activity(
     dataset_id: str,
     model_id: str,
-    db: DBSession,
+    db: ReadDBSession,
 ):
     """Get deviation aggregation by activity."""
     from src.features.process_mining.services.root_cause import root_cause_analyzer
@@ -536,7 +536,7 @@ async def get_deviations_by_activity(
 async def get_deviations_by_position(
     dataset_id: str,
     model_id: str,
-    db: DBSession,
+    db: ReadDBSession,
 ):
     """Get deviation aggregation by position in trace."""
     from src.features.process_mining.services.root_cause import root_cause_analyzer
@@ -554,7 +554,7 @@ async def get_deviations_by_position(
 async def get_attribute_correlation(
     dataset_id: str,
     model_id: str,
-    db: DBSession,
+    db: ReadDBSession,
     attribute: str = Query("resource", description="Attribute to analyze"),
 ):
     """Analyze correlation between case attributes and conformance deviations."""

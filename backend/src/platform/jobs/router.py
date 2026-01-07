@@ -37,7 +37,7 @@ Jobs have a lifecycle: `pending → queued → running → completed/failed/canc
 from fastapi import APIRouter, Path, Query, Request
 from sqlalchemy import func, select
 
-from src.api.dependencies import DBSession
+from src.api.dependencies import ReadDBSession
 from src.features.process_mining.schemas import JobStatusResponse
 from src.platform.core.enums import JobStatus, JobType
 from src.platform.core.exceptions import NotFoundError
@@ -97,7 +97,7 @@ def _validate_job_status(status: str | None) -> str | None:
 
 @router.get("", response_model=JobListResponse)
 async def list_jobs(
-    db: DBSession,
+    db: ReadDBSession,
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
     job_type: str | None = Query(
@@ -162,7 +162,7 @@ async def list_jobs(
 
 @router.get("/{job_id}", response_model=JobStatusResponse)
 async def get_job_status(
-    db: DBSession,
+    db: ReadDBSession,
     job_id: str = Path(..., description="Job ID (UUID format)"),
 ) -> JobStatusResponse:
     """
@@ -187,7 +187,7 @@ async def get_job_status(
 
 @router.delete("/{job_id}", response_model=JobCancelResponse)
 async def cancel_job(
-    db: DBSession,
+    db: ReadDBSession,
     job_id: str = Path(..., description="Job ID (UUID format)"),
 ) -> JobCancelResponse:
     """
@@ -251,7 +251,7 @@ async def cancel_job(
 
 @router.get("/{job_id}/stream")
 async def stream_job_progress(
-    db: DBSession,
+    db: ReadDBSession,
     request: Request,
     job_id: str = Path(..., description="Job ID (UUID format)"),
 ):
@@ -371,7 +371,7 @@ async def stream_job_progress(
 
 @router.get("/{job_id}/logs", response_model=JobLogsResponse)
 async def get_job_logs(
-    db: DBSession,
+    db: ReadDBSession,
     job_id: str = Path(..., description="Job ID (UUID format)"),
     limit: int = Query(100, ge=1, le=1000, description="Max log entries to return"),
     level: str | None = Query(None, description="Filter by log level (info, warn, error)"),

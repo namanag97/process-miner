@@ -40,7 +40,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Path, Query, status
 from sqlalchemy import func, select
 
-from src.api.dependencies import CurrentUser, DBSession
+from src.api.dependencies import CurrentUser, ReadDBSession
 from src.platform.core.exceptions import (
     AuthorizationError,
     NotFoundError,
@@ -119,7 +119,7 @@ async def _require_org_permission(
 
 @router.get("/", response_model=OrganizationListResponse)
 async def list_organizations(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -150,7 +150,7 @@ async def list_organizations(
 @router.post("/", response_model=OrganizationResponse, status_code=status.HTTP_201_CREATED)
 async def create_organization(
     request: OrganizationCreateRequest,
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
 ) -> OrganizationResponse:
     """Create new organization."""
@@ -184,7 +184,7 @@ async def create_organization(
 
 @router.get("/{org_id}", response_model=OrganizationResponse)
 async def get_organization(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     org_id: str = Path(..., description="Organization ID"),
 ) -> OrganizationResponse:
@@ -196,7 +196,7 @@ async def get_organization(
 @router.put("/{org_id}", response_model=OrganizationResponse)
 async def update_organization(
     request: OrganizationUpdateRequest,
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     org_id: str = Path(..., description="Organization ID"),
 ) -> OrganizationResponse:
@@ -216,7 +216,7 @@ async def update_organization(
 
 @router.delete("/{org_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_organization(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     org_id: str = Path(..., description="Organization ID"),
 ) -> None:
@@ -243,7 +243,7 @@ async def delete_organization(
 
 @router.get("/{org_id}/members", response_model=MemberListResponse)
 async def list_members(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     org_id: str = Path(..., description="Organization ID"),
 ) -> MemberListResponse:
@@ -270,7 +270,7 @@ async def list_members(
 @router.post("/{org_id}/members/invite", response_model=MemberResponse)
 async def invite_member(
     request: InviteMemberRequest,
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     org_id: str = Path(..., description="Organization ID"),
 ) -> MemberResponse:
@@ -332,7 +332,7 @@ async def invite_member(
 
 @router.delete("/{org_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_member(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     org_id: str = Path(..., description="Organization ID"),
     user_id: str = Path(..., description="User ID to remove"),
@@ -359,7 +359,7 @@ async def remove_member(
 @router.put("/{org_id}/members/{user_id}/role", response_model=MemberResponse)
 async def update_member_role(
     request: UpdateRoleRequest,
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     org_id: str = Path(..., description="Organization ID"),
     user_id: str = Path(..., description="User ID"),
@@ -400,7 +400,7 @@ async def update_member_role(
 
 @router.get("/{org_id}/billing", response_model=BillingResponse)
 async def get_billing(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     org_id: str = Path(..., description="Organization ID"),
 ) -> BillingResponse:
@@ -416,7 +416,7 @@ async def get_billing(
 
 @router.get("/{org_id}/usage", response_model=UsageResponse)
 async def get_usage(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     org_id: str = Path(..., description="Organization ID"),
 ) -> UsageResponse:

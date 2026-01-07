@@ -8,7 +8,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, select
 
-from src.api.dependencies import DBSession
+from src.api.dependencies import ReadDBSession
 from src.platform.core.logging_config import get_logger
 from src.platform.devconsole import log_error, log_info
 from src.platform.models import Project, Workspace
@@ -53,7 +53,7 @@ def _project_to_response(project: Project) -> ProjectResponse:
 
 @router.get("", response_model=WorkspaceListResponse)
 async def list_workspaces(
-    db: DBSession,
+    db: ReadDBSession,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     org_id: str | None = Query(None, description="Filter by organization ID"),
@@ -93,7 +93,7 @@ async def list_workspaces(
 
 @router.get("/{workspace_id}", response_model=WorkspaceDetailResponse)
 async def get_workspace(
-    db: DBSession,
+    db: ReadDBSession,
     workspace_id: str,
 ) -> WorkspaceDetailResponse:
     """
@@ -153,7 +153,7 @@ async def get_workspace(
 
 @router.post("", response_model=WorkspaceResponse, status_code=201)
 async def create_workspace(
-    db: DBSession,
+    db: ReadDBSession,
     request: WorkspaceCreateRequest,
     org_id: str = Query(..., description="Organization ID for the workspace"),
 ) -> WorkspaceResponse:
@@ -211,7 +211,7 @@ async def create_workspace(
 
 @router.put("/{workspace_id}", response_model=WorkspaceResponse)
 async def update_workspace(
-    db: DBSession,
+    db: ReadDBSession,
     workspace_id: str,
     request: WorkspaceUpdateRequest,
 ) -> WorkspaceResponse:
@@ -294,7 +294,7 @@ async def update_workspace(
 
 @router.delete("/{workspace_id}", status_code=204)
 async def delete_workspace(
-    db: DBSession,
+    db: ReadDBSession,
     workspace_id: str,
 ) -> None:
     """
@@ -382,7 +382,7 @@ async def delete_workspace(
 
 @router.post("/{workspace_id}/projects/{project_id}", response_model=WorkspaceDetailResponse)
 async def add_project_to_workspace(
-    db: DBSession,
+    db: ReadDBSession,
     workspace_id: str,
     project_id: str,
 ) -> WorkspaceDetailResponse:
@@ -409,7 +409,7 @@ async def add_project_to_workspace(
 
 @router.delete("/{workspace_id}/projects/{project_id}", status_code=204)
 async def remove_project_from_workspace(
-    db: DBSession,
+    db: ReadDBSession,
     workspace_id: str,
     project_id: str,
 ) -> None:

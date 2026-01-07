@@ -43,7 +43,7 @@ from typing import Any
 from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 
-from src.api.dependencies import CurrentUser, DBSession
+from src.api.dependencies import CurrentUser
 from src.features.process_mining.models import Dataset
 from src.features.process_mining.schemas.datasets import (
     DatasetDetailResponse,
@@ -66,7 +66,7 @@ router = APIRouter()
     description="List all datasets with pagination and filtering.",
 )
 async def list_datasets(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -171,7 +171,7 @@ async def list_datasets(
     description="Get detailed information about a dataset.",
 )
 async def get_dataset(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
     user: CurrentUser,
 ) -> DatasetDetailResponse:
@@ -277,7 +277,7 @@ async def get_dataset(
     },
 )
 async def delete_dataset(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
     user: CurrentUser,
 ) -> dict[str, Any]:

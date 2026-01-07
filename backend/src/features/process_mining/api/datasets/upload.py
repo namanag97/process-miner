@@ -12,7 +12,7 @@ from uuid import uuid4
 import aiofiles
 from fastapi import APIRouter, File, Form, Request, Response, UploadFile
 
-from src.api.dependencies import CurrentUser, DBSession
+from src.api.dependencies import CurrentUser
 from src.features.process_mining.models import Dataset, DatasetStatus, UploadedFile
 from src.features.process_mining.schemas import (
     DatasetResponse,
@@ -160,7 +160,7 @@ async def create_presigned_upload(
     request: Request,
     response: Response,
     body: PresignedUploadRequest,
-    db: DBSession,
+    db: ReadDBSession,
     current_user: CurrentUser,
 ) -> PresignedUploadResponse:
     """Generate presigned URL for direct client-to-S3 upload.
@@ -260,7 +260,7 @@ Call this after successfully uploading to the presigned URL.
 )
 async def confirm_upload_complete(
     dataset_id: str,
-    db: DBSession,
+    db: ReadDBSession,
     current_user: CurrentUser,
 ) -> dict:
     """Trigger validation after S3 upload complete."""
@@ -348,7 +348,7 @@ For large files (> 50MB), use the presigned upload flow.
     },
 )
 async def upload_dataset(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     file: UploadFile = File(...),
     name: str | None = Form(None),

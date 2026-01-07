@@ -35,7 +35,7 @@ import time
 from fastapi import APIRouter, HTTPException, Query, Response
 from sqlalchemy import select
 
-from src.api.dependencies import DBSession, ServiceContainer
+from src.api.dependencies import ReadDBSession, ServiceContainer
 from src.features.process_mining.enums import ModelFormat
 from src.features.process_mining.models import Dataset, DatasetStatus, ProcessModel
 from src.features.process_mining.schemas import (
@@ -64,7 +64,7 @@ router = APIRouter(prefix="/visualization", tags=["Visualization"])
 
 @router.get("/{dataset_id}/dfg", response_model=DFGResponse)
 async def get_dfg(
-    db: DBSession,
+    db: ReadDBSession,
     container: ServiceContainer,
     dataset_id: str,
     include_performance: bool = Query(
@@ -136,7 +136,7 @@ async def get_dfg(
 
 @router.get("/models/{model_id}/petri", response_model=PetriNetResponse)
 async def get_petri_net(
-    db: DBSession,
+    db: ReadDBSession,
     container: ServiceContainer,
     model_id: str,
 ):
@@ -220,7 +220,7 @@ async def get_petri_net(
 
 @router.get("/models/{model_id}/svg")
 async def get_model_svg(
-    db: DBSession,
+    db: ReadDBSession,
     container: ServiceContainer,
     model_id: str,
 ):
@@ -267,7 +267,7 @@ async def get_model_svg(
 
 @router.get("/{dataset_id}/dfg/svg")
 async def get_dfg_svg(
-    db: DBSession,
+    db: ReadDBSession,
     container: ServiceContainer,
     dataset_id: str,
 ):
@@ -317,7 +317,7 @@ async def get_dfg_svg(
 
 @router.get("/{dataset_id}/footprints")
 async def get_footprints(
-    db: DBSession,
+    db: ReadDBSession,
     container: ServiceContainer,
     dataset_id: str,
 ):
@@ -357,7 +357,7 @@ async def get_footprints(
 
 @router.get("/{dataset_id}/explorer-data", response_model=ProcessExplorerDataResponse)
 async def get_explorer_data(
-    db: DBSession,
+    db: ReadDBSession,
     container: ServiceContainer,
     dataset_id: str,
     include_performance: bool = Query(True, description="Include performance metrics in DFG edges"),

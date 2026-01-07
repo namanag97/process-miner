@@ -11,7 +11,7 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel
 from sqlalchemy import func, select, text
 
-from src.api.dependencies import CurrentUser, DBSession
+from src.api.dependencies import CurrentUser
 from src.features.process_mining.models import ProcessCase, ProcessEvent
 from src.features.process_mining.schemas import (
     ActivityDetailResponse,
@@ -36,7 +36,7 @@ router = APIRouter()
     description="Get comprehensive statistics for a dataset.",
 )
 async def get_statistics(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
     user: CurrentUser,
 ) -> StatisticsResponse:
@@ -75,7 +75,7 @@ async def get_statistics(
     description="List cases/traces in a dataset with pagination.",
 )
 async def list_cases(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
     user: CurrentUser,
     page: int = Query(1, ge=1),
@@ -147,7 +147,7 @@ async def list_cases(
     description="Get unique activity sequences (variants) with frequencies.",
 )
 async def get_variants(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
     user: CurrentUser,
     top_n: int | None = Query(None, ge=1, le=100),
@@ -212,7 +212,7 @@ async def get_variants(
     description="Get detailed statistics for each activity.",
 )
 async def get_activities(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
     user: CurrentUser,
     sort_by: str | None = Query(None, description="Sort by: frequency, duration"),
@@ -305,7 +305,7 @@ Use this to browse individual events in the event log.
     """,
 )
 async def list_events(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
     user: CurrentUser,
     page: int = Query(1, ge=1),
@@ -388,7 +388,7 @@ Includes aggregated statistics computed during ingestion.
     """,
 )
 async def get_metadata(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
     user: CurrentUser,
 ) -> MetadataResponse:

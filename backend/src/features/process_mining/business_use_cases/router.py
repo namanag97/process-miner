@@ -15,7 +15,7 @@ import time
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
 
-from src.api.dependencies import DBSession
+from src.api.dependencies import ReadDBSession
 from src.features.process_mining.business_use_cases.service import business_use_cases
 from src.features.process_mining.models import Dataset, ProcessModel
 from src.platform.core.logging_config import get_logger
@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/business", tags=["Business Use Cases"])
 
 
-async def _get_dataset_or_404(db: DBSession, dataset_id: str) -> Dataset:
+async def _get_dataset_or_404(db: ReadDBSession, dataset_id: str) -> Dataset:
     """Get dataset or raise 404."""
     result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
@@ -34,7 +34,7 @@ async def _get_dataset_or_404(db: DBSession, dataset_id: str) -> Dataset:
     return dataset
 
 
-async def _get_model_or_404(db: DBSession, model_id: str) -> ProcessModel:
+async def _get_model_or_404(db: ReadDBSession, model_id: str) -> ProcessModel:
     """Get process model or raise 404."""
     result = await db.execute(select(ProcessModel).where(ProcessModel.id == model_id))
     model = result.scalar_one_or_none()
@@ -52,7 +52,7 @@ async def _get_model_or_404(db: DBSession, model_id: str) -> ProcessModel:
 async def detect_p2p_mavericks(
     dataset_id: str,
     reference_model_id: str,
-    db: DBSession,
+    db: ReadDBSession,
     threshold: float = Query(0.8, description="Fitness threshold (0-1)"),
 ):
     """Detect maverick purchasing behavior in P2P process."""
@@ -70,7 +70,7 @@ async def detect_p2p_mavericks(
 async def generate_p2p_audit_report(
     dataset_id: str,
     reference_model_id: str,
-    db: DBSession,
+    db: ReadDBSession,
 ):
     """Generate comprehensive P2P audit report."""
     start_time = time.perf_counter()
@@ -96,7 +96,7 @@ async def generate_p2p_audit_report(
 @router.get("/o2c/split-log/{dataset_id}")
 async def split_log_by_attribute(
     dataset_id: str,
-    db: DBSession,
+    db: ReadDBSession,
     attribute: str = Query(..., description="Attribute to split on"),
     value: str = Query(..., description="Value to filter for"),
 ):
@@ -114,7 +114,7 @@ async def split_log_by_attribute(
 async def compare_process_variants(
     dataset_id1: str,
     dataset_id2: str,
-    db: DBSession,
+    db: ReadDBSession,
     log1_name: str = Query("Group A"),
     log2_name: str = Query("Group B"),
 ):
@@ -139,7 +139,7 @@ async def compare_process_variants(
 @router.post("/supply-chain/simulate/{dataset_id}")
 async def simulate_process_changes(
     dataset_id: str,
-    db: DBSession,
+    db: ReadDBSession,
     activity_duration_reduction: float = Query(0, description="Activity duration reduction (0-1)"),
     capacity_increase: float = Query(0, description="Capacity increase (0-1)"),
     num_simulations: int = Query(1000, description="Number of Monte Carlo iterations"),
@@ -168,7 +168,7 @@ async def simulate_process_changes(
 @router.get("/customer-journey/dropoffs/{dataset_id}")
 async def detect_journey_dropoffs(
     dataset_id: str,
-    db: DBSession,
+    db: ReadDBSession,
     expected_path: str | None = Query(None, description="Expected journey path (comma-separated)"),
 ):
     """Detect drop-offs in customer journey funnel."""
