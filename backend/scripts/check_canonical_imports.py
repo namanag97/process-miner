@@ -8,12 +8,15 @@ Canonical import paths:
 - Models: src.features.process_mining.models
 - Datasets API: src.features.process_mining.datasets.api
 - Ingestion: src.features.process_mining.ingestion
+- SSE Streaming: src.infra.jobs.stream
 
 Deprecated paths (should not be imported from):
 - src.features.process_mining.api.datasets (deleted - was duplicate of datasets.api)
 - src.features.process_mining.datasets.models (deleted - was duplicate of models)
 - src.features.process_mining.services.ingestion (shim - use ingestion directly)
 - src.features.process_mining.datasets.services.ingestion (shim - use ingestion directly)
+- src.features.process_mining.services.ingestion.stream (shim - use infra.jobs.stream)
+- src.features.process_mining.datasets.services.ingestion.stream (shim - use infra.jobs.stream)
 """
 
 import subprocess
@@ -28,6 +31,15 @@ DEPRECATED_PATHS = [
     (
         "src.features.process_mining.datasets.services.ingestion",
         "src.features.process_mining.ingestion",
+    ),
+    # SSE Event Stream Manager - canonical location is infra/jobs/stream
+    (
+        "src.features.process_mining.services.ingestion.stream",
+        "src.infra.jobs.stream",
+    ),
+    (
+        "src.features.process_mining.datasets.services.ingestion.stream",
+        "src.infra.jobs.stream",
     ),
 ]
 

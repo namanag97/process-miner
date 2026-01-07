@@ -66,9 +66,23 @@ class HeuristicsMiner:
     """Heuristics Miner - Frequency-based, handles noise well."""
 
     @staticmethod
-    def discover(log: PM4PyLog) -> tuple[PetriNet, Marking, Marking]:
-        """Discover Petri net using Heuristics Miner."""
-        return pm4py.discover_petri_net_heuristics(log)
+    def discover(
+        log: PM4PyLog,
+        dependency_threshold: float = 0.5,
+        and_threshold: float = 0.65,
+    ) -> tuple[PetriNet, Marking, Marking]:
+        """Discover Petri net using Heuristics Miner.
+
+        Args:
+            log: PM4Py event log
+            dependency_threshold: Minimum dependency measure (0.0-1.0). Default: 0.5
+            and_threshold: Minimum AND threshold (0.0-1.0). Default: 0.65
+        """
+        return pm4py.discover_petri_net_heuristics(
+            log,
+            dependency_threshold=dependency_threshold,
+            and_threshold=and_threshold,
+        )
 
 
 class DFGMiner:

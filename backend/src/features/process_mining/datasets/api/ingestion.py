@@ -101,9 +101,8 @@ async def trigger_ingestion(
     # Deterministic workflow ID - enables idempotent starts
     workflow_id = f"ingest-dataset-{dataset_id}"
 
-    client = await get_temporal_client()
-
     try:
+        client = await get_temporal_client()
         handle = await client.start_workflow(
             DatasetIngestionWorkflowV2.run,
             args=[dataset_id, dataset.storage_key, mapping_dict],
@@ -127,22 +126,94 @@ async def trigger_ingestion(
             )
             workflow_run_id = handle.result_run_id
     except Exception as e:
-        # Handle Temporal client errors - update dataset to ERROR state
-        from src.infra.core.exceptions import ServiceUnavailableError
-
-        logger.error(
-            "temporal_workflow_start_failed",
+        # Temporal unavailable - fall back to synchronous processing
+        logger.warning(
+            "temporal_unavailable_falling_back_to_sync",
             dataset_id=dataset_id,
             workflow_id=workflow_id,
             error=str(e),
         )
-        dataset.status = DatasetStatus.ERROR.value
-        dataset.error_message = f"Failed to start ingestion workflow: {e!s}"
+
+        # Perform synchronous ingestion instead
+        from datetime import datetime, timezone
+        from starlette.concurrency import run_in_threadpool
+        from src.features.process_mining.ingestion import duckdb_parser
+        from src.features.process_mining.models import DatasetMetadata
+        from src.infra.infrastructure.object_storage import get_storage_client
+
+        dataset.status = DatasetStatus.INGESTING.value
+        dataset.error_message = None
         await db.commit()
-        raise ServiceUnavailableError(
-            service="Temporal",
-            message="Failed to start ingestion workflow. Please try again later.",
-        )
+
+        try:
+            storage_client = get_storage_client()
+            file_obj = await run_in_threadpool(
+                storage_client.download_fileobj, bucket_type="raw", key=dataset.storage_key
+            )
+            file_content = file_obj.read()
+
+            result = await run_in_threadpool(
+                duckdb_parser.parse_csv,
+                file_content=file_content,
+                case_id_col=mapping_dict["case_id"],
+                activity_col=mapping_dict["activity"],
+                timestamp_col=mapping_dict["timestamp"],
+                resource_col=mapping_dict.get("resource"),
+            )
+
+            stats = result["statistics"]
+
+            dataset.total_cases = stats.get("total_cases", 0)
+            dataset.total_events = stats.get("total_events", 0)
+            dataset.total_activities = stats.get("total_activities", 0)
+            dataset.variant_count = stats.get("total_variants", 0)
+            dataset.activities_json = json.dumps(stats.get("activities", []))
+            dataset.status = DatasetStatus.READY.value
+            dataset.updated_at = datetime.now(timezone.utc)
+
+            # Create or update DatasetMetadata
+            from sqlalchemy import delete
+            await db.execute(delete(DatasetMetadata).where(DatasetMetadata.dataset_id == dataset_id))
+
+            metadata = DatasetMetadata(
+                dataset_id=dataset_id,
+                total_cases=stats.get("total_cases", 0),
+                total_events=stats.get("total_events", 0),
+                total_activities=stats.get("total_activities", 0),
+                total_variants=stats.get("total_variants", 0),
+                total_resources=stats.get("total_resources", 0),
+                first_event_at=stats.get("first_event_at"),
+                last_event_at=stats.get("last_event_at"),
+                avg_case_duration=stats.get("avg_case_duration"),
+                min_case_duration=stats.get("min_case_duration"),
+                max_case_duration=stats.get("max_case_duration"),
+                computed_at=datetime.now(timezone.utc),
+            )
+            db.add(metadata)
+            await db.commit()
+
+            logger.info("sync_fallback_ingest_completed", dataset_id=dataset_id, stats=stats)
+
+            now = datetime.now(timezone.utc)
+            return JobStatusResponse(
+                id=f"sync-ingest-{dataset_id}",
+                job_type=JobType.INGESTION,
+                status=JobStatus.COMPLETED,
+                progress=100,
+                stage="completed",
+                created_at=now,
+                result={
+                    "message": "Ingestion completed (sync fallback)",
+                    "statistics": stats,
+                },
+            )
+        except Exception as sync_error:
+            logger.error("sync_fallback_ingest_failed", dataset_id=dataset_id, error=str(sync_error))
+            dataset.status = DatasetStatus.ERROR.value
+            dataset.error_message = f"Ingestion failed: {sync_error!s}"
+            await db.commit()
+            from src.infra.core.exceptions import ProcessingError
+            raise ProcessingError(f"Ingestion failed: {sync_error!s}")
 
     dataset.status = DatasetStatus.INGESTING.value
     dataset.error_message = None
@@ -167,6 +238,156 @@ async def trigger_ingestion(
             "poll_endpoint": f"/api/v1/operations/{workflow_id}",
         },
     )
+
+
+@router.post(
+    "/{dataset_id}/ingest-sync",
+    summary="Synchronous Ingestion (Dev Mode)",
+    description="""
+Process dataset ingestion synchronously without Temporal.
+
+**Development mode only** - use this when Temporal is unavailable.
+For production, use `POST /datasets/{id}/ingest` with Temporal workflows.
+
+Prerequisites:
+- Dataset must be in MAPPED or ERROR status
+- Column mapping must be saved
+    """,
+    responses={
+        200: {"description": "Ingestion completed successfully"},
+        400: {"description": "Dataset not in valid state"},
+        404: {"description": "Dataset not found"},
+        500: {"description": "Ingestion failed"},
+    },
+)
+async def sync_ingest(
+    db: ReadDBSession,
+    dataset_id: str,
+    user: CurrentUser,
+) -> dict:
+    """Process dataset ingestion synchronously (dev mode fallback)."""
+    from datetime import datetime
+
+    from starlette.concurrency import run_in_threadpool
+
+    from src.features.process_mining.ingestion import duckdb_parser
+    from src.features.process_mining.models import DatasetMetadata
+    from src.infra.core.exceptions import ProcessingError
+    from src.infra.infrastructure.object_storage import get_storage_client
+
+    # Verify permission
+    _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_UPDATE)
+
+    # Check status
+    valid_statuses = [DatasetStatus.MAPPED.value, DatasetStatus.ERROR.value]
+    if dataset.status not in valid_statuses:
+        raise ValidationError(
+            f"Dataset must be in MAPPED or ERROR state. Current: {dataset.status}"
+        )
+
+    # Check mapping exists
+    mapping_result = await db.execute(
+        select(DatasetColumnMapping).where(DatasetColumnMapping.dataset_id == dataset_id)
+    )
+    mapping = mapping_result.scalar_one_or_none()
+
+    if not mapping and not dataset.mapping_json:
+        raise ValidationError("No column mapping found. Submit mapping first.")
+
+    # Get column mapping
+    mapping_data = mapping.__dict__ if mapping else json.loads(dataset.mapping_json or "{}")
+    case_id_col = mapping_data.get("case_id_column", "case_id")
+    activity_col = mapping_data.get("activity_column", "activity")
+    timestamp_col = mapping_data.get("timestamp_column", "timestamp")
+    resource_col = mapping_data.get("resource_column")
+
+    logger.info(
+        "sync_ingest_started",
+        dataset_id=dataset_id,
+        case_id_col=case_id_col,
+        activity_col=activity_col,
+        timestamp_col=timestamp_col,
+    )
+
+    # Update status to INGESTING
+    dataset.status = DatasetStatus.INGESTING.value
+    dataset.error_message = None
+    await db.commit()
+
+    try:
+        # Download file from storage
+        storage_client = get_storage_client()
+        file_obj = await run_in_threadpool(
+            storage_client.download_fileobj, bucket_type="raw", key=dataset.storage_key
+        )
+        file_content = file_obj.read()
+
+        # Parse with DuckDB
+        result = await run_in_threadpool(
+            duckdb_parser.parse_csv,
+            file_content=file_content,
+            case_id_col=case_id_col,
+            activity_col=activity_col,
+            timestamp_col=timestamp_col,
+            resource_col=resource_col,
+        )
+
+        stats = result["statistics"]
+
+        # Update dataset with statistics
+        dataset.total_cases = stats.get("total_cases", 0)
+        dataset.total_events = stats.get("total_events", 0)
+        dataset.total_activities = stats.get("total_activities", 0)
+        dataset.variant_count = stats.get("total_variants", 0)
+        dataset.activities_json = json.dumps(stats.get("activities", []))
+        dataset.status = DatasetStatus.READY.value
+        dataset.updated_at = datetime.utcnow()
+
+        # Create or update DatasetMetadata
+        from sqlalchemy import delete
+
+        await db.execute(delete(DatasetMetadata).where(DatasetMetadata.dataset_id == dataset_id))
+
+        metadata = DatasetMetadata(
+            dataset_id=dataset_id,
+            total_cases=stats.get("total_cases", 0),
+            total_events=stats.get("total_events", 0),
+            total_activities=stats.get("total_activities", 0),
+            total_variants=stats.get("total_variants", 0),
+            total_resources=stats.get("total_resources", 0),
+            first_event_at=stats.get("first_event_at"),
+            last_event_at=stats.get("last_event_at"),
+            avg_case_duration=stats.get("avg_case_duration"),
+            min_case_duration=stats.get("min_case_duration"),
+            max_case_duration=stats.get("max_case_duration"),
+            computed_at=datetime.utcnow(),
+        )
+        db.add(metadata)
+
+        await db.commit()
+
+        logger.info(
+            "sync_ingest_completed",
+            dataset_id=dataset_id,
+            total_cases=stats.get("total_cases"),
+            total_events=stats.get("total_events"),
+            total_activities=stats.get("total_activities"),
+            total_variants=stats.get("total_variants"),
+        )
+
+        return {
+            "status": "completed",
+            "dataset_id": dataset_id,
+            "statistics": stats,
+            "message": "Dataset ingested successfully (sync mode)",
+        }
+
+    except Exception as e:
+        logger.error("sync_ingest_failed", dataset_id=dataset_id, error=str(e), exc_info=True)
+        dataset.status = DatasetStatus.ERROR.value
+        dataset.error_message = f"Ingestion failed: {e!s}"
+        await db.commit()
+        raise ProcessingError(f"Ingestion failed: {e!s}")
 
 
 @router.post(

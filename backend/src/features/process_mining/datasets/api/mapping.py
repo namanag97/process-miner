@@ -155,34 +155,40 @@ async def submit_mapping(
     # Verify permission
     _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_UPDATE)
 
-    # Check status
-    valid_statuses = [DatasetStatus.AWAITING_MAPPING.value, DatasetStatus.ERROR.value]
+    # Check status - allow uploaded, awaiting_mapping, mapped, or error states
+    valid_statuses = [
+        DatasetStatus.UPLOADED.value,
+        DatasetStatus.AWAITING_MAPPING.value,
+        DatasetStatus.MAPPED.value,  # Allow re-mapping
+        DatasetStatus.ERROR.value,
+    ]
     if dataset.status not in valid_statuses:
         raise ValidationError(
-            f"Dataset must be in AWAITING_MAPPING or ERROR state. Current: {dataset.status}"
+            f"Dataset cannot be mapped in current state: {dataset.status}"
         )
 
-    # Get column names to validate mapping
+    # Get column names to validate mapping (if columns exist in DB)
     result = await db.execute(
         select(DatasetColumn.name).where(DatasetColumn.dataset_id == dataset_id)
     )
     valid_columns = {row[0] for row in result.all()}
 
-    # Validate required columns exist
-    errors = []
-    for col_name, col_field in [
-        (request.case_id_column, "case_id_column"),
-        (request.activity_column, "activity_column"),
-        (request.timestamp_column, "timestamp_column"),
-    ]:
-        if col_name not in valid_columns:
-            errors.append(f"{col_field}: Column '{col_name}' not found in dataset")
+    # Only validate columns if they exist in DB (skip for uploaded status without prior validation)
+    if valid_columns:
+        errors = []
+        for col_name, col_field in [
+            (request.case_id_column, "case_id_column"),
+            (request.activity_column, "activity_column"),
+            (request.timestamp_column, "timestamp_column"),
+        ]:
+            if col_name not in valid_columns:
+                errors.append(f"{col_field}: Column '{col_name}' not found in dataset")
 
-    if request.resource_column and request.resource_column not in valid_columns:
-        errors.append(f"resource_column: Column '{request.resource_column}' not found")
+        if request.resource_column and request.resource_column not in valid_columns:
+            errors.append(f"resource_column: Column '{request.resource_column}' not found")
 
-    if errors:
-        raise ValidationError("; ".join(errors))
+        if errors:
+            raise ValidationError("; ".join(errors))
 
     # Create or update mapping
     existing_mapping = await db.execute(

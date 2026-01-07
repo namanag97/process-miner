@@ -33,7 +33,7 @@ import { tokens, logAction } from '@lumina/design-system';
 import { devLog } from '../../../../../shared/ui/DevConsole';
 import type { DataPreview, ColumnTypeInfo } from '../../types';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { Option } = Select;
 
 interface ConfigureStepProps {
@@ -44,6 +44,15 @@ interface ConfigureStepProps {
 }
 
 const COLUMN_TYPES = ['STRING', 'INTEGER', 'DECIMAL', 'DATETIME', 'BOOLEAN'];
+
+// Consistent color scheme for data types
+const TYPE_COLORS: Record<string, string> = {
+    STRING: 'default',
+    INTEGER: 'blue',
+    DECIMAL: 'cyan',
+    DATETIME: 'purple',
+    BOOLEAN: 'orange',
+};
 
 const DATE_FORMATS = [
     'yyyy-MM-dd HH:mm:ss',
@@ -168,13 +177,25 @@ export function ConfigureStep({ preview, onNext, onBack }: ConfigureStepProps) {
 
         return {
             title: (
-                <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                    <Space>
-                        <Text strong>{col.name}</Text>
+                <div style={{ minWidth: 140 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                        <Tooltip title={col.name}>
+                            <span style={{
+                                fontWeight: 600,
+                                fontSize: 13,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                maxWidth: 110,
+                                display: 'inline-block',
+                            }}>
+                                {col.name}
+                            </span>
+                        </Tooltip>
                         <Tooltip title={validation?.issues.join(', ') || 'Valid'}>
                             {statusIcon}
                         </Tooltip>
-                    </Space>
+                    </div>
                     <Select
                         size="small"
                         value={currentType}
@@ -184,7 +205,7 @@ export function ConfigureStep({ preview, onNext, onBack }: ConfigureStepProps) {
                     >
                         {COLUMN_TYPES.map(type => (
                             <Option key={type} value={type}>
-                                <Tag color={type === 'DATETIME' ? 'blue' : type === 'INTEGER' ? 'green' : 'default'}>
+                                <Tag color={TYPE_COLORS[type] || 'default'} style={{ margin: 0 }}>
                                     {type}
                                 </Tag>
                             </Option>
@@ -195,7 +216,7 @@ export function ConfigureStep({ preview, onNext, onBack }: ConfigureStepProps) {
                             size="small"
                             value={currentFormat}
                             onChange={(val) => updateDateFormat(col.name, val)}
-                            style={{ width: '100%' }}
+                            style={{ width: '100%', marginTop: 4 }}
                             placeholder="Date format"
                         >
                             {DATE_FORMATS.map(fmt => (
@@ -203,21 +224,29 @@ export function ConfigureStep({ preview, onNext, onBack }: ConfigureStepProps) {
                             ))}
                         </Select>
                     )}
-                </Space>
+                </div>
             ),
             dataIndex: col.name,
             key: col.name,
-            width: 150,
+            width: 160,
             render: (value: unknown) => {
                 const isEmpty = value === '' || value === null || value === undefined;
+                const displayValue = isEmpty ? '(empty)' : String(value);
                 return (
-                    <Text
-                        ellipsis
-                        style={{ maxWidth: 130 }}
-                        type={isEmpty ? 'secondary' : undefined}
-                    >
-                        {isEmpty ? '(empty)' : String(value)}
-                    </Text>
+                    <Tooltip title={displayValue} mouseEnterDelay={0.5}>
+                        <span
+                            style={{
+                                maxWidth: 140,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                display: 'inline-block',
+                                color: isEmpty ? tokens.colors.neutral[400] : undefined,
+                            }}
+                        >
+                            {displayValue}
+                        </span>
+                    </Tooltip>
                 );
             },
         };
@@ -233,15 +262,8 @@ export function ConfigureStep({ preview, onNext, onBack }: ConfigureStepProps) {
     const hasWarnings = validationSummary.warnings > 0;
 
     return (
-        <div>
-            <div style={{ textAlign: 'center', marginBottom: tokens.spacing[6] }}>
-                <Title level={3}>Configure</Title>
-                <Text type="secondary">
-                    Almost there. How should we interpret your data?
-                </Text>
-            </div>
-
-            {/* Validation summary */}
+        <div style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+            {/* Validation summary - show at top if there are issues */}
             {(hasErrors || hasWarnings) && (
                 <Alert
                     type={hasErrors ? 'error' : 'warning'}
@@ -251,29 +273,49 @@ export function ConfigureStep({ preview, onNext, onBack }: ConfigureStepProps) {
                         <span>
                             {validationSummary.errors > 0 && `${validationSummary.errors} column(s) with errors. `}
                             {validationSummary.warnings > 0 && `${validationSummary.warnings} column(s) with warnings. `}
-                            Review the highlighted columns above.
+                            Review the highlighted columns below.
                         </span>
                     }
                     style={{ marginBottom: tokens.spacing[4] }}
                 />
             )}
 
-            <div style={{ display: 'flex', gap: tokens.spacing[4] }}>
+            <div style={{ display: 'flex', gap: tokens.spacing[4], maxWidth: '100%', overflow: 'hidden' }}>
                 {/* Main preview area */}
-                <Card style={{ flex: 1, overflow: 'auto' }}>
-                    <Table
-                        columns={tableColumns}
-                        dataSource={tableData}
-                        pagination={false}
-                        scroll={{ x: true }}
+                <div style={{ flex: 1, minWidth: 0, maxWidth: 'calc(100% - 240px)' }}>
+                    <Card
+                        title={
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span>Data Preview</span>
+                                <Text type="secondary" style={{ fontWeight: 'normal', fontSize: 12 }}>
+                                    {preview.rows.length} of {preview.total_rows.toLocaleString()} rows
+                                </Text>
+                            </div>
+                        }
                         size="small"
-                        bordered
-                    />
-                    <div style={{ marginTop: tokens.spacing[2], display: 'flex', justifyContent: 'space-between' }}>
-                        <Text type="secondary">
-                            Showing {preview.rows.length} of {preview.total_rows} rows
-                        </Text>
-                        <Space>
+                        styles={{ body: { padding: 0, overflow: 'hidden' } }}
+                    >
+                        <div style={{
+                            overflowX: 'auto',
+                            overflowY: 'hidden',
+                            maxWidth: '100%',
+                        }}>
+                            <Table
+                                columns={tableColumns}
+                                dataSource={tableData}
+                                pagination={false}
+                                scroll={{ x: tableColumns.length * 160 }}
+                                size="small"
+                                bordered
+                            />
+                        </div>
+                        <div style={{
+                            padding: `${tokens.spacing[2]} ${tokens.spacing[4]}`,
+                            borderTop: `1px solid ${tokens.colors.neutral[200]}`,
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            gap: tokens.spacing[4],
+                        }}>
                             <Badge status="success" text={`${validationSummary.valid} valid`} />
                             {validationSummary.warnings > 0 && (
                                 <Badge status="warning" text={`${validationSummary.warnings} warnings`} />
@@ -281,32 +323,32 @@ export function ConfigureStep({ preview, onNext, onBack }: ConfigureStepProps) {
                             {validationSummary.errors > 0 && (
                                 <Badge status="error" text={`${validationSummary.errors} errors`} />
                             )}
-                        </Space>
-                    </div>
-                </Card>
+                        </div>
+                    </Card>
+                </div>
 
                 {/* Configuration panel */}
                 <Card
                     title={
                         <Space>
                             <SettingOutlined />
-                            Table configuration
+                            Settings
                         </Space>
                     }
                     size="small"
-                    style={{ width: 280 }}
+                    style={{ width: 220, flexShrink: 0 }}
                 >
                     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
                         <Checkbox
                             checked={hasHeader}
                             onChange={(e) => setHasHeader(e.target.checked)}
                         >
-                            Sheet has header row
+                            Has header row
                         </Checkbox>
 
                         <div>
-                            <Text type="secondary" style={{ display: 'block', marginBottom: 4 }}>
-                                Field Separator
+                            <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
+                                Separator
                             </Text>
                             <Select
                                 value={fieldSeparator}
@@ -322,7 +364,7 @@ export function ConfigureStep({ preview, onNext, onBack }: ConfigureStepProps) {
                         </div>
 
                         <div>
-                            <Text type="secondary" style={{ display: 'block', marginBottom: 4 }}>
+                            <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
                                 Encoding
                             </Text>
                             <Select

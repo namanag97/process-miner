@@ -57,6 +57,7 @@ from src.features.process_mining.schemas.conformance import (
 
 # Discovery - Miners and Models
 from src.features.process_mining.schemas.discovery import (
+    AlgorithmParameters,
     DiscoverRequest,
     MinerInfo,
     ModelListResponse,
@@ -166,6 +167,7 @@ __all__ = [
     "FlattenedLogInfo",
     "JobStatusResponse",
     # Discovery
+    "AlgorithmParameters",
     "MinerInfo",
     "ModelListResponse",
     "ModelResponse",

@@ -13,7 +13,9 @@ Usage:
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 from src.infra.core.config import get_settings
 from src.infra.core.logging_config import get_logger
@@ -175,6 +177,28 @@ async def close_database() -> None:
     await write_engine.dispose()
     await read_engine.dispose()
     logger.info("database_closed")
+
+
+# =============================================================================
+# Sync Engine (for background tasks and loaders)
+# =============================================================================
+
+# Sync database URL (replace aiosqlite with sqlite)
+sync_database_url = settings.database_url.replace("sqlite+aiosqlite", "sqlite")
+
+sync_engine = create_engine(
+    sync_database_url,
+    echo=settings.debug,
+    pool_pre_ping=True,
+)
+
+sync_session_maker = sessionmaker(
+    sync_engine,
+    class_=Session,
+    expire_on_commit=False,
+    autocommit=False,
+    autoflush=False,
+)
 
 
 # =============================================================================

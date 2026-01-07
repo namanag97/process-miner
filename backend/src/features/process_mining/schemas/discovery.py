@@ -26,6 +26,60 @@ class MinerInfo(BaseModel):
     output_format: str
 
 
+class AlgorithmParameters(BaseModel):
+    """Algorithm-specific parameters for process discovery.
+
+    Different mining algorithms support different parameters:
+    - inductive/inductive_infrequent: noise_threshold (0.0-1.0)
+    - heuristics: dependency_threshold (0.0-1.0), and_threshold (0.0-1.0)
+    - ilp: alpha (0.0-1.0)
+    - log_skeleton: noise_threshold (0.0-1.0)
+    """
+
+    # Inductive Miner parameters
+    noise_threshold: float | None = Field(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Filter infrequent behavior (0.0-1.0). Used by inductive, log_skeleton miners.",
+    )
+
+    # Heuristics Miner parameters
+    dependency_threshold: float | None = Field(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Minimum dependency measure (0.0-1.0). Used by heuristics miner. Default: 0.5",
+    )
+    and_threshold: float | None = Field(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Minimum AND threshold (0.0-1.0). Used by heuristics miner. Default: 0.65",
+    )
+
+    # ILP Miner parameters
+    alpha: float | None = Field(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Noise filtering (0.0-1.0). Used by ILP miner. Default: 1.0 (no filtering)",
+    )
+
+    # Transition System parameters
+    direction: str | None = Field(
+        None,
+        pattern="^(forward|backward)$",
+        description="Direction for transition system. Default: forward",
+    )
+    window: int | None = Field(
+        None,
+        ge=1,
+        le=10,
+        description="Window size for transition system. Default: 2",
+    )
+
+
 class DiscoverRequest(BaseModel):
     """Request to discover a process model."""
 
@@ -43,6 +97,10 @@ class DiscoverRequest(BaseModel):
         min_length=1,
         max_length=255,
         description="Optional name for the discovered model",
+    )
+    parameters: AlgorithmParameters | None = Field(
+        None,
+        description="Algorithm-specific parameters. If not provided, defaults are used.",
     )
 
     @field_validator("model_name")

@@ -270,10 +270,10 @@ async def process_chunk(
     start_time = time.perf_counter()
 
     try:
-        from src.features.process_mining.models import ProcessCase, ProcessEvent
         from src.features.process_mining.ingestion import (
             duckdb_parser as duckdb_ingestion_service,
         )
+        from src.features.process_mining.models import ProcessCase, ProcessEvent
         from src.infra.infrastructure.database import async_session_maker
         from src.infra.infrastructure.object_storage import get_storage_client
 
@@ -449,18 +449,31 @@ async def finalize_ingestion(dataset_id: str) -> IngestionResult:
                 or 0
             )
 
+            # Count distinct variants (unique case sequences)
+            variant_count = (
+                await db.scalar(
+                    select(func.count(func.distinct(ProcessCase.variant_key)))
+                    .select_from(ProcessCase)
+                    .where(ProcessCase.dataset_id == dataset_id)
+                    .where(ProcessCase.variant_key.isnot(None))
+                )
+                or 0
+            )
+
             activity.heartbeat("updating_dataset")
 
-            # Update dataset status (idempotent - final state)
+            # Update dataset status and denormalized fields
+            # Note: Dataset.total_* fields are DEPRECATED, we only update status
             dataset = await db.get(Dataset, dataset_id)
             if dataset:
                 dataset.status = DatasetStatus.READY.value
-                dataset.total_cases = case_count
-                dataset.total_events = event_count
-                dataset.total_activities = activity_count
                 dataset.error_message = None
+                # Store row count as file-level metadata (not process mining stat)
+                dataset.parquet_row_count = event_count
+                # Denormalized variant_count for fast listing queries (avoids JOIN)
+                dataset.variant_count = variant_count
 
-            # Create or update metadata
+            # Create or update metadata (single source of truth for statistics)
             existing_meta = await db.execute(
                 select(DatasetMetadata).where(DatasetMetadata.dataset_id == dataset_id)
             )
@@ -473,6 +486,7 @@ async def finalize_ingestion(dataset_id: str) -> IngestionResult:
                 metadata.total_cases = case_count
                 metadata.total_events = event_count
                 metadata.total_activities = activity_count
+                metadata.total_variants = variant_count
                 metadata.computed_at = datetime.utcnow()
                 metadata.computation_time_ms = computation_time_ms
             else:
@@ -482,6 +496,7 @@ async def finalize_ingestion(dataset_id: str) -> IngestionResult:
                     total_cases=case_count,
                     total_events=event_count,
                     total_activities=activity_count,
+                    total_variants=variant_count,
                     computed_at=datetime.utcnow(),
                     computation_time_ms=computation_time_ms,
                 )
@@ -550,3 +565,65 @@ async def update_dataset_status(
             error=str(e),
         )
         raise
+
+
+@activity.defn
+async def precompute_dfg(dataset_id: str) -> dict:
+    """Pre-compute DFG cache after ingestion.
+
+    Per tech spec step 7: Pre-compute DFG during ingestion workflow.
+    This activity:
+    - Loads events from the database
+    - Computes DFG using PM4Py
+    - Stores in dfg_cache table for fast retrieval
+
+    Idempotent - can be called multiple times, overwrites cache.
+
+    Args:
+        dataset_id: UUID of the dataset
+
+    Returns:
+        Dict with edge_count and computation status
+    """
+    logger.info("precompute_dfg_started", dataset_id=dataset_id)
+    activity.heartbeat("precomputing_dfg")
+
+    start_time = time.perf_counter()
+
+    try:
+        from src.features.process_mining.services.cache_service import CacheService
+        from src.infra.infrastructure.database import async_session_maker
+
+        async with async_session_maker() as db:
+            cache_service = CacheService(db)
+
+            activity.heartbeat("computing_dfg")
+
+            # Pre-compute both DFG and variants
+            results = await cache_service.precompute_caches(dataset_id)
+
+        duration_ms = (time.perf_counter() - start_time) * 1000
+
+        logger.info(
+            "precompute_dfg_completed",
+            dataset_id=dataset_id,
+            dfg_edges=results.get("dfg", {}).get("edge_count", 0),
+            variant_count=results.get("variants", {}).get("variant_count", 0),
+            duration_ms=round(duration_ms, 2),
+        )
+
+        return {
+            "success": True,
+            "dfg_edge_count": results.get("dfg", {}).get("edge_count", 0),
+            "variant_count": results.get("variants", {}).get("variant_count", 0),
+            "duration_ms": duration_ms,
+        }
+
+    except Exception as e:
+        logger.error("precompute_dfg_failed", dataset_id=dataset_id, error=str(e))
+        # Don't raise - DFG cache failure shouldn't fail ingestion
+        # It can be computed on-demand later
+        return {
+            "success": False,
+            "error": str(e),
+        }

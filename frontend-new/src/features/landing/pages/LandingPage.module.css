@@ -1,25 +1,69 @@
 /* ============================================
    LANDING PAGE - VibeKanban Style
    Off-white background, minimal, monospace headings
+   With dark mode, animations, and hover effects
    ============================================ */
 
 /* ----------------------------------------
-   Base
+   Base & Theme Variables
    ---------------------------------------- */
 .page {
-  background: #f5f5f0;
-  color: #1a1a1a;
+  --bg: #f5f5f0;
+  --bg-card: #fff;
+  --bg-alt: #fafafa;
+  --text: #1a1a1a;
+  --text-muted: rgba(26, 26, 26, 0.6);
+  --text-subtle: rgba(26, 26, 26, 0.4);
+  --border: rgba(0, 0, 0, 0.08);
+  --border-dashed: rgba(0, 0, 0, 0.1);
+  --primary: #22c55e;
+  --primary-hover: #16a34a;
+  --danger: #ef4444;
+
+  background: var(--bg);
+  color: var(--text);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  transition: background 300ms, color 300ms;
+}
+
+/* Dark Mode */
+.dark {
+  --bg: #0a0a0a;
+  --bg-card: #141414;
+  --bg-alt: #1a1a1a;
+  --text: #f5f5f5;
+  --text-muted: rgba(245, 245, 245, 0.7);
+  --text-subtle: rgba(245, 245, 245, 0.4);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-dashed: rgba(255, 255, 255, 0.1);
+}
+
+/* ----------------------------------------
+   Scroll Animations
+   ---------------------------------------- */
+.animateIn {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ----------------------------------------
    Announcement Banner
    ---------------------------------------- */
 .banner {
-  background: #1a1a1a;
-  color: #fff;
+  background: var(--text);
+  color: var(--bg);
   padding: 0.5rem 0;
   overflow: hidden;
 }
@@ -41,7 +85,7 @@
 }
 
 .bannerDot {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--text-subtle);
   margin-left: 1rem;
 }
 
@@ -53,9 +97,10 @@
   top: 0;
   z-index: 100;
   padding: 1rem 2rem;
-  background: rgba(245, 245, 240, 0.95);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
+  background: color-mix(in srgb, var(--bg) 95%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px dashed var(--border-dashed);
+  transition: background 300ms;
 }
 
 .headerInner {
@@ -70,7 +115,7 @@
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 1.125rem;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--text);
   text-decoration: none;
   letter-spacing: -0.02em;
 }
@@ -83,7 +128,7 @@
 
 .navLink {
   padding: 0.5rem 1rem;
-  color: rgba(26, 26, 26, 0.6);
+  color: var(--text-muted);
   text-decoration: none;
   font-size: 0.875rem;
   font-weight: 500;
@@ -91,11 +136,11 @@
 }
 
 .navLink:hover {
-  color: #1a1a1a;
+  color: var(--text);
 }
 
 .navDivider {
-  color: rgba(0, 0, 0, 0.15);
+  color: var(--text-subtle);
   font-size: 0.75rem;
 }
 
@@ -105,24 +150,45 @@
   gap: 0.75rem;
 }
 
+/* Theme Toggle */
+.themeToggle {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 200ms;
+}
+
+.themeToggle:hover {
+  color: var(--text);
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, var(--bg-card));
+}
+
 .githubBadge {
   display: flex;
   align-items: center;
   gap: 0.375rem;
   padding: 0.5rem 0.875rem;
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: #1a1a1a;
+  color: var(--text);
   text-decoration: none;
   transition: all 150ms;
 }
 
 .githubBadge:hover {
-  border-color: rgba(0, 0, 0, 0.2);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border-color: var(--text-subtle);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* ----------------------------------------
@@ -130,7 +196,7 @@
    ---------------------------------------- */
 .btnPrimary {
   padding: 0.625rem 1.25rem;
-  background: #22c55e;
+  background: var(--primary);
   color: white;
   border: none;
   border-radius: 6px;
@@ -138,11 +204,13 @@
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
-  transition: background 150ms;
+  transition: all 200ms;
 }
 
 .btnPrimary:hover {
-  background: #16a34a;
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
 }
 
 .btnLarge {
@@ -174,11 +242,11 @@
   line-height: 1.2;
   margin: 0 0 1.25rem;
   letter-spacing: -0.03em;
-  color: #1a1a1a;
+  color: var(--text);
 }
 
 .heroHighlight {
-  background: linear-gradient(120deg, #22c55e 0%, #16a34a 100%);
+  background: linear-gradient(120deg, var(--primary) 0%, var(--primary-hover) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -186,7 +254,7 @@
 
 .heroSubtitle {
   font-size: 1.0625rem;
-  color: rgba(26, 26, 26, 0.7);
+  color: var(--text-muted);
   line-height: 1.7;
   margin: 0 0 2rem;
 }
@@ -194,7 +262,7 @@
 .heroInstall {
   display: inline-flex;
   align-items: center;
-  background: #1a1a1a;
+  background: var(--text);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -203,11 +271,11 @@
   padding: 0.875rem 1.25rem;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 0.875rem;
-  color: #fff;
+  color: var(--bg);
 }
 
 .installPrompt {
-  color: #22c55e;
+  color: var(--primary);
   margin-right: 0.5rem;
 }
 
@@ -215,14 +283,15 @@
   padding: 0.875rem 1rem;
   background: rgba(255, 255, 255, 0.1);
   border: none;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--bg);
+  opacity: 0.6;
   cursor: pointer;
   transition: all 150ms;
 }
 
 .installCopy:hover {
   background: rgba(255, 255, 255, 0.15);
-  color: #fff;
+  opacity: 1;
 }
 
 /* Demo Window */
@@ -231,12 +300,13 @@
 }
 
 .demoWindow {
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   position: relative;
+  transition: background 300ms, border-color 300ms;
 }
 
 .demoToolbar {
@@ -244,15 +314,15 @@
   align-items: center;
   gap: 6px;
   padding: 12px 16px;
-  background: #fafafa;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  background: var(--bg-alt);
+  border-bottom: 1px solid var(--border);
 }
 
 .demoDot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #e0e0e0;
+  background: var(--text-subtle);
 }
 
 .demoDot:nth-child(1) { background: #ff5f57; }
@@ -261,7 +331,7 @@
 
 .demoContent {
   padding: 1.5rem;
-  background: #fff;
+  background: var(--bg-card);
 }
 
 .demoPlayButton {
@@ -298,49 +368,49 @@
 }
 
 .edge {
-  stroke: #d0d0d0;
+  stroke: var(--text-subtle);
   stroke-width: 2;
   fill: none;
 }
 
 .edgeActive {
-  stroke: #22c55e;
+  stroke: var(--primary);
   stroke-width: 2.5;
   fill: none;
 }
 
 .node rect {
-  fill: #fff;
-  stroke: #e0e0e0;
+  fill: var(--bg-card);
+  stroke: var(--border);
   stroke-width: 1;
 }
 
 .nodeActive rect {
-  fill: #f0fdf4;
-  stroke: #22c55e;
+  fill: color-mix(in srgb, var(--primary) 10%, var(--bg-card));
+  stroke: var(--primary);
   stroke-width: 2;
 }
 
 .nodeLabel {
   font-size: 11px;
   font-weight: 600;
-  fill: #1a1a1a;
+  fill: var(--text);
   text-anchor: middle;
 }
 
 .nodeCount {
   font-size: 9px;
-  fill: rgba(26, 26, 26, 0.5);
+  fill: var(--text-muted);
   text-anchor: middle;
 }
 
 .nodeStart {
-  fill: #22c55e;
+  fill: var(--primary);
   stroke: none;
 }
 
 .nodeEnd {
-  fill: #1a1a1a;
+  fill: var(--text);
   stroke: none;
 }
 
@@ -352,14 +422,14 @@
   margin: 0 auto;
   padding: 4rem 2rem;
   text-align: center;
-  border-top: 1px dashed rgba(0, 0, 0, 0.1);
+  border-top: 1px dashed var(--border-dashed);
 }
 
 .testimonialQuote {
   font-size: 1.375rem;
   font-style: italic;
   line-height: 1.6;
-  color: #1a1a1a;
+  color: var(--text);
   margin: 0 0 1.5rem;
 }
 
@@ -374,23 +444,24 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: #e8e8e8;
+  background: var(--bg-alt);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
   font-size: 0.875rem;
-  color: rgba(26, 26, 26, 0.6);
+  color: var(--text-muted);
 }
 
 .testimonialName {
   font-weight: 600;
   margin: 0;
   font-size: 0.9375rem;
+  color: var(--text);
 }
 
 .testimonialRole {
-  color: rgba(26, 26, 26, 0.6);
+  color: var(--text-muted);
   font-size: 0.8125rem;
   margin: 0;
 }
@@ -403,7 +474,7 @@
   margin: 0 auto;
   padding: 4rem 2rem;
   text-align: center;
-  border-top: 1px dashed rgba(0, 0, 0, 0.1);
+  border-top: 1px dashed var(--border-dashed);
 }
 
 .sectionTitle {
@@ -412,10 +483,11 @@
   font-weight: 700;
   margin: 0 0 0.75rem;
   letter-spacing: -0.02em;
+  color: var(--text);
 }
 
 .sectionSubtitle {
-  color: rgba(26, 26, 26, 0.6);
+  color: var(--text-muted);
   font-size: 1rem;
   margin: 0 0 2.5rem;
 }
@@ -428,30 +500,36 @@
 
 .gridItem {
   padding: 1.25rem;
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
-  transition: all 150ms;
   cursor: pointer;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .gridItem:hover {
-  border-color: rgba(0, 0, 0, 0.15);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border-color: var(--primary);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(34, 197, 94, 0.15);
+}
+
+.gridItem:hover .gridIcon {
+  transform: scale(1.2);
 }
 
 .gridIcon {
   font-size: 1.5rem;
+  transition: transform 200ms;
 }
 
 .gridLabel {
   font-size: 0.8125rem;
   font-weight: 500;
-  color: rgba(26, 26, 26, 0.8);
+  color: var(--text-muted);
 }
 
 /* ----------------------------------------
@@ -465,7 +543,7 @@
   grid-template-columns: 1fr 1fr;
   gap: 4rem;
   align-items: center;
-  border-top: 1px dashed rgba(0, 0, 0, 0.1);
+  border-top: 1px dashed var(--border-dashed);
 }
 
 .featureSectionAlt {
@@ -486,10 +564,11 @@
   font-weight: 700;
   margin: 0 0 1rem;
   letter-spacing: -0.02em;
+  color: var(--text);
 }
 
 .featureDescription {
-  color: rgba(26, 26, 26, 0.7);
+  color: var(--text-muted);
   font-size: 1rem;
   line-height: 1.7;
   margin: 0;
@@ -500,19 +579,30 @@
   justify-content: center;
 }
 
-.featurePlaceholder {
+/* SVG Illustrations */
+.illustration {
   width: 100%;
   max-width: 400px;
-  aspect-ratio: 4 / 3;
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 3rem;
-  color: rgba(0, 0, 0, 0.1);
-  font-weight: 700;
+  height: auto;
+  color: var(--text);
+}
+
+.uploadArrow {
+  animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.bottleneckBar {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 0.6; }
 }
 
 /* ----------------------------------------
@@ -523,7 +613,7 @@
   margin: 0 auto;
   padding: 4rem 2rem;
   text-align: center;
-  border-top: 1px dashed rgba(0, 0, 0, 0.1);
+  border-top: 1px dashed var(--border-dashed);
 }
 
 .activityGrid {
@@ -538,23 +628,29 @@
   align-items: center;
   gap: 0.75rem;
   padding: 1rem;
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 8px;
   text-align: left;
+  transition: all 200ms;
+}
+
+.activityCard:hover {
+  border-color: var(--text-subtle);
+  transform: translateX(4px);
 }
 
 .activityAvatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #e8e8e8;
+  background: var(--bg-alt);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.6875rem;
   font-weight: 600;
-  color: rgba(26, 26, 26, 0.6);
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
@@ -567,12 +663,12 @@
   font-size: 0.8125rem;
   font-weight: 600;
   margin: 0;
-  color: #1a1a1a;
+  color: var(--text);
 }
 
 .activityAction {
   font-size: 0.75rem;
-  color: rgba(26, 26, 26, 0.6);
+  color: var(--text-muted);
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -581,18 +677,18 @@
 
 .activityTime {
   font-size: 0.6875rem;
-  color: rgba(26, 26, 26, 0.4);
+  color: var(--text-subtle);
   flex-shrink: 0;
 }
 
 /* ----------------------------------------
-   FAQ Section
+   FAQ Section (with animations)
    ---------------------------------------- */
 .faq {
   max-width: 700px;
   margin: 0 auto;
   padding: 4rem 2rem;
-  border-top: 1px dashed rgba(0, 0, 0, 0.1);
+  border-top: 1px dashed var(--border-dashed);
 }
 
 .faqList {
@@ -600,7 +696,8 @@
 }
 
 .faqItem {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
 }
 
 .faqQuestion {
@@ -611,7 +708,7 @@
   padding: 1.25rem 0;
   background: none;
   border: none;
-  color: #1a1a1a;
+  color: var(--text);
   font-size: 1rem;
   font-weight: 500;
   text-align: left;
@@ -620,24 +717,40 @@
 }
 
 .faqQuestion:hover {
-  color: #22c55e;
+  color: var(--primary);
+}
+
+.faqQuestionOpen {
+  color: var(--primary);
 }
 
 .faqIcon {
   font-size: 1.25rem;
-  color: rgba(26, 26, 26, 0.4);
-  transition: transform 200ms;
+  color: var(--text-subtle);
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
   font-weight: 300;
 }
 
 .faqIconOpen {
   transform: rotate(45deg);
+  color: var(--primary);
+}
+
+/* Animated FAQ Answer */
+.faqAnswerWrapper {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.faqAnswerOpen {
+  max-height: 200px;
 }
 
 .faqAnswer {
   padding: 0 0 1.25rem;
   font-size: 0.9375rem;
-  color: rgba(26, 26, 26, 0.7);
+  color: var(--text-muted);
   line-height: 1.7;
   margin: 0;
 }
@@ -650,7 +763,7 @@
   margin: 0 auto;
   padding: 5rem 2rem;
   text-align: center;
-  border-top: 1px dashed rgba(0, 0, 0, 0.1);
+  border-top: 1px dashed var(--border-dashed);
 }
 
 .ctaTitle {
@@ -659,10 +772,11 @@
   font-weight: 700;
   margin: 0 0 0.5rem;
   letter-spacing: -0.02em;
+  color: var(--text);
 }
 
 .ctaSubtitle {
-  color: rgba(26, 26, 26, 0.6);
+  color: var(--text-muted);
   margin: 0 0 2rem;
 }
 
@@ -675,7 +789,7 @@
    ---------------------------------------- */
 .footer {
   padding: 2rem;
-  border-top: 1px dashed rgba(0, 0, 0, 0.1);
+  border-top: 1px dashed var(--border-dashed);
 }
 
 .footerInner {
@@ -688,7 +802,7 @@
 
 .footerCopyright {
   font-size: 0.8125rem;
-  color: rgba(26, 26, 26, 0.5);
+  color: var(--text-subtle);
 }
 
 .footerLinks {
@@ -698,13 +812,13 @@
 
 .footerLink {
   font-size: 0.8125rem;
-  color: rgba(26, 26, 26, 0.5);
+  color: var(--text-subtle);
   text-decoration: none;
   transition: color 150ms;
 }
 
 .footerLink:hover {
-  color: #1a1a1a;
+  color: var(--text);
 }
 
 /* ----------------------------------------

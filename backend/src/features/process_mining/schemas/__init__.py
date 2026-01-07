@@ -4,6 +4,7 @@ Re-exports schemas from submodules for convenient access.
 """
 
 from src.features.process_mining.schemas.analysis import (
+    AlgorithmParameters,
     AlignmentDiagnosticsResponse,
     AlignmentMove,
     AnalysisCreateRequest,
@@ -124,6 +125,7 @@ from src.shared.schemas import ErrorResponse
 
 __all__ = [
     "ActivityDetailResponse",
+    "AlgorithmParameters",
     "AlignmentDiagnosticsResponse",
     "AlignmentMove",
     "AnalysisCreateRequest",

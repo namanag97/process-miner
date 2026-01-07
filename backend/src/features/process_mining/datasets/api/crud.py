@@ -42,11 +42,11 @@ PENDING → UPLOADED → VALIDATING → VALIDATED → MAPPED → INGESTING → R
 - **422**: Invalid file type (only .csv and .xes supported)
 """
 
-import json
 from typing import Any
 
 from fastapi import APIRouter, Query
 from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 
 from src.api.dependencies import CurrentUser, ReadDBSession, WriteDBSession
 from src.features.process_mining.models import Dataset
@@ -92,8 +92,8 @@ async def list_datasets(
         status_filter=status,
     )
 
-    # Build query
-    query = select(Dataset)
+    # Build query with eager loading of metadata_record
+    query = select(Dataset).options(selectinload(Dataset.metadata_record))
 
     if project_id:
         query = query.where(Dataset.project_id == project_id)
@@ -102,8 +102,15 @@ async def list_datasets(
     if status:
         query = query.where(Dataset.status == status)
 
-    # Get total count
-    count_query = select(func.count()).select_from(query.subquery())
+    # Get total count (without eager loading for performance)
+    count_subquery = select(Dataset.id)
+    if project_id:
+        count_subquery = count_subquery.where(Dataset.project_id == project_id)
+    if source_format:
+        count_subquery = count_subquery.where(Dataset.source_format == source_format.upper())
+    if status:
+        count_subquery = count_subquery.where(Dataset.status == status)
+    count_query = select(func.count()).select_from(count_subquery.subquery())
     total = (await db.execute(count_query)).scalar() or 0
 
     # Apply pagination
@@ -120,28 +127,33 @@ async def list_datasets(
         offset=offset,
     )
 
-    # Convert to response
+    # Convert to response - use DatasetMetadata for statistics
     items = []
     for ds in datasets:
-        activities = []
-        if ds.activities_json:
-            try:
-                activities = json.loads(ds.activities_json)
-            except json.JSONDecodeError as e:
-                logger.warning(
-                    "failed_to_parse_activities_json",
-                    dataset_id=ds.id,
-                    error=str(e),
-                )
+        # Get statistics from DatasetMetadata (single source of truth)
+        # Fall back to deprecated Dataset fields for backward compatibility
+        metadata = ds.metadata_record
+        if metadata:
+            total_events = metadata.total_events
+            total_cases = metadata.total_cases
+            total_activities = metadata.total_activities
+        else:
+            # Fallback to deprecated fields for older datasets
+            total_events = ds.total_events or 0
+            total_cases = ds.total_cases or 0
+            total_activities = ds.total_activities or 0
+
+        # Activities list is deprecated on Dataset - skip for list view
+        activities: list[str] = []
 
         items.append(
             DatasetResponse(
                 id=ds.id,
                 name=ds.name,
                 source_format=ds.source_format,
-                total_events=ds.total_events,
-                total_cases=ds.total_cases,
-                total_activities=ds.total_activities,
+                total_events=total_events,
+                total_cases=total_cases,
+                total_activities=total_activities,
                 activities=activities,
                 created_at=ds.created_at,
                 source_file=ds.source_file,
@@ -199,76 +211,68 @@ async def get_dataset(
         status=dataset.status,
     )
 
-    # Parse JSON fields
-    activities = []
-    statistics = None
-
-    if dataset.activities_json:
-        try:
-            activities = json.loads(dataset.activities_json)
-        except json.JSONDecodeError as e:
-            logger.warning(
-                "failed_to_parse_activities_json",
-                dataset_id=dataset_id,
-                error=str(e),
-            )
-
-    if dataset.statistics_json:
-        try:
-            statistics = json.loads(dataset.statistics_json)
-        except json.JSONDecodeError as e:
-            logger.warning(
-                "failed_to_parse_statistics_json",
-                dataset_id=dataset_id,
-                error=str(e),
-            )
-
-    # Get metadata if available
-    metadata = None
-    if dataset.metadata_record:
-        metadata = {
-            "total_events": dataset.metadata_record.total_events,
-            "total_cases": dataset.metadata_record.total_cases,
-            "total_activities": dataset.metadata_record.total_activities,
-            "total_variants": dataset.metadata_record.total_variants,
-            "first_event_at": dataset.metadata_record.first_event_at.isoformat()
-            if dataset.metadata_record.first_event_at
+    # Get statistics from DatasetMetadata (single source of truth)
+    metadata = dataset.metadata_record
+    if metadata:
+        total_events = metadata.total_events
+        total_cases = metadata.total_cases
+        total_activities = metadata.total_activities
+        statistics = {
+            "total_events": metadata.total_events,
+            "total_cases": metadata.total_cases,
+            "total_activities": metadata.total_activities,
+            "total_variants": metadata.total_variants,
+            "first_event_at": metadata.first_event_at.isoformat()
+            if metadata.first_event_at
             else None,
-            "last_event_at": dataset.metadata_record.last_event_at.isoformat()
-            if dataset.metadata_record.last_event_at
+            "last_event_at": metadata.last_event_at.isoformat()
+            if metadata.last_event_at
             else None,
-            "avg_case_duration": dataset.metadata_record.avg_case_duration,
+            "avg_case_duration": metadata.avg_case_duration,
+            "min_case_duration": metadata.min_case_duration,
+            "max_case_duration": metadata.max_case_duration,
+            "total_resources": metadata.total_resources,
+            "computed_at": metadata.computed_at.isoformat() if metadata.computed_at else None,
         }
         logger.debug(
             "get_dataset_metadata_loaded",
             dataset_id=dataset_id,
             has_metadata=True,
-            total_events=metadata.get("total_events"),
-            total_cases=metadata.get("total_cases"),
+            total_events=total_events,
+            total_cases=total_cases,
         )
+    else:
+        # Fallback to deprecated Dataset fields for older datasets
+        total_events = dataset.total_events or 0
+        total_cases = dataset.total_cases or 0
+        total_activities = dataset.total_activities or 0
+        statistics = None
+
+    # Activities list - skip deprecated field, empty for now
+    activities: list[str] = []
 
     logger.info(
         "get_dataset_success",
         dataset_id=dataset_id,
         dataset_name=dataset.name,
         status=dataset.status,
-        total_events=dataset.total_events,
-        total_cases=dataset.total_cases,
+        total_events=total_events,
+        total_cases=total_cases,
     )
 
     return DatasetDetailResponse(
         id=dataset.id,
         name=dataset.name,
         source_format=dataset.source_format,
-        total_events=dataset.total_events,
-        total_cases=dataset.total_cases,
-        total_activities=dataset.total_activities,
+        total_events=total_events,
+        total_cases=total_cases,
+        total_activities=total_activities,
         activities=activities,
         created_at=dataset.created_at,
         source_file=dataset.source_file,
         status=dataset.status,
         file_size_bytes=dataset.file_size_bytes,
-        statistics=statistics or metadata,
+        statistics=statistics,
         updated_at=dataset.updated_at,
         error_message=dataset.error_message,
     )
@@ -316,6 +320,153 @@ async def get_dataset_sheets(
     }
 
 
+@router.get(
+    "/{dataset_id}/preview",
+    summary="Get Raw Data Preview",
+    description="""
+Get a preview of the raw data from the uploaded file.
+
+Returns column information with detected types and sample row data.
+Used by the upload wizard's Configure step before mapping is applied.
+    """,
+    responses={
+        200: {"description": "Preview data with columns and sample rows"},
+        404: {"description": "Dataset not found or file not accessible"},
+    },
+)
+async def get_dataset_preview(
+    db: ReadDBSession,
+    dataset_id: str,
+    user: CurrentUser,
+    rows: int = Query(10, ge=1, le=100, description="Number of sample rows to return"),
+) -> dict[str, Any]:
+    """Get raw data preview for upload wizard Configure step."""
+    import csv
+    import io
+
+    from starlette.concurrency import run_in_threadpool
+
+    from src.infra.infrastructure.object_storage import get_storage_client
+
+    logger.info(
+        "get_dataset_preview_request",
+        dataset_id=dataset_id,
+        user_id=user.id,
+        rows=rows,
+    )
+
+    # Verify permission
+    _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
+
+    if not dataset.storage_key:
+        from src.infra.core.exceptions import NotFoundError
+
+        raise NotFoundError("Dataset file", dataset_id)
+
+    # Read file from storage
+    try:
+        storage_client = get_storage_client()
+        file_obj = await run_in_threadpool(
+            storage_client.download_fileobj, bucket_type="raw", key=dataset.storage_key
+        )
+        content = file_obj.read()
+    except Exception as e:
+        logger.error(
+            "get_dataset_preview_storage_error",
+            dataset_id=dataset_id,
+            storage_key=dataset.storage_key,
+            error=str(e),
+        )
+        from src.infra.core.exceptions import NotFoundError
+
+        raise NotFoundError("Dataset file", dataset_id)
+
+    # Parse CSV to extract preview
+    text_content = content.decode("utf-8")
+    reader = csv.DictReader(io.StringIO(text_content))
+
+    # Get column info
+    columns = []
+    fieldnames = reader.fieldnames or []
+
+    # Read sample rows
+    sample_rows = []
+    for i, row in enumerate(reader):
+        if i < rows:
+            sample_rows.append(row)
+        if i >= rows:
+            break
+
+    # Count total rows (rough estimate from remaining content)
+    total_rows = len(sample_rows)
+    for _ in reader:
+        total_rows += 1
+
+    # Detect column types from sample values
+    for col_name in fieldnames:
+        sample_values = [row.get(col_name) for row in sample_rows if row.get(col_name)]
+        null_count = sum(1 for row in sample_rows if not row.get(col_name))
+
+        # Simple type detection
+        detected_type = "STRING"
+        date_format = None
+
+        if sample_values:
+            # Check if numeric
+            try:
+                [float(str(v).replace(",", "")) for v in sample_values[:5] if v]
+                # Check if integer
+                if all(float(str(v).replace(",", "")).is_integer() for v in sample_values[:5] if v):
+                    detected_type = "INTEGER"
+                else:
+                    detected_type = "DECIMAL"
+            except (ValueError, AttributeError):
+                pass
+
+            # Check if datetime
+            if detected_type == "STRING":
+                import re
+
+                date_patterns = [
+                    (r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}", "yyyy-MM-dd HH:mm:ss"),
+                    (r"^\d{4}-\d{2}-\d{2}$", "yyyy-MM-dd"),
+                    (r"^\d{2}/\d{2}/\d{4}", "MM/dd/yyyy"),
+                    (r"^\d{2}\.\d{2}\.\d{4}", "dd.MM.yyyy"),
+                ]
+                for pattern, fmt in date_patterns:
+                    if any(re.match(pattern, str(v)) for v in sample_values[:5] if v):
+                        detected_type = "DATETIME"
+                        date_format = fmt
+                        break
+
+        columns.append({
+            "name": col_name,
+            "detected_type": detected_type,
+            "sample_values": sample_values[:5],
+            "null_count": null_count,
+            "date_format": date_format,
+        })
+
+    logger.info(
+        "get_dataset_preview_success",
+        dataset_id=dataset_id,
+        column_count=len(columns),
+        row_count=len(sample_rows),
+        total_rows=total_rows,
+    )
+
+    return {
+        "dataset_id": dataset_id,
+        "filename": dataset.source_file or dataset.name,
+        "columns": columns,
+        "rows": sample_rows,
+        "total_rows": total_rows,
+        "has_header": True,
+        "field_separator": ",",
+        "encoding": "utf-8",
+    }
+
+
 @router.delete(
     "/{dataset_id}",
     summary="Delete Dataset",
@@ -348,8 +499,10 @@ async def delete_dataset(
 
     dataset_name = dataset.name
     storage_key = dataset.storage_key
-    total_events = dataset.total_events
-    total_cases = dataset.total_cases
+    # Get stats from metadata if available, otherwise fallback to deprecated fields
+    metadata = dataset.metadata_record
+    total_events = metadata.total_events if metadata else (dataset.total_events or 0)
+    total_cases = metadata.total_cases if metadata else (dataset.total_cases or 0)
 
     logger.debug(
         "delete_dataset_permission_verified",

@@ -1,9 +1,26 @@
-"""Loader - Read event logs from various formats.
+"""Loader - Read event logs from various formats - DEPRECATED MODULE.
 
-Wraps pm4py.read_* functions.
+This module is deprecated. Use the canonical EventLogLoader instead:
+    from src.features.process_mining.services.loader import event_log_loader
+
+The engine/loader.py is a simplified file-based loader that doesn't support:
+- S3/MinIO storage
+- DuckDB-based high-performance loading
+- Parquet-first architecture
+
+Scheduled for removal: 2026-01-22
 """
 
 import os
+import warnings
+
+warnings.warn(
+    "src.features.process_mining.engine.loader is deprecated. "
+    "Use src.features.process_mining.services.loader.event_log_loader instead. "
+    "Scheduled for removal: 2026-01-22",
+    DeprecationWarning,
+    stacklevel=2,
+)
 from pathlib import Path
 
 import pandas as pd

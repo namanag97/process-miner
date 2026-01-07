@@ -62,10 +62,36 @@ async function fetchSheets(datasetId: string): Promise<SheetsResponse> {
     }
 }
 
-async function startIngestion(datasetId: string, _mapping: ColumnMapping): Promise<{ id: string }> {
+async function submitMapping(datasetId: string, mapping: ColumnMapping): Promise<void> {
+    console.log('[API:submitMapping] Request started', { datasetId, mapping });
+    devLog.info('API:submitMapping', 'Submitting column mapping', { datasetId });
+    try {
+        // Convert wizard mapping format to SDK format
+        const sdkMapping = {
+            caseId: mapping.case_id_column,
+            activity: mapping.activity_column,
+            timestamp: mapping.timestamp_column,
+            resource: mapping.resource_column,
+        };
+        await sdk.datasets.setMapping(datasetId, sdkMapping);
+        console.log('[API:submitMapping] Success');
+        devLog.action('API:submitMapping', 'Mapping submitted successfully');
+    } catch (err: unknown) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        console.error('[API:submitMapping] Exception thrown', { message: error.message, datasetId });
+        devLog.error('API:submitMapping', `Exception: ${error.message}`, { datasetId });
+        throw error;
+    }
+}
+
+async function startIngestion(datasetId: string, mapping: ColumnMapping): Promise<{ id: string }> {
     console.log('[API:startIngestion] Request started', { datasetId });
     devLog.info('API:startIngestion', 'Starting dataset ingestion', { datasetId });
     try {
+        // First submit the mapping to transition status to MAPPED
+        await submitMapping(datasetId, mapping);
+
+        // Then start ingestion
         const data = await sdk.datasets.ingest(datasetId);
         console.log('[API:startIngestion] Success', data);
         devLog.action('API:startIngestion', 'Ingestion started successfully', data);

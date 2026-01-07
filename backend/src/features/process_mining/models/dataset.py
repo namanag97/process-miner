@@ -33,21 +33,30 @@ class Dataset(Base):
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=True
     )
 
-    # Statistics
-    total_cases: Mapped[int] = mapped_column(Integer, default=0)
-    total_events: Mapped[int] = mapped_column(Integer, default=0)
-    total_activities: Mapped[int] = mapped_column(Integer, default=0)
+    # DEPRECATED: Statistics fields - use DatasetMetadata instead
+    # These fields are kept for backward compatibility but should not be written to.
+    # All statistics should be stored in the DatasetMetadata table.
+    # TODO: Remove in future migration after all reads are migrated to DatasetMetadata
+    total_cases: Mapped[int] = mapped_column(Integer, default=0)  # DEPRECATED
+    total_events: Mapped[int] = mapped_column(Integer, default=0)  # DEPRECATED
+    total_activities: Mapped[int] = mapped_column(Integer, default=0)  # DEPRECATED
 
-    # JSON columns
-    activities_json: Mapped[str | None] = mapped_column(Text, nullable=True)
-    statistics_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Denormalized from DatasetMetadata for fast listing queries (avoids JOIN)
+    # Updated during finalize_ingestion activity
+    variant_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # DEPRECATED: JSON columns - use DatasetMetadata instead
+    activities_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # DEPRECATED
+    statistics_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # DEPRECATED
 
     # Lifecycle
     status: Mapped[str] = mapped_column(String(20), default=DatasetStatus.PENDING.value, index=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    mapping_json: Mapped[str | None] = mapped_column(Text, nullable=True)
-    column_suggestions_json: Mapped[str | None] = mapped_column(Text, nullable=True)
-    detected_columns_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # DEPRECATED: Use DatasetColumnMapping and DatasetColumn tables instead
+    mapping_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # DEPRECATED
+    column_suggestions_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # DEPRECATED
+    detected_columns_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # DEPRECATED
 
     # File metadata
     file_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)

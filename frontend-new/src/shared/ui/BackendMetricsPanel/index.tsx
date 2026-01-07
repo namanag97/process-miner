@@ -31,7 +31,7 @@ const circuitStateConfig = {
 };
 
 export function BackendMetricsPanel({ observability }: MetricsPanelProps) {
-  const { connected, metrics, circuitBreakers, errorCount, slowRequests, lastHeartbeat } = observability;
+  const { connected, metrics, circuitBreakers = {}, errorCount = 0, slowRequests = 0, lastHeartbeat } = observability ?? {};
 
   if (!connected || !metrics) {
     return (

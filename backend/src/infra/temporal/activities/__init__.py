@@ -1,4 +1,26 @@
-"""Temporal Activities Package.
+"""Temporal Activities Package - DEPRECATED (v1).
+
+This module is deprecated in favor of activities_v2.
+Use the new stateless, idempotent activities instead:
+    from src.infra.temporal.activities_v2 import (
+        validate_file,
+        detect_columns,
+        process_chunk,
+        finalize_ingestion,
+    )
+
+Migration timeline:
+- 2026-01-08: Deprecation notice added
+- 2026-02-01: Target date for full migration to v2
+- 2026-03-01: Scheduled removal of v1
+
+Differences from v2:
+- v1: Monolithic activities with AsyncJob writes
+- v2: Stateless, idempotent, chunk-based processing
+
+---
+
+Original v1 Documentation (for migration reference):
 
 Exports all activities for worker registration.
 
@@ -23,6 +45,16 @@ Progress Publishing:
     - publish_step_completed: Publish step completed event
     - publish_step_failed: Publish step failed event
 """
+
+import warnings
+
+warnings.warn(
+    "src.infra.temporal.activities (v1) is deprecated. "
+    "Migrate to src.infra.temporal.activities_v2 for stateless, idempotent activities. "
+    "Target removal date: 2026-03-01",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 from src.infra.temporal.activities.analysis import (
     check_conformance_activity,

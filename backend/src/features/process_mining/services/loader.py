@@ -110,7 +110,7 @@ class EventLogLoader:
         from sqlalchemy import select
 
         from src.features.process_mining.models import Dataset
-        from src.shared.database import sync_session_maker
+        from src.infra.infrastructure.database import sync_session_maker
 
         with sync_session_maker() as session:
             result = session.execute(

@@ -60,6 +60,7 @@ class ProcessDiscoveryWorkflowV2:
         dataset_id: str,
         miner_type: str,
         model_name: str | None = None,
+        parameters: dict | None = None,
     ) -> dict:
         """Execute process discovery workflow.
 
@@ -67,6 +68,12 @@ class ProcessDiscoveryWorkflowV2:
             dataset_id: UUID of the dataset to analyze
             miner_type: Mining algorithm (alpha, inductive, heuristic, ilp)
             model_name: Optional name for the discovered model
+            parameters: Algorithm-specific parameters (optional)
+                - inductive/inductive_infrequent: noise_threshold (0.0-1.0)
+                - heuristics: dependency_threshold (0.0-1.0), and_threshold (0.0-1.0)
+                - ilp: alpha (0.0-1.0)
+                - log_skeleton: noise_threshold (0.0-1.0)
+                - transition_system: direction (forward/backward), window (1-10)
 
         Returns:
             dict with model data and metrics
@@ -101,11 +108,11 @@ class ProcessDiscoveryWorkflowV2:
 
             self._state.progress_percent = 20
 
-            # Step 2: Discover process model
+            # Step 2: Discover process model (with optional parameters)
             self._state.current_step = "discover_model"
             discovery: DiscoveryResult = await workflow.execute_activity(
                 discover_process_model,
-                args=[dataset_id, miner_type],
+                args=[dataset_id, miner_type, parameters or {}],
                 start_to_close_timeout=timedelta(minutes=15),
                 heartbeat_timeout=timedelta(seconds=60),
                 retry_policy=retry_policy,

@@ -115,7 +115,9 @@ async def load_event_log(dataset_id: str) -> dict:
 
 
 @activity.defn
-async def discover_process_model(dataset_id: str, miner_type: str) -> DiscoveryResult:
+async def discover_process_model(
+    dataset_id: str, miner_type: str, parameters: dict | None = None
+) -> DiscoveryResult:
     """Discover process model using specified mining algorithm.
 
     Long-running operation with heartbeats.
@@ -123,11 +125,22 @@ async def discover_process_model(dataset_id: str, miner_type: str) -> DiscoveryR
     Args:
         dataset_id: UUID of the dataset
         miner_type: Mining algorithm (alpha, inductive, heuristic, ilp)
+        parameters: Algorithm-specific parameters (optional)
+            - inductive/inductive_infrequent: noise_threshold (0.0-1.0)
+            - heuristics: dependency_threshold (0.0-1.0), and_threshold (0.0-1.0)
+            - ilp: alpha (0.0-1.0)
+            - log_skeleton: noise_threshold (0.0-1.0)
+            - transition_system: direction (forward/backward), window (1-10)
 
     Returns:
         DiscoveryResult with model_data and initial metrics
     """
-    logger.info("discover_process_model_started", dataset_id=dataset_id, miner_type=miner_type)
+    logger.info(
+        "discover_process_model_started",
+        dataset_id=dataset_id,
+        miner_type=miner_type,
+        parameters=parameters,
+    )
     activity.heartbeat("starting_discovery")
 
     start_time = time.perf_counter()

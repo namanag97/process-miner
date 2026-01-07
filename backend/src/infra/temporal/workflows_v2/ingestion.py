@@ -47,6 +47,7 @@ class DatasetIngestionWorkflowV2:
     2. Get chunk list for parallel processing
     3. Process each chunk (workflow orchestrates, activities are short)
     4. Finalize ingestion (compute stats, update status)
+    5. Pre-compute DFG cache (per tech spec step 7, non-blocking)
 
     Progress is tracked via query handler and survives worker failures.
     """
@@ -91,6 +92,7 @@ class DatasetIngestionWorkflowV2:
         from src.infra.temporal.activities_v2.ingestion import (
             finalize_ingestion,
             get_chunk_list,
+            precompute_dfg,
             process_chunk,
             update_dataset_status,
             validate_file,
@@ -167,7 +169,7 @@ class DatasetIngestionWorkflowV2:
                 # Progress: 15-85% based on chunks
                 self._state.progress_percent = 15 + int((i + 1) / len(chunks) * 70)
 
-            # Step 4: Finalize (fast, <2 min)
+            # Step 4: Finalize - compute stats and update status (fast, <2 min)
             self._state.current_step = "finalize"
             final_result: IngestionResult = await workflow.execute_activity(
                 finalize_ingestion,
@@ -176,10 +178,30 @@ class DatasetIngestionWorkflowV2:
                 retry_policy=retry_policy,
             )
 
-            self._state.progress_percent = 100
-            self._state.current_step = "completed"
+            self._state.progress_percent = 90
             self._state.total_cases = final_result.total_cases
             self._state.total_events = final_result.total_events
+
+            # Step 5: Pre-compute DFG cache (per tech spec step 7)
+            # This is non-blocking - failure doesn't fail ingestion
+            self._state.current_step = "precompute_dfg"
+            try:
+                await workflow.execute_activity(
+                    precompute_dfg,
+                    args=[dataset_id],
+                    start_to_close_timeout=timedelta(minutes=10),
+                    retry_policy=RetryPolicy(
+                        initial_interval=timedelta(seconds=2),
+                        maximum_attempts=2,  # Only 2 attempts - DFG can be computed on-demand later
+                    ),
+                )
+            except Exception:
+                # DFG pre-computation failure is non-fatal
+                # It will be computed on-demand when needed
+                pass
+
+            self._state.progress_percent = 100
+            self._state.current_step = "completed"
 
             return {
                 "status": "completed",

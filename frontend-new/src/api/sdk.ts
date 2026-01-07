@@ -457,12 +457,19 @@ export const sdk = {
         },
 
         getMapping: async (datasetId: string): Promise<ColumnMapping | null> => {
-            const { data } = await apiClient.get(`/datasets/${datasetId}/column-mapping`);
+            const { data } = await apiClient.get(`/datasets/${datasetId}/mapping`);
             return data;
         },
 
         setMapping: async (datasetId: string, mapping: ColumnMapping) => {
-            const { data } = await apiClient.post(`/datasets/${datasetId}/column-mapping`, mapping);
+            // Convert camelCase to snake_case for backend
+            const backendMapping = {
+                case_id_column: mapping.caseId,
+                activity_column: mapping.activity,
+                timestamp_column: mapping.timestamp,
+                resource_column: mapping.resource,
+            };
+            const { data } = await apiClient.post(`/datasets/${datasetId}/mapping`, backendMapping);
             return data;
         },
 

@@ -32,6 +32,7 @@ from src.infra.temporal.activities_v2.ingestion import (
     detect_columns,
     finalize_ingestion,
     get_chunk_list,
+    precompute_dfg,
     process_chunk,
     update_dataset_status,
     validate_file,
@@ -50,7 +51,6 @@ from src.infra.temporal.activities_v2.types import (
 )
 
 __all__ = [
-    # Types
     "ChunkInfo",
     "ChunkProcessResult",
     "ColumnDetectionResult",
@@ -67,13 +67,12 @@ __all__ = [
     "discover_process_model",
     "finalize_ingestion",
     "get_chunk_list",
-    # Analysis activities
     "load_event_log",
     "load_process_model",
+    "precompute_dfg",
     "process_chunk",
     "save_conformance_result",
     "save_process_model",
     "update_dataset_status",
-    # Ingestion activities
     "validate_file",
 ]

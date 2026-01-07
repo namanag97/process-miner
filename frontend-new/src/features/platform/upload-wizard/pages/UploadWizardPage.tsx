@@ -274,7 +274,7 @@ export function UploadWizardPage() {
                     }}
                     styles={{ body: { padding: 0 } }}
                 >
-                    <div style={{ display: 'flex', minHeight: 560 }}>
+                    <div style={{ display: 'flex', minHeight: 560, overflow: 'hidden' }}>
                         {/* Left: Vertical Step Indicator */}
                         <div style={{
                             width: 280,
@@ -330,28 +330,29 @@ export function UploadWizardPage() {
                                         </div>
 
                                         {/* Text */}
-                                        <div style={{ flex: 1, paddingBottom: tokens.spacing[6] }}>
-                                            <Text
-                                                strong
+                                        <div style={{ flex: 1, paddingBottom: tokens.spacing[6], minWidth: 0 }}>
+                                            <div
                                                 style={{
                                                     fontSize: 14,
+                                                    fontWeight: 600,
                                                     color: status === 'pending'
                                                         ? tokens.colors.neutral[500]
                                                         : tokens.colors.neutral[900],
-                                                    display: 'block',
                                                     marginBottom: 2,
+                                                    whiteSpace: 'nowrap',
                                                 }}
                                             >
                                                 {step.title}
-                                            </Text>
-                                            <Text
+                                            </div>
+                                            <div
                                                 style={{
                                                     fontSize: 12,
                                                     color: tokens.colors.neutral[500],
+                                                    whiteSpace: 'nowrap',
                                                 }}
                                             >
                                                 {step.description}
-                                            </Text>
+                                            </div>
                                         </div>
                                     </div>
                                 );
@@ -359,7 +360,7 @@ export function UploadWizardPage() {
                         </div>
 
                         {/* Right: Step Content */}
-                        <div style={{ flex: 1, padding: tokens.spacing[6] }}>
+                        <div style={{ flex: 1, padding: tokens.spacing[6], minWidth: 0, overflow: 'hidden' }}>
                             {/* Error display */}
                             {error && (
                                 <div style={{

@@ -7,6 +7,7 @@ import {
   QueryError,
   EmptyState,
   tokens,
+  formatDurationFromSeconds,
   usePerformance,
   useCycleTime,
   useThroughput,
@@ -19,8 +20,14 @@ interface PerformanceTabProps {
 }
 
 /**
- * PerformanceTab - Performance metrics and cycle time analysis
- * Shows throughput, bottlenecks, and timing statistics
+ * PerformanceTab - Performance metrics and cycle time analysis (KPI Dashboard version)
+ * Shows throughput, bottlenecks, and timing statistics using hooks-based data fetching.
+ *
+ * NOTE: There are two PerformanceTab components in this codebase:
+ * - analytics/components/PerformanceTab.tsx - Props-based, detailed table view
+ * - kpi/components/PerformanceTab.tsx (this file) - Hooks-based, simpler list view
+ *
+ * These are intentionally separate as they serve different UX purposes.
  */
 export function PerformanceTab({ datasetId }: PerformanceTabProps) {
   const { data: performance, isLoading: perfLoading, error: perfError, refetch: refetchPerf } = usePerformance(datasetId);
@@ -47,13 +54,6 @@ export function PerformanceTab({ datasetId }: PerformanceTabProps) {
     );
   }
 
-  const formatDuration = (seconds: number) => {
-    if (seconds < 60) return `${seconds.toFixed(0)}s`;
-    if (seconds < 3600) return `${(seconds / 60).toFixed(1)}m`;
-    if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`;
-    return `${(seconds / 86400).toFixed(1)}d`;
-  };
-
   // Calculate efficiency from performance data (throughput ratio)
   const totalCases = throughput?.total_cases ?? 0;
   const completedCases = throughput?.completed_cases ?? 0;
@@ -65,7 +65,7 @@ export function PerformanceTab({ datasetId }: PerformanceTabProps) {
         <Col xs={24} sm={8}>
           <MetricCard
             title="Avg Cycle Time"
-            value={formatDuration(cycleTime?.avg_seconds ?? 0)}
+            value={formatDurationFromSeconds(cycleTime?.avg_seconds ?? 0)}
             prefix={<ClockCircleOutlined />}
           />
         </Col>
@@ -97,7 +97,7 @@ export function PerformanceTab({ datasetId }: PerformanceTabProps) {
                 <List.Item>
                   <List.Item.Meta
                     title={item.activity}
-                    description={`Wait time: ${formatDuration(item.avgWaitingTime)}`}
+                    description={`Wait time: ${formatDurationFromSeconds(item.avgWaitingTime)}`}
                   />
                   <Progress
                     percent={Math.round(item.impactScore * 100)}
@@ -117,16 +117,16 @@ export function PerformanceTab({ datasetId }: PerformanceTabProps) {
             <div style={{ display: 'flex', gap: tokens.spacing[4], flexWrap: 'wrap' }}>
               <Statistic
                 title="Minimum"
-                value={formatDuration(cycleTime?.min_seconds ?? 0)}
+                value={formatDurationFromSeconds(cycleTime?.min_seconds ?? 0)}
                 prefix={<ArrowDownOutlined style={{ color: tokens.colors.success[500] }} />}
               />
               <Statistic
                 title="Median"
-                value={formatDuration(cycleTime?.median_seconds ?? 0)}
+                value={formatDurationFromSeconds(cycleTime?.median_seconds ?? 0)}
               />
               <Statistic
                 title="Maximum"
-                value={formatDuration(cycleTime?.max_seconds ?? 0)}
+                value={formatDurationFromSeconds(cycleTime?.max_seconds ?? 0)}
                 prefix={<ArrowUpOutlined style={{ color: tokens.colors.error[500] }} />}
               />
             </div>

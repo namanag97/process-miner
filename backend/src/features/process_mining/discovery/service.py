@@ -55,12 +55,14 @@ class MiningService:
         self,
         event_log: Dataset,
         miner_type: MinerType = MinerType.INDUCTIVE,
+        parameters: dict | None = None,
     ) -> tuple[Any, ModelFormat]:
         """Discover a process model from an event log.
 
         Args:
             event_log: Dataset ORM object
             miner_type: Mining algorithm to use
+            parameters: Algorithm-specific parameters (optional)
 
         Returns:
             Tuple of (model_data, model_format)
@@ -71,6 +73,7 @@ class MiningService:
             miner_type=miner_type.value,
             total_cases=event_log.total_cases,
             total_events=event_log.total_events,
+            parameters=parameters,
         )
         start_time = time.perf_counter()
 
@@ -82,9 +85,9 @@ class MiningService:
         conversion_ms = (time.perf_counter() - start_time) * 1000
         logger.debug("pm4py_log_conversion_fast", duration_ms=round(conversion_ms, 2))
 
-        # Run discovery algorithm
+        # Run discovery algorithm with parameters
         mining_start = time.perf_counter()
-        result = self._run_discovery(pm4py_log, miner_type)
+        result = self._run_discovery(pm4py_log, miner_type, parameters or {})
 
         mining_ms = (time.perf_counter() - mining_start) * 1000
         total_ms = (time.perf_counter() - start_time) * 1000
@@ -117,8 +120,18 @@ class MiningService:
 
         return result
 
-    def _run_discovery(self, pm4py_log, miner_type: MinerType) -> tuple[Any, ModelFormat]:
-        """Run the appropriate discovery algorithm."""
+    def _run_discovery(
+        self, pm4py_log, miner_type: MinerType, params: dict | None = None
+    ) -> tuple[Any, ModelFormat]:
+        """Run the appropriate discovery algorithm with optional parameters.
+
+        Args:
+            pm4py_log: PM4Py event log
+            miner_type: Mining algorithm type
+            params: Algorithm-specific parameters dict
+        """
+        params = params or {}
+
         if miner_type == MinerType.ALPHA:
             return AlphaMiner.discover(pm4py_log), ModelFormat.PETRI_NET
 
@@ -130,13 +143,22 @@ class MiningService:
                 return AlphaMiner.discover(pm4py_log), ModelFormat.PETRI_NET
 
         if miner_type == MinerType.INDUCTIVE:
-            return InductiveMiner.discover(pm4py_log), ModelFormat.PROCESS_TREE
+            noise_threshold = params.get("noise_threshold", 0.0)
+            return InductiveMiner.discover(pm4py_log, noise_threshold=noise_threshold), ModelFormat.PROCESS_TREE
 
         if miner_type == MinerType.INDUCTIVE_INFREQUENT:
-            return InductiveMiner.discover(pm4py_log, noise_threshold=0.2), ModelFormat.PROCESS_TREE
+            # Default to 0.2 for infrequent variant, but allow override
+            noise_threshold = params.get("noise_threshold", 0.2)
+            return InductiveMiner.discover(pm4py_log, noise_threshold=noise_threshold), ModelFormat.PROCESS_TREE
 
         if miner_type == MinerType.HEURISTICS:
-            return HeuristicsMiner.discover(pm4py_log), ModelFormat.PETRI_NET
+            dependency_threshold = params.get("dependency_threshold", 0.5)
+            and_threshold = params.get("and_threshold", 0.65)
+            return HeuristicsMiner.discover(
+                pm4py_log,
+                dependency_threshold=dependency_threshold,
+                and_threshold=and_threshold,
+            ), ModelFormat.PETRI_NET
 
         if miner_type == MinerType.DFG:
             return DFGMiner.discover(pm4py_log), ModelFormat.DFG
@@ -145,7 +167,8 @@ class MiningService:
             return DFGMiner.discover_performance(pm4py_log), ModelFormat.PERFORMANCE_DFG
 
         if miner_type == MinerType.ILP:
-            return ILPMiner.discover(pm4py_log), ModelFormat.PETRI_NET
+            alpha = params.get("alpha", 1.0)
+            return ILPMiner.discover(pm4py_log, alpha=alpha), ModelFormat.PETRI_NET
 
         if miner_type == MinerType.POWL:
             return AdvancedMiner.discover_powl(pm4py_log), ModelFormat.POWL
@@ -161,7 +184,8 @@ class MiningService:
                 return {"constraints": [], "activities": [], "error": str(e)}, ModelFormat.DECLARE
 
         if miner_type == MinerType.LOG_SKELETON:
-            return DeclarativeMiner.discover_log_skeleton(pm4py_log), ModelFormat.LOG_SKELETON
+            noise_threshold = params.get("noise_threshold", 0.0)
+            return DeclarativeMiner.discover_log_skeleton(pm4py_log, noise_threshold=noise_threshold), ModelFormat.LOG_SKELETON
 
         if miner_type == MinerType.TEMPORAL_PROFILE:
             return DeclarativeMiner.discover_temporal_profile(
@@ -172,8 +196,10 @@ class MiningService:
             return AdvancedMiner.discover_prefix_tree(pm4py_log), ModelFormat.PREFIX_TREE
 
         if miner_type == MinerType.TRANSITION_SYSTEM:
+            direction = params.get("direction", "forward")
+            window = params.get("window", 2)
             return AdvancedMiner.discover_transition_system(
-                pm4py_log
+                pm4py_log, direction=direction, window=window
             ), ModelFormat.TRANSITION_SYSTEM
 
         if miner_type == MinerType.BATCHES:

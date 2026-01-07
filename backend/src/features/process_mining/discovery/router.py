@@ -87,6 +87,11 @@ async def discover_model(
             field="miner_type",
         )
 
+    # Extract parameters dict from request if provided
+    params_dict = None
+    if request.parameters:
+        params_dict = request.parameters.model_dump(exclude_none=True)
+
     # Async mode - offload to Temporal v2 workflow
     if async_mode:
         from temporalio.common import WorkflowIDReusePolicy
@@ -101,35 +106,49 @@ async def discover_model(
         # Deterministic workflow ID
         workflow_id = f"discover-{request.dataset_id}-{miner_type.value}"
 
-        client = await get_temporal_client()
-
         try:
+            client = await get_temporal_client()
             await client.start_workflow(
                 ProcessDiscoveryWorkflowV2.run,
-                args=[request.dataset_id, miner_type.value, request.model_name],
+                args=[request.dataset_id, miner_type.value, request.model_name, params_dict],
                 id=workflow_id,
                 task_queue=config.QUEUE_ANALYSIS,
                 id_reuse_policy=WorkflowIDReusePolicy.ALLOW_DUPLICATE_FAILED_ONLY,
             )
+            logger.info("async_discovery_started", workflow_id=workflow_id, parameters=params_dict)
+            return JSONResponse(
+                status_code=202,
+                content={
+                    "workflow_id": workflow_id,
+                    "status": "queued",
+                    "message": "Discovery started. Use /api/v1/operations/{workflow_id} to check status.",
+                    "poll_endpoint": f"/api/v1/operations/{workflow_id}",
+                },
+            )
         except WorkflowAlreadyStartedError:
             # Already running - return existing ID
             logger.info("discovery_workflow_already_running", workflow_id=workflow_id)
-
-        logger.info("async_discovery_started", workflow_id=workflow_id)
-        return JSONResponse(
-            status_code=202,
-            content={
-                "workflow_id": workflow_id,
-                "status": "queued",
-                "message": "Discovery started. Use /api/v1/operations/{workflow_id} to check status.",
-                "poll_endpoint": f"/api/v1/operations/{workflow_id}",
-            },
-        )
+            return JSONResponse(
+                status_code=202,
+                content={
+                    "workflow_id": workflow_id,
+                    "status": "running",
+                    "message": "Discovery already in progress.",
+                    "poll_endpoint": f"/api/v1/operations/{workflow_id}",
+                },
+            )
+        except Exception as e:
+            # Temporal unavailable - fall back to sync mode
+            logger.warning(
+                "temporal_unavailable_falling_back_to_sync",
+                error=str(e),
+                dataset_id=request.dataset_id,
+            )
 
     # Sync mode
     start_time = time.perf_counter()
     try:
-        model_data, model_format = container.discovery.discover(event_log, miner_type)
+        model_data, model_format = container.discovery.discover(event_log, miner_type, params_dict)
     except Exception as e:
         logger.error("discovery_failed", dataset_id=request.dataset_id, error=str(e), exc_info=True)
         raise DiscoveryError(f"Discovery failed: {e!s}", miner_type=miner_type.value)
