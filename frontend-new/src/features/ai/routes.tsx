@@ -5,6 +5,8 @@
 import { lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import type { RouteObject } from 'react-router-dom';
+import { ErrorBoundary } from 'react-error-boundary';
+import { FeatureErrorFallback } from '@/shared/ui';
 
 // Lazy load pages
 const AIIndexPage = lazy(() => import('./pages/AIIndexPage'));
@@ -37,13 +39,24 @@ export const aiRouteConfig: RouteObject[] = [
  */
 export function AIRoutes() {
   return (
-    <Routes>
-      <Route index element={<AIIndexPage />} />
-      <Route path="assistant" element={<AIAssistantPage />} />
-      <Route path="insights" element={<AIInsightsPage />} />
-      <Route path="predictions" element={<PredictionsPage />} />
-      <Route path="predictions/:predictorId" element={<PredictorDetailPage />} />
-      <Route path="*" element={<Navigate to="/ai" replace />} />
-    </Routes>
+    <ErrorBoundary
+      fallbackRender={({ error, resetErrorBoundary }) => (
+        <FeatureErrorFallback
+          error={error}
+          resetError={resetErrorBoundary}
+          featureName="AI & Predictions"
+        />
+      )}
+      onError={(error) => console.error('[AI] Error:', error)}
+    >
+      <Routes>
+        <Route index element={<AIIndexPage />} />
+        <Route path="assistant" element={<AIAssistantPage />} />
+        <Route path="insights" element={<AIInsightsPage />} />
+        <Route path="predictions" element={<PredictionsPage />} />
+        <Route path="predictions/:predictorId" element={<PredictorDetailPage />} />
+        <Route path="*" element={<Navigate to="/ai" replace />} />
+      </Routes>
+    </ErrorBoundary>
   );
 }

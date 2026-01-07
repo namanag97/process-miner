@@ -5,6 +5,8 @@
 import { lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import type { RouteObject } from 'react-router-dom';
+import { ErrorBoundary } from 'react-error-boundary';
+import { FeatureErrorFallback } from '@/shared/ui';
 
 // Lazy load pages
 const ExplorerIndexPage = lazy(() => import('./pages/ExplorerIndexPage'));
@@ -33,10 +35,21 @@ export const explorerRouteConfig: RouteObject[] = [
  */
 export function ExplorerRoutes() {
   return (
-    <Routes>
-      <Route index element={<ExplorerIndexPage />} />
-      <Route path=":datasetId/*" element={<ExplorerDetailPage />} />
-      <Route path="*" element={<Navigate to="/explorer" replace />} />
-    </Routes>
+    <ErrorBoundary
+      fallbackRender={({ error, resetErrorBoundary }) => (
+        <FeatureErrorFallback
+          error={error}
+          resetError={resetErrorBoundary}
+          featureName="Process Explorer"
+        />
+      )}
+      onError={(error) => console.error('[Explorer] Error:', error)}
+    >
+      <Routes>
+        <Route index element={<ExplorerIndexPage />} />
+        <Route path=":datasetId/*" element={<ExplorerDetailPage />} />
+        <Route path="*" element={<Navigate to="/explorer" replace />} />
+      </Routes>
+    </ErrorBoundary>
   );
 }

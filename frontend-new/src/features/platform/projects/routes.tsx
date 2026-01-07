@@ -5,6 +5,8 @@
 import { lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import type { RouteObject } from 'react-router-dom';
+import { ErrorBoundary } from 'react-error-boundary';
+import { FeatureErrorFallback } from '@/shared/ui';
 
 // Lazy load pages
 const ProjectsListPage = lazy(() => import('./pages/ProjectsListPage'));
@@ -28,10 +30,21 @@ export const projectsRouteConfig: RouteObject[] = [
  */
 export function ProjectsRoutes() {
   return (
-    <Routes>
-      <Route index element={<ProjectsListPage />} />
-      <Route path=":projectId" element={<ProjectDetailPage />} />
-      <Route path="*" element={<Navigate to="/workspace" replace />} />
-    </Routes>
+    <ErrorBoundary
+      fallbackRender={({ error, resetErrorBoundary }) => (
+        <FeatureErrorFallback
+          error={error}
+          resetError={resetErrorBoundary}
+          featureName="Projects"
+        />
+      )}
+      onError={(error) => console.error('[Projects] Error:', error)}
+    >
+      <Routes>
+        <Route index element={<ProjectsListPage />} />
+        <Route path=":projectId" element={<ProjectDetailPage />} />
+        <Route path="*" element={<Navigate to="/workspace" replace />} />
+      </Routes>
+    </ErrorBoundary>
   );
 }

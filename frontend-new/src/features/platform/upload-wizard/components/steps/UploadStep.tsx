@@ -59,19 +59,19 @@ export function UploadStep({ onUploadComplete, isLoading, uploadFilePresigned }:
                 setUploadProgress(100);
                 onSuccess?.({ id: datasetId, source_file: fileObj.name });
                 onUploadComplete(datasetId, fileObj.name, fileObj.size);
-            } catch (err: any) {
+            } catch (err: unknown) {
+                const error = err instanceof Error ? err : new Error(String(err));
                 const errorData = {
-                    error: err,
-                    message: err.message,
-                    stack: err.stack,
+                    error: error.message,
+                    message: error.message,
+                    stack: error.stack,
                     fileName: fileObj.name
                 };
                 console.error('[UploadWizard:UploadStep] Upload failed', errorData);
-                devLog.error('UploadStep', `Upload failed: ${err.message}`, errorData);
+                devLog.error('UploadStep', `Upload failed: ${error.message}`, errorData);
 
-                const error = new Error(err.message || 'Upload failed');
                 onError?.(error);
-                setError(err.message || 'Upload failed');
+                setError(error.message || 'Upload failed');
                 setUploadProgress(0);
             }
         },

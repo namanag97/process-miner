@@ -5,6 +5,8 @@
 import { lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import type { RouteObject } from 'react-router-dom';
+import { ErrorBoundary } from 'react-error-boundary';
+import { FeatureErrorFallback } from '@/shared/ui';
 
 // Lazy load pages
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
@@ -30,12 +32,23 @@ export const analyticsRouteConfig: RouteObject[] = [
  */
 export function AnalyticsRoutes() {
   return (
-    <Routes>
-      <Route index element={<AnalyticsPage />} />
-      <Route path="conformance" element={<AnalyticsPage />} />
-      <Route path="rework" element={<AnalyticsPage />} />
-      <Route path="resources" element={<AnalyticsPage />} />
-      <Route path="*" element={<Navigate to="/analytics" replace />} />
-    </Routes>
+    <ErrorBoundary
+      fallbackRender={({ error, resetErrorBoundary }) => (
+        <FeatureErrorFallback
+          error={error}
+          resetError={resetErrorBoundary}
+          featureName="Analytics"
+        />
+      )}
+      onError={(error) => console.error('[Analytics] Error:', error)}
+    >
+      <Routes>
+        <Route index element={<AnalyticsPage />} />
+        <Route path="conformance" element={<AnalyticsPage />} />
+        <Route path="rework" element={<AnalyticsPage />} />
+        <Route path="resources" element={<AnalyticsPage />} />
+        <Route path="*" element={<Navigate to="/analytics" replace />} />
+      </Routes>
+    </ErrorBoundary>
   );
 }

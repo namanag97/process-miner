@@ -30,7 +30,7 @@ export interface GraphEdge {
 
 export interface LayoutResult {
     nodes: Array<{ id: string; x: number; y: number; width: number; height: number }>;
-    edges: Array<{ id: string; sections?: any[] }>;
+    edges: Array<{ id: string; sections?: ElkExtendedEdge['sections'] }>;
 }
 
 /**
