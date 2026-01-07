@@ -22,11 +22,11 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import wraps
 
-from fastapi import HTTPException, Request, Response
+from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from src.platform.core.logging_config import get_logger
 from src.platform.core.exceptions import BadRequestError
+from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

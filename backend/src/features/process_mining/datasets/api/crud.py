@@ -46,7 +46,6 @@ import json
 from typing import Any
 
 from fastapi import APIRouter, Query
-
 from sqlalchemy import func, select
 
 from src.api.dependencies import CurrentUser, ReadDBSession, WriteDBSession
@@ -58,9 +57,9 @@ from src.features.process_mining.schemas.datasets import (
 )
 from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
+from src.platform.infrastructure.cache import invalidate_dataset_cache
 from src.platform.users.services import require_dataset_permission
 from src.shared.events import DATASET_DELETED, log_dataset_event
-from src.platform.infrastructure.cache import invalidate_dataset_cache
 
 logger = get_logger(__name__)
 
@@ -332,7 +331,7 @@ async def delete_dataset(
     user: CurrentUser,
 ) -> dict[str, Any]:
     """Delete dataset and cascade to related records.
-    
+
     CQRS: Uses WriteDBSession for transactional delete.
     Emits DATASET_DELETED event for cache invalidation.
     """
@@ -401,7 +400,7 @@ async def delete_dataset(
         },
         user_id=user.id,
     )
-    
+
     # CQRS: Invalidate analytics caches
     invalidate_dataset_cache(dataset_id)
 

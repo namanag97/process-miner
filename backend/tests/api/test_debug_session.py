@@ -5,8 +5,9 @@ from httpx import AsyncClient
 @pytest.mark.asyncio
 async def test_debug_dataset_exists(auth_client: AsyncClient, seeded_dataset_ready, db_session):
     """Debug: Check if dataset exists in DB."""
-    from src.features.process_mining.models import Dataset
     from sqlalchemy import select
+
+    from src.features.process_mining.models import Dataset
 
     # Query the DB directly
     result = await db_session.execute(select(Dataset))

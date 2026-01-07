@@ -3,11 +3,11 @@
 Provides endpoints for querying Temporal workflow status and database-backed workflow records.
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from src.api.dependencies import CurrentUser, DBSession
+from src.api.dependencies import CurrentUser, ReadDBSession
 from src.platform.core.exceptions import NotFoundError
 from src.platform.core.logging_config import get_logger
 from src.platform.workflows import (
@@ -29,7 +29,7 @@ router = APIRouter(prefix="/workflows", tags=["Workflows"])
 
 @router.get("", response_model=WorkflowListResponse)
 async def list_workflows(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     status: str | None = Query(None, description="Filter by status"),
     workflow_type: str | None = Query(None, description="Filter by type"),
@@ -87,7 +87,7 @@ async def list_workflows(
 
 @router.get("/{workflow_id}", response_model=WorkflowResponse)
 async def get_workflow(
-    db: DBSession,
+    db: ReadDBSession,
     workflow_id: str,
     user: CurrentUser,
 ) -> WorkflowResponse:
@@ -110,7 +110,7 @@ async def get_workflow(
 
 @router.get("/{workflow_id}/tasks", response_model=list[WorkflowTaskResponse])
 async def get_workflow_tasks(
-    db: DBSession,
+    db: ReadDBSession,
     workflow_id: str,
     user: CurrentUser,
 ) -> list[WorkflowTaskResponse]:

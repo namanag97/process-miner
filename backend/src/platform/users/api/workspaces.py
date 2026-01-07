@@ -41,7 +41,6 @@ from src.platform.core.exceptions import ConflictError, NotFoundError
 from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
 from src.platform.core.validation import calculate_total_pages, validate_uuid
-from src.platform.users import Organization, Project, Workspace, WorkspaceMember
 from src.platform.schemas import (
     ProjectResponse,
     WorkspaceCreateRequest,
@@ -50,6 +49,7 @@ from src.platform.schemas import (
     WorkspaceResponse,
     WorkspaceUpdateRequest,
 )
+from src.platform.users import Organization, Project, Workspace, WorkspaceMember
 from src.platform.workspaces.authorization import AuthorizationService
 from src.platform.workspaces.schemas import (
     AddMemberRequest,

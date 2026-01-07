@@ -1,4 +1,12 @@
-"""FastAPI dependencies - DB session, auth, etc."""
+"""FastAPI dependencies - CQRS-compliant database sessions and auth.
+
+This module provides clean dependency injection for:
+- WriteDBSession: For commands (POST, PUT, PATCH, DELETE)
+- ReadDBSession: For queries (GET) - can use read replica
+- AnalyticsDB: DuckDB for OLAP analytics on Parquet
+- CommandBusDep: CQRS command bus for write operations
+- QueryBusDep: CQRS query bus for read operations
+"""
 
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Annotated
@@ -8,16 +16,17 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.application.bootstrap import CommandBusDep, QueryBusDep
 from src.platform.core.config import get_settings
 from src.platform.core.exceptions import AuthenticationError
 from src.platform.core.logging_config import get_logger
 from src.platform.devconsole import log_auth_event
-from src.platform.infrastructure.database import get_session
+from src.platform.infrastructure.duckdb import DuckDBManager
+from src.shared.container import Container
 
 if TYPE_CHECKING:
     from src.platform.models import User
     from src.platform.workspaces.authorization import AuthorizationService
-    from src.shared.container import Container
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -29,12 +38,6 @@ security = HTTPBearer(auto_error=False)
 # =============================================================================
 # Database Session Dependencies (CQRS)
 # =============================================================================
-
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Get database session (legacy - uses write session)."""
-    async for session in get_session():
-        yield session
 
 
 async def get_write_db() -> AsyncGenerator[AsyncSession, None]:
@@ -60,14 +63,11 @@ def get_duckdb():
     return duckdb_manager
 
 
-# Type aliases for dependency injection
-DBSession = Annotated[AsyncSession, Depends(get_db)]
+# CQRS Type aliases for dependency injection
 WriteDBSession = Annotated[AsyncSession, Depends(get_write_db)]
 ReadDBSession = Annotated[AsyncSession, Depends(get_read_db)]
 
 # DuckDB for analytics (OLAP queries on Parquet)
-from src.platform.infrastructure.duckdb import DuckDBManager
-
 AnalyticsDB = Annotated[DuckDBManager, Depends(get_duckdb)]
 
 
@@ -77,7 +77,7 @@ AnalyticsDB = Annotated[DuckDBManager, Depends(get_duckdb)]
 
 
 async def get_current_user(
-    db: DBSession,
+    db: WriteDBSession,
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
     x_org_id: str | None = Header(None, alias="X-Org-Id"),
 ) -> "User":
@@ -145,7 +145,7 @@ async def get_current_user(
 
 
 async def get_current_user_optional(
-    db: DBSession,
+    db: WriteDBSession,
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> "User | None":
     """Get current user if authenticated, None otherwise.
@@ -255,10 +255,10 @@ OptionalUser = Annotated["User | None", Depends(get_current_user_optional)]
 # =============================================================================
 
 
-async def get_authorization_service(db: DBSession) -> "AuthorizationService":
+async def get_authorization_service(db: WriteDBSession) -> "AuthorizationService":
     """Get authorization service for permission checking.
 
-    args:
+    Usage:
         auth_service: AuthorizationService = Depends(get_authorization_service)
         await auth_service.verify_workspace_access(
             workspace_id, user, Permission.DATASET_READ
@@ -274,30 +274,46 @@ AuthService = Annotated["AuthorizationService", Depends(get_authorization_servic
 
 
 # =============================================================================
-# Service Container Dependency
+# Service Container Dependency (for backwards compatibility during migration)
 # =============================================================================
 
 
 async def get_container(
-    db: DBSession,
+    db: WriteDBSession,
     user: "User | None" = Depends(get_current_user_optional),
-) -> "Container":
+):
     """Get request-scoped service container.
+
+    NOTE: This is for backwards compatibility. New code should use
+    CommandBusDep and QueryBusDep directly.
 
     The container lazily instantiates services on first access,
     and all services share the same database session.
-
-    Usage:
-        @router.get("/example")
-        async def example(container: Container = Depends(get_container)):
-            await container.ingestion.process(...)
-            await container.analytics.compute(...)
     """
-    from src.shared.container import Container
-
     user_id = user.id if user else None
     return Container(db, user_id)
 
 
 # Type alias for dependency injection
-ServiceContainer = Annotated["Container", Depends(get_container)]
+ServiceContainer = Annotated[Container, Depends(get_container)]
+
+
+# =============================================================================
+# Exports
+# =============================================================================
+
+__all__ = [
+    "AnalyticsDB",
+    "AuthService",
+    # CQRS Buses
+    "CommandBusDep",
+    # Auth
+    "CurrentUser",
+    "OptionalUser",
+    "QueryBusDep",
+    "ReadDBSession",
+    # Legacy (for migration)
+    "ServiceContainer",
+    # CQRS Sessions
+    "WriteDBSession",
+]

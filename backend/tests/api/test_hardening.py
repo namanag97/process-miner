@@ -1,6 +1,7 @@
 import pytest
-from httpx import AsyncClient
 from fastapi import status
+from httpx import AsyncClient
+
 
 @pytest.mark.asyncio
 async def test_operations_require_auth(client: AsyncClient):

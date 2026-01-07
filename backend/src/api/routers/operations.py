@@ -5,14 +5,38 @@ This replaces dual-polling of /jobs/{id} and /workflows/{id}/status.
 
 All status queries go through Temporal. The database is updated BY activities,
 not queried for status.
+
+Real-Time Streaming:
+    GET /api/v1/operations/{workflow_id}/stream - SSE stream for real-time progress
+    - Combines Temporal query with Redis pub/sub for real-time updates
+    - Frontend should use EventSource to connect
+
+Example Frontend Usage:
+    ```javascript
+    const eventSource = new EventSource('/api/v1/operations/ingest-dataset-123/stream');
+    eventSource.addEventListener('step:progress', (event) => {
+        const data = JSON.parse(event.data);
+        console.log(`Step ${data.step}: ${data.progress}%`);
+    });
+    eventSource.addEventListener('workflow:completed', (event) => {
+        console.log('Workflow completed!');
+        eventSource.close();
+    });
+    ```
 """
 
-from fastapi import APIRouter, HTTPException, Query
+import asyncio
+import json
+from collections.abc import AsyncGenerator
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from src.api.dependencies import CurrentUser
-from src.platform.core.logging_config import get_logger
 from src.platform.core.exceptions import BadRequestError, NotFoundError, ProcessingError
+from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -289,6 +313,261 @@ async def get_operation_result(workflow_id: str, user: CurrentUser):
     except Exception as e:
         logger.error("get_operation_result_failed", workflow_id=workflow_id, error=str(e))
         raise ProcessingError(message=f"Failed to get result: {e}")
+
+
+# =============================================================================
+# Real-Time SSE Streaming
+# =============================================================================
+
+
+@router.get("/{workflow_id}/stream")
+async def stream_operation_progress(
+    request: Request,
+    workflow_id: str,
+    user: CurrentUser,
+):
+    """Stream real-time workflow progress via Server-Sent Events.
+
+    This endpoint provides real-time updates for long-running operations like:
+    - Dataset ingestion (ingest-dataset-{uuid})
+    - Process discovery (discover-{uuid}-{miner})
+    - Conformance checking (conformance-{uuid}-{uuid})
+
+    ## Event Types
+
+    The stream emits the following SSE event types:
+
+    - `step:started` - Activity step has started
+    - `step:progress` - Progress update within a step (0-100%)
+    - `step:completed` - Activity step completed successfully
+    - `step:failed` - Activity step failed
+    - `workflow:completed` - Entire workflow completed
+    - `workflow:failed` - Entire workflow failed
+
+    ## Event Data Format
+
+    ```json
+    {
+        "workflow_id": "ingest-dataset-abc123",
+        "event": "step:progress",
+        "step": "parse_to_parquet",
+        "progress": 45,
+        "timestamp": "2024-01-15T10:30:00Z",
+        "details": {
+            "phase": "converting_events",
+            "total_events": 10000
+        }
+    }
+    ```
+
+    ## Frontend Usage
+
+    ```javascript
+    const eventSource = new EventSource('/api/v1/operations/ingest-dataset-123/stream');
+
+    eventSource.addEventListener('step:progress', (event) => {
+        const data = JSON.parse(event.data);
+        updateProgressBar(data.progress);
+        showStatus(`${data.step}: ${data.details.phase}`);
+    });
+
+    eventSource.addEventListener('workflow:completed', (event) => {
+        showSuccess('Operation completed!');
+        eventSource.close();
+    });
+
+    eventSource.addEventListener('workflow:failed', (event) => {
+        const data = JSON.parse(event.data);
+        showError(data.details.error);
+        eventSource.close();
+    });
+
+    eventSource.onerror = () => {
+        // Reconnect logic
+    };
+    ```
+
+    ## Connection Behavior
+
+    - Sends initial state from Temporal query on connect
+    - Subscribes to Redis pub/sub for real-time updates
+    - Sends heartbeat every 15 seconds to keep connection alive
+    - Automatically closes when workflow completes or fails
+    - Client should handle reconnection for network issues
+
+    Args:
+        workflow_id: The Temporal workflow ID (e.g., "ingest-dataset-{uuid}")
+
+    Returns:
+        SSE stream with progress events
+    """
+
+    async def event_generator() -> AsyncGenerator[str, None]:
+        """Generate SSE events for the workflow."""
+        from src.platform.core.config import get_settings
+        from src.platform.temporal.client import get_temporal_client
+
+        settings = get_settings()
+
+        # 1. Send initial state from Temporal query
+        try:
+            client = await get_temporal_client()
+            handle = client.get_workflow_handle(workflow_id)
+
+            # Get workflow description
+            desc = await handle.describe()
+            status = desc.status.name if desc.status else "UNKNOWN"
+            started_at = desc.start_time.isoformat() if desc.start_time else None
+
+            # Query progress from workflow
+            progress_info = {"progress": 0, "current_step": "unknown"}
+            try:
+                progress_info = await handle.query("get_progress")
+            except Exception:
+                pass  # Query may fail for various reasons
+
+            # Send initial state
+            initial_data = {
+                "workflow_id": workflow_id,
+                "event": "workflow:progress",
+                "step": progress_info.get("current_step", "unknown"),
+                "progress": progress_info.get("progress", 0),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "details": {
+                    "status": status,
+                    "started_at": started_at,
+                    **{k: v for k, v in progress_info.items() if k not in ("progress", "current_step")},
+                },
+            }
+            yield f"event: workflow:progress\ndata: {json.dumps(initial_data)}\n\n"
+
+            # If already completed or failed, send final event and close
+            if status == "COMPLETED":
+                yield f"event: workflow:completed\ndata: {json.dumps({'workflow_id': workflow_id, 'status': 'completed'})}\n\n"
+                return
+            elif status in ("FAILED", "CANCELLED", "TERMINATED", "TIMED_OUT"):
+                error = progress_info.get("error", f"Workflow {status.lower()}")
+                yield f"event: workflow:failed\ndata: {json.dumps({'workflow_id': workflow_id, 'error': error})}\n\n"
+                return
+
+        except Exception as e:
+            logger.warning("stream_initial_state_failed", workflow_id=workflow_id, error=str(e))
+            # Send error but continue to try Redis subscription
+            yield f"event: error\ndata: {json.dumps({'error': f'Failed to get initial state: {e}'})}\n\n"
+
+        # 2. Subscribe to Redis for real-time updates
+        redis_client = None
+        pubsub = None
+
+        try:
+            import redis.asyncio as redis
+
+            redis_client = redis.from_url(
+                settings.redis_url,
+                encoding="utf-8",
+                decode_responses=True,
+            )
+
+            channel = f"workflow:progress:{workflow_id}"
+            pubsub = redis_client.pubsub()
+            await pubsub.subscribe(channel)
+
+            logger.info("sse_stream_subscribed", workflow_id=workflow_id, channel=channel)
+
+            # Track last heartbeat
+            last_heartbeat = asyncio.get_event_loop().time()
+
+            async for message in pubsub.listen():
+                # Check if client disconnected
+                if await request.is_disconnected():
+                    logger.info("sse_client_disconnected", workflow_id=workflow_id)
+                    break
+
+                # Send heartbeat every 15 seconds
+                now = asyncio.get_event_loop().time()
+                if now - last_heartbeat >= 15:
+                    yield ": heartbeat\n\n"
+                    last_heartbeat = now
+
+                if message["type"] == "message":
+                    # Forward the SSE message from Redis
+                    yield message["data"]
+
+                    # Check if workflow completed or failed
+                    if "workflow:completed" in message["data"] or "workflow:failed" in message["data"]:
+                        break
+
+        except Exception as e:
+            logger.warning("sse_redis_failed", workflow_id=workflow_id, error=str(e))
+            # Fallback to polling Temporal
+            yield ": redis_unavailable, falling back to polling\n\n"
+
+            poll_count = 0
+            max_polls = 600  # 10 minutes max
+
+            while poll_count < max_polls:
+                if await request.is_disconnected():
+                    break
+
+                try:
+                    client = await get_temporal_client()
+                    handle = client.get_workflow_handle(workflow_id)
+                    desc = await handle.describe()
+                    status = desc.status.name if desc.status else "UNKNOWN"
+
+                    progress_info = {"progress": 0, "current_step": "unknown"}
+                    try:
+                        progress_info = await handle.query("get_progress")
+                    except Exception:
+                        pass
+
+                    poll_data = {
+                        "workflow_id": workflow_id,
+                        "event": "workflow:progress",
+                        "step": progress_info.get("current_step", "unknown"),
+                        "progress": progress_info.get("progress", 0),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "details": {"status": status, "poll_mode": True},
+                    }
+                    yield f"event: workflow:progress\ndata: {json.dumps(poll_data)}\n\n"
+
+                    if status == "COMPLETED":
+                        yield f"event: workflow:completed\ndata: {json.dumps({'workflow_id': workflow_id})}\n\n"
+                        break
+                    elif status in ("FAILED", "CANCELLED", "TERMINATED", "TIMED_OUT"):
+                        yield f"event: workflow:failed\ndata: {json.dumps({'workflow_id': workflow_id, 'error': status})}\n\n"
+                        break
+
+                except Exception as poll_error:
+                    logger.warning("sse_poll_failed", error=str(poll_error))
+
+                await asyncio.sleep(1)
+                poll_count += 1
+
+        finally:
+            # Cleanup Redis connection
+            if pubsub:
+                try:
+                    await pubsub.unsubscribe()
+                    await pubsub.close()
+                except Exception:
+                    pass
+            if redis_client:
+                try:
+                    await redis_client.close()
+                except Exception:
+                    pass
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+            "Access-Control-Allow-Origin": "*",
+        },
+    )
 
 
 # =============================================================================

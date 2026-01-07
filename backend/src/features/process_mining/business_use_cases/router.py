@@ -12,14 +12,14 @@ Pre-built analyses for common business scenarios:
 
 import time
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from sqlalchemy import select
 
 from src.api.dependencies import ReadDBSession
 from src.features.process_mining.business_use_cases.service import business_use_cases
 from src.features.process_mining.models import Dataset, ProcessModel
-from src.platform.core.logging_config import get_logger
 from src.platform.core.exceptions import ModelNotFoundError, NotFoundError, ProcessingError
+from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

@@ -146,7 +146,7 @@ class GetBottlenecksHandler(QueryHandler[GetBottlenecksQuery, list[BottleneckRes
         # In a real implementation, this would compute wait times
         # between consecutive activities
         sql = f"""
-        SELECT 
+        SELECT
             activity,
             COUNT(*) as occurrence_count,
             -- Placeholder metrics (would be computed from event timestamps)

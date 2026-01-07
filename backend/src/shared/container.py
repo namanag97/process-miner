@@ -26,7 +26,9 @@ if TYPE_CHECKING:
     from src.features.process_mining.predictions.service import PredictionService
     from src.features.process_mining.simulation.service import SimulationService
     from src.features.process_mining.visualization.service import VisualizationService
-    from src.platform.dag.service import DAGService
+
+    # DAG system deprecated - use Temporal workflows via /operations API
+    # from src.platform.dag.service import DAGService
     from src.platform.jobs.service import JobService
     from src.platform.storage.storage import StorageService
 
@@ -67,7 +69,7 @@ class Container:
     @cached_property
     def ingestion(self) -> "IngestionService":
         """Data ingestion service for CSV/XES parsing.
-        
+
         Note: Session is passed for DB operations like store_only().
         Stateless methods like detect_columns() don't require session.
         """
@@ -138,12 +140,12 @@ class Container:
 
         return OCPMService()
 
-    @cached_property
-    def dags(self) -> "DAGService":
-        """DAG workflow orchestration service."""
-        from src.platform.dag.service import DAGService
-
-        return DAGService(self._session)
+    # DAG system deprecated - use Temporal workflows via /operations API
+    # @cached_property
+    # def dags(self) -> "DAGService":
+    #     """DAG workflow orchestration service."""
+    #     from src.platform.dag.service import DAGService
+    #     return DAGService(self._session)
 
     # =========================================================================
     # Platform Services

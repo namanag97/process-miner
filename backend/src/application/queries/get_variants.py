@@ -157,7 +157,7 @@ class GetVariantsHandler(QueryHandler[GetVariantsQuery, VariantsListResult]):
         assert self.duckdb is not None, "DuckDB connection is required"
         where_clause = ""
         if filters:
-            conditions = [f"{k} = '{v}'" if isinstance(v, str) else f"{k} = {v}" 
+            conditions = [f"{k} = '{v}'" if isinstance(v, str) else f"{k} = {v}"
                           for k, v in filters.items()]
             if conditions:
                 where_clause = "WHERE " + " AND ".join(conditions)
@@ -165,7 +165,7 @@ class GetVariantsHandler(QueryHandler[GetVariantsQuery, VariantsListResult]):
         # Query to compute variants
         sql = f"""
         WITH ordered_events AS (
-            SELECT 
+            SELECT
                 case_id,
                 activity,
                 timestamp,
@@ -174,7 +174,7 @@ class GetVariantsHandler(QueryHandler[GetVariantsQuery, VariantsListResult]):
             {where_clause}
         ),
         case_variants AS (
-            SELECT 
+            SELECT
                 case_id,
                 STRING_AGG(activity, ' -> ' ORDER BY event_order) as variant_path,
                 LIST(activity ORDER BY event_order) as activities
@@ -182,14 +182,14 @@ class GetVariantsHandler(QueryHandler[GetVariantsQuery, VariantsListResult]):
             GROUP BY case_id
         ),
         variant_counts AS (
-            SELECT 
+            SELECT
                 variant_path,
                 activities[1] as first_activity,
                 COUNT(*) as case_count
             FROM case_variants
             GROUP BY variant_path, activities
         )
-        SELECT 
+        SELECT
             variant_path,
             case_count,
             ROW_NUMBER() OVER (ORDER BY case_count DESC) as variant_id

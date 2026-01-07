@@ -2,6 +2,9 @@
 
 Exports all activities for worker registration.
 
+All activities publish real-time progress to Redis for SSE streaming.
+Frontend can subscribe to progress via: GET /api/v1/operations/{workflow_id}/stream
+
 Dataset Activities:
     - validate_file_activity: Magic byte verification
     - detect_columns_activity: Column parsing and AI suggestions
@@ -13,6 +16,12 @@ Analysis Activities:
     - mine_model_activity: Run PM4Py discovery algorithms
     - compute_metrics_activity: Quality metrics calculation
     - check_conformance_activity: Token replay/alignment
+
+Progress Publishing:
+    - publish_progress: Publish step progress
+    - publish_step_started: Publish step started event
+    - publish_step_completed: Publish step completed event
+    - publish_step_failed: Publish step failed event
 """
 
 from src.platform.temporal.activities.analysis import (

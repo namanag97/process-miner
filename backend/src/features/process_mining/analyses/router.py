@@ -27,7 +27,7 @@ Analyses are saved results of process mining operations:
 
 import json
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
@@ -43,8 +43,8 @@ from src.features.process_mining.schemas import (
     VariantResponse,
 )
 from src.features.process_mining.services.registry import analysis_registry
-from src.platform.core.logging_config import get_logger
 from src.platform.core.exceptions import NotFoundError
+from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

@@ -5,14 +5,18 @@ Endpoints for managing workspaces within an organization.
 
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 
 from src.api.dependencies import ReadDBSession
+from src.platform.core.exceptions import (
+    BadRequestError,
+    NotFoundError,
+    ProcessingError,
+    ProjectNotFoundError,
+)
 from src.platform.core.logging_config import get_logger
 from src.platform.devconsole import log_error, log_info
-from src.platform.users import Project, Workspace
-from src.platform.core.exceptions import BadRequestError, NotFoundError, ProcessingError, ProjectNotFoundError
 from src.platform.schemas import (
     ProjectResponse,
     WorkspaceCreateRequest,
@@ -21,6 +25,7 @@ from src.platform.schemas import (
     WorkspaceResponse,
     WorkspaceUpdateRequest,
 )
+from src.platform.users import Project, Workspace
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/workspaces", tags=["Workspaces"])

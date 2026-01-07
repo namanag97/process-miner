@@ -54,10 +54,9 @@ async def evaluate_model(
         error_msg = str(e).lower()
         if "model" in error_msg:
             raise ResourceNotFoundError("Model", model_id)
-        elif "dataset" in error_msg:
+        if "dataset" in error_msg:
             raise ResourceNotFoundError("Dataset", dataset_id)
-        else:
-            raise ResourceNotFoundError("Resource", model_id)
+        raise ResourceNotFoundError("Resource", model_id)
 
 
 @router.get("/{model_id}/metrics")

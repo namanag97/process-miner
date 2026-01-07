@@ -38,7 +38,7 @@ class IngestionService:
 
     def __init__(self, session: Any = None, storage: Any = None):
         """Initialize with database session and storage service.
-        
+
         Args:
             session: Database session (required for DB operations like store_only).
                     Can be None if only using stateless methods like detect_columns.
@@ -590,11 +590,11 @@ class IngestionService:
 
 def get_ingestion_service(session: Any = None, storage: Any = None) -> IngestionService:
     """Factory function to create IngestionService with proper dependencies.
-    
+
     Args:
         session: Database session for operations that need DB access.
         storage: Optional storage service override.
-    
+
     Returns:
         Configured IngestionService instance.
     """

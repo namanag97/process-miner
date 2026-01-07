@@ -128,7 +128,7 @@ class GetCycleTimeHandler(QueryHandler[GetCycleTimeQuery, CycleTimeResult]):
         # Build filter clause
         where_clause = ""
         if filters:
-            conditions = [f"{k} = '{v}'" if isinstance(v, str) else f"{k} = {v}" 
+            conditions = [f"{k} = '{v}'" if isinstance(v, str) else f"{k} = {v}"
                           for k, v in filters.items()]
             if conditions:
                 where_clause = "WHERE " + " AND ".join(conditions)
@@ -136,14 +136,14 @@ class GetCycleTimeHandler(QueryHandler[GetCycleTimeQuery, CycleTimeResult]):
         # Query to compute cycle time per case
         sql = f"""
         WITH case_times AS (
-            SELECT 
+            SELECT
                 case_id,
                 EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))) / 3600.0 as cycle_time_hours
             FROM read_parquet('{parquet_path}')
             {where_clause}
             GROUP BY case_id
         )
-        SELECT 
+        SELECT
             AVG(cycle_time_hours) as avg_ct,
             MIN(cycle_time_hours) as min_ct,
             MAX(cycle_time_hours) as max_ct,

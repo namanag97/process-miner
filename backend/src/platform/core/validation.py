@@ -8,7 +8,6 @@ Provides reusable validation functions for API endpoints:
 
 import re
 
-from fastapi import HTTPException
 from src.platform.core.exceptions import BadRequestError
 
 # UUID v4 pattern (case-insensitive)

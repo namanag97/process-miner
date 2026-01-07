@@ -51,7 +51,6 @@ from src.platform.core.validation import (
     sanitize_search_query,
     validate_uuid,
 )
-from src.platform.users import Project, Workspace, WorkspaceMember
 from src.platform.schemas import (
     ProjectCreateRequest,
     ProjectDetailResponse,
@@ -59,6 +58,7 @@ from src.platform.schemas import (
     ProjectResponse,
     ProjectUpdateRequest,
 )
+from src.platform.users import Project, Workspace, WorkspaceMember
 from src.platform.workspaces.authorization import AuthorizationService
 
 logger = get_logger(__name__)

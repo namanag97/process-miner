@@ -22,7 +22,7 @@ R = TypeVar("R")  # Result type
 
 
 @dataclass
-class BaseQuery(ABC):
+class BaseQuery(ABC):  # noqa: B024 - Marker base class for CQRS pattern
     """Base class for all queries (read operations).
 
     Queries represent requests to retrieve data. They should:

@@ -7,12 +7,13 @@ Supports both real auth (AUTH_ENABLED=true) and mock auth for development.
 from datetime import datetime
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 
 from src.api.dependencies import CurrentUser, ReadDBSession
 from src.platform.core.config import get_settings
+from src.platform.core.exceptions import AuthenticationError, BadRequestError
 from src.platform.core.logging_config import get_logger
 from src.platform.core.security import (
     TokenPair,
@@ -21,14 +22,13 @@ from src.platform.core.security import (
     validate_refresh_token,
     verify_password,
 )
-from src.platform.users import Organization, User, Workspace, WorkspaceMember
-from src.platform.core.exceptions import AuthenticationError, BadRequestError
 from src.platform.schemas import (
     CurrentUserResponse,
     OrganizationResponse,
     UserResponse,
     WorkspaceResponse,
 )
+from src.platform.users import Organization, User, Workspace, WorkspaceMember
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 logger = get_logger(__name__)

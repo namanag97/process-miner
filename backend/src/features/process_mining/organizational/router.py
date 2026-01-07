@@ -27,7 +27,7 @@ Organizational mining analyzes how people work together:
 - **404**: Dataset not found
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from sqlalchemy import select
 
 from src.api.dependencies import CurrentUser, ReadDBSession, ServiceContainer
@@ -40,10 +40,10 @@ from src.features.process_mining.schemas import (
     ResourceWorkloadResponse,
     SocialNetworkResponse,
 )
+from src.platform.core.exceptions import NotFoundError
 from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
 from src.platform.workspaces.authorization import require_dataset_permission
-from src.platform.core.exceptions import NotFoundError
 
 logger = get_logger(__name__)
 

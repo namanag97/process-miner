@@ -9,7 +9,7 @@ Use `/api/v1/dags/*` endpoints for new workflow orchestration.
 This router is maintained for backward compatibility.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from src.features.process_mining.schemas.workflows import (
     WorkflowCreateRequest,
@@ -18,8 +18,8 @@ from src.features.process_mining.schemas.workflows import (
     WorkflowRunResponse,
     WorkflowTemplate,
 )
-from src.platform.core.logging_config import get_logger
 from src.platform.core.exceptions import ProcessingError
+from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

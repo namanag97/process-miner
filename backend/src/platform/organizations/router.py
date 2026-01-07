@@ -46,7 +46,6 @@ from src.platform.core.exceptions import (
     ValidationError,
 )
 from src.platform.core.logging_config import get_logger
-from src.platform.users import Organization, User, Workspace
 from src.platform.organizations.schemas import (
     BillingResponse,
     InviteMemberRequest,
@@ -59,6 +58,7 @@ from src.platform.organizations.schemas import (
     UpdateRoleRequest,
     UsageResponse,
 )
+from src.platform.users import Organization, User, Workspace
 
 logger = get_logger(__name__)
 

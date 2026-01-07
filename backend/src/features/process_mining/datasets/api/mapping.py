@@ -11,7 +11,7 @@ from fastapi import APIRouter, Query
 from sqlalchemy import select
 from starlette.concurrency import run_in_threadpool
 
-from src.api.dependencies import CurrentUser, ReadDBSession, WriteDBSession
+from src.api.dependencies import CurrentUser, ReadDBSession
 from src.features.process_mining.models import (
     DatasetColumn,
     DatasetColumnMapping,
