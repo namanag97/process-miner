@@ -18,6 +18,20 @@ import { useAIProcesses, useAIPredictors/*, useTrainPredictor, useDeletePredicto
 const { Text } = Typography;
 const log = createLogger('PredictionsPage');
 
+// Type definitions
+interface PredictorMetrics {
+  accuracy?: number;
+  [key: string]: unknown;
+}
+
+interface PredictorRecord {
+  id: string;
+  target_type: string;
+  algorithm: string;
+  dataset_id: string;
+  metrics?: PredictorMetrics;
+}
+
 // Predictor types
 const predictorTypes = [
   { value: 'next_activity', label: 'Next Activity Prediction' },
@@ -122,7 +136,7 @@ export function PredictionsPage() {
       title: 'Name',
       dataIndex: 'id', // PredictorResponse might not have 'name' yet, check schema? Schema has no name.
       key: 'name',
-      render: (_id: string, record: any) => (
+      render: (_id: string, record: PredictorRecord) => (
         <Space>
           <ExperimentOutlined style={{ color: tokens.colors.primary[500] }} />
           <Text strong>{record.target_type} Model ({record.algorithm})</Text>
@@ -150,7 +164,7 @@ export function PredictionsPage() {
       title: 'Accuracy',
       dataIndex: 'metrics',
       key: 'accuracy',
-      render: (metrics: any) => {
+      render: (metrics: PredictorMetrics | undefined) => {
         const accuracy = metrics?.accuracy ? Math.round(metrics.accuracy * 100) : 0;
         return (
           <Text style={{ color: accuracy >= 85 ? tokens.colors.success[500] : tokens.colors.warning[500] }}>
@@ -176,7 +190,7 @@ export function PredictionsPage() {
     {
       title: 'Actions',
       key: 'actions',
-      render: (_: unknown, record: any) => (
+      render: (_: unknown, record: PredictorRecord) => (
         <Space>
           <Button
             type="text"

@@ -16,6 +16,14 @@ import { createLogger } from '../../../shared/lib/logger';
 const log = createLogger('ExplorerIndexPage');
 const { Text, Title } = Typography;
 
+interface EventLogItem {
+  id: string;
+  name: string;
+  projectId?: string;
+  totalCases?: number;
+  totalEvents?: number;
+}
+
 export function ExplorerIndexPage() {
   const navigate = useNavigate();
   const [searchText, setSearchText] = useState('');
@@ -33,7 +41,7 @@ export function ExplorerIndexPage() {
     return logs.filter((logItem) => logItem.name.toLowerCase().includes(lower));
   }, [logs, searchText]);
 
-  const handleExplore = (logItem: any) => {
+  const handleExplore = (logItem: EventLogItem) => {
     logAction('ExplorerIndexPage', 'explore_clicked', { datasetId: logItem.id, name: logItem.name });
     log.info('Exploring log', { datasetId: logItem.id, name: logItem.name });
     // Navigate to workspace-scoped route if projectId is available

@@ -4,6 +4,8 @@
 
 import { lazy } from 'react';
 import type { RouteObject } from 'react-router-dom';
+import { ErrorBoundary } from 'react-error-boundary';
+import { FeatureErrorFallback } from '@/shared/ui';
 
 // Lazy load pages
 const UploadWizardPage = lazy(() => import('./pages/UploadWizardPage'));
@@ -15,6 +17,19 @@ export const uploadWizardRouteConfig: RouteObject[] = [
     // Celonis-style 5-step upload wizard
     {
         path: '/workspace/:projectId/upload',
-        element: <UploadWizardPage />
+        element: (
+            <ErrorBoundary
+                fallbackRender={({ error, resetErrorBoundary }) => (
+                    <FeatureErrorFallback
+                        error={error}
+                        resetError={resetErrorBoundary}
+                        featureName="Upload Wizard"
+                    />
+                )}
+                onError={(error) => console.error('[UploadWizard] Error:', error)}
+            >
+                <UploadWizardPage />
+            </ErrorBoundary>
+        )
     },
 ];

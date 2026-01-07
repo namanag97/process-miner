@@ -46,10 +46,10 @@ export function ExploreProcessesPage() {
     // Filter to only READY datasets
     const datasets: ProcessDataset[] = React.useMemo(() => {
         if (!data?.items) return [];
-        return data.items
-            .filter((item: any) => !item.status || item.status === 'ready')
-            .filter((item: any) => item.totalCases > 0) // Filter out zombie datasets
-            .filter((item: any) =>
+        return (data.items as ProcessDataset[])
+            .filter((item) => !item.status || item.status === 'ready')
+            .filter((item) => item.totalCases > 0) // Filter out zombie datasets
+            .filter((item) =>
                 !searchText ||
                 item.name.toLowerCase().includes(searchText.toLowerCase())
             );

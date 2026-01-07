@@ -97,16 +97,17 @@ async function startIngestion(datasetId: string, mapping: ColumnMapping): Promis
         console.log('[API:startIngestion] Success', data);
         devLog.action('API:startIngestion', 'Ingestion started successfully', data);
         return data;
-    } catch (err: any) {
+    } catch (err: unknown) {
+        const error = err instanceof Error ? err : new Error(String(err));
         const errorInfo = {
-            message: err.message,
-            name: err.name,
-            stack: err.stack,
+            message: error.message,
+            name: error.name,
+            stack: error.stack,
             datasetId
         };
         console.error('[API:startIngestion] Exception thrown', errorInfo);
-        devLog.error('API:startIngestion', `Exception: ${err.message}`, errorInfo);
-        throw err;
+        devLog.error('API:startIngestion', `Exception: ${error.message}`, errorInfo);
+        throw error;
     }
 }
 
@@ -403,18 +404,19 @@ export function useUploadWizard(_projectId: string, initialDatasetId?: string) {
                 }));
 
                 return data.id;
-            } catch (err: any) {
+            } catch (err: unknown) {
+                const error = err instanceof Error ? err : new Error(String(err));
                 const errorData = {
-                    error: err,
-                    message: err.message,
-                    stack: err.stack,
+                    error: error.message,
+                    message: error.message,
+                    stack: error.stack,
                     fileName: file.name
                 };
                 console.error('[UploadWizard:uploadFileDirect] Exception thrown', errorData);
-                devLog.error('UploadWizard:uploadFileDirect', `Upload failed: ${err.message}`, errorData);
-                const msg = err.message || 'Upload failed';
+                devLog.error('UploadWizard:uploadFileDirect', `Upload failed: ${error.message}`, errorData);
+                const msg = error.message || 'Upload failed';
                 setState(prev => ({ ...prev, error: msg, isLoading: false }));
-                throw err;
+                throw error;
             }
         }, [_projectId]),
 
@@ -477,18 +479,19 @@ export function useUploadWizard(_projectId: string, initialDatasetId?: string) {
                             'Content-Type': file.type || 'text/csv',
                         },
                     });
-                } catch (fetchError: any) {
+                } catch (fetchError: unknown) {
+                    const error = fetchError instanceof Error ? fetchError : new Error(String(fetchError));
                     const fetchErrorData = {
-                        message: fetchError.message,
-                        name: fetchError.name,
-                        stack: fetchError.stack,
+                        message: error.message,
+                        name: error.name,
+                        stack: error.stack,
                         uploadUrl: presignedData.upload_url,
                         urlHost: new URL(presignedData.upload_url).host,
                         urlProtocol: new URL(presignedData.upload_url).protocol,
                     };
                     console.error('[UploadWizard:uploadFilePresigned] Fetch to storage failed', fetchErrorData);
-                    devLog.error('UploadWizard:uploadFilePresigned', `Network error during storage upload: ${fetchError.message}`, fetchErrorData);
-                    throw new Error(`Storage upload failed: ${fetchError.message}`);
+                    devLog.error('UploadWizard:uploadFilePresigned', `Network error during storage upload: ${error.message}`, fetchErrorData);
+                    throw new Error(`Storage upload failed: ${error.message}`);
                 }
 
                 const storageResData = {
@@ -543,18 +546,19 @@ export function useUploadWizard(_projectId: string, initialDatasetId?: string) {
                 devLog.action('UploadWizard', 'Upload flow completed successfully', completeData);
 
                 return presignedData.dataset_id;
-            } catch (err: any) {
+            } catch (err: unknown) {
+                const error = err instanceof Error ? err : new Error(String(err));
                 const errorData = {
-                    error: err,
-                    message: err.message,
-                    stack: err.stack,
+                    error: error.message,
+                    message: error.message,
+                    stack: error.stack,
                     fileName: file.name
                 };
                 console.error('[UploadWizard:uploadFilePresigned] Upload failed', errorData);
-                devLog.error('UploadWizard', `Upload failed: ${err.message}`, errorData);
-                const msg = err.message || 'Upload failed';
+                devLog.error('UploadWizard', `Upload failed: ${error.message}`, errorData);
+                const msg = error.message || 'Upload failed';
                 setState(prev => ({ ...prev, error: msg, isLoading: false }));
-                throw err;
+                throw error;
             }
         }, [_projectId]),
         startAnalysis,

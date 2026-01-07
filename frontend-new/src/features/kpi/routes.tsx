@@ -5,6 +5,8 @@
 import { lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import type { RouteObject } from 'react-router-dom';
+import { ErrorBoundary } from 'react-error-boundary';
+import { FeatureErrorFallback } from '@/shared/ui';
 
 // Lazy load pages
 const KPIPage = lazy(() => import('./pages/KPIPage'));
@@ -15,7 +17,20 @@ const KPIPage = lazy(() => import('./pages/KPIPage'));
 export const kpiRouteConfig: RouteObject[] = [
   {
     path: '/workspace/:projectId/data/:datasetId/kpi',
-    element: <KPIPage />,
+    element: (
+      <ErrorBoundary
+        fallbackRender={({ error, resetErrorBoundary }) => (
+          <FeatureErrorFallback
+            error={error}
+            resetError={resetErrorBoundary}
+            featureName="KPI Dashboard"
+          />
+        )}
+        onError={(error) => console.error('[KPI] Error:', error)}
+      >
+        <KPIPage />
+      </ErrorBoundary>
+    ),
   },
 ];
 
@@ -24,8 +39,19 @@ export const kpiRouteConfig: RouteObject[] = [
  */
 export function KPIRoutes() {
   return (
-    <Routes>
-      <Route index element={<KPIPage />} />
-    </Routes>
+    <ErrorBoundary
+      fallbackRender={({ error, resetErrorBoundary }) => (
+        <FeatureErrorFallback
+          error={error}
+          resetError={resetErrorBoundary}
+          featureName="KPI Dashboard"
+        />
+      )}
+      onError={(error) => console.error('[KPI] Error:', error)}
+    >
+      <Routes>
+        <Route index element={<KPIPage />} />
+      </Routes>
+    </ErrorBoundary>
   );
 }

@@ -186,18 +186,62 @@ export function DiscoveryPage() {
     );
 }
 
+// Type definitions for model data
+interface DFGNode {
+    id?: string;
+    name?: string;
+    label?: string;
+    isStart?: boolean;
+    is_start?: boolean;
+    isEnd?: boolean;
+    is_end?: boolean;
+}
+
+interface DFGEdge {
+    source: string;
+    target: string;
+    frequency?: number;
+}
+
+interface PetriPlace {
+    name?: string;
+    id?: string;
+    tokens?: number;
+}
+
+interface PetriTransition {
+    name?: string;
+    id?: string;
+    label?: string;
+}
+
+interface PetriArc {
+    source: string | { name?: string };
+    target: string | { name?: string };
+}
+
+interface ProcessModelDetail {
+    // DFG format
+    nodes?: DFGNode[];
+    edges?: DFGEdge[];
+    // Petri Net format
+    places?: PetriPlace[];
+    transitions?: PetriTransition[];
+    arcs?: PetriArc[];
+}
+
 // Helper to transform model data to graph format
-function transformToGraphData(modelDetail: any) {
+function transformToGraphData(modelDetail: ProcessModelDetail) {
     // Handle DFG format (already has nodes/edges)
     if (modelDetail.nodes && modelDetail.edges) {
         return {
-            nodes: modelDetail.nodes.map((n: any) => ({
-                id: n.id || n.name,
-                label: n.label || n.name || n.id,
+            nodes: modelDetail.nodes.map((n) => ({
+                id: n.id || n.name || '',
+                label: n.label || n.name || n.id || '',
                 isStart: n.isStart || n.is_start,
                 isEnd: n.isEnd || n.is_end,
             })),
-            edges: modelDetail.edges.map((e: any) => ({
+            edges: modelDetail.edges.map((e) => ({
                 source: e.source,
                 target: e.target,
                 label: e.frequency ? String(e.frequency) : undefined,
@@ -208,22 +252,22 @@ function transformToGraphData(modelDetail: any) {
     // Handle Petri Net (places, transitions, arcs)
     if (modelDetail.places && modelDetail.transitions) {
         const nodes = [
-            ...modelDetail.places.map((p: any) => ({
-                id: p.name || p.id,
+            ...modelDetail.places.map((p) => ({
+                id: p.name || p.id || '',
                 label: p.name || '',
                 type: 'place' as const,
                 tokens: p.tokens,
             })),
-            ...modelDetail.transitions.map((t: any) => ({
-                id: t.name || t.id,
+            ...modelDetail.transitions.map((t) => ({
+                id: t.name || t.id || '',
                 label: t.label || t.name || '',
                 type: 'transition' as const,
             })),
         ];
 
-        const edges = (modelDetail.arcs || []).map((a: any) => ({
-            source: a.source?.name || a.source,
-            target: a.target?.name || a.target,
+        const edges = (modelDetail.arcs || []).map((a) => ({
+            source: typeof a.source === 'string' ? a.source : (a.source?.name || ''),
+            target: typeof a.target === 'string' ? a.target : (a.target?.name || ''),
         }));
 
         return { nodes, edges };
