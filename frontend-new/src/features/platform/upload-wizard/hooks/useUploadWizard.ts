@@ -35,7 +35,7 @@ interface PresignedUploadResponse {
 const API_BASE = env.API_BASE_URL;
 
 // API helpers (using instrumentedFetch for DevConsole logging)
-async function fetchPreview(datasetId: string, rows: number = 10): Promise<DataPreview> {
+async function fetchPreview(datasetId: string, rows = 10): Promise<DataPreview> {
     console.log('[API:fetchPreview] Request started', { datasetId, rows });
     devLog.info('API:fetchPreview', 'Fetching dataset preview', { datasetId, rows });
     const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/${datasetId}/preview?rows=${rows}`);
@@ -118,7 +118,7 @@ async function checkJobStatus(jobId: string): Promise<{ id: string; status: stri
     return { id: jobId, ...data };
 }
 
-async function getPresignedUrl(filename: string, fileSize: number, projectId: string, contentType: string = 'text/csv'): Promise<PresignedUploadResponse> {
+async function getPresignedUrl(filename: string, fileSize: number, projectId: string, contentType = 'text/csv'): Promise<PresignedUploadResponse> {
     const reqData = {
         filename,
         fileSize,

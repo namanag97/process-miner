@@ -15,11 +15,11 @@ import { PageHeader, EmptyState, tokens } from '@lumina/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 import { useAIProcesses, useAIPredictors/*, useTrainPredictor, useDeletePredictor*/ } from '../hooks';
 
-const { Text } = Typography;
-const log = createLogger('PredictionsPage');
-
 // Use Predictor type from SDK (has camelCase fields: datasetId, targetType)
 import type { Predictor } from '@lumina/design-system/api/modules/predictions';
+
+const { Text } = Typography;
+const log = createLogger('PredictionsPage');
 
 // Predictor types
 const predictorTypes = [

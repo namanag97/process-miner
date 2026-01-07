@@ -757,7 +757,7 @@ export function DevConsole() {
     if (autoScroll && listRef.current) {
       listRef.current.scrollTop = 0;
     }
-  }, [logs.length, autoScroll]);
+  }, [autoScroll]);
 
   // Filter logs
   const filteredLogs = useMemo(() => {
@@ -780,7 +780,7 @@ export function DevConsole() {
       }
       return true;
     });
-  }, [logs, focusMode, activeTab, filter]);
+  }, [focusMode, activeTab, filter]);
 
   const errorCount = logs.filter((l) => l.level === 'error').length;
   const pendingCount = Array.from(pendingRequests.values()).length;
@@ -978,7 +978,7 @@ export function DevConsole() {
     a.click();
     URL.revokeObjectURL(url);
     setShowExportModal(false);
-  }, [logs, isPollingEndpoint, extractBodies]);
+  }, [isPollingEndpoint, extractBodies]);
 
   // Don't render in production
   if (process.env.NODE_ENV !== 'development') {

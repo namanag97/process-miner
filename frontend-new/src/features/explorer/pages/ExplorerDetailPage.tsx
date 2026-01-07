@@ -27,8 +27,6 @@ import {
 import { tokens, toast, logAction, logError, ErrorBoundary, type ActivityDetail } from '@lumina/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 
-const { Text } = Typography;
-
 // Import components
 import { CytoscapeCanvas } from '../components/CytoscapeCanvas';
 import type { ProcessNode, ProcessEdge } from '../components/CytoscapeCanvas';
@@ -69,6 +67,8 @@ import {
   extractErrorMessages,
   getFallbackStatus,
 } from '../utils/fallbackData';
+
+const { Text } = Typography;
 
 const log = createLogger('ExplorerDetailPage');
 
