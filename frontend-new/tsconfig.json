@@ -17,8 +17,17 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
+      "@lumina/design-system": [
+        "libs/shared/design-system/src/index.ts"
+      ],
+      "@lumina/design-system/*": [
+        "libs/shared/design-system/src/*"
+      ],
+      "@frontend-new/openapi-sdk": [
+        "libs/openapi-sdk/src/index.ts"
+      ],
+      "@frontend-new/openapi-sdk/*": [
+        "libs/openapi-sdk/src/*"
       ]
     },
     "jsx": "react-jsx",
@@ -39,6 +48,9 @@
     },
     {
       "path": "./tsconfig.spec.json"
+    },
+    {
+      "path": "./tsconfig.storybook.json"
     }
   ],
   "compileOnSave": false,

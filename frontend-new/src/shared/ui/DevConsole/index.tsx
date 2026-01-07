@@ -47,11 +47,10 @@ import {
   ReloadOutlined,
   DatabaseOutlined,
 } from '@ant-design/icons';
-import { registerDevConsoleCallback } from '@/src/shared/design-system';
+import { registerDevConsoleCallback } from '@lumina/design-system';
 import { useBackendLogs } from '../../hooks/useBackendLogs';
 import { BackendMetricsPanel } from '../BackendMetricsPanel';
 import { DataViewer } from '../DataViewer';
-import { DebugExport } from './DebugExport';
 
 const { Text } = Typography;
 const { Panel } = Collapse;
@@ -754,7 +753,6 @@ export function DevConsole() {
   }, []);
 
   // Auto-scroll
-  // eslint-disable-next-line react-hooks/exhaustive-deps  
   useEffect(() => {
     if (autoScroll && listRef.current) {
       listRef.current.scrollTop = 0;
@@ -762,7 +760,6 @@ export function DevConsole() {
   }, [logs.length, autoScroll]);
 
   // Filter logs
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
       // Focus mode: hide low importance
@@ -815,7 +812,6 @@ export function DevConsole() {
     return result;
   }, []);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleExport = useCallback((options: ExportOptions) => {
     const now = new Date();
 
@@ -1035,7 +1031,6 @@ export function DevConsole() {
         onClose={() => setOpen(false)}
         extra={
           <Space>
-            <DebugExport logs={logs} sessionStart={new Date(Date.now() - 600000)} />
             <Tooltip title={focusMode ? 'Show all logs' : 'Hide noise (importance < 3)'}>
               <Button
                 icon={focusMode ? <EyeInvisibleOutlined /> : <AimOutlined />}

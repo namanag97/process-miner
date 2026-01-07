@@ -23,7 +23,7 @@ import {
   InfoCircleOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
-import { PageHeader, useSDK, tokens } from '@/src/shared/design-system';
+import { PageHeader, useSDK, tokens } from '@lumina/design-system';
 import { CytoscapeCanvas, type ProcessGraphData } from '../../explorer/components/CytoscapeCanvas';
 
 const { Text } = Typography;
@@ -353,7 +353,7 @@ export function TestBenchPage() {
   // Load datasets on mount
   useState(() => {
     sdk.processes.list({ pageSize: 20 }).then(res => {
-      const items = res.items.map((i: any) => ({ id: i.id, name: i.name }));
+      const items = res.items.map(i => ({ id: i.id, name: i.name }));
       setDatasets(items);
       if (items.length > 0) {
         setSelectedDatasetId(items[0].id);

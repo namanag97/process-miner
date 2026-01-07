@@ -11,7 +11,7 @@ import {
   ClockCircleOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
-import { PageHeader, EmptyState, tokens } from '@/src/shared/design-system';
+import { PageHeader, EmptyState, tokens } from '@lumina/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 import { useAIProcesses, useAIPredictors/*, useTrainPredictor, useDeletePredictor*/ } from '../hooks';
 

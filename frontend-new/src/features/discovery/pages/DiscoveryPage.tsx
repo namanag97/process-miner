@@ -11,17 +11,14 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { logAction, logError } from '@/src/shared/design-system';
+import { logAction, logError } from '@lumina/design-system';
 import {
     useModelVisualization,
 } from '../hooks';
 import { JobStatusPanel, ModelList, JSONViewer, GraphViewer } from '../components';
 import { AnalysisModeSelector } from '../../explorer/components/AnalysisModeSelector';
-import type { Job, ProcessModel, ModelFormat } from '@/src/api/sdk';
+import type { Job, DiscoveredModel, ModelFormat } from '../types';
 import styles from './DiscoveryPage.module.css';
-
-// Alias for backward compatibility
-type DiscoveredModel = ProcessModel;
 
 export function DiscoveryPage() {
     // IMPORTANT: Use datasetId (not datasetId) - this is the standard naming convention

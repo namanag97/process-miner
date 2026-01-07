@@ -2,7 +2,7 @@
  * Process Context Builder - Utility to format process analytics data for LLM prompts
  */
 
-import type { ProcessSummaryData } from '@/src/shared/design-system';
+import type { ProcessSummaryData } from '@lumina/design-system';
 
 /**
  * Formats duration in seconds to human-readable string
@@ -35,13 +35,9 @@ export function buildProcessContext(summary: ProcessSummaryData, processName: st
   // Throughput
   lines.push('### Throughput Metrics');
   lines.push(`- Total Cases: ${summary.throughput.totalCases.toLocaleString()}`);
-  if (summary.throughput.completedCases !== undefined) {
-    lines.push(`- Completed Cases: ${summary.throughput.completedCases.toLocaleString()}`);
-  }
+  lines.push(`- Completed Cases: ${summary.throughput.completedCases.toLocaleString()}`);
   lines.push(`- Cases per Day: ${summary.throughput.casesPerDay.toFixed(1)}`);
-  if (summary.throughput.casesPerWeek !== undefined) {
-    lines.push(`- Cases per Week: ${summary.throughput.casesPerWeek.toFixed(1)}`);
-  }
+  lines.push(`- Cases per Week: ${summary.throughput.casesPerWeek.toFixed(1)}`);
   lines.push('');
 
   // Bottlenecks

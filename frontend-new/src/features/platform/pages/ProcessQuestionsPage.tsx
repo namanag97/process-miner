@@ -13,8 +13,8 @@ import {
   QueryError,
   EmptyState,
   tokens,
-} from '@/src/shared/design-system';
-import { useDataset } from '@/src/api/hooks';
+  useProcess,
+} from '@lumina/design-system';
 import { PROCESS_QUESTIONS } from './questionsData';
 import { useAuditLogger } from '../../../shared/hooks';
 
@@ -38,7 +38,7 @@ export function ProcessQuestionsPage() {
   const [feedbackText, setFeedbackText] = useState('');
   const auditLog = useAuditLogger();
 
-  const { data: process, isLoading, error, refetch } = useDataset(datasetId || '');
+  const { data: process, isLoading, error, refetch } = useProcess(datasetId || '');
 
   // Log page view for audit
   useEffect(() => {

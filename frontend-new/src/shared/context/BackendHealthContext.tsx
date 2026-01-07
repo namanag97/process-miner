@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
-import { useSDK } from '@/src/shared/design-system';
+import { useSDK } from '@lumina/design-system';
 
 interface BackendHealthContextType {
   isBackendDown: boolean;

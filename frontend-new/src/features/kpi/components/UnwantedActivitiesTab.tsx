@@ -6,8 +6,8 @@ import {
   QueryError,
   EmptyState,
   tokens,
-} from '@/src/shared/design-system';
-import { useRework } from '@/src/api/hooks';
+  useRework,
+} from '@lumina/design-system';
 
 const { Text } = Typography;
 

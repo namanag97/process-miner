@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Table, Select, Button, Space, Tag, Typography } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { PageHeader, tokens, toast } from '@/src/shared/design-system';
+import { PageHeader, tokens, toast } from '@lumina/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 
 const log = createLogger('Activity');

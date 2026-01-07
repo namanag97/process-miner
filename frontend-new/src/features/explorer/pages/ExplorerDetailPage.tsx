@@ -24,9 +24,10 @@ import {
   PlusOutlined,
   QuestionCircleOutlined,
 } from '@ant-design/icons';
-import { tokens, toast, logAction, logError, ErrorBoundary } from '@/src/shared/design-system';
-import type { ActivityDetail } from '../types';
+import { tokens, toast, logAction, logError, ErrorBoundary, type ActivityDetail } from '@lumina/design-system';
 import { createLogger } from '../../../shared/lib/logger';
+
+const { Text } = Typography;
 
 // Import components
 import { CytoscapeCanvas } from '../components/CytoscapeCanvas';
@@ -56,12 +57,6 @@ import type {
 } from '../types';
 import { hasReworkInVariant } from '../types';
 
-// Helper to safely extract number values (handles {} from API)
-const toNumber = (val: unknown): number | undefined => {
-  if (typeof val === 'number') return val;
-  return undefined;
-};
-
 // Import mock data and fallback utilities
 import {
   mockOrderToCashDFG,
@@ -74,8 +69,6 @@ import {
   extractErrorMessages,
   getFallbackStatus,
 } from '../utils/fallbackData';
-
-const { Text } = Typography;
 
 const log = createLogger('ExplorerDetailPage');
 
@@ -118,10 +111,10 @@ export function ExplorerDetailPage() {
     data: explorerData,
     isLoading: explorerLoading,
     error: explorerError,
-  } = useExplorerData(
-    datasetId || '',
-    { includePerformance: true, topVariants: 50 }
-  );
+  } = useExplorerData({
+    datasetId: datasetId || '',
+    options: { includePerformance: true, topVariants: 50 }
+  });
 
   // Extract individual data from unified response
   const dfgData = explorerData?.dfg;
@@ -136,32 +129,31 @@ export function ExplorerDetailPage() {
   const loading = logLoading || explorerLoading;
 
   // Apply fallbacks - Re-enabled for graceful degradation when backend is unavailable
-  // Note: Mock data types are cast to match API types for fallback compatibility
   const logInfoWithFallback = useFallbackData(
     logInfo,
     null,
-    mockOrderToCashLogInfo as typeof logInfo,
+    mockOrderToCashLogInfo,
     { source: 'ExplorerDetailPage', hookType: 'useLogDetail', datasetId: datasetId || '', disableFallback: false }
   );
 
   const dfgDataWithFallback = useFallbackData(
     dfgData,
     dfgError,
-    mockOrderToCashDFG as typeof dfgData,
+    mockOrderToCashDFG,
     { source: 'ExplorerDetailPage', hookType: 'useDFG', datasetId: datasetId || '', endpoint: '/api/visualization/dfg', disableFallback: false }
   );
 
   const variantsWithFallback = useFallbackData(
     variants,
     variantsError,
-    mockOrderToCashVariants as typeof variants,
+    mockOrderToCashVariants,
     { source: 'ExplorerDetailPage', hookType: 'useVariants', datasetId: datasetId || '', endpoint: '/api/datasets/variants', disableFallback: false }
   );
 
-  const activitiesWithFallback = useFallbackData<ActivityDetail[] | undefined>(
-    activities as ActivityDetail[] | undefined,
+  const activitiesWithFallback = useFallbackData<ActivityDetail[]>(
+    activities,
     activitiesError,
-    mockOrderToCashActivities as ActivityDetail[],
+    mockOrderToCashActivities,
     { source: 'ExplorerDetailPage', hookType: 'useActivities', datasetId: datasetId || '', endpoint: '/api/discovery/activities', disableFallback: false }
   );
 
@@ -200,9 +192,9 @@ export function ExplorerDetailPage() {
         frequency: node.frequency ?? 0,
         isStart: node.isStart ?? false,
         isEnd: node.isEnd ?? false,
-        avgDuration: toNumber(activityDetail?.avgDuration),
-        minDuration: toNumber(activityDetail?.minDuration),
-        maxDuration: toNumber(activityDetail?.maxDuration),
+        avgDuration: activityDetail?.avgDuration ?? undefined,
+        minDuration: activityDetail?.minDuration ?? undefined,
+        maxDuration: activityDetail?.maxDuration ?? undefined,
       };
     });
   }, [dfgDataWithFallback, activitiesWithFallback]);
@@ -239,7 +231,7 @@ export function ExplorerDetailPage() {
       avgDuration: v.avgDuration ?? null,
       avgDurationSeconds: v.avgDuration ?? 0,
       isHappyPath: index === 0 && (v.frequencyPercent ?? 0) > 50,
-      complexityScore: (v as { complexityScore?: number }).complexityScore,
+      complexityScore: v.complexityScore,
       hasRework: hasReworkInVariant(Array.isArray(v.activities) ? v.activities : []),
     }));
   }, [variantsWithFallback]);
@@ -310,13 +302,13 @@ export function ExplorerDetailPage() {
     );
     if (!activity) return null;
     return {
-      id: activity.id ?? activity.name,
+      id: activity.id,
       name: activity.name,
-      totalOccurrences: toNumber(activity.frequency) ?? 0,
-      casePercentage: toNumber(activity.frequencyPercent) ?? 0,
-      avgDurationSeconds: toNumber(activity.avgDuration) ?? 0,
-      minDurationSeconds: toNumber(activity.minDuration) ?? 0,
-      maxDurationSeconds: toNumber(activity.maxDuration) ?? 0,
+      totalOccurrences: activity.frequency ?? 0,
+      casePercentage: activity.frequencyPercent ?? 0,
+      avgDurationSeconds: activity.avgDuration ?? 0,
+      minDurationSeconds: activity.minDuration ?? 0,
+      maxDurationSeconds: activity.maxDuration ?? 0,
       resources: Array.isArray(activity.resources) ? activity.resources : [],
     };
   }, [selectedNodeId, activitiesWithFallback]);
@@ -335,7 +327,7 @@ export function ExplorerDetailPage() {
       target: edge.target,
       frequency: edge.frequency,
       frequencyPercent: (edge.frequency / totalFrequency) * 100,
-      avgDurationSeconds: toNumber(edge.performance),
+      avgDurationSeconds: edge.performance,
     };
   }, [selectedEdgeId, dfgEdges]);
 
@@ -348,9 +340,9 @@ export function ExplorerDetailPage() {
     return activitiesWithFallback.map((a) => ({
       id: a.id || a.name,
       name: a.name,
-      frequency: toNumber(a.frequency) ?? 0,
-      casePercent: toNumber(a.frequencyPercent) ?? 0,
-      avgDuration: toNumber(a.avgDuration),
+      frequency: a.frequency ?? 0,
+      casePercent: a.frequencyPercent ?? 0,
+      avgDuration: a.avgDuration ?? undefined,
     }));
   }, [activitiesWithFallback]);
 
@@ -518,7 +510,7 @@ export function ExplorerDetailPage() {
 
     const nodesCSV = [
       ['Activity', 'Frequency', 'Is Start', 'Is End'].join(','),
-      ...dfgNodes.map((node: any) =>
+      ...dfgNodes.map(node =>
         [
           `"${node.label}"`,
           node.frequency,
@@ -530,7 +522,7 @@ export function ExplorerDetailPage() {
 
     const edgesCSV = [
       ['Source', 'Target', 'Frequency', 'Avg Duration (s)'].join(','),
-      ...dfgEdges.map((edge: any) =>
+      ...dfgEdges.map(edge =>
         [
           `"${edge.source}"`,
           `"${edge.target}"`,
@@ -620,7 +612,7 @@ export function ExplorerDetailPage() {
               style={{ padding: 40 }}
             />
           }
-          onError={(_error: Error) => {
+          onError={(_error) => {
             logError('VariantPanel', { datasetId: datasetId || '', componentCrash: true });
           }}
         >
@@ -975,7 +967,7 @@ export function ExplorerDetailPage() {
                   }
                 />
               }
-              onError={(_error: Error) => {
+              onError={(_error) => {
                 logError('CytoscapeCanvas', { datasetId: datasetId || '', componentCrash: true });
               }}
             >

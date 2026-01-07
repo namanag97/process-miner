@@ -3,7 +3,7 @@ import {
   ReloadOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons';
-import { MetricCard, tokens, formatCompactNumber, type ReworkData } from '@/src/shared/design-system';
+import { MetricCard, tokens, formatCompactNumber, type ReworkData } from '@lumina/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 
 const { Text } = Typography;

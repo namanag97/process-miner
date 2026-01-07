@@ -1,24 +1,10 @@
-# Process Mining SaaS - Frontend
+# FrontendNew
 
-Modern React SPA for Process Mining analytics with interactive visualizations, performance dashboards, and AI-powered insights.
+<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
-**Tech Stack**: React 19 + TypeScript + TanStack Query + Ant Design + Rspack + Nx
+✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
 
-## 🤖 AI Agent Documentation
-
-**New to this codebase?** Start here:
-
-- **[AI Agent Guide](file:///Users/namanagarwal/system/frontend-new/AI_AGENT_GUIDE.md)** - Complete guide for AI agents (navigation, patterns, workflows)
-- **[Architecture](file:///Users/namanagarwal/system/frontend-new/ARCHITECTURE.md)** - Feature-based architecture with plugin system
-- **[System Overview](file:///Users/namanagarwal/system/SYSTEM_OVERVIEW.md)** - Full-stack architecture (Backend + Frontend)
-
-## ✨ Features
-
-- **Process Explorer**: Interactive visualization of process flows (DFG, Petri nets, BPMN)
-- **Analytics Dashboard**: Performance metrics, bottleneck detection, variant analysis
-- **AI Insights**: ML-powered predictions and recommendations
-- **Workspace Management**: Multi-tenant project and dataset organization
-- **Real-time Updates**: TanStack Query with smart caching and auto-refetching
+[Learn more about this workspace setup and its capabilities](https://nx.dev/getting-started/tutorials/react-standalone-tutorial?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
 
 ## Run tasks
 

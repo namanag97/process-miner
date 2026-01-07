@@ -14,7 +14,7 @@ import {
     FolderOpenOutlined,
     CheckCircleOutlined,
 } from '@ant-design/icons';
-import { tokens, logAction } from '@/src/shared/design-system';
+import { tokens, logAction } from '@lumina/design-system';
 import { FeaturePage } from '../../../shared/core';
 import { useEventLogsList } from '../hooks';
 import { createLogger } from '../../../shared/lib/logger';

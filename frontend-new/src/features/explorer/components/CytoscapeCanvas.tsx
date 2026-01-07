@@ -59,7 +59,7 @@ export interface CytoscapeCanvasProps {
 function convertToElements(data: ProcessGraphData) {
     const maxFreq = Math.max(...data.nodes.map(n => n.frequency || 0), 1);
 
-    const nodes = data.nodes.map((node: any) => ({
+    const nodes = data.nodes.map(node => ({
         data: {
             id: node.id,
             label: node.label,
@@ -71,7 +71,7 @@ function convertToElements(data: ProcessGraphData) {
         },
     }));
 
-    const edges = data.edges.map((edge: any) => ({
+    const edges = data.edges.map(edge => ({
         data: {
             id: edge.id,
             source: edge.source,

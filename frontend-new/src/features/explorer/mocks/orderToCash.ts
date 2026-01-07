@@ -1,118 +1,548 @@
-
-import type { DFGResponse, Variant, ProcessKPIs } from '../types';
-
-// Local ActivityDetail type for mock data (matches explorer types)
-interface MockActivityDetail {
-    id: string;
-    name: string;
-    frequency: number;
-    frequencyPercent: number;
-    avgDuration: number;
-    minDuration: number;
-    maxDuration: number;
-    isStart: boolean;
-    isEnd: boolean;
-    resources: string[];
-}
-
-// Dataset-like mock type for logInfo fallback
-export interface MockDatasetInfo {
-    id: string;
-    name: string;
-    status: string;
-    createdAt: string;
-    totalCases?: number;
-    totalEvents?: number;
-}
-
 /**
- * Mock data for "Order to Cash" process
- * Used for fallback when backend is unavailable or for development
+ * Order-to-Cash Mock Data
+ *
+ * Comprehensive mock data for the Order-to-Cash process used as fallback
+ * when backend is unavailable. Demonstrates all features of the Process Explorer.
  */
 
-export const mockOrderToCashDFG: DFGResponse = {
-    nodes: [
-        { id: 'start', label: 'Start', frequency: 1000, isStart: true, isEnd: false },
-        { id: 'receive_order', label: 'Receive Order', frequency: 1000, isStart: false, isEnd: false },
-        { id: 'check_credit', label: 'Check Credit', frequency: 950, isStart: false, isEnd: false },
-        { id: 'approve_order', label: 'Approve Order', frequency: 900, isStart: false, isEnd: false },
-        { id: 'ship_goods', label: 'Ship Goods', frequency: 900, isStart: false, isEnd: false },
-        { id: 'send_invoice', label: 'Send Invoice', frequency: 900, isStart: false, isEnd: false },
-        { id: 'receive_payment', label: 'Receive Payment', frequency: 850, isStart: false, isEnd: false },
-        { id: 'close_order', label: 'Close Order', frequency: 850, isStart: false, isEnd: true },
-        { id: 'cancel_order', label: 'Cancel Order', frequency: 150, isStart: false, isEnd: true },
-    ],
-    edges: [
-        { source: 'start', target: 'receive_order', frequency: 1000, probability: 1.0, avgDuration: 0 },
-        { source: 'receive_order', target: 'check_credit', frequency: 950, probability: 0.95, avgDuration: 3600 },
-        { source: 'receive_order', target: 'cancel_order', frequency: 50, probability: 0.05, avgDuration: 1800 },
-        { source: 'check_credit', target: 'approve_order', frequency: 900, probability: 0.95, avgDuration: 7200 },
-        { source: 'check_credit', target: 'cancel_order', frequency: 50, probability: 0.05, avgDuration: 3600 },
-        { source: 'approve_order', target: 'ship_goods', frequency: 900, probability: 1.0, avgDuration: 172800 },
-        { source: 'ship_goods', target: 'send_invoice', frequency: 900, probability: 1.0, avgDuration: 43200 },
-        { source: 'send_invoice', target: 'receive_payment', frequency: 850, probability: 0.94, avgDuration: 604800 },
-        { source: 'send_invoice', target: 'cancel_order', frequency: 50, probability: 0.06, avgDuration: 864000 },
-        { source: 'receive_payment', target: 'close_order', frequency: 850, probability: 1.0, avgDuration: 3600 },
-    ],
-    stats: {
-        totalCases: 1000,
-        totalActivities: 7400,
-        totalTransitions: 7400,
-    }
+import type {
+  DFGData,
+  DFGNode,
+  DFGEdge,
+  Variant,
+  ActivityDetail,
+} from '@lumina/design-system';
+
+// ============================================
+// DFG Mock Data
+// ============================================
+
+const mockDFGNodes: DFGNode[] = [
+  {
+    id: 'receive-order',
+    label: 'Receive Order',
+    frequency: 1000,
+    isStart: true,
+    isEnd: false,
+  },
+  {
+    id: 'check-inventory',
+    label: 'Check Inventory',
+    frequency: 850,
+    isStart: false,
+    isEnd: false,
+  },
+  {
+    id: 'request-restock',
+    label: 'Request Restock',
+    frequency: 150,
+    isStart: false,
+    isEnd: false,
+  },
+  {
+    id: 'pick-items',
+    label: 'Pick Items',
+    frequency: 980,
+    isStart: false,
+    isEnd: false,
+  },
+  {
+    id: 'pack-order',
+    label: 'Pack Order',
+    frequency: 970,
+    isStart: false,
+    isEnd: false,
+  },
+  {
+    id: 'generate-invoice',
+    label: 'Generate Invoice',
+    frequency: 960,
+    isStart: false,
+    isEnd: false,
+  },
+  {
+    id: 'ship-order',
+    label: 'Ship Order',
+    frequency: 950,
+    isStart: false,
+    isEnd: false,
+  },
+  {
+    id: 'deliver-order',
+    label: 'Deliver Order',
+    frequency: 920,
+    isStart: false,
+    isEnd: false,
+  },
+  {
+    id: 'close-order',
+    label: 'Close Order',
+    frequency: 900,
+    isStart: false,
+    isEnd: true,
+  },
+  {
+    id: 'process-return',
+    label: 'Process Return',
+    frequency: 50,
+    isStart: false,
+    isEnd: false,
+  },
+  {
+    id: 'issue-refund',
+    label: 'Issue Refund',
+    frequency: 45,
+    isStart: false,
+    isEnd: true,
+  },
+];
+
+const mockDFGEdges: DFGEdge[] = [
+  // Happy path
+  {
+    id: 'edge-0',
+    source: 'receive-order',
+    target: 'check-inventory',
+    frequency: 850,
+    probability: 0.85,
+    avgDuration: 1800, // 30 minutes
+  },
+  {
+    id: 'edge-1',
+    source: 'check-inventory',
+    target: 'pick-items',
+    frequency: 800,
+    probability: 0.94,
+    avgDuration: 3600, // 1 hour
+  },
+  {
+    id: 'edge-2',
+    source: 'pick-items',
+    target: 'pack-order',
+    frequency: 970,
+    probability: 0.99,
+    avgDuration: 1200, // 20 minutes
+  },
+  {
+    id: 'edge-3',
+    source: 'pack-order',
+    target: 'generate-invoice',
+    frequency: 960,
+    probability: 0.99,
+    avgDuration: 600, // 10 minutes
+  },
+  {
+    id: 'edge-4',
+    source: 'generate-invoice',
+    target: 'ship-order',
+    frequency: 950,
+    probability: 0.99,
+    avgDuration: 7200, // 2 hours
+  },
+  {
+    id: 'edge-5',
+    source: 'ship-order',
+    target: 'deliver-order',
+    frequency: 920,
+    probability: 0.97,
+    avgDuration: 86400, // 24 hours
+  },
+  {
+    id: 'edge-6',
+    source: 'deliver-order',
+    target: 'close-order',
+    frequency: 870,
+    probability: 0.95,
+    avgDuration: 1800, // 30 minutes
+  },
+
+  // Rush orders (skip inventory check)
+  {
+    id: 'edge-7',
+    source: 'receive-order',
+    target: 'pick-items',
+    frequency: 150,
+    probability: 0.15,
+    avgDuration: 900, // 15 minutes
+  },
+
+  // Backorder flow
+  {
+    id: 'edge-8',
+    source: 'check-inventory',
+    target: 'request-restock',
+    frequency: 50,
+    probability: 0.06,
+    avgDuration: 3600, // 1 hour
+  },
+  {
+    id: 'edge-9',
+    source: 'request-restock',
+    target: 'check-inventory',
+    frequency: 150,
+    probability: 1.0,
+    avgDuration: 172800, // 48 hours (rework loop)
+  },
+
+  // Rework: Packing issues
+  {
+    id: 'edge-10',
+    source: 'pack-order',
+    target: 'pick-items',
+    frequency: 10,
+    probability: 0.01,
+    avgDuration: 1800, // 30 minutes (repick)
+  },
+
+  // Return flow
+  {
+    id: 'edge-11',
+    source: 'deliver-order',
+    target: 'process-return',
+    frequency: 50,
+    probability: 0.05,
+    avgDuration: 7200, // 2 hours
+  },
+  {
+    id: 'edge-12',
+    source: 'process-return',
+    target: 'issue-refund',
+    frequency: 45,
+    probability: 0.9,
+    avgDuration: 3600, // 1 hour
+  },
+];
+
+export const mockOrderToCashDFG: DFGData = {
+  nodes: mockDFGNodes,
+  edges: mockDFGEdges,
+  startActivities: {
+    'receive-order': 1000,
+  },
+  endActivities: {
+    'close-order': 900,
+    'issue-refund': 45,
+  },
+  totalFrequency: mockDFGEdges.reduce((sum, edge) => sum + edge.frequency, 0),
 };
+
+// ============================================
+// Variants Mock Data
+// ============================================
 
 export const mockOrderToCashVariants: Variant[] = [
-    {
-        key: 'v1',
-        activities: ['receive_order', 'check_credit', 'approve_order', 'ship_goods', 'send_invoice', 'receive_payment', 'close_order'],
-        caseCount: 800,
-        frequencyPercent: 80,
-        avgDuration: 831600, // ~9.6 days
-        complexityScore: 1
-    },
-    {
-        key: 'v2',
-        activities: ['receive_order', 'check_credit', 'cancel_order'],
-        caseCount: 50,
-        frequencyPercent: 5,
-        avgDuration: 5400,
-        complexityScore: 0.8
-    },
-    {
-        key: 'v3',
-        activities: ['receive_order', 'cancel_order'],
-        caseCount: 50,
-        frequencyPercent: 5,
-        avgDuration: 1800,
-        complexityScore: 0.8
-    }
+  // Happy path (60%)
+  {
+    key: 'variant-1-happy-path',
+    activityTrace: 'Receive Order → Check Inventory → Pick Items → Pack Order → Generate Invoice → Ship Order → Deliver Order → Close Order',
+    activities: [
+      'Receive Order',
+      'Check Inventory',
+      'Pick Items',
+      'Pack Order',
+      'Generate Invoice',
+      'Ship Order',
+      'Deliver Order',
+      'Close Order',
+    ],
+    caseCount: 600,
+    frequencyPercent: 60.0,
+    avgDuration: 97800, // ~27 hours
+    complexityScore: 8,
+  },
+
+  // Rush order - skip inventory check (15%)
+  {
+    key: 'variant-2-rush-order',
+    activityTrace: 'Receive Order → Pick Items → Pack Order → Generate Invoice → Ship Order → Deliver Order → Close Order',
+    activities: [
+      'Receive Order',
+      'Pick Items',
+      'Pack Order',
+      'Generate Invoice',
+      'Ship Order',
+      'Deliver Order',
+      'Close Order',
+    ],
+    caseCount: 150,
+    frequencyPercent: 15.0,
+    avgDuration: 89400, // ~25 hours (faster)
+    complexityScore: 7,
+  },
+
+  // Backorder with restock (10%)
+  {
+    key: 'variant-3-backorder',
+    activityTrace: 'Receive Order → Check Inventory → Request Restock → Check Inventory → Pick Items → Pack Order → Generate Invoice → Ship Order → Deliver Order → Close Order',
+    activities: [
+      'Receive Order',
+      'Check Inventory',
+      'Request Restock',
+      'Check Inventory',
+      'Pick Items',
+      'Pack Order',
+      'Generate Invoice',
+      'Ship Order',
+      'Deliver Order',
+      'Close Order',
+    ],
+    caseCount: 100,
+    frequencyPercent: 10.0,
+    avgDuration: 270600, // ~75 hours (much slower due to restock)
+    complexityScore: 10,
+  },
+
+  // Multiple restocks (5%)
+  {
+    key: 'variant-4-multiple-restocks',
+    activityTrace: 'Receive Order → Check Inventory → Request Restock → Check Inventory → Request Restock → Check Inventory → Pick Items → Pack Order → Generate Invoice → Ship Order → Deliver Order → Close Order',
+    activities: [
+      'Receive Order',
+      'Check Inventory',
+      'Request Restock',
+      'Check Inventory',
+      'Request Restock',
+      'Check Inventory',
+      'Pick Items',
+      'Pack Order',
+      'Generate Invoice',
+      'Ship Order',
+      'Deliver Order',
+      'Close Order',
+    ],
+    caseCount: 50,
+    frequencyPercent: 5.0,
+    avgDuration: 432000, // ~120 hours (very slow)
+    complexityScore: 12,
+  },
+
+  // Packing rework (5%)
+  {
+    key: 'variant-5-packing-rework',
+    activityTrace: 'Receive Order → Check Inventory → Pick Items → Pack Order → Pick Items → Pack Order → Generate Invoice → Ship Order → Deliver Order → Close Order',
+    activities: [
+      'Receive Order',
+      'Check Inventory',
+      'Pick Items',
+      'Pack Order',
+      'Pick Items',
+      'Pack Order',
+      'Generate Invoice',
+      'Ship Order',
+      'Deliver Order',
+      'Close Order',
+    ],
+    caseCount: 50,
+    frequencyPercent: 5.0,
+    avgDuration: 102000, // ~28 hours
+    complexityScore: 10,
+  },
+
+  // Return and refund (4%)
+  {
+    key: 'variant-6-return-refund',
+    activityTrace: 'Receive Order → Check Inventory → Pick Items → Pack Order → Generate Invoice → Ship Order → Deliver Order → Process Return → Issue Refund',
+    activities: [
+      'Receive Order',
+      'Check Inventory',
+      'Pick Items',
+      'Pack Order',
+      'Generate Invoice',
+      'Ship Order',
+      'Deliver Order',
+      'Process Return',
+      'Issue Refund',
+    ],
+    caseCount: 40,
+    frequencyPercent: 4.0,
+    avgDuration: 108600, // ~30 hours
+    complexityScore: 9,
+  },
+
+  // Cancelled before delivery (1%)
+  {
+    key: 'variant-7-partial',
+    activityTrace: 'Receive Order → Check Inventory → Pick Items → Pack Order → Generate Invoice → Ship Order → Close Order',
+    activities: [
+      'Receive Order',
+      'Check Inventory',
+      'Pick Items',
+      'Pack Order',
+      'Generate Invoice',
+      'Ship Order',
+      'Close Order',
+    ],
+    caseCount: 10,
+    frequencyPercent: 1.0,
+    avgDuration: 10800, // ~3 hours (cancelled early)
+    complexityScore: 7,
+  },
 ];
 
-export const mockOrderToCashActivities: MockActivityDetail[] = [
-    { id: 'receive_order', name: 'Receive Order', frequency: 1000, frequencyPercent: 100, avgDuration: 300, minDuration: 60, maxDuration: 600, isStart: true, isEnd: false, resources: ['System'] },
-    { id: 'check_credit', name: 'Check Credit', frequency: 950, frequencyPercent: 95, avgDuration: 600, minDuration: 120, maxDuration: 1200, isStart: false, isEnd: false, resources: ['Credit Officer'] },
-    { id: 'approve_order', name: 'Approve Order', frequency: 900, frequencyPercent: 90, avgDuration: 300, minDuration: 60, maxDuration: 600, isStart: false, isEnd: false, resources: ['Manager'] },
-    { id: 'ship_goods', name: 'Ship Goods', frequency: 900, frequencyPercent: 90, avgDuration: 3600, minDuration: 1800, maxDuration: 7200, isStart: false, isEnd: false, resources: ['Warehouse'] },
-    { id: 'send_invoice', name: 'Send Invoice', frequency: 900, frequencyPercent: 90, avgDuration: 300, minDuration: 60, maxDuration: 600, isStart: false, isEnd: false, resources: ['Finance'] },
-    { id: 'receive_payment', name: 'Receive Payment', frequency: 850, frequencyPercent: 85, avgDuration: 300, minDuration: 60, maxDuration: 600, isStart: false, isEnd: false, resources: ['Finance'] },
-    { id: 'close_order', name: 'Close Order', frequency: 850, frequencyPercent: 85, avgDuration: 0, minDuration: 0, maxDuration: 0, isStart: false, isEnd: true, resources: ['System'] },
-    { id: 'cancel_order', name: 'Cancel Order', frequency: 150, frequencyPercent: 15, avgDuration: 0, minDuration: 0, maxDuration: 0, isStart: false, isEnd: true, resources: ['System'] },
+// ============================================
+// Activities Mock Data
+// ============================================
+
+export const mockOrderToCashActivities: ActivityDetail[] = [
+  {
+    id: 'receive-order',
+    name: 'Receive Order',
+    frequency: 1000,
+    frequencyPercent: 100.0,
+    avgDuration: 600,
+    minDuration: 120,
+    maxDuration: 1800,
+    isStartActivity: true,
+    isEndActivity: false,
+    resources: ['Order System', 'Customer Portal', 'Sales Team'],
+  },
+  {
+    id: 'check-inventory',
+    name: 'Check Inventory',
+    frequency: 850,
+    frequencyPercent: 85.0,
+    avgDuration: 1800,
+    minDuration: 600,
+    maxDuration: 3600,
+    isStartActivity: false,
+    isEndActivity: false,
+    resources: ['Warehouse System', 'Inventory Manager'],
+  },
+  {
+    id: 'request-restock',
+    name: 'Request Restock',
+    frequency: 150,
+    frequencyPercent: 15.0,
+    avgDuration: 172800,
+    minDuration: 86400,
+    maxDuration: 259200,
+    isStartActivity: false,
+    isEndActivity: false,
+    resources: ['Procurement Team', 'Supplier System'],
+  },
+  {
+    id: 'pick-items',
+    name: 'Pick Items',
+    frequency: 980,
+    frequencyPercent: 98.0,
+    avgDuration: 2400,
+    minDuration: 900,
+    maxDuration: 5400,
+    isStartActivity: false,
+    isEndActivity: false,
+    resources: ['Warehouse Staff', 'Picking System', 'Forklift Operators'],
+  },
+  {
+    id: 'pack-order',
+    name: 'Pack Order',
+    frequency: 970,
+    frequencyPercent: 97.0,
+    avgDuration: 1200,
+    minDuration: 600,
+    maxDuration: 2400,
+    isStartActivity: false,
+    isEndActivity: false,
+    resources: ['Packing Station', 'Warehouse Staff'],
+  },
+  {
+    id: 'generate-invoice',
+    name: 'Generate Invoice',
+    frequency: 960,
+    frequencyPercent: 96.0,
+    avgDuration: 600,
+    minDuration: 300,
+    maxDuration: 1200,
+    isStartActivity: false,
+    isEndActivity: false,
+    resources: ['Billing System', 'Finance Team'],
+  },
+  {
+    id: 'ship-order',
+    name: 'Ship Order',
+    frequency: 950,
+    frequencyPercent: 95.0,
+    avgDuration: 7200,
+    minDuration: 3600,
+    maxDuration: 14400,
+    isStartActivity: false,
+    isEndActivity: false,
+    resources: ['Shipping Carrier', 'Logistics Coordinator', 'Delivery System'],
+  },
+  {
+    id: 'deliver-order',
+    name: 'Deliver Order',
+    frequency: 920,
+    frequencyPercent: 92.0,
+    avgDuration: 86400,
+    minDuration: 43200,
+    maxDuration: 172800,
+    isStartActivity: false,
+    isEndActivity: false,
+    resources: ['Delivery Driver', 'Delivery System'],
+  },
+  {
+    id: 'close-order',
+    name: 'Close Order',
+    frequency: 900,
+    frequencyPercent: 90.0,
+    avgDuration: 1800,
+    minDuration: 600,
+    maxDuration: 3600,
+    isStartActivity: false,
+    isEndActivity: true,
+    resources: ['Order System', 'Customer Service'],
+  },
+  {
+    id: 'process-return',
+    name: 'Process Return',
+    frequency: 50,
+    frequencyPercent: 5.0,
+    avgDuration: 7200,
+    minDuration: 3600,
+    maxDuration: 14400,
+    isStartActivity: false,
+    isEndActivity: false,
+    resources: ['Returns Department', 'Customer Service', 'Warehouse Staff'],
+  },
+  {
+    id: 'issue-refund',
+    name: 'Issue Refund',
+    frequency: 45,
+    frequencyPercent: 4.5,
+    avgDuration: 3600,
+    minDuration: 1800,
+    maxDuration: 7200,
+    isStartActivity: false,
+    isEndActivity: true,
+    resources: ['Finance Team', 'Payment System'],
+  },
 ];
 
-export const mockOrderToCashLogInfo: MockDatasetInfo = {
-    id: 'mock-order-to-cash',
-    name: 'Order to Cash (Demo)',
-    status: 'ready',
-    createdAt: new Date().toISOString(),
-    totalCases: 1000,
-    totalEvents: 7400,
-};
+// ============================================
+// Log Metadata Mock
+// ============================================
 
-export const mockOrderToCashKPIs: ProcessKPIs = {
-    totalCases: 1000,
-    uniqueVariants: 15,
-    uniqueActivities: 8,
-    avgThroughputTime: 750000,
-    happyPathPercent: 80,
-    reworkRate: 5
+export const mockOrderToCashLogInfo = {
+  id: 'mock-order-to-cash-log',
+  name: 'Order-to-Cash Process (Mock Data)',
+  sourceFormat: 'csv',
+  totalCases: 1000,
+  totalEvents: 9500,
+  totalActivities: 11,
+  activities: [
+    'Receive Order',
+    'Check Inventory',
+    'Request Restock',
+    'Pick Items',
+    'Pack Order',
+    'Generate Invoice',
+    'Ship Order',
+    'Deliver Order',
+    'Close Order',
+    'Process Return',
+    'Issue Refund',
+  ],
+  createdAt: '2024-01-01T00:00:00Z',
+  updatedAt: '2024-12-31T23:59:59Z',
+  status: 'ready' as const,
 };

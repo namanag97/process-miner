@@ -9,7 +9,7 @@ import { useState, useCallback } from 'react';
 import { Modal, Upload, Button, Alert, Progress, Typography, Tag } from 'antd';
 import type { UploadFile, UploadProps } from 'antd';
 import { InboxOutlined, FileTextOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
-import { tokens } from '@/src/shared/design-system';
+import { tokens } from '@lumina/design-system';
 import { useUploadDataset } from '../hooks';
 
 const { Dragger } = Upload;

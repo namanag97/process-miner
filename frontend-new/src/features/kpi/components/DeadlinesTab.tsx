@@ -6,8 +6,8 @@ import {
   QueryError,
   EmptyState,
   tokens,
-} from '@/src/shared/design-system';
-import { useDeadlines } from '@/src/api/hooks';
+  useDeadlines,
+} from '@lumina/design-system';
 
 const { Text } = Typography;
 

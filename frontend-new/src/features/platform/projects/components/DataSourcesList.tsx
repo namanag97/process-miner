@@ -7,7 +7,7 @@
 import React from 'react';
 import { List, Card, Space, Tag, Button, Typography, Tooltip } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
-import { EmptyState, tokens } from '@/src/shared/design-system';
+import { EmptyState, tokens } from '@lumina/design-system';
 import {
   FolderOpenOutlined,
   FileTextOutlined,

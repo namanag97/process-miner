@@ -1,8 +1,27 @@
 /**
  * Analytics Feature Types
  *
- * NOTE: Types are defined locally for frontend use.
+ * NOTE: Core API types are now auto-generated from OpenAPI spec.
+ * Import them from @frontend-new/openapi-sdk for type safety.
  */
+
+// ============================================
+// Re-export SDK types
+// ============================================
+
+export type {
+  PerformanceDashboardResponse,
+  CycleTimeResponse,
+  ThroughputResponse,
+  BottleneckResponse,
+  BottleneckListResponse,
+  ReworkResponse,
+  ReworkListResponse,
+  ConformanceResponse,
+  DiagnosticsResponse,
+  ResourceProfileResponse,
+  ResourceWorkloadResponse,
+} from '@frontend-new/openapi-sdk';
 
 // ============================================
 // Performance Types (frontend extensions)
@@ -114,69 +133,4 @@ export interface AnalyticsTabProps {
   datasetId: string | null;
   data?: unknown;
   loading?: boolean;
-}
-
-// ============================================
-// SDK Response Types (local definitions)
-// ============================================
-
-export interface PerformanceDashboardResponse {
-  cycleTime?: { avgSeconds: number; medianSeconds: number; minSeconds?: number; maxSeconds?: number };
-  throughput?: { casesPerDay: number; totalCases: number };
-  bottlenecks?: BottleneckData[];
-}
-
-export interface CycleTimeResponse {
-  avgSeconds: number;
-  medianSeconds: number;
-  minSeconds?: number;
-  maxSeconds?: number;
-}
-
-export interface ThroughputResponse {
-  casesPerDay: number;
-  totalCases: number;
-}
-
-export interface BottleneckResponse {
-  activity: string;
-  avgWaitingTime: number;
-  frequency: number;
-  impactScore?: number;
-}
-
-export interface BottleneckListResponse {
-  bottlenecks: BottleneckResponse[];
-}
-
-export interface ReworkResponse {
-  reworkPercentage: number;
-  totalReworkCases: number;
-  totalCases: number;
-}
-
-export interface ReworkListResponse {
-  activities: ReworkActivity[];
-}
-
-export interface ConformanceResponse {
-  fitnessScore: number;
-  precisionScore: number;
-  generalizationScore: number;
-  overallScore: number;
-}
-
-export interface DiagnosticsResponse {
-  status: string;
-  issues?: { type: string; message: string }[];
-}
-
-export interface ResourceProfileResponse {
-  resourceId: string;
-  name: string;
-  totalActivities: number;
-}
-
-export interface ResourceWorkloadResponse {
-  entries: WorkloadEntry[];
 }

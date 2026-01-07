@@ -8,21 +8,13 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Input, Typography, Row, Col, Tag, Space } from 'antd';
 import { SearchOutlined, FolderOpenOutlined, PlayCircleOutlined } from '@ant-design/icons';
-import { EmptyState, tokens, logAction } from '@/src/shared/design-system';
+import { EmptyState, tokens, logAction } from '@lumina/design-system';
 import { FeaturePage } from '../../../shared/core';
 import { useEventLogsList } from '../hooks';
 import { createLogger } from '../../../shared/lib/logger';
 
 const log = createLogger('ExplorerIndexPage');
 const { Text, Title } = Typography;
-
-interface EventLogItem {
-  id: string;
-  name: string;
-  projectId?: string;
-  totalCases: number;
-  totalEvents: number;
-}
 
 export function ExplorerIndexPage() {
   const navigate = useNavigate();
@@ -31,17 +23,17 @@ export function ExplorerIndexPage() {
   // Fetch logs using feature hook
   const { data, isLoading, error, refetch } = useEventLogsList({ pageSize: 50 });
 
-  const logs: EventLogItem[] = Array.isArray(data?.items) ? data.items : [];
+  const logs = Array.isArray(data?.items) ? data.items : [];
 
   log.debug('Rendering ExplorerIndexPage', { logCount: logs.length, isLoading });
 
   const filteredLogs = useMemo(() => {
     if (!searchText) return logs;
     const lower = searchText.toLowerCase();
-    return logs.filter((logItem: EventLogItem) => logItem.name.toLowerCase().includes(lower));
+    return logs.filter((logItem) => logItem.name.toLowerCase().includes(lower));
   }, [logs, searchText]);
 
-  const handleExplore = (logItem: EventLogItem) => {
+  const handleExplore = (logItem: any) => {
     logAction('ExplorerIndexPage', 'explore_clicked', { datasetId: logItem.id, name: logItem.name });
     log.info('Exploring log', { datasetId: logItem.id, name: logItem.name });
     // Navigate to workspace-scoped route if projectId is available

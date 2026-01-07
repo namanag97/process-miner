@@ -2,8 +2,24 @@
  * Projects Feature Types
  *
  * Type definitions for projects and related entities.
- * All types defined locally for frontend use.
+ *
+ * NOTE: SDK types are available at @frontend-new/openapi-sdk for API validation.
+ * Frontend uses camelCase conventions while SDK uses snake_case from backend.
  */
+
+// ============================================
+// SDK Types for Reference/Validation
+// ============================================
+
+export type {
+  ProjectResponse as SDKProjectResponse,
+  ProjectDetailResponse as SDKProjectDetailResponse,
+  ProjectListResponse as SDKProjectListResponse,
+  ProjectCreateRequest as SDKProjectCreateRequest,
+  ProjectUpdateRequest as SDKProjectUpdateRequest,
+  DatasetResponse as SDKDatasetResponse,
+  DatasetListResponse as SDKDatasetListResponse,
+} from '@frontend-new/openapi-sdk';
 
 // ============================================
 // Frontend Types (camelCase convention)
@@ -102,15 +118,3 @@ export function toDataSources(datasets: DatasetSummary[]): DataSourceInfo[] {
     errorMessage: dataset.errorMessage,
   }));
 }
-
-// ============================================
-// SDK Compatibility Aliases
-// ============================================
-
-export type SDKProjectResponse = Project;
-export type SDKProjectDetailResponse = ProjectDetail;
-export type SDKProjectListResponse = ProjectListResponse;
-export type SDKProjectCreateRequest = CreateProjectInput;
-export type SDKProjectUpdateRequest = UpdateProjectInput;
-export type SDKDatasetResponse = DatasetSummary;
-export type SDKDatasetListResponse = { items: DatasetSummary[] };

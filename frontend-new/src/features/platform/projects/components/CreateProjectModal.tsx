@@ -4,7 +4,7 @@
 
 import { Modal, Form, Input, Button } from 'antd';
 import type { FormInstance } from 'antd';
-import { tokens } from '@/src/shared/design-system';
+import { tokens } from '@lumina/design-system';
 import type { CreateProjectInput } from '../types';
 
 interface CreateProjectModalProps {

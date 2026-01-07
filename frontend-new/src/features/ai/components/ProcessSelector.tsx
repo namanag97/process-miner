@@ -1,6 +1,6 @@
 import { Select, Space, Typography, Tag, Skeleton } from 'antd';
 import { DatabaseOutlined } from '@ant-design/icons';
-import { tokens } from '@/src/shared/design-system';
+import { tokens } from '@lumina/design-system';
 
 const { Text } = Typography;
 

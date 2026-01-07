@@ -6,7 +6,7 @@ import {
   InfoCircleOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
-import { MetricCard, tokens, formatDurationFromSeconds, useSDK } from '@/src/shared/design-system';
+import { MetricCard, tokens, formatDurationFromSeconds, useSDK } from '@lumina/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 
 const { Text } = Typography;
@@ -68,7 +68,7 @@ export function ResourcesTab({ datasetId }: ResourcesTabProps) {
   }
 
   // Transform the data
-  const resources: ResourceData[] = (workloadData?.resources ?? []).map((r: any) => ({
+  const resources: ResourceData[] = (workloadData?.resources ?? []).map(r => ({
     name: r.resource,
     caseCount: r.caseCount,
     eventCount: r.eventCount,
@@ -76,11 +76,11 @@ export function ResourcesTab({ datasetId }: ResourcesTabProps) {
     workloadPercent: r.workloadPercent,
   }));
 
-  const handovers: HandoverData[] = (handoverData?.edges ?? []).map((e: any) => ({
+  const handovers: HandoverData[] = (handoverData?.edges ?? []).map(e => ({
     from: e.source,
     to: e.target,
     frequency: e.frequency,
-  })).sort((a: any, b: any) => b.frequency - a.frequency);
+  })).sort((a, b) => b.frequency - a.frequency);
 
   const uniqueResources = resources.length;
   const totalHandovers = handovers.reduce((sum, h) => sum + h.frequency, 0);

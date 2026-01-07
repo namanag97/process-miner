@@ -7,7 +7,7 @@ import {
   BulbOutlined,
   BarChartOutlined,
 } from '@ant-design/icons';
-import { tokens } from '@/src/shared/design-system';
+import { tokens } from '@lumina/design-system';
 import type { ProcessInsight } from '../types';
 
 const { Text, Paragraph } = Typography;

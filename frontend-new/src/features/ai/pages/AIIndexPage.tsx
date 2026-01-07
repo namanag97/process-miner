@@ -8,7 +8,7 @@ import {
   RobotOutlined,
   LineChartOutlined,
 } from '@ant-design/icons';
-import { PageHeader, tokens, logAction } from '@/src/shared/design-system';
+import { PageHeader, tokens, logAction } from '@lumina/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 
 const { Text, Title } = Typography;

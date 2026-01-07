@@ -16,7 +16,7 @@ import {
   ClockCircleOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
-import { tokens } from '@/src/shared/design-system';
+import { tokens } from '@lumina/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 import { formatDuration, formatNumber } from '../utils/colorScales';
 import type { EdgeDetail } from '../types';

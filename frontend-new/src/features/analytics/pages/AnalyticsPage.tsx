@@ -20,7 +20,7 @@ import {
   InfoCircleOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
-import { PageHeader, MetricCard, EmptyState, tokens, formatCompactNumber, useSDK, formatDurationFromSeconds, type EventLog, logAction } from '@/src/shared/design-system';
+import { PageHeader, MetricCard, EmptyState, tokens, formatCompactNumber, useSDK, formatDurationFromSeconds, type EventLog, logAction } from '@lumina/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 import { PerformanceTab, ConformanceTab, ReworkTab, ResourcesTab } from '../components';
 
@@ -234,7 +234,7 @@ export function AnalyticsPage() {
                   <Space>
                     <span>{logItem.name}</span>
                     <Text type="secondary" style={{ fontSize: tokens.fontSize.xs }}>
-                      ({formatCompactNumber(logItem.caseCount)} cases)
+                      ({formatCompactNumber(logItem.totalCases)} cases)
                     </Text>
                   </Space>
                 ),

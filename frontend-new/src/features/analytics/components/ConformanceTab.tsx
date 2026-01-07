@@ -7,7 +7,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { MetricCard, tokens, formatCompactNumber, useSDK, queryKeys, EmptyState } from '@/src/shared/design-system';
+import { MetricCard, tokens, formatCompactNumber, useSDK, queryKeys, EmptyState } from '@lumina/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 
 const { Text } = Typography;
@@ -60,7 +60,11 @@ export function ConformanceTab({ datasetId, projectId }: ConformanceTabProps) {
       try {
         // Attempt to get conformance data
         // Note: Using 'default' as modelId - if no model exists, this will fail gracefully
-        const result = await sdk.conformance.check(datasetId, 'default');
+        const result = await sdk.conformance.check({
+          datasetId,
+          modelId: 'default',
+          method: 'token_replay',
+        });
         return result;
       } catch (e) {
         // If conformance check fails (no model), return null and show placeholder

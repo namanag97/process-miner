@@ -6,7 +6,6 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { sdk } from '@/src/api/sdk';
 import styles from './AnalysisModeSelector.module.css';
 
 // ============================================
@@ -39,6 +38,7 @@ export interface AnalysisModeSelectorProps {
     datasetId: string;
     onAnalysisStarted?: (jobId: string) => void;
     onClose?: () => void;
+    apiBaseUrl?: string;
 }
 
 // ============================================
@@ -49,6 +49,7 @@ export function AnalysisModeSelector({
     datasetId,
     onAnalysisStarted,
     onClose,
+    apiBaseUrl = '/api/v1',
 }: AnalysisModeSelectorProps) {
     const [metadata, setMetadata] = useState<AnalysisMetadata | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<string>('Discovery');
@@ -63,7 +64,9 @@ export function AnalysisModeSelector({
         async function fetchMetadata() {
             setIsLoading(true);
             try {
-                const data = await sdk.analyses.getMetadata();
+                const response = await fetch(`${apiBaseUrl}/analyses/metadata`);
+                if (!response.ok) throw new Error('Failed to fetch analysis types');
+                const data = await response.json();
                 setMetadata(data);
                 // Set default category
                 if (data.categories && data.categories.length > 0) {
@@ -76,7 +79,7 @@ export function AnalysisModeSelector({
             }
         }
         fetchMetadata();
-    }, []);
+    }, [apiBaseUrl]);
 
     // Filter analysis types by selected category
     const filteredTypes = metadata
@@ -119,6 +122,7 @@ export function AnalysisModeSelector({
                 const minerTypeMap: Record<string, string> = {
                     dfg_discovery: 'dfg',
                     alpha_miner: 'alpha',
+                    // alpha_plus_miner: 'alpha_plus', // DEPRECATED in PM4Py 2.3+
                     inductive_miner: 'inductive',
                     inductive_infrequent: 'inductive_infrequent',
                     heuristic_miner: 'heuristics',
@@ -133,23 +137,43 @@ export function AnalysisModeSelector({
                     transition_system: 'transition_system',
                 };
 
-                const minerType = (minerTypeMap[selectedType] || selectedType) as 'alpha' | 'inductive' | 'heuristic' | 'split';
+                const minerType = minerTypeMap[selectedType] || selectedType;
 
-                const result = await sdk.discovery.discover({
-                    datasetId,
-                    minerType,
-                    modelName: `${typeInfo?.name || selectedType} Model`,
+                const response = await fetch(`${apiBaseUrl}/discovery/discover`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        dataset_id: datasetId,
+                        miner_type: minerType,
+                        model_name: `${typeInfo?.name || selectedType} Model`,
+                    }),
                 });
 
-                onAnalysisStarted?.(result.jobId || result.modelId || '');
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.detail || `Discovery failed: ${response.status}`);
+                }
+
+                const result = await response.json();
+                onAnalysisStarted?.(result.job_id || result.id);
             } else {
                 // For other analysis types, use the analyses endpoint
-                const result = await sdk.analyses.create(datasetId, {
-                    name: `${typeInfo?.name || selectedType} Analysis`,
-                    analysisType: selectedType,
-                    config,
+                const response = await fetch(`${apiBaseUrl}/analyses?dataset_id=${datasetId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: `${typeInfo?.name || selectedType} Analysis`,
+                        analysis_type: selectedType,
+                        config,
+                    }),
                 });
 
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.detail || `Analysis failed: ${response.status}`);
+                }
+
+                const result = await response.json();
                 onAnalysisStarted?.(result.id);
             }
 

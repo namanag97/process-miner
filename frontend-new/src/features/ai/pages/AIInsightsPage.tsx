@@ -12,7 +12,7 @@ import {
   NodeIndexOutlined,
   SendOutlined,
 } from '@ant-design/icons';
-import { PageHeader, MetricCard, EmptyState, tokens } from '@/src/shared/design-system';
+import { PageHeader, MetricCard, EmptyState, tokens } from '@lumina/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 
 const { Text, Title, Paragraph } = Typography;

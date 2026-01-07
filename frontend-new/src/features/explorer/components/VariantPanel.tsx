@@ -36,7 +36,7 @@ import {
   ExclamationCircleFilled,
   EyeOutlined,
 } from '@ant-design/icons';
-import { tokens } from '@/src/shared/design-system';
+import { tokens } from '@lumina/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 import { formatDuration, formatNumber, COLORS } from '../utils/colorScales';
 import type { ProcessedVariant } from '../types';

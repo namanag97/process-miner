@@ -33,19 +33,10 @@ import {
   EmptyState,
   tokens,
   toast,
-} from '@/src/shared/design-system';
-import { useAuditLogs } from '@/src/api/hooks';
-
+  useAuditLogs,
+  type AuditLogEntry,
+} from '@lumina/design-system';
 import dayjs from 'dayjs';
-
-// Type for audit log entry
-interface AuditLogEntry {
-  id: string;
-  userId: string;
-  event: string;
-  timestamp: string;
-  data: Record<string, unknown>;
-}
 
 const { Text } = Typography;
 

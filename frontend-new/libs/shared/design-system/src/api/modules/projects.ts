@@ -1,0 +1,174 @@
+/**
+ * Projects Module - SDK methods for project operations
+ */
+
+import type { ApiClient } from '../client';
+
+export interface Project {
+  id: string;
+  name: string;
+  description: string | null;
+  tags: string[];
+  totalFiles: number;
+  totalAnalyses: number;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface ProjectDetail extends Project {
+  datasets: Array<{
+    id: string;
+    name: string;
+    sourceFormat: string;
+    totalEvents: number;
+    totalCases: number;
+    totalActivities: number;
+    activities: string[];
+    createdAt: string;
+    sourceFile: string | null;
+  }>;
+}
+
+export interface CreateProjectData {
+  name: string;
+  description?: string;
+  tags?: string[];
+  workspaceId?: string;
+}
+
+export interface UpdateProjectData {
+  name?: string;
+  description?: string;
+  tags?: string[];
+}
+
+interface ProjectApiResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  tags: string[];
+  total_files: number;
+  total_analyses: number;
+  created_at: string;
+  updated_at: string | null;
+}
+
+interface ProjectDetailApiResponse extends ProjectApiResponse {
+  datasets: Array<{
+    id: string;
+    name: string;
+    source_format: string;
+    total_events: number;
+    total_cases: number;
+    total_activities: number;
+    activities: string[];
+    created_at: string;
+    source_file: string | null;
+  }>;
+}
+
+interface ProjectListApiResponse {
+  items: ProjectApiResponse[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+}
+
+function transformProject(response: ProjectApiResponse): Project {
+  return {
+    id: response.id,
+    name: response.name,
+    description: response.description,
+    tags: response.tags,
+    totalFiles: response.total_files,
+    totalAnalyses: response.total_analyses,
+    createdAt: response.created_at,
+    updatedAt: response.updated_at,
+  };
+}
+
+function transformProjectDetail(response: ProjectDetailApiResponse): ProjectDetail {
+  return {
+    ...transformProject(response),
+    datasets: response.datasets.map((ds) => ({
+      id: ds.id,
+      name: ds.name,
+      sourceFormat: ds.source_format,
+      totalEvents: ds.total_events,
+      totalCases: ds.total_cases,
+      totalActivities: ds.total_activities,
+      activities: ds.activities,
+      createdAt: ds.created_at,
+      sourceFile: ds.source_file,
+    })),
+  };
+}
+
+export interface ProjectsModule {
+  list: (options?: { page?: number; pageSize?: number; search?: string }) => Promise<{
+    items: Project[];
+    total: number;
+    page: number;
+    pageSize: number;
+    pages: number;
+  }>;
+  get: (id: string) => Promise<ProjectDetail>;
+  create: (data: CreateProjectData) => Promise<Project>;
+  update: (id: string, data: UpdateProjectData) => Promise<Project>;
+  delete: (id: string) => Promise<void>;
+  addFile: (projectId: string, datasetId: string) => Promise<ProjectDetail>;
+  removeFile: (projectId: string, datasetId: string) => Promise<void>;
+}
+
+export function createProjectsModule(client: ApiClient): ProjectsModule {
+  return {
+    async list(options) {
+      const response = await client.get<ProjectListApiResponse>('/projects', {
+        page: options?.page ?? 1,
+        page_size: options?.pageSize ?? 20,
+        search: options?.search,
+      });
+
+      return {
+        items: response.items.map(transformProject),
+        total: response.total,
+        page: response.page,
+        pageSize: response.page_size,
+        pages: response.pages,
+      };
+    },
+
+    async get(id: string) {
+      const response = await client.get<ProjectDetailApiResponse>(`/projects/${id}`);
+      return transformProjectDetail(response);
+    },
+
+    async create(data: CreateProjectData) {
+      const { workspaceId, ...body } = data;
+      const path = workspaceId ? `/projects?workspace_id=${workspaceId}` : '/projects';
+      const response = await client.post<ProjectApiResponse>(path, body);
+      return transformProject(response);
+    },
+
+    async update(id: string, data: UpdateProjectData) {
+      const response = await client.put<ProjectApiResponse>(`/projects/${id}`, data);
+      return transformProject(response);
+    },
+
+    async delete(id: string) {
+      await client.delete(`/projects/${id}`);
+    },
+
+    async addFile(projectId: string, datasetId: string) {
+      const response = await client.post<ProjectDetailApiResponse>(
+        `/projects/${projectId}/files/${datasetId}`
+      );
+      return transformProjectDetail(response);
+    },
+
+    async removeFile(projectId: string, datasetId: string) {
+      await client.delete(`/projects/${projectId}/files/${datasetId}`);
+    },
+  };
+}

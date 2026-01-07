@@ -5,7 +5,7 @@ import {
   WarningOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons';
-import { MetricCard, tokens, formatDurationFromSeconds, formatCompactNumber, type PerformanceData } from '@/src/shared/design-system';
+import { MetricCard, tokens, formatDurationFromSeconds, formatCompactNumber, type PerformanceData } from '@lumina/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 
 const { Text, Title } = Typography;
@@ -161,7 +161,7 @@ export function PerformanceTab({ datasetId, data, loading }: PerformanceTabProps
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text>75th Percentile</Text>
-                <Text strong>{formatDurationFromSeconds(data.cycleTime.p75Seconds ?? data.cycleTime.avgSeconds)}</Text>
+                <Text strong>{formatDurationFromSeconds(data.cycleTime.percentile75)}</Text>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text>Maximum</Text>
@@ -193,7 +193,7 @@ export function PerformanceTab({ datasetId, data, loading }: PerformanceTabProps
           <Col xs={24} sm={8}>
             <div style={{ textAlign: 'center', padding: tokens.spacing[4] }}>
               <Title level={2} style={{ marginBottom: 0, color: tokens.colors.primary[500] }}>
-                {formatCompactNumber(data.throughput.casesPerWeek ?? data.throughput.casesPerDay * 7)}
+                {formatCompactNumber(data.throughput.casesPerWeek)}
               </Title>
               <Text type="secondary">Cases per Week</Text>
             </div>
@@ -201,7 +201,7 @@ export function PerformanceTab({ datasetId, data, loading }: PerformanceTabProps
           <Col xs={24} sm={8}>
             <div style={{ textAlign: 'center', padding: tokens.spacing[4] }}>
               <Title level={2} style={{ marginBottom: 0, color: tokens.colors.primary[500] }}>
-                {formatCompactNumber(data.throughput.casesPerMonth ?? data.throughput.casesPerDay * 30)}
+                {formatCompactNumber(data.throughput.casesPerMonth)}
               </Title>
               <Text type="secondary">Cases per Month</Text>
             </div>

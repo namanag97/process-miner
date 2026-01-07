@@ -20,7 +20,7 @@ import {
     BulbOutlined,
     CheckCircleOutlined,
 } from '@ant-design/icons';
-import { tokens, logAction } from '@/src/shared/design-system';
+import { tokens, logAction } from '@lumina/design-system';
 import { devLog } from '../../../../../shared/ui/DevConsole';
 import type { DataPreview, ColumnMapping } from '../../types';
 
@@ -106,7 +106,7 @@ export function MapDataStep({ preview, mapping, onMappingChange, onNext, onBack 
         field: keyof ColumnMapping,
         label: string,
         icon: React.ReactNode,
-        required = true
+        required: boolean = true
     ) => {
         const value = localMapping[field];
         const suggestion = suggestions[field.replace('_column', '')];

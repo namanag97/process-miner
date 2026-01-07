@@ -231,7 +231,7 @@ export interface Analysis {
 // SDK Implementation
 // ============================================
 
-const API_PREFIX = '/api/v1';
+// Note: apiClient.baseURL already includes /api/v1, so we don't need a prefix here
 
 export const sdk = {
     // ========================================
@@ -258,37 +258,37 @@ export const sdk = {
     // ========================================
     auth: {
         login: async (email: string, password: string) => {
-            const { data } = await apiClient.post(`${API_PREFIX}/auth/login`, { email, password });
+            const { data } = await apiClient.post(`/auth/login`, { email, password });
             return data;
         },
 
         register: async (params: { email: string; password: string; name?: string; orgName?: string }) => {
-            const { data } = await apiClient.post(`${API_PREFIX}/auth/register`, params);
+            const { data } = await apiClient.post(`/auth/register`, params);
             return data;
         },
 
         logout: async () => {
-            const { data } = await apiClient.post(`${API_PREFIX}/auth/logout`);
+            const { data } = await apiClient.post(`/auth/logout`);
             return data;
         },
 
         refresh: async (refreshToken: string) => {
-            const { data } = await apiClient.post(`${API_PREFIX}/auth/refresh`, { refresh_token: refreshToken });
+            const { data } = await apiClient.post(`/auth/refresh`, { refresh_token: refreshToken });
             return data;
         },
 
         me: async () => {
-            const { data } = await apiClient.get(`${API_PREFIX}/auth/me`);
+            const { data } = await apiClient.get(`/auth/me`);
             return data;
         },
 
         updateProfile: async (params: { name?: string }) => {
-            const { data } = await apiClient.put(`${API_PREFIX}/auth/me`, null, { params });
+            const { data } = await apiClient.put(`/auth/me`, null, { params });
             return data;
         },
 
         changePassword: async (currentPassword: string, newPassword: string) => {
-            const { data } = await apiClient.post(`${API_PREFIX}/auth/change-password`, {
+            const { data } = await apiClient.post(`/auth/change-password`, {
                 current_password: currentPassword,
                 new_password: newPassword,
             });
@@ -301,27 +301,27 @@ export const sdk = {
     // ========================================
     organizations: {
         list: async (params?: PaginationParams) => {
-            const { data } = await apiClient.get(`${API_PREFIX}/organizations/`, { params });
+            const { data } = await apiClient.get(`/organizations/`, { params });
             return data;
         },
 
         get: async (orgId: string) => {
-            const { data } = await apiClient.get(`${API_PREFIX}/organizations/${orgId}`);
+            const { data } = await apiClient.get(`/organizations/${orgId}`);
             return data;
         },
 
         create: async (params: { name: string; plan?: string }) => {
-            const { data } = await apiClient.post(`${API_PREFIX}/organizations/`, params);
+            const { data } = await apiClient.post(`/organizations/`, params);
             return data;
         },
 
         update: async (orgId: string, params: { name?: string }) => {
-            const { data } = await apiClient.put(`${API_PREFIX}/organizations/${orgId}`, params);
+            const { data } = await apiClient.put(`/organizations/${orgId}`, params);
             return data;
         },
 
         delete: async (orgId: string) => {
-            await apiClient.delete(`${API_PREFIX}/organizations/${orgId}`);
+            await apiClient.delete(`/organizations/${orgId}`);
         },
     },
 
@@ -330,37 +330,37 @@ export const sdk = {
     // ========================================
     workspaces: {
         list: async (params?: PaginationParams & { orgId?: string }) => {
-            const { data } = await apiClient.get(`${API_PREFIX}/workspaces`, { params });
+            const { data } = await apiClient.get(`/workspaces`, { params });
             return data;
         },
 
         get: async (workspaceId: string) => {
-            const { data } = await apiClient.get(`${API_PREFIX}/workspaces/${workspaceId}`);
+            const { data } = await apiClient.get(`/workspaces/${workspaceId}`);
             return data;
         },
 
         create: async (orgId: string, params: { name: string; description?: string }) => {
-            const { data } = await apiClient.post(`${API_PREFIX}/workspaces`, params, { params: { org_id: orgId } });
+            const { data } = await apiClient.post(`/workspaces`, params, { params: { org_id: orgId } });
             return data;
         },
 
         update: async (workspaceId: string, params: { name?: string; description?: string }) => {
-            const { data } = await apiClient.put(`${API_PREFIX}/workspaces/${workspaceId}`, params);
+            const { data } = await apiClient.put(`/workspaces/${workspaceId}`, params);
             return data;
         },
 
         delete: async (workspaceId: string) => {
-            await apiClient.delete(`${API_PREFIX}/workspaces/${workspaceId}`);
+            await apiClient.delete(`/workspaces/${workspaceId}`);
         },
 
         members: {
             list: async (workspaceId: string) => {
-                const { data } = await apiClient.get(`${API_PREFIX}/workspaces/${workspaceId}/members`);
+                const { data } = await apiClient.get(`/workspaces/${workspaceId}/members`);
                 return data;
             },
 
             add: async (workspaceId: string, userId: string, role?: string) => {
-                const { data } = await apiClient.post(`${API_PREFIX}/workspaces/${workspaceId}/members`, {
+                const { data } = await apiClient.post(`/workspaces/${workspaceId}/members`, {
                     user_id: userId,
                     role: role || 'viewer',
                 });
@@ -368,7 +368,7 @@ export const sdk = {
             },
 
             remove: async (workspaceId: string, userId: string) => {
-                await apiClient.delete(`${API_PREFIX}/workspaces/${workspaceId}/members/${userId}`);
+                await apiClient.delete(`/workspaces/${workspaceId}/members/${userId}`);
             },
         },
     },
@@ -378,19 +378,19 @@ export const sdk = {
     // ========================================
     projects: {
         list: async (workspaceId: string, params?: PaginationParams) => {
-            const { data } = await apiClient.get(`${API_PREFIX}/projects/`, {
+            const { data } = await apiClient.get(`/projects/`, {
                 params: { workspace_id: workspaceId, ...params },
             });
             return data;
         },
 
         get: async (projectId: string) => {
-            const { data } = await apiClient.get(`${API_PREFIX}/projects/${projectId}`);
+            const { data } = await apiClient.get(`/projects/${projectId}`);
             return data;
         },
 
         create: async (workspaceId: string, params: { name: string; description?: string }) => {
-            const { data } = await apiClient.post(`${API_PREFIX}/projects/`, {
+            const { data } = await apiClient.post(`/projects/`, {
                 ...params,
                 workspace_id: workspaceId,
             });
@@ -398,12 +398,12 @@ export const sdk = {
         },
 
         update: async (projectId: string, params: { name?: string; description?: string }) => {
-            const { data } = await apiClient.put(`${API_PREFIX}/projects/${projectId}`, params);
+            const { data } = await apiClient.put(`/projects/${projectId}`, params);
             return data;
         },
 
         delete: async (projectId: string) => {
-            await apiClient.delete(`${API_PREFIX}/projects/${projectId}`);
+            await apiClient.delete(`/projects/${projectId}`);
         },
     },
 
@@ -417,12 +417,12 @@ export const sdk = {
                 queryParams.project_id = params.projectId;
                 delete queryParams.projectId;
             }
-            const { data } = await apiClient.get(`${API_PREFIX}/datasets/`, { params: queryParams });
+            const { data } = await apiClient.get(`/datasets/`, { params: queryParams });
             return data;
         },
 
         get: async (datasetId: string): Promise<Dataset> => {
-            const { data } = await apiClient.get(`${API_PREFIX}/datasets/${datasetId}`);
+            const { data } = await apiClient.get(`/datasets/${datasetId}`);
             return data;
         },
 
@@ -439,7 +439,7 @@ export const sdk = {
             if (params.name) formData.append('name', params.name);
             if (params.asyncStore) formData.append('async_store', 'true');
 
-            const { data } = await apiClient.post(`${API_PREFIX}/datasets/`, formData, {
+            const { data } = await apiClient.post(`/datasets/`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
                 signal: params.signal,
             });
@@ -447,28 +447,28 @@ export const sdk = {
         },
 
         delete: async (datasetId: string) => {
-            await apiClient.delete(`${API_PREFIX}/datasets/${datasetId}`);
+            await apiClient.delete(`/datasets/${datasetId}`);
         },
 
         // Column detection and mapping
         getColumns: async (datasetId: string): Promise<DatasetColumn[]> => {
-            const { data } = await apiClient.get(`${API_PREFIX}/datasets/${datasetId}/columns`);
+            const { data } = await apiClient.get(`/datasets/${datasetId}/columns`);
             return data;
         },
 
         getMapping: async (datasetId: string): Promise<ColumnMapping | null> => {
-            const { data } = await apiClient.get(`${API_PREFIX}/datasets/${datasetId}/column-mapping`);
+            const { data } = await apiClient.get(`/datasets/${datasetId}/column-mapping`);
             return data;
         },
 
         setMapping: async (datasetId: string, mapping: ColumnMapping) => {
-            const { data } = await apiClient.post(`${API_PREFIX}/datasets/${datasetId}/column-mapping`, mapping);
+            const { data } = await apiClient.post(`/datasets/${datasetId}/column-mapping`, mapping);
             return data;
         },
 
         // Ingestion
         ingest: async (datasetId: string) => {
-            const { data } = await apiClient.post(`${API_PREFIX}/datasets/${datasetId}/ingest`);
+            const { data } = await apiClient.post(`/datasets/${datasetId}/ingest`);
             return data;
         },
     },
@@ -478,7 +478,7 @@ export const sdk = {
     // ========================================
     discovery: {
         discover: async (request: DiscoveryRequest): Promise<DiscoveryResponse> => {
-            const { data } = await apiClient.post(`${API_PREFIX}/discovery/discover`, {
+            const { data } = await apiClient.post(`/discovery/discover`, {
                 dataset_id: request.datasetId,
                 miner_type: request.minerType,
                 model_name: request.modelName,
@@ -488,34 +488,34 @@ export const sdk = {
         },
 
         listModels: async (datasetId: string): Promise<ProcessModel[]> => {
-            const { data } = await apiClient.get(`${API_PREFIX}/discovery/models`, {
+            const { data } = await apiClient.get(`/discovery/models`, {
                 params: { dataset_id: datasetId },
             });
             return data;
         },
 
         getModel: async (modelId: string): Promise<ProcessModel> => {
-            const { data } = await apiClient.get(`${API_PREFIX}/discovery/models/${modelId}`);
+            const { data } = await apiClient.get(`/discovery/models/${modelId}`);
             return data;
         },
 
         // Visualization endpoints
         buildDFG: async (datasetId: string, options?: { includePerformance?: boolean }): Promise<DFGResponse> => {
-            const { data } = await apiClient.get(`${API_PREFIX}/visualization/dfg/${datasetId}`, {
+            const { data } = await apiClient.get(`/visualization/dfg/${datasetId}`, {
                 params: { include_performance: options?.includePerformance },
             });
             return data;
         },
 
         getVariants: async (datasetId: string, options?: { topN?: number }): Promise<Variant[]> => {
-            const { data } = await apiClient.get(`${API_PREFIX}/discovery/datasets/${datasetId}/variants`, {
+            const { data } = await apiClient.get(`/discovery/datasets/${datasetId}/variants`, {
                 params: { top_n: options?.topN },
             });
             return data;
         },
 
         getActivityStats: async (datasetId: string) => {
-            const { data } = await apiClient.get(`${API_PREFIX}/discovery/datasets/${datasetId}/activities`);
+            const { data } = await apiClient.get(`/discovery/datasets/${datasetId}/activities`);
             return data;
         },
 
@@ -525,7 +525,7 @@ export const sdk = {
             includeComplexity?: boolean;
             topVariants?: number;
         }): Promise<ExplorerData> => {
-            const { data } = await apiClient.get(`${API_PREFIX}/discovery/datasets/${datasetId}/explorer`, {
+            const { data } = await apiClient.get(`/discovery/datasets/${datasetId}/explorer`, {
                 params: {
                     include_performance: options?.includePerformance,
                     include_complexity: options?.includeComplexity,
@@ -541,27 +541,27 @@ export const sdk = {
     // ========================================
     analytics: {
         getBottlenecks: async (datasetId: string): Promise<BottleneckResponse> => {
-            const { data } = await apiClient.get(`${API_PREFIX}/analytics/datasets/${datasetId}/bottlenecks`);
+            const { data } = await apiClient.get(`/analytics/datasets/${datasetId}/bottlenecks`);
             return data;
         },
 
         getCycleTime: async (datasetId: string): Promise<CycleTimeResponse> => {
-            const { data } = await apiClient.get(`${API_PREFIX}/analytics/datasets/${datasetId}/cycle-time`);
+            const { data } = await apiClient.get(`/analytics/datasets/${datasetId}/cycle-time`);
             return data;
         },
 
         getThroughput: async (datasetId: string): Promise<ThroughputResponse> => {
-            const { data } = await apiClient.get(`${API_PREFIX}/analytics/datasets/${datasetId}/throughput`);
+            const { data } = await apiClient.get(`/analytics/datasets/${datasetId}/throughput`);
             return data;
         },
 
         getRework: async (datasetId: string) => {
-            const { data } = await apiClient.get(`${API_PREFIX}/analytics/datasets/${datasetId}/rework`);
+            const { data } = await apiClient.get(`/analytics/datasets/${datasetId}/rework`);
             return data;
         },
 
         getPerformance: async (datasetId: string) => {
-            const { data } = await apiClient.get(`${API_PREFIX}/analytics/datasets/${datasetId}/performance`);
+            const { data } = await apiClient.get(`/analytics/datasets/${datasetId}/performance`);
             return data;
         },
     },
@@ -571,7 +571,7 @@ export const sdk = {
     // ========================================
     conformance: {
         check: async (datasetId: string, modelId: string) => {
-            const { data } = await apiClient.post(`${API_PREFIX}/conformance/check`, {
+            const { data } = await apiClient.post(`/conformance/check`, {
                 dataset_id: datasetId,
                 model_id: modelId,
             });
@@ -579,7 +579,7 @@ export const sdk = {
         },
 
         tokenReplay: async (datasetId: string, modelId: string) => {
-            const { data } = await apiClient.post(`${API_PREFIX}/conformance/token-replay`, {
+            const { data } = await apiClient.post(`/conformance/token-replay`, {
                 dataset_id: datasetId,
                 model_id: modelId,
             });
@@ -587,7 +587,7 @@ export const sdk = {
         },
 
         alignments: async (datasetId: string, modelId: string) => {
-            const { data } = await apiClient.get(`${API_PREFIX}/conformance/alignments`, {
+            const { data } = await apiClient.get(`/conformance/alignments`, {
                 params: { dataset_id: datasetId, model_id: modelId },
             });
             return data;
@@ -599,7 +599,7 @@ export const sdk = {
     // ========================================
     predictions: {
         listPredictors: async (datasetId: string) => {
-            const { data } = await apiClient.get(`${API_PREFIX}/predictions/datasets/${datasetId}/predictors`);
+            const { data } = await apiClient.get(`/predictions/datasets/${datasetId}/predictors`);
             return data;
         },
 
@@ -608,17 +608,17 @@ export const sdk = {
             type: 'next_activity' | 'remaining_time';
             config?: Record<string, unknown>;
         }) => {
-            const { data } = await apiClient.post(`${API_PREFIX}/predictions/datasets/${datasetId}/predictors`, params);
+            const { data } = await apiClient.post(`/predictions/datasets/${datasetId}/predictors`, params);
             return data;
         },
 
         getPredictor: async (predictorId: string) => {
-            const { data } = await apiClient.get(`${API_PREFIX}/predictions/predictors/${predictorId}`);
+            const { data } = await apiClient.get(`/predictions/predictors/${predictorId}`);
             return data;
         },
 
         predict: async (predictorId: string, caseData: unknown) => {
-            const { data } = await apiClient.post(`${API_PREFIX}/predictions/predictors/${predictorId}/predict`, {
+            const { data } = await apiClient.post(`/predictions/predictors/${predictorId}/predict`, {
                 case_data: caseData,
             });
             return data;
@@ -630,14 +630,14 @@ export const sdk = {
     // ========================================
     analyses: {
         list: async (datasetId: string, params?: PaginationParams): Promise<PaginatedResponse<Analysis>> => {
-            const { data } = await apiClient.get(`${API_PREFIX}/analyses/`, {
+            const { data } = await apiClient.get(`/analyses/`, {
                 params: { dataset_id: datasetId, ...params },
             });
             return data;
         },
 
         get: async (analysisId: string): Promise<Analysis> => {
-            const { data } = await apiClient.get(`${API_PREFIX}/analyses/${analysisId}`);
+            const { data } = await apiClient.get(`/analyses/${analysisId}`);
             return data;
         },
 
@@ -646,7 +646,7 @@ export const sdk = {
             analysisType: string;
             config?: Record<string, unknown>;
         }) => {
-            const { data } = await apiClient.post(`${API_PREFIX}/analyses/`, {
+            const { data } = await apiClient.post(`/analyses/`, {
                 dataset_id: datasetId,
                 name: params.name,
                 analysis_type: params.analysisType,
@@ -656,11 +656,11 @@ export const sdk = {
         },
 
         delete: async (analysisId: string) => {
-            await apiClient.delete(`${API_PREFIX}/analyses/${analysisId}`);
+            await apiClient.delete(`/analyses/${analysisId}`);
         },
 
         getMetadata: async () => {
-            const { data } = await apiClient.get(`${API_PREFIX}/analyses/metadata`);
+            const { data } = await apiClient.get(`/analyses/metadata`);
             return data;
         },
     },
@@ -670,17 +670,17 @@ export const sdk = {
     // ========================================
     jobs: {
         get: async (jobId: string): Promise<Job> => {
-            const { data } = await apiClient.get(`${API_PREFIX}/jobs/${jobId}`);
+            const { data } = await apiClient.get(`/jobs/${jobId}`);
             return data;
         },
 
         list: async (params?: { status?: string; type?: string } & PaginationParams) => {
-            const { data } = await apiClient.get(`${API_PREFIX}/jobs/`, { params });
+            const { data } = await apiClient.get(`/jobs/`, { params });
             return data;
         },
 
         cancel: async (jobId: string) => {
-            const { data } = await apiClient.post(`${API_PREFIX}/jobs/${jobId}/cancel`);
+            const { data } = await apiClient.post(`/jobs/${jobId}/cancel`);
             return data;
         },
     },
@@ -690,17 +690,17 @@ export const sdk = {
     // ========================================
     kpi: {
         getAutomation: async (datasetId: string) => {
-            const { data } = await apiClient.get(`${API_PREFIX}/quality-metrics/datasets/${datasetId}/automation`);
+            const { data } = await apiClient.get(`/quality-metrics/datasets/${datasetId}/automation`);
             return data;
         },
 
         getDeadlines: async (datasetId: string) => {
-            const { data } = await apiClient.get(`${API_PREFIX}/quality-metrics/datasets/${datasetId}/deadlines`);
+            const { data } = await apiClient.get(`/quality-metrics/datasets/${datasetId}/deadlines`);
             return data;
         },
 
         getUnwantedActivities: async (datasetId: string) => {
-            const { data } = await apiClient.get(`${API_PREFIX}/quality-metrics/datasets/${datasetId}/unwanted-activities`);
+            const { data } = await apiClient.get(`/quality-metrics/datasets/${datasetId}/unwanted-activities`);
             return data;
         },
     },
@@ -710,12 +710,12 @@ export const sdk = {
     // ========================================
     filtering: {
         apply: async (datasetId: string, filters: unknown) => {
-            const { data } = await apiClient.post(`${API_PREFIX}/filtering/datasets/${datasetId}/apply`, filters);
+            const { data } = await apiClient.post(`/filtering/datasets/${datasetId}/apply`, filters);
             return data;
         },
 
         getOptions: async (datasetId: string) => {
-            const { data } = await apiClient.get(`${API_PREFIX}/filtering/datasets/${datasetId}/options`);
+            const { data } = await apiClient.get(`/filtering/datasets/${datasetId}/options`);
             return data;
         },
     },
@@ -725,12 +725,12 @@ export const sdk = {
     // ========================================
     ocpm: {
         getObjectTypes: async (datasetId: string) => {
-            const { data } = await apiClient.get(`${API_PREFIX}/ocpm/datasets/${datasetId}/object-types`);
+            const { data } = await apiClient.get(`/ocpm/datasets/${datasetId}/object-types`);
             return data;
         },
 
         getObjectGraph: async (datasetId: string, objectType?: string) => {
-            const { data } = await apiClient.get(`${API_PREFIX}/ocpm/datasets/${datasetId}/object-graph`, {
+            const { data } = await apiClient.get(`/ocpm/datasets/${datasetId}/object-graph`, {
                 params: { object_type: objectType },
             });
             return data;
@@ -742,7 +742,7 @@ export const sdk = {
     // ========================================
     audit: {
         list: async (params?: { startDate?: string; endDate?: string } & PaginationParams) => {
-            const { data } = await apiClient.get(`${API_PREFIX}/audit/logs`, { params });
+            const { data } = await apiClient.get(`/audit/logs`, { params });
             return data;
         },
     },
@@ -753,7 +753,7 @@ export const sdk = {
     processes: {
         list: async (options?: { pageSize?: number }) => {
             // Maps to datasets list for backward compatibility
-            const { data } = await apiClient.get(`${API_PREFIX}/datasets/`, {
+            const { data } = await apiClient.get(`/datasets/`, {
                 params: { page_size: options?.pageSize },
             });
             return data;
@@ -761,13 +761,13 @@ export const sdk = {
 
         get: async (id: string) => {
             // Maps to dataset get for backward compatibility
-            const { data } = await apiClient.get(`${API_PREFIX}/datasets/${id}`);
+            const { data } = await apiClient.get(`/datasets/${id}`);
             return data;
         },
 
         analyze: async (id: string) => {
             // Trigger analysis for backward compatibility
-            const { data } = await apiClient.post(`${API_PREFIX}/analyses/`, {
+            const { data } = await apiClient.post(`/analyses/`, {
                 dataset_id: id,
                 name: 'Quick Analysis',
                 analysis_type: 'discovery',
@@ -777,7 +777,7 @@ export const sdk = {
 
         getProcessSummary: async (id: string) => {
             // Get summary via analytics for backward compatibility
-            const { data } = await apiClient.get(`${API_PREFIX}/analytics/datasets/${id}/summary`);
+            const { data } = await apiClient.get(`/analytics/datasets/${id}/summary`);
             return data;
         },
     },

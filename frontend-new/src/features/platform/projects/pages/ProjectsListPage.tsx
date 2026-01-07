@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Form } from 'antd';
 import { PlusOutlined, FolderOutlined } from '@ant-design/icons';
-import { DataTable, tokens, type DataTableColumn, logAction } from '@/src/shared/design-system';
+import { DataTable, tokens, type DataTableColumn, logAction } from '@lumina/design-system';
 import { FeaturePage, PageSection } from '../../../../shared/core';
 import { useProjectList, useCreateProject } from '../hooks';
 import { CreateProjectModal } from '../components/CreateProjectModal';
@@ -66,7 +66,7 @@ export function ProjectsListPage() {
             year: 'numeric',
           })
           : '-',
-      sorter: (a: Project, b: Project) => {
+      sorter: (a, b) => {
         const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
         const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
         return dateA - dateB;

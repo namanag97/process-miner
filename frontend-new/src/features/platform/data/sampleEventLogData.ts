@@ -108,7 +108,7 @@ function generateCase(caseNumber: number, baseDate: Date): SampleCase {
 }
 
 // Generate full sample dataset
-export function generateSampleEventLog(numCases = 250): SampleCase[] {
+export function generateSampleEventLog(numCases: number = 250): SampleCase[] {
     const baseDate = new Date('2025-01-01T08:00:00');
     const cases: SampleCase[] = [];
 

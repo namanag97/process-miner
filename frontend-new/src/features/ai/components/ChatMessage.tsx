@@ -1,7 +1,7 @@
 import React from 'react';
 import { Typography, Space, Spin } from 'antd';
 import { UserOutlined, RobotOutlined } from '@ant-design/icons';
-import { tokens } from '@/src/shared/design-system';
+import { tokens } from '@lumina/design-system';
 import type { ChatMessage as ChatMessageType } from '../types';
 
 const { Text, Paragraph } = Typography;

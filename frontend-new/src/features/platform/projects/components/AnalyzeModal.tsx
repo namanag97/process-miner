@@ -14,7 +14,7 @@ import {
     RocketOutlined,
     EyeOutlined,
 } from '@ant-design/icons';
-import { tokens } from '@/src/shared/design-system';
+import { tokens } from '@lumina/design-system';
 import { useDetectColumns, useStartAnalysis, useJobStatus, type ColumnMapping } from '../hooks';
 import { useNavigate } from 'react-router-dom';
 

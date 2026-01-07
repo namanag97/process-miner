@@ -6,8 +6,8 @@
  */
 
 import { createQueryHook } from '../../../shared/core';
-import type { ProcessSummaryData } from '@/src/shared/design-system';
-import type { Predictor } from '@/src/shared/design-system';
+import type { ProcessSummaryData } from '@lumina/design-system';
+import type { Predictor } from '@lumina/design-system/api/modules/predictions';
 
 // ============================================
 // Types

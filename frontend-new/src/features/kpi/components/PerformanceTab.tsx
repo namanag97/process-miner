@@ -10,7 +10,7 @@ import {
   usePerformance,
   useCycleTime,
   useThroughput,
-} from '@/src/shared/design-system';
+} from '@lumina/design-system';
 
 const { Text: _Text } = Typography;
 

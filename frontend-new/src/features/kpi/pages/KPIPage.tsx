@@ -24,9 +24,9 @@ import {
   QueryError,
   EmptyState,
   tokens,
+  useProcess,
   logAction,
-} from '@/src/shared/design-system';
-import { useDataset } from '@/src/api/hooks';
+} from '@lumina/design-system';
 import { PerformanceTab, DeadlinesTab, UnwantedActivitiesTab, AutomationTab } from '../components';
 import { useKPIAuditLogger } from '../../../shared/hooks';
 import { createLogger } from '../../../shared/lib/logger';
@@ -40,7 +40,7 @@ export function KPIPage() {
   const activeTab = searchParams.get('tab') || 'performance';
   const kpiAudit = useKPIAuditLogger();
 
-  const { data: process, isLoading, error, refetch } = useDataset(datasetId || '');
+  const { data: process, isLoading, error, refetch } = useProcess(datasetId || '');
 
   log.debug('Rendering KPIPage', { projectId, datasetId, activeTab });
 
