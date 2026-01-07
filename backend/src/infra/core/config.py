@@ -85,7 +85,7 @@ class Settings(BaseSettings):
     s3_max_file_size_bytes: int = 5 * 1024 * 1024 * 1024  # 5 GB default
 
     class Config:
-        env_file = ".env"
+        env_file = ("../.env", ".env")  # Look in parent dir first (backend/), then CWD
         env_file_encoding = "utf-8"
 
     @property

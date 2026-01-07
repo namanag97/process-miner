@@ -220,75 +220,162 @@ export function UploadWizardPage() {
         }
     };
 
+    // Step configuration for vertical stepper
+    const STEP_CONFIG = [
+        { key: 'upload', number: 1, title: 'Select Data Source', description: 'Choose or upload data' },
+        { key: 'sheets', number: 2, title: 'Select Sheet', description: 'Choose worksheet' },
+        { key: 'configure', number: 3, title: 'Configure', description: 'Review structure' },
+        { key: 'mapping', number: 4, title: 'Map Columns', description: 'Map to PM fields' },
+        { key: 'finalize', number: 5, title: 'Processing', description: 'Analyze data' },
+    ];
+
+    const STEP_ORDER: WizardStep[] = ['upload', 'sheets', 'configure', 'mapping', 'finalize'];
+    const currentIndex = STEP_ORDER.indexOf(currentStep);
+
+    const getStepStatus = (stepKey: string) => {
+        const stepIndex = STEP_ORDER.indexOf(stepKey as WizardStep);
+        if (stepIndex < currentIndex) return 'completed';
+        if (stepIndex === currentIndex) return 'active';
+        return 'pending';
+    };
+
     return (
         <div style={{
             minHeight: '100vh',
             background: tokens.colors.neutral[50],
             padding: tokens.spacing[6],
         }}>
-            {/* Header */}
-            <div style={{
-                maxWidth: 1200,
-                margin: '0 auto',
-                marginBottom: tokens.spacing[6],
-            }}>
-                <Space>
+            <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+                {/* Header with breadcrumb */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: tokens.spacing[3],
+                    marginBottom: tokens.spacing[6],
+                }}>
                     <Button
                         icon={<ArrowLeftOutlined />}
                         onClick={handleBackToProject}
                         type="text"
+                        style={{ color: tokens.colors.primary[500] }}
                     >
-                        Back to Project
+                        Process Miner
                     </Button>
-                </Space>
+                    <Text type="secondary">›</Text>
+                    <Text strong>Setting up your Process Workspace</Text>
+                </div>
 
-                <Title level={2} style={{ marginTop: tokens.spacing[4], marginBottom: 0 }}>
-                    CSV/XLSX Upload
-                </Title>
-                <Text type="secondary">
-                    {filename ? `Configuring: ${filename}` : 'Upload and configure your event log'}
-                </Text>
-            </div>
+                {/* Main card with 2-column layout */}
+                <Card
+                    style={{
+                        borderRadius: tokens.radius.lg,
+                        boxShadow: tokens.shadow.md,
+                    }}
+                    styles={{ body: { padding: 0 } }}
+                >
+                    <div style={{ display: 'flex', minHeight: 560 }}>
+                        {/* Left: Vertical Step Indicator */}
+                        <div style={{
+                            width: 280,
+                            padding: tokens.spacing[6],
+                            borderRight: `1px solid ${tokens.colors.neutral[200]}`,
+                            background: tokens.colors.neutral[50],
+                        }}>
+                            {STEP_CONFIG.map((step, index) => {
+                                const status = getStepStatus(step.key);
+                                const isLast = index === STEP_CONFIG.length - 1;
 
-            {/* Wizard content */}
-            <Card
-                style={{
-                    maxWidth: 1200,
-                    margin: '0 auto',
-                    minHeight: 500,
-                }}
-            >
-                {/* Stepper */}
-                <WizardStepper currentStep={currentStep} />
+                                return (
+                                    <div key={step.key} style={{ display: 'flex', alignItems: 'flex-start', gap: tokens.spacing[4] }}>
+                                        {/* Circle + Line */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                            <div
+                                                style={{
+                                                    width: 32,
+                                                    height: 32,
+                                                    borderRadius: '50%',
+                                                    backgroundColor: status === 'completed'
+                                                        ? tokens.colors.success[500]
+                                                        : status === 'active'
+                                                            ? tokens.colors.primary[500]
+                                                            : tokens.colors.neutral[100],
+                                                    border: status === 'pending'
+                                                        ? `2px solid ${tokens.colors.neutral[300]}`
+                                                        : 'none',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    color: status === 'pending' ? tokens.colors.neutral[500] : '#fff',
+                                                    fontSize: 14,
+                                                    fontWeight: 600,
+                                                    transition: 'all 0.2s ease',
+                                                }}
+                                            >
+                                                {status === 'completed' ? '✓' : step.number}
+                                            </div>
+                                            {!isLast && (
+                                                <div
+                                                    style={{
+                                                        width: 2,
+                                                        height: 48,
+                                                        backgroundColor: status === 'completed'
+                                                            ? tokens.colors.success[500]
+                                                            : tokens.colors.neutral[200],
+                                                        marginTop: tokens.spacing[2],
+                                                        transition: 'background-color 0.3s ease',
+                                                    }}
+                                                />
+                                            )}
+                                        </div>
 
-                {/* Error display */}
-                {error && (
-                    <div style={{
-                        background: tokens.colors.error[50],
-                        padding: tokens.spacing[4],
-                        borderRadius: tokens.radius.md,
-                        marginBottom: tokens.spacing[4],
-                    }}>
-                        <Text type="danger">{error}</Text>
+                                        {/* Text */}
+                                        <div style={{ flex: 1, paddingBottom: tokens.spacing[6] }}>
+                                            <Text
+                                                strong
+                                                style={{
+                                                    fontSize: 14,
+                                                    color: status === 'pending'
+                                                        ? tokens.colors.neutral[500]
+                                                        : tokens.colors.neutral[900],
+                                                    display: 'block',
+                                                    marginBottom: 2,
+                                                }}
+                                            >
+                                                {step.title}
+                                            </Text>
+                                            <Text
+                                                style={{
+                                                    fontSize: 12,
+                                                    color: tokens.colors.neutral[500],
+                                                }}
+                                            >
+                                                {step.description}
+                                            </Text>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Right: Step Content */}
+                        <div style={{ flex: 1, padding: tokens.spacing[6] }}>
+                            {/* Error display */}
+                            {error && (
+                                <div style={{
+                                    background: tokens.colors.error[50],
+                                    padding: tokens.spacing[4],
+                                    borderRadius: tokens.radius.md,
+                                    marginBottom: tokens.spacing[4],
+                                }}>
+                                    <Text type="danger">{error}</Text>
+                                </div>
+                            )}
+
+                            {/* Step content */}
+                            {renderStep()}
+                        </div>
                     </div>
-                )}
-
-                {/* Step content */}
-                {renderStep()}
-            </Card>
-
-            {/* Debug info for dev console */}
-            <div style={{
-                display: 'none',
-                position: 'fixed',
-                bottom: 0,
-                left: 0,
-                padding: 8,
-                background: '#000',
-                color: '#0f0',
-                fontSize: 10,
-            }}>
-                Step: {currentStep} | Dataset: {datasetId?.slice(0, 8)} | Job: {jobId?.slice(0, 8)}
+                </Card>
             </div>
         </div>
     );

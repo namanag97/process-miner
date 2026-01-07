@@ -1,0 +1,26 @@
+case_id,activity,timestamp,resource,cost
+CASE-001,Register Request,2024-01-01 09:00:00,Alice,50
+CASE-001,Check Documents,2024-01-01 09:30:00,Bob,100
+CASE-001,Approve Request,2024-01-01 10:00:00,Charlie,75
+CASE-001,Process Payment,2024-01-01 11:00:00,Alice,200
+CASE-001,Close Case,2024-01-01 12:00:00,Bob,25
+CASE-002,Register Request,2024-01-01 09:15:00,Bob,50
+CASE-002,Check Documents,2024-01-01 09:45:00,Alice,100
+CASE-002,Reject Request,2024-01-01 10:30:00,Charlie,50
+CASE-002,Close Case,2024-01-01 11:00:00,Alice,25
+CASE-003,Register Request,2024-01-01 10:00:00,Alice,50
+CASE-003,Check Documents,2024-01-01 10:30:00,Charlie,100
+CASE-003,Request More Info,2024-01-01 11:00:00,Bob,75
+CASE-003,Check Documents,2024-01-01 14:00:00,Charlie,100
+CASE-003,Approve Request,2024-01-01 15:00:00,Alice,75
+CASE-003,Process Payment,2024-01-01 16:00:00,Bob,200
+CASE-003,Close Case,2024-01-01 17:00:00,Charlie,25
+CASE-004,Register Request,2024-01-02 08:00:00,Charlie,50
+CASE-004,Check Documents,2024-01-02 08:30:00,Alice,100
+CASE-004,Approve Request,2024-01-02 09:00:00,Bob,75
+CASE-004,Process Payment,2024-01-02 10:00:00,Charlie,200
+CASE-004,Close Case,2024-01-02 11:00:00,Alice,25
+CASE-005,Register Request,2024-01-02 09:00:00,Bob,50
+CASE-005,Check Documents,2024-01-02 09:30:00,Charlie,100
+CASE-005,Reject Request,2024-01-02 10:00:00,Alice,50
+CASE-005,Close Case,2024-01-02 10:30:00,Bob,25

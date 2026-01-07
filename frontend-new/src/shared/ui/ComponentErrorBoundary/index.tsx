@@ -47,7 +47,7 @@ export interface ComponentErrorBoundaryProps {
   /** Variant of the error display */
   variant?: 'alert' | 'card' | 'minimal';
   /** Size of the error display */
-  size?: 'small' | 'default' | 'large';
+  size?: 'small' | 'middle' | 'large';
 }
 
 interface ComponentErrorBoundaryState {
@@ -68,7 +68,7 @@ interface DefaultFallbackProps {
   showDetails: boolean;
   onRetry: () => void;
   variant: 'alert' | 'card' | 'minimal';
-  size: 'small' | 'default' | 'large';
+  size: 'small' | 'middle' | 'large';
   retryCount: number;
 }
 
@@ -276,7 +276,7 @@ export class ComponentErrorBoundary extends Component<
       componentName,
       showDetails = false,
       variant = 'alert',
-      size = 'default',
+      size = 'middle',
     } = this.props;
 
     if (hasError && error) {

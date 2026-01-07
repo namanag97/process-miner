@@ -9,7 +9,8 @@
  * Creates a debounced function that delays invoking func until after wait milliseconds
  * have elapsed since the last time the debounced function was invoked.
  */
-export function debounce<T extends (...args: unknown[]) => unknown>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function debounce<T extends (...args: any[]) => any>(
   func: T,
   wait: number,
   options: { leading?: boolean; trailing?: boolean; maxWait?: number } = {}
@@ -31,7 +32,7 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
     lastThis = null;
     lastInvokeTime = time;
     result = func.apply(thisArg, args) as ReturnType<T>;
-    return result;
+    return result as ReturnType<T>;
   }
 
   function startTimer(pendingFunc: () => void, wait: number): ReturnType<typeof setTimeout> {
@@ -75,7 +76,8 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
   function timerExpired(): void {
     const time = Date.now();
     if (shouldInvoke(time)) {
-      return trailingEdge(time);
+      trailingEdge(time);
+      return;
     }
     timeoutId = startTimer(timerExpired, remainingWait(time));
   }
@@ -141,7 +143,8 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
 /**
  * Creates a throttled function that only invokes func at most once per every wait milliseconds.
  */
-export function throttle<T extends (...args: unknown[]) => unknown>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function throttle<T extends (...args: any[]) => any>(
   func: T,
   wait: number,
   options: { leading?: boolean; trailing?: boolean } = {}
@@ -160,8 +163,9 @@ export function throttle<T extends (...args: unknown[]) => unknown>(
     lastArgs = null;
     lastThis = null;
     lastCallTime = Date.now();
-    result = func.apply(thisArg, args) as ReturnType<T>;
-    return result;
+    const computed = func.apply(thisArg, args) as ReturnType<T>;
+    result = computed;
+    return computed;
   }
 
   function trailingCall(): void {
@@ -214,7 +218,8 @@ export function throttle<T extends (...args: unknown[]) => unknown>(
 /**
  * RequestAnimationFrame-based throttle for smooth visual updates
  */
-export function rafThrottle<T extends (...args: unknown[]) => unknown>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function rafThrottle<T extends (...args: any[]) => any>(
   func: T
 ): T & { cancel: () => void } {
   let rafId: number | null = null;

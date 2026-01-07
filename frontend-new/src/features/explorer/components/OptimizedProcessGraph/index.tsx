@@ -15,7 +15,9 @@
  * - 2000+ nodes: WebGL with aggressive culling and simplified rendering
  */
 
-import cytoscape, { Core, CytoscapeOptions, Stylesheet } from 'cytoscape';
+import cytoscape, { Core, CytoscapeOptions } from 'cytoscape';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Stylesheet = any;
 // @ts-expect-error - cytoscape-dagre has no types
 import dagre from 'cytoscape-dagre';
 import { useEffect, useRef, useState, useCallback, useMemo, memo } from 'react';

@@ -31,15 +31,17 @@ export function createRouteWithErrorBoundary(config: {
 }): RouteObject {
   const { path, element, featureName, children, index, fallbackPath } = config;
 
-  return {
-    path,
-    element,
-    index,
-    errorElement: (
-      <FeatureErrorBoundary featureName={featureName} fallbackPath={fallbackPath} />
-    ),
-    children,
-  };
+  const errorElement = (
+    <FeatureErrorBoundary featureName={featureName} fallbackPath={fallbackPath} />
+  );
+
+  // Handle React Router's discriminated union type for RouteObject
+  // IndexRouteObject requires index: true, NonIndexRouteObject requires index?: false
+  if (index) {
+    return { path, element, index: true, errorElement, children } as RouteObject;
+  }
+
+  return { path, element, errorElement, children } as RouteObject;
 }
 
 /**
