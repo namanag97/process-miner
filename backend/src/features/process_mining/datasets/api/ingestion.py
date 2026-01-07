@@ -11,7 +11,7 @@ import json
 from fastapi import APIRouter
 from sqlalchemy import select
 
-from src.api.dependencies import CurrentUser
+from src.api.dependencies import CurrentUser, ReadDBSession
 from src.features.process_mining.models import DatasetColumnMapping, DatasetStatus
 from src.features.process_mining.schemas.analyses import JobStatusResponse
 from src.platform.core.enums import JobType

@@ -18,19 +18,8 @@ import { useAIProcesses, useAIPredictors/*, useTrainPredictor, useDeletePredicto
 const { Text } = Typography;
 const log = createLogger('PredictionsPage');
 
-// Type definitions
-interface PredictorMetrics {
-  accuracy?: number;
-  [key: string]: unknown;
-}
-
-interface PredictorRecord {
-  id: string;
-  target_type: string;
-  algorithm: string;
-  dataset_id: string;
-  metrics?: PredictorMetrics;
-}
+// Use Predictor type from SDK (has camelCase fields: datasetId, targetType)
+import type { Predictor } from '@lumina/design-system/api/modules/predictions';
 
 // Predictor types
 const predictorTypes = [
@@ -134,18 +123,18 @@ export function PredictionsPage() {
   const columns = [
     {
       title: 'Name',
-      dataIndex: 'id', // PredictorResponse might not have 'name' yet, check schema? Schema has no name.
+      dataIndex: 'id',
       key: 'name',
-      render: (_id: string, record: PredictorRecord) => (
+      render: (_id: string, record: Predictor) => (
         <Space>
           <ExperimentOutlined style={{ color: tokens.colors.primary[500] }} />
-          <Text strong>{record.target_type} Model ({record.algorithm})</Text>
+          <Text strong>{record.targetType} Model ({record.algorithm})</Text>
         </Space>
       ),
     },
     {
       title: 'Type',
-      dataIndex: 'target_type',
+      dataIndex: 'targetType',
       key: 'type',
       render: (type: string) => (
         <Tag color="blue">{predictorTypes.find((t) => t.value === type)?.label || type}</Tag>
@@ -153,7 +142,7 @@ export function PredictionsPage() {
     },
     {
       title: 'Dataset',
-      dataIndex: 'dataset_id',
+      dataIndex: 'datasetId',
       key: 'datasetName',
       render: (datasetId: string) => {
         const datasetName = processes.find(p => p.id === datasetId)?.name || datasetId;
@@ -164,7 +153,7 @@ export function PredictionsPage() {
       title: 'Accuracy',
       dataIndex: 'metrics',
       key: 'accuracy',
-      render: (metrics: PredictorMetrics | undefined) => {
+      render: (metrics: Predictor['metrics'] | undefined) => {
         const accuracy = metrics?.accuracy ? Math.round(metrics.accuracy * 100) : 0;
         return (
           <Text style={{ color: accuracy >= 85 ? tokens.colors.success[500] : tokens.colors.warning[500] }}>
@@ -177,8 +166,7 @@ export function PredictionsPage() {
       title: 'Status',
       key: 'status',
       render: () => {
-        // Backend doesn't return status yet in PredictorResponse (it's sync for now or async job separate)
-        // Assuming 'ready' if it exists in list
+        // Backend doesn't return status yet - assuming 'ready' if it exists in list
         const config = statusConfig['ready'];
         return (
           <Tag icon={config.icon} color={config.color}>
@@ -190,7 +178,7 @@ export function PredictionsPage() {
     {
       title: 'Actions',
       key: 'actions',
-      render: (_: unknown, record: PredictorRecord) => (
+      render: (_: unknown, record: Predictor) => (
         <Space>
           <Button
             type="text"

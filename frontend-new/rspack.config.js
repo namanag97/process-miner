@@ -37,6 +37,11 @@ module.exports = {
   output: {
     path: join(__dirname, 'dist/frontend-new'),
   },
+  resolve: {
+    alias: {
+      '@': join(__dirname, 'src'),
+    },
+  },
   devServer: {
     port: 4200,
     historyApiFallback: {

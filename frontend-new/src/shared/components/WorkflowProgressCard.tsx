@@ -154,9 +154,9 @@ export function WorkflowProgressCard({
             size="small"
             style={{
                 borderColor: progress.isFailed
-                    ? tokens.colors.error[300]
+                    ? tokens.colors.error[500]
                     : progress.isComplete
-                        ? tokens.colors.success[300]
+                        ? tokens.colors.success[500]
                         : tokens.colors.neutral[200],
             }}
         >
@@ -211,7 +211,7 @@ export function WorkflowProgressCard({
                             padding: tokens.spacing[3],
                             backgroundColor: tokens.colors.error[50],
                             borderRadius: tokens.radius.sm,
-                            border: `1px solid ${tokens.colors.error[200]}`,
+                            border: `1px solid ${tokens.colors.error[100]}`,
                         }}
                     >
                         <Text style={{ color: tokens.colors.error[600], fontSize: 13 }}>

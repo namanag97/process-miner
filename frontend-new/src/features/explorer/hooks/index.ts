@@ -121,3 +121,10 @@ export const useEventLogsList = createQueryHook<
 
 // Process Graph Hook for CytoscapeCanvas
 export { useProcessGraph } from './useProcessGraph';
+
+// URL State Management for Filters
+export { useExplorerFilters } from './useExplorerFilters';
+export type {
+  UseExplorerFiltersOptions,
+  UseExplorerFiltersReturn,
+} from './useExplorerFilters';
