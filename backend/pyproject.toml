@@ -233,29 +233,12 @@ skips = ["B101"]  # Skip assert warnings in tests
 root_package = "src"
 include_external_packages = true
 
-# Contract 1: Domain layer must be pure (no infrastructure or API dependencies)
-[[tool.importlinter.contracts]]
-name = "Domain Independence"
-type = "forbidden"
-source_modules = ["src.domain"]
-forbidden_modules = [
-    "src.infrastructure",
-    "src.api",
-    "sqlalchemy",
-    "fastapi",
-    "httpx",
-]
-
-# Contract 2: Services layer cannot depend on API/presentation
-# Exception: Dev console logging uses lazy imports with try/except guards
-[[tool.importlinter.contracts]]
-name = "Services Independence from API"
-type = "forbidden"
-source_modules = ["src.services"]
-forbidden_modules = ["src.api"]
-ignore_imports = [
-    "src.features.process_mining.ingestion.unified -> src.api.routers.dev_logs_stream",
-]
+# Note: Contracts for src.domain and src.services removed - these modules don't exist
+# The architecture is currently organized as:
+# - src.features (process mining business logic)
+# - src.platform (generic SaaS infrastructure)
+# - src.api (presentation layer)
+# - src.application (CQRS commands/queries)
 
 # Contract 3: Infrastructure cannot depend on API
 # Note: src.infrastructure is a deprecated shim that re-exports from src.platform.infrastructure
@@ -284,15 +267,16 @@ name = "Platform Core Independence from Features"
 type = "forbidden"
 source_modules = ["src.platform.core"]
 forbidden_modules = ["src.features", "src.models.orm"]
+ignore_imports = [
+    # TODO: Technical debt - remove this shim file and update all imports
+    # to use src.features.process_mining.enums directly
+    "src.platform.core.enums -> src.features.process_mining.enums",
+]
 
 # Contract 5: Platform core cannot depend on platform services
-# Exception: Middleware uses lazy imports for dev console logging
 [[tool.importlinter.contracts]]
 name = "Platform Core Independence"
 type = "forbidden"
 source_modules = ["src.platform.core"]
 forbidden_modules = ["src.platform.auth", "src.platform.users", "src.platform.workspaces", "src.platform.projects", "src.platform.infrastructure"]
-ignore_imports = [
-    "src.platform.core.middleware -> src.api.routers.dev_logs_stream",
-]
 

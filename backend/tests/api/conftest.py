@@ -85,14 +85,18 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Create an async HTTP client for testing."""
 
-    # Override the database dependency to use test session
-    from src.api.dependencies import get_db
+    # Override the database dependencies to use test session
+    from src.api.dependencies import get_read_db, get_write_db
     from src.platform.health.router import mark_startup_complete
 
-    async def override_get_db():
+    async def override_get_write_db():
         yield db_session
 
-    app.dependency_overrides[get_db] = override_get_db
+    async def override_get_read_db():
+        yield db_session
+
+    app.dependency_overrides[get_write_db] = override_get_write_db
+    app.dependency_overrides[get_read_db] = override_get_read_db
 
     # Mark startup complete for health checks (lifespan not triggered in tests)
     mark_startup_complete()

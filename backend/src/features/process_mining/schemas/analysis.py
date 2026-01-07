@@ -37,6 +37,7 @@ from src.features.process_mining.schemas.analytics import (
     ReworkResponse,
     ServiceTimeResponse,
     ThroughputResponse,
+    VariantListResponse,
 )
 
 # Conformance - Checking and Alignment
