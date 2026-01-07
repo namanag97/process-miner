@@ -39,12 +39,15 @@ from src.shared.events import EventEnvelope, EventStore
 CommandResult = TypeVar("CommandResult")
 
 
-@dataclass
+@dataclass(kw_only=True)
 class BaseCommand:
     """Base class for all commands.
     
     Commands should be immutable value objects that represent
     an intention to change state.
+    
+    Note: Uses kw_only=True to allow child classes to have required fields.
+    All fields must be passed as keyword arguments.
     """
     
     command_id: str = field(default_factory=lambda: str(uuid4()))

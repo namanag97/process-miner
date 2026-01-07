@@ -12,9 +12,38 @@ import {
     PauseCircleOutlined,
     ReloadOutlined,
 } from '@ant-design/icons';
-import { tokens } from '@/src/shared/design-system';
+import { tokens } from '@lumina/design-system';
 import { WorkflowElapsedTime } from './WorkflowElapsedTime';
-import type { WorkflowProgress } from '../hooks/useWorkflowPolling';
+
+// Inline type definition (from deleted useWorkflowPolling hook)
+export type WorkflowStatus =
+    | 'pending'
+    | 'running'
+    | 'completed'
+    | 'failed'
+    | 'cancelled'
+    | 'timed_out';
+
+export interface WorkflowProgress {
+    /** Workflow ID */
+    workflowId: string;
+    /** Current status */
+    status: WorkflowStatus;
+    /** Progress percentage (0-100) */
+    progressPercent: number;
+    /** Human-readable current step */
+    currentStep: string | null;
+    /** Error message if failed */
+    errorMessage: string | null;
+    /** Whether workflow is still in progress */
+    isActive: boolean;
+    /** Whether workflow completed successfully */
+    isComplete: boolean;
+    /** Whether workflow failed */
+    isFailed: boolean;
+    /** Refetch function */
+    refetch: () => void;
+}
 
 const { Text, Title } = Typography;
 

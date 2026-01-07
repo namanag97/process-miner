@@ -39,12 +39,15 @@ import duckdb
 QueryResult = TypeVar("QueryResult")
 
 
-@dataclass
+@dataclass(kw_only=True)
 class BaseQuery:
     """Base class for all queries.
     
     Queries should be immutable value objects that represent
     a request for data without side effects.
+    
+    Note: Uses kw_only=True to allow child classes to have required fields.
+    All fields must be passed as keyword arguments.
     """
     
     query_id: str = field(default_factory=lambda: str(uuid4()))

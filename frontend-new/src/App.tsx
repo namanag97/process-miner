@@ -1,7 +1,6 @@
 import { useEffect, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, type RouteObject } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
-import type { RouteObject } from 'react-router-dom';
 import { AppShell, SDKProvider, luminaTheme, logAction } from '@lumina/design-system';
 import { UserProvider, useUser } from './shared/context/UserContext';
 import { NotificationProvider, useNotifications } from './shared/context/NotificationContext';
