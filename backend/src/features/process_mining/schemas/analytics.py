@@ -18,10 +18,14 @@ class BottleneckResponse(BaseModel):
     """Single bottleneck result."""
 
     activity: str
-    avg_wait_time: float = Field(description="Average wait time in seconds")
-    median_wait_time: float = Field(default=0, description="Median wait time in seconds")
-    max_wait_time: float = Field(default=0, description="Maximum wait time in seconds")
-    count: int = Field(description="Number of occurrences")
+    avg_waiting_time_seconds: float = Field(description="Average wait time in seconds")
+    avg_service_time_seconds: float = Field(default=0, description="Average service time in seconds")
+    frequency: int = Field(description="Number of occurrences")
+    is_bottleneck: bool = Field(default=True, description="Whether this is flagged as a bottleneck")
+    severity: str = Field(default="medium", description="Severity level: low, medium, high")
+    preceding_activities: list[str] = Field(default_factory=list, description="Activities that precede this one")
+    following_activities: list[str] = Field(default_factory=list, description="Activities that follow this one")
+    bottleneck_impact_score: float = Field(default=0.0, description="Impact score 0-1")
 
 
 class BottleneckListResponse(BaseModel):
@@ -41,9 +45,9 @@ class ReworkResponse(BaseModel):
     """Single rework pattern result."""
 
     activity: str
-    repeat_count: int = Field(description="Total repeat occurrences")
-    case_count: int = Field(description="Number of cases with this rework")
-    percentage: float = Field(description="Percentage of cases with this rework")
+    rework_count: int = Field(description="Total repeat occurrences")
+    cases_with_rework: int = Field(description="Number of cases with this rework")
+    rework_percentage: float = Field(description="Percentage of cases with this rework")
 
 
 class ReworkListResponse(BaseModel):
@@ -85,12 +89,13 @@ class CycleTimeResponse(BaseModel):
     """Cycle time (case duration) statistics."""
 
     dataset_id: str
-    mean_duration: float = Field(description="Mean case duration in seconds")
-    median_duration: float = Field(description="Median case duration in seconds")
-    min_duration: float = Field(description="Minimum case duration in seconds")
-    max_duration: float = Field(description="Maximum case duration in seconds")
-    std_deviation: float = Field(default=0, description="Standard deviation in seconds")
-    total_cases: int = Field(description="Total number of cases")
+    min_seconds: float = Field(description="Minimum case duration in seconds")
+    max_seconds: float = Field(description="Maximum case duration in seconds")
+    avg_seconds: float = Field(description="Mean case duration in seconds")
+    median_seconds: float = Field(description="Median case duration in seconds")
+    percentile_25_seconds: float = Field(default=0, description="25th percentile in seconds")
+    percentile_75_seconds: float = Field(default=0, description="75th percentile in seconds")
+    percentile_95_seconds: float = Field(default=0, description="95th percentile in seconds")
 
 
 # =============================================================================

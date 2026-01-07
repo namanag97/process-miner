@@ -31,7 +31,9 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.platform.models import Organization, Project, Workspace
+from src.infra.users.organization import Organization
+from src.infra.users.project import Project
+from src.infra.users.workspace import Workspace
 
 from src.features.process_mining.models import (
     Dataset,

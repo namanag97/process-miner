@@ -451,7 +451,7 @@ async def upload_dataset(
 
         await db.commit()
 
-        # Queue validation workflow via Temporal v2
+        # Queue validation workflow via Temporal v2 (with inline fallback)
         from temporalio.common import WorkflowIDReusePolicy
 
         from src.infra.temporal.client import get_temporal_client
@@ -461,6 +461,7 @@ async def upload_dataset(
         config = get_temporal_config()
         workflow_id = f"validate-dataset-{dataset_id}"
 
+        temporal_available = False
         try:
             client = await get_temporal_client()
             await client.start_workflow(
@@ -470,8 +471,78 @@ async def upload_dataset(
                 task_queue=config.QUEUE_INGESTION,
                 id_reuse_policy=WorkflowIDReusePolicy.ALLOW_DUPLICATE_FAILED_ONLY,
             )
+            temporal_available = True
         except Exception as e:
             logger.warning("validation_workflow_start_failed", error=str(e))
+
+        # Fallback: Inline column detection when Temporal is unavailable
+        if not temporal_available:
+            try:
+                from starlette.concurrency import run_in_threadpool
+
+                from src.features.process_mining.ingestion.unified import (
+                    unified_ingestion_service,
+                )
+                from src.features.process_mining.models import DatasetColumn
+
+                logger.info("inline_column_detection_start", dataset_id=dataset_id)
+
+                # Detect columns synchronously
+                detection = await run_in_threadpool(
+                    unified_ingestion_service.detect_columns, content, filename
+                )
+
+                # Save columns to database
+                columns = detection.get("columns", [])
+                suggestions = detection.get("suggestions", {})
+
+                for idx, col_info in enumerate(columns):
+                    col_name = (
+                        col_info.get("name") if isinstance(col_info, dict) else col_info
+                    )
+                    col = DatasetColumn(
+                        dataset_id=dataset_id,
+                        name=col_name,
+                        dtype=col_info.get("dtype", "string")
+                        if isinstance(col_info, dict)
+                        else "string",
+                        position=idx,
+                        sample_values_json="[]",
+                        null_percentage=0.0,
+                        unique_count=0,
+                        suggested_role=None,
+                        suggestion_confidence=0.0,
+                    )
+
+                    # Check if this column is suggested for a role
+                    for role, suggestion in suggestions.items():
+                        if isinstance(suggestion, dict):
+                            if suggestion.get("column") == col_name:
+                                col.suggested_role = role.replace("_column", "")
+                                col.suggestion_confidence = suggestion.get(
+                                    "confidence", 0.8
+                                )
+                        elif suggestion == col_name:
+                            col.suggested_role = role.replace("_column", "")
+                            col.suggestion_confidence = 0.8
+
+                    db.add(col)
+
+                # Update dataset status to AWAITING_MAPPING
+                dataset.status = DatasetStatus.AWAITING_MAPPING.value
+                await db.commit()
+
+                logger.info(
+                    "inline_column_detection_complete",
+                    dataset_id=dataset_id,
+                    columns_found=len(columns),
+                )
+            except Exception as fallback_err:
+                logger.error(
+                    "inline_column_detection_failed",
+                    dataset_id=dataset_id,
+                    error=str(fallback_err),
+                )
 
         logger.info(
             "direct_upload_complete",
@@ -507,3 +578,125 @@ async def upload_dataset(
                 os.unlink(temp_file_path)
             except Exception:
                 pass
+
+
+@router.post(
+    "/{dataset_id}/validate",
+    summary="Trigger Column Detection",
+    description="""
+Manually trigger column detection for an existing dataset.
+
+Use this when:
+- Columns were not detected during upload (e.g., Temporal unavailable)
+- You want to re-detect columns with updated settings
+
+Works on datasets in UPLOADED or AWAITING_MAPPING status.
+    """,
+    responses={
+        200: {"description": "Column detection completed"},
+        400: {"description": "Dataset not in valid state"},
+        404: {"description": "Dataset not found"},
+    },
+)
+async def validate_dataset(
+    dataset_id: str,
+    db: ReadDBSession,
+    current_user: CurrentUser,
+) -> dict:
+    """Manually trigger column detection for an existing dataset."""
+    from sqlalchemy import delete
+    from starlette.concurrency import run_in_threadpool
+
+    from src.features.process_mining.ingestion.unified import unified_ingestion_service
+    from src.features.process_mining.models import DatasetColumn
+    from src.infra.core.permissions import Permission
+    from src.infra.infrastructure.object_storage import get_storage_client
+    from src.infra.workspaces.authorization import require_dataset_permission
+
+    # Verify permission and get dataset
+    _, dataset = await require_dataset_permission(
+        db, dataset_id, current_user, Permission.DATASET_UPDATE
+    )
+
+    valid_statuses = [
+        DatasetStatus.UPLOADED.value,
+        DatasetStatus.AWAITING_MAPPING.value,
+        DatasetStatus.ERROR.value,
+    ]
+    if dataset.status not in valid_statuses:
+        raise ValidationError(
+            f"Dataset must be in UPLOADED, AWAITING_MAPPING, or ERROR state. Current: {dataset.status}"
+        )
+
+    if not dataset.storage_key:
+        raise ValidationError("Dataset missing storage_key. Cannot validate.")
+
+    logger.info("manual_validate_start", dataset_id=dataset_id)
+
+    # Download file from storage
+    storage_client = get_storage_client()
+    try:
+        content = await run_in_threadpool(
+            storage_client.download_file, bucket_type="raw", key=dataset.storage_key
+        )
+    except Exception as e:
+        logger.error("validate_download_failed", dataset_id=dataset_id, error=str(e))
+        raise ProcessingError(f"Failed to download file: {e}")
+
+    # Detect columns
+    filename = dataset.source_file or "file.csv"
+    detection = await run_in_threadpool(
+        unified_ingestion_service.detect_columns, content, filename
+    )
+
+    columns = detection.get("columns", [])
+    suggestions = detection.get("suggestions", {})
+
+    # Clear existing columns
+    await db.execute(delete(DatasetColumn).where(DatasetColumn.dataset_id == dataset_id))
+
+    # Save columns to database
+    for idx, col_info in enumerate(columns):
+        col_name = col_info.get("name") if isinstance(col_info, dict) else col_info
+        col = DatasetColumn(
+            dataset_id=dataset_id,
+            name=col_name,
+            dtype=col_info.get("dtype", "string") if isinstance(col_info, dict) else "string",
+            position=idx,
+            sample_values_json="[]",
+            null_percentage=0.0,
+            unique_count=0,
+            suggested_role=None,
+            suggestion_confidence=0.0,
+        )
+
+        # Check if this column is suggested for a role
+        for role, suggestion in suggestions.items():
+            if isinstance(suggestion, dict):
+                if suggestion.get("column") == col_name:
+                    col.suggested_role = role.replace("_column", "")
+                    col.suggestion_confidence = suggestion.get("confidence", 0.8)
+            elif suggestion == col_name:
+                col.suggested_role = role.replace("_column", "")
+                col.suggestion_confidence = 0.8
+
+        db.add(col)
+
+    # Update dataset status
+    dataset.status = DatasetStatus.AWAITING_MAPPING.value
+    dataset.error_message = None
+    await db.commit()
+
+    logger.info(
+        "manual_validate_complete",
+        dataset_id=dataset_id,
+        columns_found=len(columns),
+    )
+
+    return {
+        "status": "validation_complete",
+        "dataset_id": dataset_id,
+        "columns_detected": len(columns),
+        "suggestions": suggestions,
+        "next_step": "Submit column mapping via POST /datasets/{id}/mapping",
+    }

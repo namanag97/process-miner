@@ -646,6 +646,123 @@ class ObjectStorageClient:
                 key=key,
             )
 
+    def download_sample(
+        self,
+        bucket_type: str,
+        key: str,
+        max_bytes: int = 1024 * 1024,  # 1MB default
+    ) -> bytes:
+        """Download only the first N bytes of a file (memory-efficient for large files).
+
+        Args:
+            bucket_type: Bucket type (raw, models, cache)
+            key: Object key
+            max_bytes: Maximum bytes to download (default 1MB)
+
+        Returns:
+            First max_bytes of the file content
+
+        Raises:
+            ObjectStorageError: If download fails
+            ObjectNotFoundError: If object doesn't exist
+        """
+        bucket = self._get_bucket(bucket_type)
+
+        try:
+            # Use Range header to only download first N bytes
+            response = self.client.get_object(
+                Bucket=bucket,
+                Key=key,
+                Range=f"bytes=0-{max_bytes - 1}",
+            )
+            content = response["Body"].read()
+            logger.info(
+                "sample_downloaded",
+                bucket=bucket,
+                key=key,
+                bytes_requested=max_bytes,
+                bytes_received=len(content),
+            )
+            return content
+
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code")
+            if error_code in ("NoSuchKey", "404"):
+                raise ObjectNotFoundError(
+                    f"Object not found: {key}",
+                    bucket=bucket,
+                    key=key,
+                )
+            raise ObjectStorageError(
+                f"Failed to download sample: {e}",
+                bucket=bucket,
+                key=key,
+            )
+
+    def stream_to_tempfile(
+        self,
+        bucket_type: str,
+        key: str,
+        chunk_size: int = 8 * 1024 * 1024,  # 8MB chunks
+    ) -> str:
+        """Stream file directly to a temp file without loading all into memory.
+
+        Args:
+            bucket_type: Bucket type (raw, models, cache)
+            key: Object key
+            chunk_size: Size of chunks to download (default 8MB)
+
+        Returns:
+            Path to the temporary file (caller must delete when done)
+
+        Raises:
+            ObjectStorageError: If download fails
+            ObjectNotFoundError: If object doesn't exist
+        """
+        import tempfile
+
+        bucket = self._get_bucket(bucket_type)
+
+        try:
+            # Create temp file with appropriate suffix
+            suffix = "." + key.split(".")[-1] if "." in key else ""
+            fd, temp_path = tempfile.mkstemp(suffix=suffix)
+
+            response = self.client.get_object(Bucket=bucket, Key=key)
+            stream = response["Body"]
+            total_bytes = 0
+
+            with os.fdopen(fd, "wb") as f:
+                while True:
+                    chunk = stream.read(chunk_size)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    total_bytes += len(chunk)
+
+            logger.info(
+                "file_streamed_to_temp",
+                bucket=bucket,
+                key=key,
+                temp_path=temp_path,
+                total_bytes=total_bytes,
+            )
+            return temp_path
+
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code")
+            if error_code in ("NoSuchKey", "404"):
+                raise ObjectNotFoundError(
+                    f"Object not found: {key}",
+                    bucket=bucket,
+                    key=key,
+                )
+            raise ObjectStorageError(
+                f"Failed to stream to temp file: {e}",
+                bucket=bucket,
+                key=key,
+            )
+
     def delete_file(self, bucket_type: str, key: str) -> None:
         """Delete object from S3.
 
@@ -1078,6 +1195,57 @@ class LocalStorageClient:
         with open(path, "rb") as f:
             while chunk := f.read(chunk_size):
                 yield chunk
+
+    def download_sample(
+        self,
+        bucket_type: str,
+        key: str,
+        max_bytes: int = 1024 * 1024,  # 1MB default
+    ) -> bytes:
+        """Download only the first N bytes of a file (memory-efficient)."""
+        path = self._get_object_path(bucket_type, key)
+        if not path.exists():
+            raise ObjectNotFoundError(f"Object not found: {key}", bucket=bucket_type, key=key)
+
+        with open(path, "rb") as f:
+            content = f.read(max_bytes)
+            logger.info(
+                "sample_downloaded",
+                path=str(path),
+                bytes_requested=max_bytes,
+                bytes_received=len(content),
+            )
+            return content
+
+    def stream_to_tempfile(
+        self,
+        bucket_type: str,
+        key: str,
+        chunk_size: int = 8 * 1024 * 1024,  # 8MB chunks
+    ) -> str:
+        """Stream file directly to a temp file without loading all into memory."""
+        import shutil
+        import tempfile
+
+        src_path = self._get_object_path(bucket_type, key)
+        if not src_path.exists():
+            raise ObjectNotFoundError(f"Object not found: {key}", bucket=bucket_type, key=key)
+
+        # Create temp file with appropriate suffix
+        suffix = src_path.suffix or ""
+        fd, temp_path = tempfile.mkstemp(suffix=suffix)
+        os.close(fd)
+
+        # Copy file (local storage can just copy)
+        shutil.copy2(src_path, temp_path)
+
+        logger.info(
+            "file_copied_to_temp",
+            src=str(src_path),
+            temp_path=temp_path,
+            size=src_path.stat().st_size,
+        )
+        return temp_path
 
     def delete_file(self, bucket_type: str, key: str) -> None:
         path = self._get_object_path(bucket_type, key)

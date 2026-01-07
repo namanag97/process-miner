@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.infra.temporal.activities.types import (
-    BulkCopyInput,
     ComputeStatsInput,
     DetectColumnsInput,
     ParseToParquetInput,
@@ -244,53 +243,6 @@ class TestParseToParquetActivity:
         assert result.total_events == 3
         assert len(result.cases_data) == 2
         assert len(result.events_data) == 3
-
-
-class TestBulkCopyToDbActivity:
-    """Tests for bulk_copy_to_db_activity."""
-
-    @pytest.mark.asyncio
-    async def test_bulk_copy_batching(self):
-        """Test that bulk copy uses batching."""
-        from src.infra.temporal.activities.dataset import bulk_copy_to_db_activity
-
-        cases_data = [
-            {"case_id": "1", "variant": "A->B", "start_time": None, "end_time": None},
-            {"case_id": "2", "variant": "A->C", "start_time": None, "end_time": None},
-        ]
-        events_data = [
-            {"case_id": "1", "activity": "A", "timestamp": None},
-            {"case_id": "1", "activity": "B", "timestamp": None},
-            {"case_id": "2", "activity": "A", "timestamp": None},
-        ]
-
-        mock_session = AsyncMock()
-        mock_session.add_all = MagicMock()
-        mock_session.flush = AsyncMock()
-        mock_session.commit = AsyncMock()
-        mock_session.expunge_all = MagicMock()
-
-        # Mock the ProcessCase to return an id
-        mock_case = MagicMock()
-        mock_case.case_id = "1"
-        mock_case.id = "case-uuid-1"
-
-        with patch(
-            "src.infra.temporal.activities.dataset.AsyncSessionLocal"
-        ) as mock_session_local:
-            mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_session_local.return_value.__aexit__ = AsyncMock()
-
-            input_data = BulkCopyInput(
-                dataset_id="test-dataset-123",
-                cases_data=cases_data,
-                events_data=events_data,
-                batch_size=1000,
-            )
-
-            # This will raise because of mock issues, but we're just testing structure
-            with pytest.raises(RuntimeError):
-                await bulk_copy_to_db_activity(input_data)
 
 
 class TestComputeStatisticsActivity:

@@ -1,6 +1,0 @@
-feature_id: "DIS-009"
-research_findings:
-  libraries:
-    frontend: ["ant-design Slider"]
-  recommendations:
-    must_have: ["Activities slider", "Paths slider", "Instant feedback"]

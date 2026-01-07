@@ -11,34 +11,6 @@
  * - Upload wizard (dataset ingestion)
  */
 
-import { FeatureRegistry } from '../../shared/core/plugins/FeatureRegistry';
-import { platformRouteConfig } from './routes';
-
-// Import sub-features (projects, upload-wizard)
-import './projects';
-import './upload-wizard';
-
-// ============================================
-// Feature Configuration
-// ============================================
-
-export const FEATURE_ID = 'platform';
-
-export const FEATURE_CONFIG = {
-    id: 'platform',
-    name: 'Platform',
-    version: '1.0.0',
-    icon: 'SettingOutlined',
-    // No navPath - platform items are in bottom nav, handled separately
-    navOrder: 100, // Low priority - bottom nav
-};
-
-// Register feature (auto-registration on import)
-FeatureRegistry.register({
-    ...FEATURE_CONFIG,
-    routes: platformRouteConfig,
-});
-
 // ============================================
 // Page Exports
 // ============================================
@@ -52,7 +24,8 @@ export { default as TestBenchPage } from './pages/TestBenchPage';
 export { default as ProcessQuestionsPage } from './pages/ProcessQuestionsPage';
 
 // ============================================
-// Route Exports
+// Sub-feature Re-exports
 // ============================================
 
-export { platformRouteConfig } from './routes';
+export * from './projects';
+export * from './upload-wizard';

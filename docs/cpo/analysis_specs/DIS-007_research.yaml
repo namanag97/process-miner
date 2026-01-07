@@ -1,6 +1,0 @@
-feature_id: "DIS-007"
-research_findings:
-  libraries:
-    python: ["Celery", "Redis", "pm4py"]
-  recommendations:
-    must_have: ["Async execution", "Progress tracking", "Cancellation support"]

@@ -180,6 +180,127 @@ class DuckDBParser:
             if temp_path and os.path.exists(temp_path):
                 os.unlink(temp_path)
 
+    def parse_csv_from_path(
+        self,
+        file_path: str,
+        case_id_col: str = "case_id",
+        activity_col: str = "activity",
+        timestamp_col: str = "timestamp",
+        resource_col: str | None = None,
+        delimiter: str = ",",
+    ) -> dict[str, Any]:
+        """Parse CSV from file path using DuckDB - memory-efficient for large files.
+
+        Unlike parse_csv(), this method takes a file path directly, avoiding the need
+        to load the entire file into memory first. Use this for files > 100MB.
+
+        Args:
+            file_path: Path to the CSV file on disk
+            case_id_col: Column name for case identifier
+            activity_col: Column name for activity
+            timestamp_col: Column name for timestamp
+            resource_col: Optional column name for resource
+            delimiter: CSV delimiter character
+
+        Returns:
+            Dictionary with 'statistics', 'events_arrow', 'cases_arrow' keys
+        """
+        # Sanitize inputs
+        case_id_col = _sanitize_column_name(case_id_col, "case_id_column")
+        activity_col = _sanitize_column_name(activity_col, "activity_column")
+        timestamp_col = _sanitize_column_name(timestamp_col, "timestamp_column")
+        if resource_col:
+            resource_col = _sanitize_column_name(resource_col, "resource_column")
+        delimiter = _sanitize_delimiter(delimiter)
+
+        duckdb_manager = self._get_manager()
+        file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
+        logger.info("duckdb_parse_from_path_started", file_path=file_path, size_bytes=file_size)
+
+        conn = None
+        try:
+            resource_select = f'"{resource_col}"' if resource_col else "NULL"
+
+            conn = duckdb_manager.get_connection()
+            conn.execute(f"""
+                CREATE OR REPLACE TEMP TABLE events AS
+                SELECT
+                    "{case_id_col}"::VARCHAR as case_id,
+                    "{activity_col}"::VARCHAR as activity,
+                    "{timestamp_col}"::TIMESTAMP as timestamp,
+                    {resource_select}::VARCHAR as resource,
+                    ROW_NUMBER() OVER () as row_num
+                FROM read_csv_auto('{file_path}', delim='{delimiter}', header=true)
+                WHERE "{case_id_col}" IS NOT NULL
+                  AND "{activity_col}" IS NOT NULL
+                  AND "{timestamp_col}" IS NOT NULL
+            """)
+
+            # Get aggregate statistics
+            stats = conn.execute("""
+                SELECT
+                    COUNT(DISTINCT case_id) as total_cases,
+                    COUNT(*) as total_events,
+                    COUNT(DISTINCT activity) as total_activities,
+                    MIN(timestamp) as start_time,
+                    MAX(timestamp) as end_time,
+                    LIST(DISTINCT activity ORDER BY activity) as activities,
+                    COUNT(DISTINCT resource) FILTER (WHERE resource IS NOT NULL) as total_resources
+                FROM events
+            """).fetchone()
+
+            # Get events as Arrow table
+            arrow_table = conn.execute("""
+                SELECT case_id, activity, timestamp, resource
+                FROM events
+                ORDER BY case_id, timestamp
+            """).arrow()
+
+            import pyarrow as pa
+
+            if isinstance(arrow_table, pa.RecordBatchReader):
+                arrow_table = arrow_table.read_all()
+
+            # Get case-level aggregates
+            case_stats = conn.execute("""
+                SELECT
+                    case_id,
+                    MIN(timestamp) as start_time,
+                    MAX(timestamp) as end_time,
+                    COUNT(*) as event_count,
+                    STRING_AGG(activity, ' -> ' ORDER BY timestamp) as variant
+                FROM events
+                GROUP BY case_id
+            """).arrow()
+
+            if isinstance(case_stats, pa.RecordBatchReader):
+                case_stats = case_stats.read_all()
+
+            logger.info(
+                "duckdb_parse_from_path_completed",
+                total_cases=stats[0],
+                total_events=stats[1],
+                total_activities=stats[2],
+            )
+
+            return {
+                "statistics": {
+                    "total_cases": stats[0],
+                    "total_events": stats[1],
+                    "total_activities": stats[2],
+                    "start_time": stats[3].isoformat() if stats[3] else None,
+                    "end_time": stats[4].isoformat() if stats[4] else None,
+                    "activities": list(stats[5]) if stats[5] else [],
+                    "total_resources": stats[6],
+                },
+                "events_arrow": arrow_table,
+                "cases_arrow": case_stats,
+            }
+        finally:
+            # Note: We don't delete the file here - caller is responsible
+            # for cleaning up the temp file after processing
+            pass
+
     def parse_csv_streaming(
         self,
         file_content: bytes,

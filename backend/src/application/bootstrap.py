@@ -74,7 +74,8 @@ class CommandHandlerFactory:
 class QueryHandlerFactory:
     """Factory for creating query handlers with dependencies.
 
-    Handlers are created per-request with database session and DuckDB connection.
+    Handlers are created per-request with database session and DuckDB manager.
+    The manager provides isolated connections for thread-safe query execution.
     """
 
     def __init__(self, db: AsyncSession, duckdb: DuckDBManager):
@@ -84,28 +85,35 @@ class QueryHandlerFactory:
     def create_bottlenecks_handler(self):
         from src.application.queries.analytics_queries import GetBottlenecksHandler
         return GetBottlenecksHandler(
-            duckdb_conn=self.duckdb.get_connection(),
+            duckdb_manager=self.duckdb,  # Pass manager for isolated connections
             db=self.db,
         )
 
     def create_cycle_time_handler(self):
         from src.application.queries.analytics_queries import GetCycleTimeHandler
         return GetCycleTimeHandler(
-            duckdb_conn=self.duckdb.get_connection(),
+            duckdb_manager=self.duckdb,
             db=self.db,
         )
 
     def create_rework_handler(self):
         from src.application.queries.analytics_queries import GetReworkHandler
         return GetReworkHandler(
-            duckdb_conn=self.duckdb.get_connection(),
+            duckdb_manager=self.duckdb,
             db=self.db,
         )
 
     def create_variants_handler(self):
         from src.application.queries.get_variants import GetVariantsHandler
         return GetVariantsHandler(
-            duckdb_conn=self.duckdb.get_connection(),
+            duckdb_manager=self.duckdb,
+            db=self.db,
+        )
+
+    def create_throughput_handler(self):
+        from src.application.queries.analytics_queries import GetThroughputHandler
+        return GetThroughputHandler(
+            duckdb_manager=self.duckdb,
             db=self.db,
         )
 
@@ -183,6 +191,7 @@ class RequestScopedQueryBus:
             GetBottlenecksQuery,
             GetCycleTimeQuery,
             GetReworkQuery,
+            GetThroughputQuery,
             GetVariantsQuery,
         )
 
@@ -195,6 +204,8 @@ class RequestScopedQueryBus:
             handler = self._factory.create_bottlenecks_handler()
         elif isinstance(query, GetCycleTimeQuery):
             handler = self._factory.create_cycle_time_handler()
+        elif isinstance(query, GetThroughputQuery):
+            handler = self._factory.create_throughput_handler()
         elif isinstance(query, GetReworkQuery):
             handler = self._factory.create_rework_handler()
         elif isinstance(query, GetVariantsQuery):

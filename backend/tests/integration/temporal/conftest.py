@@ -21,7 +21,6 @@ from src.infra.temporal.activities.analysis import (
     mine_model_activity,
 )
 from src.infra.temporal.activities.dataset import (
-    bulk_copy_to_db_activity,
     compute_statistics_activity,
     detect_columns_activity,
     parse_to_parquet_activity,
@@ -179,8 +178,7 @@ async def ingestion_worker(
             validate_file_activity,
             detect_columns_activity,
             parse_to_parquet_activity,
-            bulk_copy_to_db_activity,
-            compute_statistics_activity,
+                        compute_statistics_activity,
         ],
     ) as worker:
         yield worker
@@ -231,8 +229,7 @@ async def all_workers(
                 validate_file_activity,
                 detect_columns_activity,
                 parse_to_parquet_activity,
-                bulk_copy_to_db_activity,
-                compute_statistics_activity,
+                                compute_statistics_activity,
             ],
         ) as ingestion_worker,
         Worker(

@@ -143,7 +143,7 @@ async def stream_logs(
     - `event: heartbeat` for system metrics every 5s
 
     BUG-034 FIX: Pass user_id to filter logs by tenant.
-    Connect with: `new EventSource('/api/v1/dev/datasets/stream?user_id=xxx')`
+    Connect with: `new EventSource('/api/v1/dev/logs/stream?user_id=xxx')`
     """
     if not settings.debug:
         return {"error": "Dev logs only available in debug mode"}

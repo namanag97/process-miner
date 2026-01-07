@@ -1,6 +1,0 @@
-feature_id: "DIS-011"
-research_findings:
-  libraries:
-    python: ["pm4py.discovery.discover_performance_dfg"]
-  recommendations:
-    must_have: ["Bottleneck highlighting", "Throughput time labels"]

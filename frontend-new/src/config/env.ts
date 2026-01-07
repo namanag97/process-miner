@@ -21,7 +21,7 @@ const envSchema = z.object({
   API_BASE_URL: z
     .string()
     .url()
-    .default('http://localhost:8001'),
+    .default('http://localhost:8001/api/v1'),
 
   // Authentication
   USE_REAL_AUTH: z

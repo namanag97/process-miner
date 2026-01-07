@@ -160,8 +160,9 @@ export function useBackendLogs(enabled = true): BackendObservability {
     }
 
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8001';
-      const source = new EventSource(`${apiUrl}/api/v1/dev/datasets/stream`);
+      // Use the Vite env var (VITE_API_BASE_URL already includes /api/v1)
+      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api/v1';
+      const source = new EventSource(`${apiUrl}/dev/logs/stream`);
       eventSourceRef.current = source;
 
       // Handle log messages
@@ -327,7 +328,7 @@ export function useBackendLogs(enabled = true): BackendObservability {
           'info',
           'BE Connection',
           '✓ Connected to backend observability stream',
-          { url: `${apiUrl}/api/v1/dev/datasets/stream` }
+          { url: `${apiUrl}/dev/logs/stream` }
         );
       };
     } catch (err) {
