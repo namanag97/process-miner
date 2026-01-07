@@ -22,7 +22,6 @@ import { ArrowLeftOutlined, LoadingOutlined } from '@ant-design/icons';
 import { tokens, logAction } from '@lumina/design-system';
 import { devLog } from '../../../../shared/ui/DevConsole';
 import { useUploadWizard } from '../hooks/useUploadWizard';
-import { WizardStepper } from '../components/WizardStepper';
 import {
     UploadStep,
     ConfigureStep,
@@ -74,8 +73,8 @@ export function UploadWizardPage() {
             initialStep: currentStep,
         });
         logAction('UploadWizard', 'wizard_opened', { projectId, resumeDatasetId });
-    // This should only run once on mount to log initial wizard state
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // This should only run once on mount to log initial wizard state
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Log step changes
@@ -97,8 +96,8 @@ export function UploadWizardPage() {
             hasMapping: !!mapping,
             jobId,
         });
-    // Only trigger when step changes; other values are for logging context only
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // Only trigger when step changes; other values are for logging context only
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentStep]);
 
     // Log errors when they occur

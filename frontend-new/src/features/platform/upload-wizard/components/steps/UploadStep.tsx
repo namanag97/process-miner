@@ -113,12 +113,12 @@ export function UploadStep({ onUploadComplete, isLoading, uploadFilePresigned }:
     };
 
     return (
-        <div style={{ maxWidth: 640, margin: '0 auto' }}>
-            <div style={{ textAlign: 'center', marginBottom: tokens.spacing[6] }}>
-                <Title level={3}>Upload your data</Title>
+        <div>
+            {/* Step Header */}
+            <div style={{ marginBottom: tokens.spacing[6] }}>
+                <Title level={4} style={{ margin: 0 }}>Choose your Data Source</Title>
                 <Text type="secondary">
-                    Drag and drop your event log file or click to browse.
-                    Supported formats: CSV, Excel (XLSX, XLS), XES
+                    Select an existing dataset or upload a new file to begin analysis.
                 </Text>
             </div>
 
@@ -133,18 +133,146 @@ export function UploadStep({ onUploadComplete, isLoading, uploadFilePresigned }:
                 />
             )}
 
-            <Dragger {...uploadProps} disabled={isLoading}>
-                <p className="ant-upload-drag-icon">
-                    <InboxOutlined style={{ fontSize: 48, color: tokens.colors.primary[500] }} />
-                </p>
-                <p className="ant-upload-text">
-                    Click or drag file to this area to upload
-                </p>
-                <p className="ant-upload-hint">
-                    Maximum file size: {MAX_FILE_SIZE_MB}MB
-                </p>
-            </Dragger>
+            {/* Search box */}
+            <div
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: tokens.spacing[2],
+                    marginBottom: tokens.spacing[4],
+                    padding: `${tokens.spacing[2]}px ${tokens.spacing[3]}px`,
+                    border: `1px solid ${tokens.colors.neutral[200]}`,
+                    borderRadius: tokens.radius.sm,
+                    maxWidth: 280,
+                    background: tokens.colors.neutral[0],
+                }}
+            >
+                <InboxOutlined style={{ color: tokens.colors.neutral[400], fontSize: 14 }} />
+                <input
+                    type="text"
+                    placeholder="Search datasets..."
+                    style={{
+                        flex: 1,
+                        border: 'none',
+                        outline: 'none',
+                        fontSize: 13,
+                        color: tokens.colors.neutral[900],
+                        background: 'transparent',
+                    }}
+                />
+            </div>
 
+            {/* Existing datasets placeholder */}
+            <Card
+                size="small"
+                style={{
+                    marginBottom: tokens.spacing[4],
+                    background: tokens.colors.neutral[50],
+                    border: `1px solid ${tokens.colors.neutral[200]}`,
+                }}
+            >
+                <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    <Text type="secondary" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        Recent Datasets
+                    </Text>
+                    <Text type="secondary">No existing datasets in this project yet.</Text>
+                </Space>
+            </Card>
+
+            {/* Divider */}
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: tokens.spacing[3],
+                margin: `${tokens.spacing[6]}px 0 ${tokens.spacing[4]}px`,
+            }}>
+                <div style={{ flex: 1, height: 1, background: tokens.colors.neutral[200] }} />
+                <Text type="secondary" style={{ fontSize: 12, fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Or upload new file
+                </Text>
+                <div style={{ flex: 1, height: 1, background: tokens.colors.neutral[200] }} />
+            </div>
+
+            {/* Upload Options - Inline Cards */}
+            <div style={{ display: 'flex', gap: tokens.spacing[4] }}>
+                {/* CSV/Excel Upload */}
+                <Dragger
+                    {...uploadProps}
+                    disabled={isLoading}
+                    style={{
+                        flex: 1,
+                        border: `2px dashed ${tokens.colors.neutral[300]}`,
+                        borderRadius: tokens.radius.lg,
+                        background: tokens.colors.neutral[0],
+                        padding: tokens.spacing[4],
+                    }}
+                >
+                    <div style={{ textAlign: 'center' }}>
+                        <FileTextOutlined style={{ fontSize: 32, color: tokens.colors.neutral[500], marginBottom: tokens.spacing[3] }} />
+                        <p style={{ fontWeight: 500, color: tokens.colors.neutral[700], marginBottom: tokens.spacing[1] }}>
+                            CSV / Excel file
+                        </p>
+                        <p style={{ fontSize: 12, color: tokens.colors.neutral[500], margin: 0 }}>
+                            Drop file or <span style={{ color: tokens.colors.primary[500] }}>browse</span>
+                        </p>
+                        <div style={{ marginTop: tokens.spacing[3], display: 'flex', justifyContent: 'center', gap: tokens.spacing[1] }}>
+                            <span style={{ padding: '2px 6px', background: tokens.colors.neutral[100], borderRadius: tokens.radius.sm, fontSize: 11, color: tokens.colors.neutral[600] }}>CSV</span>
+                            <span style={{ padding: '2px 6px', background: tokens.colors.neutral[100], borderRadius: tokens.radius.sm, fontSize: 11, color: tokens.colors.neutral[600] }}>XLSX</span>
+                            <span style={{ padding: '2px 6px', background: tokens.colors.neutral[100], borderRadius: tokens.radius.sm, fontSize: 11, color: tokens.colors.neutral[600] }}>XES</span>
+                        </div>
+                    </div>
+                </Dragger>
+
+                {/* Google Sheet */}
+                <Card
+                    hoverable
+                    style={{
+                        flex: 1,
+                        border: `2px dashed ${tokens.colors.neutral[300]}`,
+                        borderRadius: tokens.radius.lg,
+                        textAlign: 'center',
+                        cursor: 'not-allowed',
+                        opacity: 0.6,
+                    }}
+                    styles={{ body: { padding: tokens.spacing[6] } }}
+                >
+                    <div style={{ marginBottom: tokens.spacing[3] }}>
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={tokens.colors.neutral[500]} strokeWidth="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <line x1="3" y1="9" x2="21" y2="9" />
+                            <line x1="9" y1="21" x2="9" y2="9" />
+                        </svg>
+                    </div>
+                    <p style={{ fontWeight: 500, color: tokens.colors.neutral[700], margin: 0 }}>Google Sheet</p>
+                    <p style={{ fontSize: 12, color: tokens.colors.neutral[500], margin: `${tokens.spacing[1]}px 0 0` }}>Coming soon</p>
+                </Card>
+
+                {/* Database */}
+                <Card
+                    hoverable
+                    style={{
+                        flex: 1,
+                        border: `2px dashed ${tokens.colors.neutral[300]}`,
+                        borderRadius: tokens.radius.lg,
+                        textAlign: 'center',
+                        cursor: 'not-allowed',
+                        opacity: 0.6,
+                    }}
+                    styles={{ body: { padding: tokens.spacing[6] } }}
+                >
+                    <div style={{ marginBottom: tokens.spacing[3] }}>
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={tokens.colors.neutral[500]} strokeWidth="1.5">
+                            <ellipse cx="12" cy="5" rx="9" ry="3" />
+                            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                        </svg>
+                    </div>
+                    <p style={{ fontWeight: 500, color: tokens.colors.neutral[700], margin: 0 }}>Database</p>
+                    <p style={{ fontSize: 12, color: tokens.colors.neutral[500], margin: `${tokens.spacing[1]}px 0 0` }}>Coming soon</p>
+                </Card>
+            </div>
+
+            {/* Upload Progress */}
             {uploadProgress > 0 && uploadProgress < 100 && (
                 <Progress
                     percent={uploadProgress}
@@ -152,24 +280,6 @@ export function UploadStep({ onUploadComplete, isLoading, uploadFilePresigned }:
                     style={{ marginTop: tokens.spacing[4] }}
                 />
             )}
-
-            <Card
-                size="small"
-                style={{ marginTop: tokens.spacing[6], background: tokens.colors.neutral[50] }}
-            >
-                <Space direction="vertical" size="small">
-                    <Text strong>Accepted file formats:</Text>
-                    <Space>
-                        <FileTextOutlined /> CSV (Comma-Separated Values)
-                    </Space>
-                    <Space>
-                        <FileTextOutlined /> XLSX / XLS (Excel)
-                    </Space>
-                    <Space>
-                        <FileTextOutlined /> XES (IEEE Standard for Event Logs)
-                    </Space>
-                </Space>
-            </Card>
         </div>
     );
 }
