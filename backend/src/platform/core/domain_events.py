@@ -157,6 +157,50 @@ class ProcessAnalysisFailed(DomainEvent):
 
 
 # =============================================================================
+# Dataset CQRS Events (for read model synchronization)
+# =============================================================================
+
+
+@dataclass(frozen=True)
+class DatasetIngestedEvent(DomainEvent):
+    """Raised after dataset ingestion completes successfully.
+
+    Used by CQRS projections to:
+    - Pre-compute analytics (DFG, variants, statistics)
+    - Populate read model caches
+    - Trigger downstream processing
+    """
+
+    dataset_id: str = ""
+    parquet_path: str = ""
+    total_events: int = 0
+    total_cases: int = 0
+    total_activities: int = 0
+    user_id: str | None = None
+
+    @property
+    def event_type(self) -> str:
+        return "dataset.ingested"
+
+
+@dataclass(frozen=True)
+class DatasetDeletedEvent(DomainEvent):
+    """Raised when a dataset is deleted.
+
+    Used by CQRS projections to:
+    - Invalidate cached analytics
+    - Clean up read model entries
+    """
+
+    dataset_id: str = ""
+    user_id: str | None = None
+
+    @property
+    def event_type(self) -> str:
+        return "dataset.deleted"
+
+
+# =============================================================================
 # Model Discovery Events
 # =============================================================================
 

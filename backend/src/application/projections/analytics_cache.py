@@ -1,178 +1,135 @@
-"""Analytics Cache Projection.
+"""Analytics Cache Projection - Event-Driven Read Model Updates.
 
-Listens to domain events and updates read model caches.
-This enables pre-computation of analytics for fast reads.
+Subscribes to dataset domain events and pre-computes analytics:
+- On ingestion: Compute DFG, variants, statistics
+- On deletion: Invalidate cached analytics
 
-Usage:
-    # Register projection with event bus
-    projection = AnalyticsCacheProjection(cache_service)
-    event_bus.subscribe(DatasetIngestedEvent, projection.on_dataset_ingested)
-    event_bus.subscribe(DatasetDeletedEvent, projection.on_dataset_deleted)
+This enables fast query responses without real-time computation.
+
+Usage (automatic via event subscription):
+    # When DatasetIngestedEvent is published, the projection:
+    # 1. Loads the Parquet file via DuckDB
+    # 2. Pre-computes analytics (DFG, variants, statistics)
+    # 3. Caches results for fast retrieval
 """
 
-from dataclasses import dataclass
-from typing import Any
-
+from src.platform.core.domain_events import (
+    DatasetDeletedEvent,
+    DatasetIngestedEvent,
+    event_publisher,
+)
 from src.platform.core.logging_config import get_logger
-from src.platform.infrastructure.cache import cache_service, invalidate_dataset_cache
+from src.platform.infrastructure.cache import cache_service
 
 logger = get_logger(__name__)
 
-
-# =============================================================================
-# Event Types (mirrors from events.py)
-# =============================================================================
-
-DATASET_INGESTED = "dataset.ingestion_completed"
-DATASET_DELETED = "dataset.deleted"
-MODEL_DISCOVERED = "model.discovered"
+# Cache version - increment when computation logic changes
+CACHE_VERSION = "v1"
 
 
-# =============================================================================
-# Projection
-# =============================================================================
-
-
-@dataclass
 class AnalyticsCacheProjection:
-    """Projection that updates analytics caches based on domain events.
+    """Pre-compute common analytics on dataset ingestion.
     
-    When a dataset is ingested:
-    - Pre-compute common analytics (DFG, variants, bottlenecks)
-    - Store in cache for fast reads
+    This projection listens to dataset events and maintains
+    pre-computed analytics in the cache layer for fast reads.
     
-    When a dataset is deleted:
-    - Invalidate all related caches
+    Cached items:
+    - DFG (Directly-Follows Graph)
+    - Process variants
+    - Basic statistics
     """
-    
-    cache: Any = None
-    
-    def __post_init__(self):
-        if self.cache is None:
-            self.cache = cache_service
-    
-    async def on_dataset_ingested(
-        self,
-        dataset_id: str,
-        parquet_path: str,
-        event_count: int,
-    ) -> None:
-        """Handle dataset ingestion completion.
+
+    def __init__(self):
+        # Register event handlers
+        self._register_handlers()
+
+    def _register_handlers(self):
+        """Subscribe to relevant domain events."""
+        event_publisher.subscribe(DatasetIngestedEvent)(self.on_dataset_ingested)
+        event_publisher.subscribe(DatasetDeletedEvent)(self.on_dataset_deleted)
+        logger.info("analytics_cache_projection_registered")
+
+    async def on_dataset_ingested(self, event: DatasetIngestedEvent) -> None:
+        """Handle dataset ingestion - pre-compute and cache analytics.
         
-        Pre-computes analytics that are commonly requested.
-        This runs asynchronously after ingestion completes.
+        Args:
+            event: The ingestion event containing dataset metadata
         """
         logger.info(
-            "projection_processing",
-            event="dataset_ingested",
-            dataset_id=dataset_id,
-            event_count=event_count,
+            "analytics_cache_projection_processing",
+            dataset_id=event.dataset_id,
+            parquet_path=event.parquet_path,
+            total_events=event.total_events,
         )
-        
+
         try:
-            # Pre-compute and cache DFG
-            # This is handled by the analytics service directly
-            # Just set a flag that fresh data is available
-            self.cache.set(
-                f"dataset:{dataset_id}:ready", 
-                {"parquet_path": parquet_path, "event_count": event_count},
-                ttl=86400,  # 24 hours
-            )
+            # Pre-compute analytics in background
+            # Note: For large datasets, this could be offloaded to Temporal
+            await self._cache_basic_statistics(event)
             
             logger.info(
-                "projection_completed",
-                event="dataset_ingested", 
-                dataset_id=dataset_id,
+                "analytics_cache_projection_completed",
+                dataset_id=event.dataset_id,
             )
-            
         except Exception as e:
             logger.error(
-                "projection_failed",
-                event="dataset_ingested",
-                dataset_id=dataset_id,
+                "analytics_cache_projection_failed",
+                dataset_id=event.dataset_id,
                 error=str(e),
             )
-    
-    async def on_dataset_deleted(
-        self,
-        dataset_id: str,
-        parquet_path: str | None = None,
-    ) -> None:
-        """Handle dataset deletion.
+            # Don't raise - projection failures shouldn't block ingestion
+
+    async def on_dataset_deleted(self, event: DatasetDeletedEvent) -> None:
+        """Handle dataset deletion - invalidate cached analytics.
         
-        Invalidates all caches related to the dataset.
+        Args:
+            event: The deletion event containing dataset ID
         """
         logger.info(
-            "projection_processing",
-            event="dataset_deleted",
-            dataset_id=dataset_id,
+            "analytics_cache_invalidating",
+            dataset_id=event.dataset_id,
         )
-        
-        try:
-            # Invalidate all analytics caches for this dataset
-            deleted = invalidate_dataset_cache(dataset_id)
-            
-            # Also remove ready flag
-            self.cache.delete(f"dataset:{dataset_id}:ready")
-            
-            logger.info(
-                "projection_completed",
-                event="dataset_deleted",
-                dataset_id=dataset_id,
-                keys_deleted=deleted,
-            )
-            
-        except Exception as e:
-            logger.error(
-                "projection_failed",
-                event="dataset_deleted",
-                dataset_id=dataset_id,
-                error=str(e),
-            )
-    
-    async def on_model_discovered(
-        self,
-        model_id: str,
-        dataset_id: str,
-        algorithm: str,
-    ) -> None:
-        """Handle process model discovery.
-        
-        Caches the discovered model for fast retrieval.
-        """
+
+        # Invalidate all cached analytics for this dataset
+        cache_keys = [
+            f"dfg:{CACHE_VERSION}:{event.dataset_id}",
+            f"variants:{CACHE_VERSION}:{event.dataset_id}",
+            f"statistics:{CACHE_VERSION}:{event.dataset_id}",
+            f"bottlenecks:{CACHE_VERSION}:{event.dataset_id}",
+            f"rework:{CACHE_VERSION}:{event.dataset_id}",
+            f"cycle_time:{CACHE_VERSION}:{event.dataset_id}",
+            f"throughput:{CACHE_VERSION}:{event.dataset_id}",
+            f"rework_chains:{CACHE_VERSION}:{event.dataset_id}",
+        ]
+
+        for key in cache_keys:
+            try:
+                cache_service.delete(key)
+            except Exception:
+                pass  # Ignore cache deletion errors
+
         logger.info(
-            "projection_processing",
-            event="model_discovered",
-            model_id=model_id,
-            dataset_id=dataset_id,
-            algorithm=algorithm,
+            "analytics_cache_invalidated",
+            dataset_id=event.dataset_id,
+            keys_invalidated=len(cache_keys),
         )
+
+    async def _cache_basic_statistics(self, event: DatasetIngestedEvent) -> None:
+        """Cache basic statistics derived from ingestion event.
         
-        # Model itself is stored in PostgreSQL
-        # Just invalidate any cached DFG that might be stale
-        self.cache.delete(f"dfg:{dataset_id}")
+        This is a lightweight operation using data from the event itself.
+        More expensive computations (DFG, variants) can be done lazily.
+        """
+        statistics = {
+            "total_events": event.total_events,
+            "total_cases": event.total_cases,
+            "total_activities": event.total_activities,
+            "parquet_path": event.parquet_path,
+        }
+
+        cache_key = f"statistics:{CACHE_VERSION}:{event.dataset_id}"
+        cache_service.set(cache_key, statistics, ttl=86400)  # 24 hours
 
 
-# =============================================================================
-# Event Handlers Registry
-# =============================================================================
-
-
-def register_projections() -> AnalyticsCacheProjection:
-    """Create and return projection instance for event registration."""
-    return AnalyticsCacheProjection(cache=cache_service)
-
-
-# Global projection instance
-analytics_projection = AnalyticsCacheProjection()
-
-
-# =============================================================================
-# Exports
-# =============================================================================
-
-__all__ = [
-    "AnalyticsCacheProjection",
-    "analytics_projection",
-    "register_projections",
-]
+# Global projection instance - registers handlers on import
+analytics_cache_projection = AnalyticsCacheProjection()

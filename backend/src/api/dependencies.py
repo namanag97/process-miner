@@ -1,9 +1,8 @@
-"""FastAPI dependencies - DB session, auth, CQRS support, etc."""
+"""FastAPI dependencies - DB session, auth, etc."""
 
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Annotated
 
-import duckdb
 from fastapi import Depends, Header
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
@@ -12,12 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.platform.core.config import get_settings
 from src.platform.core.exceptions import AuthenticationError
 from src.platform.core.logging_config import get_logger
-from src.platform.infrastructure.database import (
-    get_read_session,
-    get_session,
-    get_write_session,
-)
 from src.platform.devconsole import log_auth_event
+from src.platform.infrastructure.database import get_session
 
 if TYPE_CHECKING:
     from src.platform.models import User
@@ -37,58 +32,43 @@ security = HTTPBearer(auto_error=False)
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Get database session (backward compatibility).
-    
-    For new code, prefer:
-    - get_write_db() for commands (POST/PUT/PATCH/DELETE)
-    - get_read_db() for queries (GET)
-    """
+    """Get database session (legacy - uses write session)."""
     async for session in get_session():
         yield session
 
 
 async def get_write_db() -> AsyncGenerator[AsyncSession, None]:
-    """Get write-optimized database session for commands.
-    
-    Use for: POST, PUT, PATCH, DELETE operations.
-    Connection pool: Lower concurrency, optimized for transactions.
-    """
+    """Get write database session for commands (transactional operations)."""
+    from src.platform.infrastructure.database import get_write_session
+
     async for session in get_write_session():
         yield session
 
 
 async def get_read_db() -> AsyncGenerator[AsyncSession, None]:
-    """Get read-optimized database session for queries.
-    
-    Use for: GET operations that read metadata from PostgreSQL.
-    Connection pool: Higher concurrency, optimized for reads.
-    Note: For analytics, use get_analytics_db() instead.
-    """
+    """Get read database session for queries (read-only operations)."""
+    from src.platform.infrastructure.database import get_read_session
+
     async for session in get_read_session():
         yield session
 
 
-def get_analytics_db() -> duckdb.DuckDBPyConnection:
-    """Get DuckDB connection for analytics queries.
-    
-    Use for: Analytics endpoints that read from Parquet files.
-    - Bottleneck detection
-    - Cycle time analysis
-    - DFG visualization
-    - Variant analysis
-    
-    DuckDB reads directly from Parquet (S3 or local filesystem).
-    """
+def get_duckdb():
+    """Get DuckDB connection for analytics queries."""
     from src.platform.infrastructure.duckdb import duckdb_manager
-    
-    return duckdb_manager.get_connection()
+
+    return duckdb_manager
 
 
 # Type aliases for dependency injection
 DBSession = Annotated[AsyncSession, Depends(get_db)]
 WriteDBSession = Annotated[AsyncSession, Depends(get_write_db)]
 ReadDBSession = Annotated[AsyncSession, Depends(get_read_db)]
-AnalyticsDB = Annotated[duckdb.DuckDBPyConnection, Depends(get_analytics_db)]
+
+# DuckDB for analytics (OLAP queries on Parquet)
+from src.platform.infrastructure.duckdb import DuckDBManager
+
+AnalyticsDB = Annotated[DuckDBManager, Depends(get_duckdb)]
 
 
 # =============================================================================

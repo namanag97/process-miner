@@ -22,6 +22,9 @@ from src.platform.temporal.activities.types import (
     ValidateFileOutput,
 )
 
+# CQRS: Event emission for read model sync
+from src.platform.core.domain_events import DatasetIngestedEvent, event_publisher
+
 logger = structlog.get_logger(__name__)
 
 
@@ -452,6 +455,19 @@ async def compute_statistics_activity(input: ComputeStatsInput) -> ComputeStatsO
             db.add(metadata)
 
             await db.commit()
+
+            # CQRS: Emit event for read model sync
+            # This triggers the AnalyticsCacheProjection to pre-compute analytics
+            parquet_path = stats.get("parquet_s3_key", "")
+            await event_publisher.publish(
+                DatasetIngestedEvent(
+                    dataset_id=input.dataset_id,
+                    parquet_path=parquet_path,
+                    total_events=stats.get("total_events", 0),
+                    total_cases=stats.get("total_cases", 0),
+                    total_activities=stats.get("total_activities", 0),
+                )
+            )
 
         logger.info(
             "compute_statistics_activity_completed",
