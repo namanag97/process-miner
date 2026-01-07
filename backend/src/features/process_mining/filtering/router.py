@@ -43,7 +43,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 
-from src.api.dependencies import CurrentUser, DBSession, ServiceContainer
+from src.api.dependencies import CurrentUser, ServiceContainer
 from src.features.process_mining.models import Dataset, ProcessCase, ProcessEvent
 from src.features.process_mining.schemas import (
     FilterConfig,
@@ -75,7 +75,7 @@ router = APIRouter(prefix="/filtering", tags=["Filtering"])
 async def apply_filters(
     dataset_id: str,
     request: FilterRequest,
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     container: ServiceContainer,
 ) -> FilteredLogResponse:
@@ -214,7 +214,7 @@ async def apply_filters(
 async def preview_filters(
     dataset_id: str,
     request: FilterPreviewRequest,
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     container: ServiceContainer,
 ) -> FilterPreviewResponse:
@@ -261,7 +261,7 @@ async def preview_filters(
 @router.get("/datasets/{dataset_id}/options", response_model=FilterOptionsResponse)
 async def get_filter_options(
     dataset_id: str,
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     container: ServiceContainer,
 ) -> FilterOptionsResponse:
@@ -293,7 +293,7 @@ async def get_filter_options(
 @router.get("/datasets/{dataset_id}/results", response_model=FilteredLogListResponse)
 async def list_filtered_logs(
     dataset_id: str,
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
 ) -> FilteredLogListResponse:
     """
@@ -364,7 +364,7 @@ async def list_filtered_logs(
 async def delete_filtered_log(
     dataset_id: str,
     filtered_id: str,
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
 ) -> dict[str, Any]:
     """

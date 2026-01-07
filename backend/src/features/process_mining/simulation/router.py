@@ -40,7 +40,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
 
-from src.api.dependencies import CurrentUser, DBSession, ServiceContainer
+from src.api.dependencies import CurrentUser, ServiceContainer
 from src.features.process_mining.models import Dataset, ProcessCase, ProcessEvent, ProcessModel
 from src.features.process_mining.schemas import (
     PlayOutRequest,
@@ -62,7 +62,7 @@ router = APIRouter(prefix="/simulation", tags=["Simulation"])
 async def play_out_model(
     model_id: str,
     request: PlayOutRequest,
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     container: ServiceContainer,
 ) -> PlayOutResponse:
@@ -139,7 +139,7 @@ async def play_out_model(
 async def simulate_scenario(
     dataset_id: str,
     request: SimulationRequest,
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     container: ServiceContainer,
 ) -> SimulationResponse:
@@ -171,7 +171,7 @@ async def simulate_scenario(
 @router.post("/datasets/{dataset_id}/capacity-plan")
 async def estimate_capacity(
     dataset_id: str,
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     container: ServiceContainer,
     target_throughput: float = Query(..., description="Target throughput"),

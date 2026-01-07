@@ -45,7 +45,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 
-from src.api.dependencies import DBSession, ServiceContainer
+from src.api.dependencies import ReadDBSession, WriteDBSession, ServiceContainer
 from src.features.process_mining.models import Dataset, PredictionModel
 from src.features.process_mining.schemas import (
     BatchPredictionRequest,
@@ -63,7 +63,7 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/predictions", tags=["Predictions"])
 
 
-async def _get_pm4py_log(dataset_id: str, db: DBSession, container: ServiceContainer):
+async def _get_pm4py_log(dataset_id: str, db: ReadDBSession, container: ServiceContainer):
     """Helper to get PM4Py log from dataset_id."""
     query = select(Dataset).where(Dataset.id == dataset_id)
     result = await db.execute(query)
@@ -94,7 +94,7 @@ async def _get_pm4py_log(dataset_id: str, db: DBSession, container: ServiceConta
 async def train_predictor(
     dataset_id: str,
     request: TrainPredictorRequest,
-    db: DBSession,
+    db: WriteDBSession,  # CQRS: Write pool for training
     container: ServiceContainer,
     async_mode: bool = False,  # Sync by default (Celery removed)
     user_id: str | None = None,
@@ -174,7 +174,7 @@ async def train_predictor(
 
 async def get_job_status(
     job_id: str,
-    db: DBSession,
+    db: ReadDBSession,  # CQRS: Read-only job status lookup
     user_id: str | None = None,
 ) -> dict[str, Any]:
     """Get status of an async training job.
@@ -197,7 +197,7 @@ async def get_job_status(
     }
 
 
-async def list_predictors(dataset_id: str, db: DBSession) -> PredictorListResponse:
+async def list_predictors(dataset_id: str, db: ReadDBSession) -> PredictorListResponse:
     """List all predictors for an event log."""
     logger.info("listing_predictors", dataset_id=dataset_id)
 
@@ -210,7 +210,7 @@ async def list_predictors(dataset_id: str, db: DBSession) -> PredictorListRespon
     return PredictorListResponse(dataset_id=dataset_id, predictors=items, total=len(items))
 
 
-async def get_predictor(predictor_id: str, db: DBSession) -> PredictorResponse:
+async def get_predictor(predictor_id: str, db: ReadDBSession) -> PredictorResponse:
     """Get predictor details."""
     logger.info("getting_predictor", predictor_id=predictor_id)
 
@@ -227,7 +227,7 @@ async def get_predictor(predictor_id: str, db: DBSession) -> PredictorResponse:
 async def predict(
     predictor_id: str,
     request: PredictionRequest,
-    db: DBSession,
+    db: ReadDBSession,  # CQRS: Read-only prediction
     container: ServiceContainer,
 ) -> PredictionResponse:
     """Make a prediction for a case prefix."""
@@ -273,7 +273,7 @@ async def predict(
 async def predict_batch(
     predictor_id: str,
     request: BatchPredictionRequest,
-    db: DBSession,
+    db: ReadDBSession,  # CQRS: Read-only batch prediction
     container: ServiceContainer,
 ) -> BatchPredictionResponse:
     """Make batch predictions."""
@@ -322,7 +322,7 @@ async def predict_batch(
     return BatchPredictionResponse(predictor_id=predictor_id, predictions=predictions)
 
 
-async def delete_predictor(predictor_id: str, db: DBSession) -> dict[str, Any]:
+async def delete_predictor(predictor_id: str, db: WriteDBSession) -> dict[str, Any]:
     """Delete a predictor."""
     logger.info("deleting_predictor", predictor_id=predictor_id)
 

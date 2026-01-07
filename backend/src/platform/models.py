@@ -25,10 +25,6 @@ from src.shared.database import Base
 # =============================================================================
 # Admin Domain Models (Re-exported for backward compatibility)
 # =============================================================================
-from src.platform.users.organization import Organization
-from src.platform.users.user import User
-from src.platform.users.workspace import Workspace, WorkspaceMember
-from src.platform.users.project import Project
 
 # =============================================================================
 # Async Jobs (Platform Infrastructure)

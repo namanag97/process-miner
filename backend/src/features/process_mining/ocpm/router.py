@@ -11,7 +11,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
-from src.api.dependencies import CurrentUser, DBSession
+from src.api.dependencies import CurrentUser
 from src.features.process_mining.models import (
     Dataset,
     DatasetStatus,
@@ -48,7 +48,7 @@ CHUNK_SIZE = 64 * 1024
 
 @router.post("/upload", response_model=OCELLogResponse)
 async def upload_ocel(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,  # BUG-078 FIX: Require authentication
     file: UploadFile = File(...),
     name: str | None = Form(None),
@@ -161,7 +161,7 @@ async def upload_ocel(
 
 
 @router.get("/logs", response_model=OCELLogListResponse)
-async def list_ocel_logs(db: DBSession, user: CurrentUser):
+async def list_ocel_logs(db: ReadDBSession, user: CurrentUser):
     """List all OCEL logs."""
     result = await db.execute(select(OCELLog).order_by(OCELLog.created_at.desc()))
     response_logs = [OCELLogResponse.model_validate(log) for log in result.scalars().all()]
@@ -169,7 +169,7 @@ async def list_ocel_logs(db: DBSession, user: CurrentUser):
 
 
 @router.get("/datasets/{dataset_id}", response_model=OCELLogResponse)
-async def get_ocel_log(dataset_id: str, db: DBSession, user: CurrentUser):
+async def get_ocel_log(dataset_id: str, db: ReadDBSession, user: CurrentUser):
     """Get OCEL log details."""
     result = await db.execute(select(OCELLog).where(OCELLog.id == dataset_id))
     log = result.scalar_one_or_none()
@@ -179,7 +179,7 @@ async def get_ocel_log(dataset_id: str, db: DBSession, user: CurrentUser):
 
 
 @router.delete("/datasets/{dataset_id}")
-async def delete_ocel_log(dataset_id: str, db: DBSession, user: CurrentUser):
+async def delete_ocel_log(dataset_id: str, db: ReadDBSession, user: CurrentUser):
     """Delete an OCEL log."""
     result = await db.execute(select(OCELLog).where(OCELLog.id == dataset_id))
     log = result.scalar_one_or_none()
@@ -196,7 +196,7 @@ async def delete_ocel_log(dataset_id: str, db: DBSession, user: CurrentUser):
 
 
 @router.get("/datasets/{dataset_id}/object-types", response_model=list[OCELObjectTypeResponse])
-async def get_object_types(dataset_id: str, db: DBSession, user: CurrentUser):
+async def get_object_types(dataset_id: str, db: ReadDBSession, user: CurrentUser):
     """Get object types in an OCEL log."""
     result = await db.execute(select(OCELObjectType).where(OCELObjectType.dataset_id == dataset_id))
     object_types = result.scalars().all()
@@ -217,7 +217,7 @@ async def get_object_types(dataset_id: str, db: DBSession, user: CurrentUser):
 
 
 @router.get("/datasets/{dataset_id}/statistics", response_model=OCELStatisticsResponse)
-async def get_ocel_statistics(dataset_id: str, db: DBSession, user: CurrentUser):
+async def get_ocel_statistics(dataset_id: str, db: ReadDBSession, user: CurrentUser):
     """Get detailed statistics for an OCEL log."""
     result = await db.execute(select(OCELLog).where(OCELLog.id == dataset_id))
     log = result.scalar_one_or_none()
@@ -243,7 +243,7 @@ async def get_ocel_statistics(dataset_id: str, db: DBSession, user: CurrentUser)
 
 @router.post("/discover")
 async def discover_oc_petri_net(
-    request: DiscoverOCPNRequest, db: DBSession, user: CurrentUser, async_mode: bool = True
+    request: DiscoverOCPNRequest, db: ReadDBSession, user: CurrentUser, async_mode: bool = True
 ):
     """Discover Object-Centric Petri Net from an OCEL log."""
     result = await db.execute(select(OCELLog).where(OCELLog.id == request.dataset_id))
@@ -312,14 +312,14 @@ async def discover_oc_petri_net(
 
 
 @router.get("/models", response_model=list[OCPetriNetResponse])
-async def list_oc_petri_nets(db: DBSession, user: CurrentUser):
+async def list_oc_petri_nets(db: ReadDBSession, user: CurrentUser):
     """List all discovered Object-Centric Petri Nets."""
     result = await db.execute(select(OCPetriNet).order_by(OCPetriNet.created_at.desc()))
     return [OCPetriNetResponse.model_validate(m) for m in result.scalars().all()]
 
 
 @router.get("/models/{model_id}", response_model=OCPetriNetResponse)
-async def get_oc_petri_net(model_id: str, db: DBSession, user: CurrentUser):
+async def get_oc_petri_net(model_id: str, db: ReadDBSession, user: CurrentUser):
     """Get Object-Centric Petri Net details."""
     result = await db.execute(select(OCPetriNet).where(OCPetriNet.id == model_id))
     model = result.scalar_one_or_none()
@@ -329,7 +329,7 @@ async def get_oc_petri_net(model_id: str, db: DBSession, user: CurrentUser):
 
 
 @router.delete("/models/{model_id}")
-async def delete_oc_petri_net(model_id: str, db: DBSession, user: CurrentUser):
+async def delete_oc_petri_net(model_id: str, db: ReadDBSession, user: CurrentUser):
     """Delete an Object-Centric Petri Net."""
     result = await db.execute(select(OCPetriNet).where(OCPetriNet.id == model_id))
     model = result.scalar_one_or_none()
@@ -341,7 +341,7 @@ async def delete_oc_petri_net(model_id: str, db: DBSession, user: CurrentUser):
 
 
 @router.get("/datasets/{dataset_id}/relationships", response_model=dict)
-async def get_object_relationships(dataset_id: str, db: DBSession, user: CurrentUser):
+async def get_object_relationships(dataset_id: str, db: ReadDBSession, user: CurrentUser):
     """Get object-event relationships summary."""
     result = await db.execute(select(OCELLog).where(OCELLog.id == dataset_id))
     log = result.scalar_one_or_none()
@@ -359,7 +359,7 @@ async def get_object_relationships(dataset_id: str, db: DBSession, user: Current
 
 
 @router.get("/datasets/{dataset_id}/oc-dfg", response_model=OCDFGResponse)
-async def get_oc_dfg(dataset_id: str, db: DBSession, user: CurrentUser):
+async def get_oc_dfg(dataset_id: str, db: ReadDBSession, user: CurrentUser):
     """Get Object-Centric Directly-Follows Graph (OC-DFG)."""
     result = await db.execute(select(OCELLog).where(OCELLog.id == dataset_id))
     log = result.scalar_one_or_none()
@@ -414,7 +414,7 @@ async def list_supported_formats():
 @router.post("/datasets/{dataset_id}/flatten")
 async def flatten_ocel_to_dataset(
     dataset_id: str,
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     object_type: str = Form(..., description="Object type to flatten on"),
     name: str | None = Form(None, description="Name for the created dataset"),

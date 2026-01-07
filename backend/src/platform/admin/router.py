@@ -37,7 +37,7 @@ from datetime import datetime
 from fastapi import APIRouter, Path, Query, status
 from sqlalchemy import func, select
 
-from src.api.dependencies import CurrentUser, DBSession
+from src.api.dependencies import CurrentUser, ReadDBSession
 from src.platform.admin.schemas import (
     AdminUserListResponse,
     AdminUserResponse,
@@ -76,7 +76,7 @@ async def _require_superuser(user: User) -> None:
 
 @router.get("/users", response_model=AdminUserListResponse)
 async def list_all_users(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -133,7 +133,7 @@ async def list_all_users(
 
 @router.get("/users/{user_id}", response_model=AdminUserResponse)
 async def get_user_details(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     user_id: str = Path(..., description="User ID"),
 ) -> AdminUserResponse:
@@ -170,7 +170,7 @@ async def get_user_details(
 @router.put("/users/{user_id}", response_model=AdminUserResponse)
 async def update_user(
     request: AdminUserUpdateRequest,
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     user_id: str = Path(..., description="User ID"),
 ) -> AdminUserResponse:
@@ -216,7 +216,7 @@ async def update_user(
 
 @router.post("/users/{user_id}/disable", status_code=status.HTTP_200_OK)
 async def disable_user(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     user_id: str = Path(..., description="User ID"),
 ) -> dict:
@@ -252,7 +252,7 @@ async def disable_user(
 
 @router.get("/errors", response_model=ErrorLogListResponse)
 async def list_errors(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -268,7 +268,7 @@ async def list_errors(
 
 @router.get("/errors/{error_id}", response_model=ErrorLogResponse)
 async def get_error_details(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     error_id: str = Path(..., description="Error ID"),
 ) -> ErrorLogResponse:
@@ -281,7 +281,7 @@ async def get_error_details(
 
 @router.put("/errors/{error_id}/resolve")
 async def resolve_error(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     error_id: str = Path(..., description="Error ID"),
 ) -> dict:
@@ -306,7 +306,7 @@ async def resolve_error(
 
 @router.get("/stats", response_model=SystemStatsResponse)
 async def get_system_stats(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
 ) -> SystemStatsResponse:
     """Get system-wide statistics (superuser only)."""

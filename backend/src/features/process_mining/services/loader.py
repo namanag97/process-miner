@@ -122,7 +122,6 @@ class EventLogLoader:
         """Build Parquet URL for DuckDB to read."""
         if self._is_local:
             # Local filesystem - return absolute path
-            from pathlib import Path
             local_path = self._local_base_path / parquet_key
             return str(local_path.absolute())
         else:

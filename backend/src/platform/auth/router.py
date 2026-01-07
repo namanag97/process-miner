@@ -56,7 +56,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import select
 
-from src.api.dependencies import CurrentUser, DBSession
+from src.api.dependencies import CurrentUser, ReadDBSession
 from src.platform.core.config import get_settings
 from src.platform.core.error_messages import ErrorMessages
 from src.platform.core.exceptions import (
@@ -233,7 +233,7 @@ def _workspace_to_response(workspace: Workspace) -> WorkspaceResponse:
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     request: RegisterRequest,
-    db: DBSession,
+    db: ReadDBSession,
 ) -> TokenResponse:
     """Register a new user account for the process mining SaaS platform.
 
@@ -338,7 +338,7 @@ async def register(
 @router.post("/login", response_model=TokenResponse)
 async def login(
     request: LoginRequest,
-    db: DBSession,
+    db: ReadDBSession,
 ) -> TokenResponse:
     """Authenticate user and return JWT tokens.
 
@@ -382,7 +382,7 @@ async def login(
 @router.post("/refresh", response_model=TokenPair)
 async def refresh_token(
     request: RefreshRequest,
-    db: DBSession,
+    db: ReadDBSession,
 ) -> TokenPair:
     """Refresh access token using refresh token."""
     token_data = validate_refresh_token(request.refresh_token)
@@ -403,7 +403,7 @@ async def refresh_token(
 
 @router.get("/me", response_model=CurrentUserResponse)
 async def get_current_user_info(
-    db: DBSession,
+    db: ReadDBSession,
     current_user: CurrentUser,
 ) -> CurrentUserResponse:
     """Get current authenticated user with organization and workspaces."""
@@ -433,7 +433,7 @@ async def get_current_user_info(
 
 @router.put("/me", response_model=UserResponse)
 async def update_current_user(
-    db: DBSession,
+    db: ReadDBSession,
     current_user: CurrentUser,
     name: str | None = None,
 ) -> UserResponse:
@@ -457,7 +457,7 @@ class ChangePasswordRequest(BaseModel):
 @router.post("/change-password")
 async def change_password(
     request: ChangePasswordRequest,
-    db: DBSession,
+    db: ReadDBSession,
     current_user: CurrentUser,
 ) -> dict[str, str]:
     """Change password for logged in user."""
@@ -488,7 +488,7 @@ class ForgotPasswordRequest(BaseModel):
 @router.post("/forgot-password")
 async def forgot_password(
     request: ForgotPasswordRequest,
-    db: DBSession,
+    db: ReadDBSession,
 ) -> dict[str, str]:
     """Request password reset email.
 
@@ -518,7 +518,7 @@ class ResetPasswordRequest(BaseModel):
 @router.post("/reset-password")
 async def reset_password(
     request: ResetPasswordRequest,
-    db: DBSession,
+    db: ReadDBSession,
 ) -> dict[str, str]:
     """Set new password with reset token.
 
@@ -618,7 +618,7 @@ async def oauth_github_callback(
 
 @router.get("/me/legacy", response_model=CurrentUserResponse, deprecated=True)
 async def get_current_user_legacy(
-    db: DBSession,
+    db: ReadDBSession,
     email: str | None = Query(None, description="Email to identify user (MVP mode)"),
 ) -> CurrentUserResponse:
     """Legacy MVP endpoint - use /auth/me with JWT instead.

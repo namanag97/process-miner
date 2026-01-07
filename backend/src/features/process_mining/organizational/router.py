@@ -30,7 +30,7 @@ Organizational mining analyzes how people work together:
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 
-from src.api.dependencies import CurrentUser, DBSession, ServiceContainer
+from src.api.dependencies import CurrentUser, ServiceContainer
 from src.features.process_mining.models import Dataset
 from src.features.process_mining.schemas import (
     NetworkEdge,
@@ -49,7 +49,7 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/organizational", tags=["Organizational Mining"])
 
 
-async def _get_pm4py_log(dataset_id: str, db: DBSession, container: ServiceContainer):
+async def _get_pm4py_log(dataset_id: str, db: ReadDBSession, container: ServiceContainer):
     """Helper to get PM4Py log from dataset_id."""
     query = select(Dataset).where(Dataset.id == dataset_id)
     result = await db.execute(query)
@@ -61,7 +61,7 @@ async def _get_pm4py_log(dataset_id: str, db: DBSession, container: ServiceConta
 
 @router.get("/datasets/{dataset_id}/handover-network", response_model=SocialNetworkResponse)
 async def get_handover_network(
-    dataset_id: str, db: DBSession, user: CurrentUser, container: ServiceContainer
+    dataset_id: str, db: ReadDBSession, user: CurrentUser, container: ServiceContainer
 ) -> SocialNetworkResponse:
     """Discover handover of work network."""
     await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
@@ -79,7 +79,7 @@ async def get_handover_network(
 
 @router.get("/datasets/{dataset_id}/collaboration-network", response_model=SocialNetworkResponse)
 async def get_collaboration_network(
-    dataset_id: str, db: DBSession, user: CurrentUser, container: ServiceContainer
+    dataset_id: str, db: ReadDBSession, user: CurrentUser, container: ServiceContainer
 ) -> SocialNetworkResponse:
     """Discover working together network."""
     await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
@@ -97,7 +97,7 @@ async def get_collaboration_network(
 
 @router.get("/datasets/{dataset_id}/resource-similarity", response_model=SocialNetworkResponse)
 async def get_resource_similarity(
-    dataset_id: str, db: DBSession, user: CurrentUser, container: ServiceContainer
+    dataset_id: str, db: ReadDBSession, user: CurrentUser, container: ServiceContainer
 ) -> SocialNetworkResponse:
     """Discover resource similarity based on activities."""
     await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
@@ -115,7 +115,7 @@ async def get_resource_similarity(
 
 @router.get("/datasets/{dataset_id}/roles", response_model=list[ResourceRoleResponse])
 async def get_roles(
-    dataset_id: str, db: DBSession, user: CurrentUser, container: ServiceContainer
+    dataset_id: str, db: ReadDBSession, user: CurrentUser, container: ServiceContainer
 ) -> list[ResourceRoleResponse]:
     """Discover organizational roles."""
     await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
@@ -129,7 +129,7 @@ async def get_roles(
     "/datasets/{dataset_id}/resources/{resource}/profile", response_model=ResourceProfileResponse
 )
 async def get_resource_profile(
-    dataset_id: str, resource: str, db: DBSession, user: CurrentUser, container: ServiceContainer
+    dataset_id: str, resource: str, db: ReadDBSession, user: CurrentUser, container: ServiceContainer
 ) -> ResourceProfileResponse:
     """Get detailed profile for a specific resource."""
     await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
@@ -141,7 +141,7 @@ async def get_resource_profile(
 
 @router.get("/datasets/{dataset_id}/workload", response_model=ResourceWorkloadResponse)
 async def get_workload(
-    dataset_id: str, db: DBSession, user: CurrentUser, container: ServiceContainer
+    dataset_id: str, db: ReadDBSession, user: CurrentUser, container: ServiceContainer
 ) -> ResourceWorkloadResponse:
     """Get workload distribution across resources."""
     await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)

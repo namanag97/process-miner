@@ -10,7 +10,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from src.api.dependencies import CurrentUser, DBSession
+from src.api.dependencies import CurrentUser, ReadDBSession
 from src.platform.core.logging_config import get_logger
 from src.platform.dag.service import DAGService
 from src.platform.dag.templates import get_template, list_templates
@@ -197,7 +197,7 @@ async def get_templates():
 
 @router.post("/definitions", status_code=201)
 async def create_definition(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     request: CreateDefinitionRequest,
 ):
@@ -235,7 +235,7 @@ async def create_definition(
 
 @router.get("/definitions", response_model=DefinitionListResponse)
 async def list_definitions(
-    db: DBSession,
+    db: ReadDBSession,
     active_only: bool = Query(True, description="Only return active definitions"),
 ):
     """List all DAG definitions.
@@ -252,7 +252,7 @@ async def list_definitions(
 
 @router.get("/definitions/{definition_id}", response_model=DefinitionResponse)
 async def get_definition(
-    db: DBSession,
+    db: ReadDBSession,
     definition_id: str,
 ):
     """Get a DAG definition by ID.
@@ -278,7 +278,7 @@ async def get_definition(
 
 @router.post("/runs", status_code=202)
 async def trigger_run(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     request: TriggerRunRequest,
 ):
@@ -349,7 +349,7 @@ async def trigger_run(
 
 @router.get("/runs", response_model=RunListResponse)
 async def list_runs(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     status: str | None = Query(None, description="Filter by status"),
     definition_id: str | None = Query(None, description="Filter by definition"),
@@ -383,7 +383,7 @@ async def list_runs(
 
 @router.get("/runs/{run_id}", response_model=RunResponse)
 async def get_run(
-    db: DBSession,
+    db: ReadDBSession,
     run_id: str,
 ):
     """Get DAG run status.
@@ -405,7 +405,7 @@ async def get_run(
 
 @router.post("/runs/{run_id}/cancel")
 async def cancel_run(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     run_id: str,
 ):

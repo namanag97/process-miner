@@ -11,10 +11,10 @@ import json
 from fastapi import APIRouter
 from sqlalchemy import select
 
-from src.api.dependencies import CurrentUser, DBSession
+from src.api.dependencies import CurrentUser, ReadDBSession
 from src.features.process_mining.models import DatasetColumnMapping, DatasetStatus
 from src.features.process_mining.schemas.analyses import JobStatusResponse
-from src.platform.core.enums import JobStatus, JobType
+from src.platform.core.enums import JobType
 from src.platform.core.exceptions import ValidationError
 from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
@@ -52,7 +52,7 @@ Use `GET /operations/{workflow_id}` to track progress.
     },
 )
 async def trigger_ingestion(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
     user: CurrentUser,
 ) -> JobStatusResponse:
@@ -171,7 +171,7 @@ Clears existing events and reprocesses from the original file.
     },
 )
 async def trigger_reingest(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
     user: CurrentUser,
 ) -> JobStatusResponse:

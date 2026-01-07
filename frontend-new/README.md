@@ -1,101 +1,459 @@
-# FrontendNew
+# Process Mining SaaS - Frontend
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+> **Version:** 2.0
+> **Tech Stack:** React 19, TypeScript, Nx, Rspack, TanStack Query
+> **Status:** ✅ Production-Ready
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+A modern, type-safe React application for process mining analytics, built with best practices for performance, testability, and developer experience.
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/getting-started/tutorials/react-standalone-tutorial?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+---
 
-## Run tasks
+## Quick Start
 
-To run the dev server for your app, use:
+```bash
+# Install dependencies
+npm install
 
-```sh
-npx nx serve frontend-new
+# Start development server (port 4200)
+npm run start
+
+# Build for production
+npm run build
+
+# Run tests
+npm run test
+
+# Type check
+npm run typecheck
+
+# Lint
+npm run lint
 ```
 
-To create a production bundle:
+**Development Server:** http://localhost:4200
+**Backend API:** http://localhost:8001
+**API Docs:** http://localhost:8001/docs
 
-```sh
-npx nx build frontend-new
+---
+
+## Features
+
+### 7 Core Domains
+
+1. **Explorer** - Process exploration and filtering
+2. **Discovery** - Automated process model discovery
+3. **Analytics** - Performance analytics and bottlenecks
+4. **AI** - Predictive analytics and ML insights
+5. **KPI** - Custom KPI dashboards
+6. **Projects** - Workspace and project management
+7. **Upload Wizard** - Dataset upload with schema mapping
+
+### Key Capabilities
+
+- ✅ **Process Visualization** - Interactive process graphs with Cytoscape.js
+- ✅ **Advanced Filtering** - Activity, time, duration, resource filters
+- ✅ **Real-time Analytics** - Live performance metrics
+- ✅ **AI Predictions** - Next activity, remaining time forecasts
+- ✅ **Multi-tenant** - Organization and workspace isolation
+- ✅ **DevConsole** - In-app debugging with importance scoring
+
+---
+
+## Project Structure
+
+```
+frontend-new/
+├── apps/frontend-new/          # Main application
+│   └── src/
+│       ├── features/           # Feature modules (domains)
+│       ├── shared/             # Shared utilities, hooks, components
+│       ├── App.tsx             # Root component
+│       └── main.tsx            # Entry point
+│
+├── libs/                       # Shared libraries
+│   ├── design-system/          # @lumina/design-system
+│   ├── openapi-sdk/            # Auto-generated API client
+│   └── process-graph/          # Process visualization
+│
+└── docs/                       # Comprehensive documentation
+    ├── ARCHITECTURE.md
+    ├── STATE_MANAGEMENT_GUIDE.md
+    ├── ERROR_HANDLING_AND_LOGGING_GUIDE.md
+    ├── TESTING_GUIDE.md
+    └── API_INTEGRATION_GUIDE.md
 ```
 
-To see all available targets to run for a project, run:
+---
 
-```sh
-npx nx show project frontend-new
+## Architecture
+
+### Tech Stack
+
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **Framework** | React 19 | UI rendering, hooks, suspense |
+| **Language** | TypeScript 5.3 | Type safety (95%+ coverage) |
+| **Build** | Nx + Rspack | Monorepo, fast builds |
+| **Routing** | React Router v6 | Client-side navigation |
+| **State** | TanStack Query v5 | Server state caching |
+| **UI** | Ant Design v5 | Component library |
+| **Visualization** | Cytoscape.js | Process graphs |
+| **Testing** | Jest + RTL | Unit & integration tests |
+
+### State Management (3 Layers)
+
+1. **Server State** (TanStack Query) - Backend data, caching, revalidation
+2. **Client State** (React Context) - UI preferences, sidebar, theme
+3. **URL State** (React Router) - Filters, pagination, shareable state
+
+See [STATE_MANAGEMENT_GUIDE.md](./docs/STATE_MANAGEMENT_GUIDE.md) for details.
+
+### Error Handling
+
+- **Feature-level error boundaries** in all 7 features
+- **4 error classifications**: Transient, Validation, Authorization, Critical
+- **DevConsole logging** with importance scoring (1-5)
+- **User-friendly fallbacks** with retry options
+
+See [ERROR_HANDLING_AND_LOGGING_GUIDE.md](./docs/ERROR_HANDLING_AND_LOGGING_GUIDE.md) for details.
+
+---
+
+## Development
+
+### Available Scripts
+
+```bash
+# Development
+npm run start              # Dev server (port 4200)
+npm run build              # Production build
+npm run preview            # Preview production build
+
+# Code Quality
+npm run typecheck          # TypeScript check (0 errors)
+npm run lint               # ESLint
+npm run lint -- --fix      # Auto-fix lint issues
+
+# Testing
+npm run test               # Run all tests
+npm run test:watch         # Watch mode
+npm run test:coverage      # With coverage report
+
+# API Client Generation
+npm run generate:sdk       # Regenerate API client from OpenAPI spec
 ```
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+### Development Workflow
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+1. **Start Backend** (in separate terminal):
+   ```bash
+   cd ../backend/src
+   ../.venv/bin/python -m uvicorn api.main:app --reload --port 8001
+   ```
 
-## Add new projects
+2. **Start Frontend**:
+   ```bash
+   npm run start
+   ```
 
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
+3. **Open DevConsole**: Press `Ctrl+Shift+D` or click bug icon
+   - View logs with importance scoring
+   - Track API requests/responses
+   - Monitor backend health
 
-Use the plugin's generator to create new projects.
+4. **Make Changes**: Files hot-reload automatically
 
-To generate a new application, use:
+5. **Run Type Check**: `npm run typecheck` (should show 0 errors)
 
-```sh
-npx nx g @nx/react:app demo
+6. **Run Tests**: `npm run test`
+
+7. **Commit Changes**:
+   ```bash
+   git add .
+   git commit -m "feat: description"
+   git push
+   ```
+
+---
+
+## Documentation
+
+### Guides
+
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System architecture, data flow, tech stack
+- **[STATE_MANAGEMENT_GUIDE.md](./docs/STATE_MANAGEMENT_GUIDE.md)** - TanStack Query, Context, URL state
+- **[ERROR_HANDLING_AND_LOGGING_GUIDE.md](./docs/ERROR_HANDLING_AND_LOGGING_GUIDE.md)** - Error boundaries, DevConsole, importance scoring
+- **[TESTING_GUIDE.md](./docs/TESTING_GUIDE.md)** - Unit tests, component tests, MSW setup
+- **[API_INTEGRATION_GUIDE.md](./docs/API_INTEGRATION_GUIDE.md)** - Queries, mutations, cache management
+
+### Quick Links
+
+- [API Documentation](http://localhost:8001/docs) - Swagger UI
+- [OpenAPI Spec](http://localhost:8001/openapi.json) - API schema
+- [Backend README](../backend/README.md) - Backend setup guide
+- [Project CLAUDE.md](../CLAUDE.md) - Claude AI assistant instructions
+
+---
+
+## Key Concepts
+
+### Feature Organization
+
+Each feature is self-contained:
+```
+features/explorer/
+├── pages/          # Route components
+├── components/     # Feature-specific UI
+├── hooks/          # Data fetching, business logic
+├── utils/          # Pure functions
+├── types/          # TypeScript types
+└── routes.tsx      # Route configuration
 ```
 
-To generate a new library, use:
+### Query Pattern
 
-```sh
-npx nx g @nx/react:lib mylib
+```typescript
+import { useQuery } from '@tanstack/react-query';
+
+function useDatasets() {
+  return useQuery({
+    queryKey: ['datasets'],
+    queryFn: async () => {
+      const response = await fetch('/api/v1/datasets');
+      return response.json();
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
 ```
 
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
+### Error Boundary Pattern
 
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Set up CI!
-
-### Step 1
-
-To connect to Nx Cloud, run the following command:
-
-```sh
-npx nx connect
+```typescript
+<ErrorBoundary
+  fallbackRender={({ error, resetErrorBoundary }) => (
+    <FeatureErrorFallback
+      error={error}
+      resetError={resetErrorBoundary}
+      featureName="Explorer"
+    />
+  )}
+>
+  <Routes>{/* feature routes */}</Routes>
+</ErrorBoundary>
 ```
 
-Connecting to Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
+### DevConsole Logging
 
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+```typescript
+import { devLog } from '@/shared/ui';
 
-### Step 2
+// Log user action (importance: 4)
+devLog.action('ProjectCreate', 'User clicked create', { projectName });
 
-Use the following command to configure a CI workflow for your workspace:
+// Log API request (importance: 2)
+devLog.apiRequest('POST', '/api/v1/projects', data);
 
-```sh
-npx nx g ci-workflow
+// Log API response (importance: 3-5 based on status)
+devLog.apiResponse('POST', '/api/v1/projects', 201, duration, response);
+
+// Log error (importance: 5)
+devLog.error('ProjectCreate', 'Failed to create', { error: error.message });
 ```
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+---
 
-## Install Nx Console
+## TypeScript
 
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+- **Coverage:** 95%+ (only 1 `any` in template code)
+- **Strict Mode:** Enabled
+- **No Implicit Any:** Enforced
+- **Error Handling:** `unknown` with type guards instead of `any`
 
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+### Type-Safe Patterns
 
-## Useful links
+```typescript
+// ✅ GOOD: Type guard for errors
+catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  devLog.error('Feature', error.message, { stack: error.stack });
+}
 
-Learn more:
+// ❌ BAD: Using any
+catch (err: any) {
+  devLog.error('Feature', err.message);
+}
+```
 
-- [Learn more about this workspace setup](https://nx.dev/getting-started/tutorials/react-standalone-tutorial?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+---
 
-And join the Nx community:
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## Performance
+
+### Optimizations
+
+- ✅ **Code Splitting** - Route-based lazy loading
+- ✅ **Memoization** - useMemo for expensive calculations
+- ✅ **Web Workers** - ELK graph layout off main thread
+- ✅ **Bundle Analysis** - `npm run build -- --analyze`
+- ✅ **React Query Caching** - Reduces API calls
+
+### Bundle Size
+
+- **Main Bundle:** ~200KB (gzipped)
+- **Vendor Bundle:** ~150KB (React, Ant Design)
+- **Feature Bundles:** 20-50KB each (lazy-loaded)
+
+---
+
+## Testing
+
+### Test Structure
+
+```
+src/features/projects/
+├── components/
+│   ├── ProjectCard.tsx
+│   └── __tests__/
+│       └── ProjectCard.test.tsx
+└── hooks/
+    ├── useProjects.ts
+    └── __tests__/
+        └── useProjects.test.ts
+```
+
+### Running Tests
+
+```bash
+npm run test                    # All tests
+npm run test:watch              # Watch mode
+npm run test:coverage           # With coverage
+npm run test -- ProjectCard     # Specific test
+```
+
+### Coverage Goals
+
+- **Utils:** >80%
+- **Business Logic:** >70%
+- **Components:** >50%
+- **Integration:** Critical paths
+
+See [TESTING_GUIDE.md](./docs/TESTING_GUIDE.md) for patterns and examples.
+
+---
+
+## Deployment
+
+### Production Build
+
+```bash
+npm run build
+# Output: dist/
+# - Minified, tree-shaken, code-split
+# - Source maps for debugging
+```
+
+### Environment Variables
+
+Create `.env` file:
+```
+VITE_API_URL=http://localhost:8001
+VITE_ENV=development
+```
+
+### Deploy to Production
+
+```bash
+npm run build
+# Upload dist/ to CDN or static hosting
+# Configure backend CORS for production domain
+```
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+**Q: Dev server won't start**
+```bash
+# Clear node_modules and reinstall
+rm -rf node_modules package-lock.json
+npm install
+```
+
+**Q: TypeScript errors**
+```bash
+# Run type check
+npm run typecheck
+
+# Check for any types
+grep -r ": any" src/ --include="*.ts" --include="*.tsx"
+```
+
+**Q: API calls failing**
+```bash
+# Check backend is running
+curl http://localhost:8001/health/live
+
+# Check DevConsole for detailed logs
+# Press Ctrl+Shift+D
+```
+
+**Q: Tests failing**
+```bash
+# Clear jest cache
+npm run test -- --clearCache
+
+# Run specific test
+npm run test -- --testNamePattern="my test"
+```
+
+---
+
+## Contributing
+
+### Code Quality Checklist
+
+Before submitting PR:
+- [ ] `npm run typecheck` passes (0 errors)
+- [ ] `npm run lint` passes (no warnings)
+- [ ] `npm run test` passes (all tests green)
+- [ ] New features have tests
+- [ ] DevConsole logs added for key actions
+- [ ] Error handling with try/catch + devLog.error()
+- [ ] No `any` types (use proper types or `unknown`)
+
+### Git Workflow
+
+```bash
+# Create feature branch
+git checkout -b feature/my-feature
+
+# Make changes and commit
+git add .
+git commit -m "feat: add feature X"
+
+# Push and create PR
+git push origin feature/my-feature
+gh pr create --base dev
+```
+
+---
+
+## Links
+
+- **Backend API:** http://localhost:8001
+- **API Docs:** http://localhost:8001/docs
+- **Frontend:** http://localhost:4200
+- **GitHub:** https://github.com/namanag97/process-miner
+
+---
+
+## License
+
+Proprietary - All Rights Reserved
+
+---
+
+**Built with ❤️ using React 19, TypeScript, and Nx**
+

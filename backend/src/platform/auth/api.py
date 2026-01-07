@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 
-from src.api.dependencies import CurrentUser, DBSession
+from src.api.dependencies import CurrentUser, ReadDBSession
 from src.platform.core.config import get_settings
 from src.platform.core.logging_config import get_logger
 from src.platform.core.security import (
@@ -120,7 +120,7 @@ def _workspace_to_response(workspace: Workspace) -> WorkspaceResponse:
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     request: RegisterRequest,
-    db: DBSession,
+    db: ReadDBSession,
 ) -> TokenResponse:
     """Register a new user account.
 
@@ -201,7 +201,7 @@ async def register(
 @router.post("/login", response_model=TokenResponse)
 async def login(
     request: LoginRequest,
-    db: DBSession,
+    db: ReadDBSession,
 ) -> TokenResponse:
     """Authenticate user and return JWT tokens.
 
@@ -245,7 +245,7 @@ async def login(
 @router.post("/refresh", response_model=TokenPair)
 async def refresh_token(
     request: RefreshRequest,
-    db: DBSession,
+    db: ReadDBSession,
 ) -> TokenPair:
     """Refresh access token using refresh token."""
     token_data = validate_refresh_token(request.refresh_token)
@@ -266,7 +266,7 @@ async def refresh_token(
 
 @router.get("/me", response_model=CurrentUserResponse)
 async def get_current_user_info(
-    db: DBSession,
+    db: ReadDBSession,
     current_user: CurrentUser,
 ) -> CurrentUserResponse:
     """Get current authenticated user with organization and workspaces."""
@@ -311,7 +311,7 @@ async def logout() -> dict[str, str]:
 
 @router.get("/me/legacy", response_model=CurrentUserResponse, deprecated=True)
 async def get_current_user_legacy(
-    db: DBSession,
+    db: ReadDBSession,
     email: str | None = Query(None, description="Email to identify user (MVP mode)"),
 ) -> CurrentUserResponse:
     """Legacy MVP endpoint - use /auth/me with JWT instead.

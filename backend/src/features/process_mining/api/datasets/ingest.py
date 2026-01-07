@@ -9,7 +9,7 @@ Uses Temporal v2 workflows for durable execution.
 from fastapi import APIRouter
 from sqlalchemy import select
 
-from src.api.dependencies import CurrentUser, DBSession
+from src.api.dependencies import CurrentUser
 from src.features.process_mining.models import DatasetColumnMapping, DatasetStatus
 from src.features.process_mining.schemas.analysis import JobStatusResponse
 from src.platform.core.exceptions import ValidationError
@@ -49,7 +49,7 @@ Use `GET /operations/{workflow_id}` to track progress.
     },
 )
 async def trigger_ingestion(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
     user: CurrentUser,
 ) -> JobStatusResponse:
@@ -182,7 +182,7 @@ Clears existing events and reprocesses from the original file.
     },
 )
 async def trigger_reingest(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
     user: CurrentUser,
 ) -> JobStatusResponse:

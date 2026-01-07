@@ -51,3 +51,15 @@ export const useEventLogs = createQueryHook<
   },
   staleTime: 2 * 60 * 1000,
 });
+
+// ============================================
+// URL State Hooks
+// ============================================
+
+export { useAnalyticsFilters } from './useAnalyticsFilters';
+export type {
+  AnalyticsTab,
+  DateRange,
+  AnalyticsFiltersState,
+  UseAnalyticsFiltersReturn,
+} from './useAnalyticsFilters';

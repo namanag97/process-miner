@@ -9,7 +9,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, select
 
-from src.api.dependencies import CurrentUser, DBSession
+from src.api.dependencies import CurrentUser, ReadDBSession
 from src.features.process_mining.models import Dataset
 from src.features.process_mining.schemas import (
     DatasetResponse,
@@ -50,7 +50,7 @@ def _dataset_to_response(dataset: Dataset) -> DatasetResponse:
 
 @router.post("", response_model=ProjectResponse, status_code=201)
 async def create_project(
-    db: DBSession,
+    db: ReadDBSession,
     request: ProjectCreateRequest,
     user: CurrentUser,
     workspace_id: str | None = Query(None, description="Workspace ID to associate project with"),
@@ -142,7 +142,7 @@ async def create_project(
 
 @router.get("", response_model=ProjectListResponse)
 async def list_projects(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -209,7 +209,7 @@ async def list_projects(
 
 @router.get("/{project_id}", response_model=ProjectDetailResponse)
 async def get_project(
-    db: DBSession,
+    db: ReadDBSession,
     project_id: str,
     user: CurrentUser,
 ) -> ProjectDetailResponse:
@@ -283,7 +283,7 @@ async def get_project(
 
 @router.put("/{project_id}", response_model=ProjectResponse)
 async def update_project(
-    db: DBSession,
+    db: ReadDBSession,
     project_id: str,
     request: ProjectUpdateRequest,
     user: CurrentUser,
@@ -378,7 +378,7 @@ async def update_project(
 
 @router.delete("/{project_id}", status_code=204)
 async def delete_project(
-    db: DBSession,
+    db: ReadDBSession,
     project_id: str,
     user: CurrentUser,
 ) -> None:
@@ -479,7 +479,7 @@ async def delete_project(
 
 @router.post("/{project_id}/files/{dataset_id}", response_model=ProjectDetailResponse)
 async def add_file_to_project(
-    db: DBSession,
+    db: ReadDBSession,
     project_id: str,
     dataset_id: str,
     user: CurrentUser,
@@ -564,7 +564,7 @@ async def add_file_to_project(
 
 @router.delete("/{project_id}/files/{dataset_id}", status_code=204)
 async def remove_file_from_project(
-    db: DBSession,
+    db: ReadDBSession,
     project_id: str,
     dataset_id: str,
     user: CurrentUser,

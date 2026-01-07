@@ -11,7 +11,7 @@ from fastapi import APIRouter, Query
 from sqlalchemy import select
 from starlette.concurrency import run_in_threadpool
 
-from src.api.dependencies import CurrentUser, DBSession
+from src.api.dependencies import CurrentUser
 from src.features.process_mining.models import (
     DatasetColumn,
     DatasetColumnMapping,
@@ -58,7 +58,7 @@ Returns each column with:
     },
 )
 async def get_columns(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
     user: CurrentUser,
 ) -> ColumnDetectionResponse:
@@ -146,7 +146,7 @@ Optional mappings:
     },
 )
 async def submit_mapping(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
     user: CurrentUser,
     request: MappingUpdateRequest,
@@ -264,7 +264,7 @@ async def submit_mapping(
     },
 )
 async def get_mapping(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
     user: CurrentUser,
 ) -> MappingResponse:
@@ -323,7 +323,7 @@ async def get_mapping(
 )
 async def update_mapping(
     request: MappingUpdateRequest,
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
     user: CurrentUser,
 ) -> MappingResponse:
@@ -427,7 +427,7 @@ Useful for verifying column selections before ingestion.
     },
 )
 async def preview_mapped_data(
-    db: DBSession,
+    db: ReadDBSession,
     dataset_id: str,
     user: CurrentUser,
     limit: int = Query(10, ge=1, le=100, description="Number of sample rows"),

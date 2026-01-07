@@ -35,7 +35,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Path, Query
 from sqlalchemy import delete, func, select
 
-from src.api.dependencies import CurrentUser, DBSession
+from src.api.dependencies import CurrentUser, ReadDBSession
 from src.platform.core.error_messages import ErrorMessages
 from src.platform.core.exceptions import ConflictError, NotFoundError
 from src.platform.core.logging_config import get_logger
@@ -94,7 +94,7 @@ def _project_to_response(project: Project) -> ProjectResponse:
 
 @router.get("", response_model=WorkspaceListResponse)
 async def list_workspaces(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
@@ -148,7 +148,7 @@ async def list_workspaces(
 
 @router.get("/{workspace_id}", response_model=WorkspaceDetailResponse)
 async def get_workspace(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     workspace_id: str = Path(..., description="Workspace ID (UUID format)"),
 ) -> WorkspaceDetailResponse:
@@ -192,7 +192,7 @@ async def get_workspace(
 
 @router.post("", response_model=WorkspaceResponse, status_code=201)
 async def create_workspace(
-    db: DBSession,
+    db: ReadDBSession,
     request: WorkspaceCreateRequest,
     user: CurrentUser,
     org_id: str = Query(..., description="Organization ID for the workspace"),
@@ -250,7 +250,7 @@ async def create_workspace(
 
 @router.put("/{workspace_id}", response_model=WorkspaceResponse)
 async def update_workspace(
-    db: DBSession,
+    db: ReadDBSession,
     request: WorkspaceUpdateRequest,
     user: CurrentUser,
     workspace_id: str = Path(..., description="Workspace ID (UUID format)"),
@@ -292,7 +292,7 @@ async def update_workspace(
 
 @router.delete("/{workspace_id}", status_code=204)
 async def delete_workspace(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     workspace_id: str = Path(..., description="Workspace ID (UUID format)"),
 ) -> None:
@@ -336,7 +336,7 @@ async def delete_workspace(
 
 @router.post("/{workspace_id}/projects/{project_id}", response_model=WorkspaceDetailResponse)
 async def add_project_to_workspace(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     workspace_id: str = Path(..., description="Workspace ID (UUID format)"),
     project_id: str = Path(..., description="Project ID (UUID format)"),
@@ -386,7 +386,7 @@ async def add_project_to_workspace(
 
 @router.delete("/{workspace_id}/projects/{project_id}", status_code=204)
 async def remove_project_from_workspace(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     workspace_id: str = Path(..., description="Workspace ID (UUID format)"),
     project_id: str = Path(..., description="Project ID (UUID format)"),
@@ -439,7 +439,7 @@ async def remove_project_from_workspace(
 
 @router.get("/{workspace_id}/members", response_model=WorkspaceMemberListResponse)
 async def list_workspace_members(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     workspace_id: str = Path(..., description="Workspace ID (UUID format)"),
 ) -> WorkspaceMemberListResponse:
@@ -477,7 +477,7 @@ async def list_workspace_members(
 @router.post("/{workspace_id}/members", response_model=WorkspaceMemberResponse, status_code=201)
 async def add_workspace_member(
     request: AddMemberRequest,
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     workspace_id: str = Path(..., description="Workspace ID (UUID format)"),
 ) -> WorkspaceMemberResponse:
@@ -548,7 +548,7 @@ async def add_workspace_member(
 @router.put("/{workspace_id}/members/{user_id}", response_model=WorkspaceMemberResponse)
 async def update_workspace_member_role(
     request: UpdateMemberRoleRequest,
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     workspace_id: str = Path(..., description="Workspace ID (UUID format)"),
     user_id: str = Path(..., description="User ID"),
@@ -601,7 +601,7 @@ async def update_workspace_member_role(
 
 @router.delete("/{workspace_id}/members/{user_id}", status_code=204)
 async def remove_workspace_member(
-    db: DBSession,
+    db: ReadDBSession,
     user: CurrentUser,
     workspace_id: str = Path(..., description="Workspace ID (UUID format)"),
     user_id: str = Path(..., description="User ID"),
