@@ -167,7 +167,7 @@ export function AuditLogsPage() {
   // Fetch audit logs from API
   const { data: auditData, isLoading, error, refetch } = useAuditLogs(dateFilter);
 
-  const logs = auditData?.items ?? [];
+  const logs = useMemo(() => auditData?.items ?? [], [auditData?.items]);
 
   const filteredLogs = useMemo(() => {
     if (!searchQuery) return logs;

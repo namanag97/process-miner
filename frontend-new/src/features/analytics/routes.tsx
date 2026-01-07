@@ -3,8 +3,7 @@
  */
 
 import { lazy } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import type { RouteObject } from 'react-router-dom';
+import { Routes, Route, Navigate, type RouteObject } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import { FeatureErrorFallback } from '@/shared/ui';
 

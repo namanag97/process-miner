@@ -63,6 +63,7 @@ function buildElkGraph(nodes: GraphNode[], edges: GraphEdge[]): ElkNode {
 /**
  * Worker message handler
  */
+// eslint-disable-next-line no-restricted-globals
 self.onmessage = async (event: MessageEvent<LayoutMessage>) => {
     const { nodes, edges, options } = event.data;
 
@@ -90,8 +91,10 @@ self.onmessage = async (event: MessageEvent<LayoutMessage>) => {
             })),
         };
 
+        // eslint-disable-next-line no-restricted-globals
         self.postMessage({ success: true, result });
     } catch (error) {
+        // eslint-disable-next-line no-restricted-globals
         self.postMessage({
             success: false,
             error: error instanceof Error ? error.message : 'Layout failed',

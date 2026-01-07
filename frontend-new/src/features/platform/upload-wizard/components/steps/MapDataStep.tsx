@@ -10,7 +10,7 @@
  * Includes AI-powered suggestions based on column names
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, Typography, Select, Space, Alert, Button, Tag, Row, Col } from 'antd';
 import {
     UserOutlined,
@@ -56,7 +56,7 @@ export function MapDataStep({ preview, mapping, onMappingChange, onNext, onBack 
     const [localMapping, setLocalMapping] = useState<Partial<ColumnMapping>>(mapping || {});
     const [suggestions, setSuggestions] = useState<Record<string, string | null>>({});
 
-    const columnNames = preview?.columns.map(c => c.name) || [];
+    const columnNames = useMemo(() => preview?.columns.map(c => c.name) || [], [preview?.columns]);
 
     // Generate AI suggestions on mount
     useEffect(() => {
@@ -83,7 +83,7 @@ export function MapDataStep({ preview, mapping, onMappingChange, onNext, onBack 
             devLog.info('MapDataStep', 'AI column suggestions generated', sugg);
             logAction('UploadWizard', 'column_suggestions', sugg);
         }
-    }, [columnNames.length]);
+    }, [columnNames, mapping]);
 
     const updateField = (field: keyof ColumnMapping, value: string | undefined) => {
         const updated = { ...localMapping, [field]: value };

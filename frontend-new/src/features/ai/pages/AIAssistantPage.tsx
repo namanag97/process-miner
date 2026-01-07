@@ -12,14 +12,12 @@ import {
   
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import { PageHeader, EmptyState, tokens } from '@lumina/design-system';
+import { PageHeader, EmptyState, tokens, type ProcessSummaryData } from '@lumina/design-system';
 import { FeaturePage } from '../../../shared/core';
-import { ProcessSelector } from '../components/ProcessSelector';
-import type { ProcessOption } from '../components/ProcessSelector';
+import { ProcessSelector, type ProcessOption } from '../components/ProcessSelector';
 import { ChatMessage } from '../components/ChatMessage';
 import { InsightCard } from '../components/InsightCard';
 import { ChatMessage as ChatMessageType, DEFAULT_PROMPTS } from '../types';
-import type { ProcessSummaryData } from '@lumina/design-system';
 import { useAIProcesses, useAIProcessSummary } from '../hooks';
 
 const { Text, Title } = Typography;

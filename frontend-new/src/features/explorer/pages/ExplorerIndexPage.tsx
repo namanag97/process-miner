@@ -31,7 +31,7 @@ export function ExplorerIndexPage() {
   // Fetch logs using feature hook
   const { data, isLoading, error, refetch } = useEventLogsList({ pageSize: 50 });
 
-  const logs = Array.isArray(data?.items) ? data.items : [];
+  const logs = useMemo(() => Array.isArray(data?.items) ? data.items : [], [data?.items]);
 
   log.debug('Rendering ExplorerIndexPage', { logCount: logs.length, isLoading });
 

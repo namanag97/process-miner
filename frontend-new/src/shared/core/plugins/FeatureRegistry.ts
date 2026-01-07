@@ -26,9 +26,8 @@
  * const navItems = FeatureRegistry.getNavItems();
  */
 
-import React from 'react';
+import React, { type ComponentType, type ReactNode } from 'react';
 import type { RouteObject } from 'react-router-dom';
-import type { ComponentType, ReactNode } from 'react';
 
 // ============================================
 // Types
