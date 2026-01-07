@@ -52,6 +52,35 @@ class DFGResponse(BaseModel):
     total_frequency: int
 
 
+class TieredDFGAggregationInfo(BaseModel):
+    """Information about aggregated nodes in tiered graph."""
+
+    clustered_nodes: int
+    original_nodes: int
+
+
+class TieredDFGResponse(BaseModel):
+    """Tiered DFG response for progressive loading.
+
+    Supports three tiers:
+    - overview: Max 50 nodes, high-frequency edges only
+    - standard: Max 500 nodes, moderate edge filtering
+    - detailed: Full graph with all nodes and edges
+
+    This enables fast initial rendering with progressive detail enhancement.
+    """
+
+    nodes: list[DFGNode]
+    edges: list[DFGEdge]
+    tier: str  # "overview", "standard", or "detailed"
+    total_nodes: int  # Total nodes in full graph
+    total_edges: int  # Total edges in full graph
+    is_aggregated: bool  # True if nodes were aggregated
+    aggregation_info: TieredDFGAggregationInfo | None = None
+    start_activities: dict[str, int]
+    end_activities: dict[str, int]
+
+
 class ProcessExplorerDataResponse(BaseModel):
     """Unified response for Process Explorer frontend component.
 

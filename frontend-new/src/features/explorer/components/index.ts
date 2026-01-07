@@ -12,6 +12,10 @@ export { AnalysisModeSelector } from './AnalysisModeSelector';
 export { CaseCoverageGauge } from './CaseCoverageGauge';
 export { ActivitiesPanel } from './ActivitiesPanel';
 
+// Optimized Process Graph (Performance)
+export { OptimizedProcessGraph } from './OptimizedProcessGraph';
+export { TierControls } from './OptimizedProcessGraph/TierControls';
+
 // Re-export component props types
 export type { ProcessKPIBarProps, KPITrend } from './ProcessKPIBar';
 export type { VariantPanelProps, SortOption, Variant } from './VariantPanel';
@@ -21,4 +25,9 @@ export type { FilterPanelProps } from './FilterPanel';
 export type { AnalysisModeSelectorProps } from './AnalysisModeSelector';
 export type { CaseCoverageGaugeProps } from './CaseCoverageGauge';
 export type { ActivitiesPanelProps, ActivityItem } from './ActivitiesPanel';
+export type {
+  OptimizedProcessGraphProps,
+  PerformanceMetrics,
+} from './OptimizedProcessGraph';
+export type { TierControlsProps } from './OptimizedProcessGraph/TierControls';
 

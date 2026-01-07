@@ -128,3 +128,19 @@ export type {
   UseExplorerFiltersOptions,
   UseExplorerFiltersReturn,
 } from './useExplorerFilters';
+
+// Tiered Graph Loading (Performance Optimization)
+export { useTieredGraph } from './useTieredGraph';
+export type {
+  GraphTier,
+  TieredGraphOptions,
+  TieredGraphData,
+  UseTieredGraphReturn,
+} from './useTieredGraph';
+
+// Optimized Graph Interactions
+export { useGraphInteractions } from './useGraphInteractions';
+export type {
+  GraphInteractionConfig,
+  UseGraphInteractionsReturn,
+} from './useGraphInteractions';
