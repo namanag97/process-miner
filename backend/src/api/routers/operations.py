@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from src.api.dependencies import CurrentUser
 from src.platform.core.logging_config import get_logger
+from src.platform.core.exceptions import BadRequestError, NotFoundError, ProcessingError
 
 logger = get_logger(__name__)
 
@@ -92,7 +93,7 @@ async def get_operation_status(workflow_id: str, user: CurrentUser) -> Operation
             completed_at = desc.close_time.isoformat() if desc.close_time else None
         except Exception as e:
             logger.warning("workflow_describe_failed", workflow_id=workflow_id, error=str(e))
-            raise HTTPException(status_code=404, detail=f"Operation not found: {workflow_id}")
+            raise NotFoundError(resource='Resource', resource_id='unknown')
 
         # Query workflow for progress (Temporal-native, survives replays)
         progress = 0
@@ -129,7 +130,7 @@ async def get_operation_status(workflow_id: str, user: CurrentUser) -> Operation
         raise
     except Exception as e:
         logger.error("get_operation_status_failed", workflow_id=workflow_id, error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to get operation status: {e}")
+        raise ProcessingError(message=f"Failed to get operation status: {e}")
 
 
 @router.get("", response_model=OperationListResponse)
@@ -176,7 +177,7 @@ async def list_operations(
 
         try:
             # List workflows from Temporal
-            workflows: list[dict] = []
+            workflows: list[OperationStatus] = []
             async for workflow in client.list_workflows(query=query):
                 if len(workflows) >= offset + limit:
                     break
@@ -222,7 +223,7 @@ async def list_operations(
 
     except Exception as e:
         logger.error("list_operations_failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to list operations: {e}")
+        raise ProcessingError(message=f"Failed to list operations: {e}")
 
 
 @router.post("/{workflow_id}/cancel", response_model=CancelResponse)
@@ -252,7 +253,7 @@ async def cancel_operation(workflow_id: str, user: CurrentUser) -> CancelRespons
 
     except Exception as e:
         logger.error("cancel_operation_failed", workflow_id=workflow_id, error=str(e))
-        raise HTTPException(status_code=400, detail=f"Cannot cancel operation: {e}")
+        raise BadRequestError(message=f"Cannot cancel operation: {e}")
 
 
 @router.get("/{workflow_id}/result")
@@ -276,10 +277,7 @@ async def get_operation_result(workflow_id: str, user: CurrentUser):
         # Get workflow status first
         desc = await handle.describe()
         if (desc.status.name if desc.status else "UNKNOWN") != "COMPLETED":
-            raise HTTPException(
-                status_code=400,
-                detail=f"Operation not completed. Status: {desc.status.name if desc.status else 'UNKNOWN'}",
-            )
+            raise BadRequestError(message=f"Operation not completed. Status: {desc.status.name if desc.status else 'UNKNOWN'}")
 
         # Get result
         result = await handle.result()
@@ -290,7 +288,7 @@ async def get_operation_result(workflow_id: str, user: CurrentUser):
         raise
     except Exception as e:
         logger.error("get_operation_result_failed", workflow_id=workflow_id, error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to get result: {e}")
+        raise ProcessingError(message=f"Failed to get result: {e}")
 
 
 # =============================================================================

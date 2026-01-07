@@ -43,7 +43,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 
-from src.api.dependencies import CurrentUser, ServiceContainer
+from src.api.dependencies import CurrentUser, ReadDBSession, WriteDBSession, ServiceContainer
 from src.features.process_mining.models import Dataset, ProcessCase, ProcessEvent
 from src.features.process_mining.schemas import (
     FilterConfig,
@@ -389,10 +389,7 @@ async def delete_filtered_log(
         logger.error(
             "delete_filtered_log_not_found", dataset_id=dataset_id, filtered_id=filtered_id
         )
-        raise HTTPException(
-            status_code=404,
-            detail=f"Filtered log {filtered_id} not found for source dataset {dataset_id}. Verify both IDs are correct.",
-        )
+        raise NotFoundError(resource='Filtered Log', resource_id=filtered_id)
 
     await db.delete(filtered_log)
     await db.commit()

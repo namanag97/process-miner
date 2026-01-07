@@ -59,8 +59,9 @@ class GetVariantsHandler(QueryHandler[GetVariantsQuery, VariantsListResult]):
     """
 
     def __init__(self, db: AsyncSession, duckdb: DuckDBManager):
+        super().__init__(duckdb_conn=duckdb.get_connection() if duckdb else None)
         self.db = db
-        self.duckdb = duckdb
+        self.duckdb_manager = duckdb
 
     async def handle(self, query: GetVariantsQuery) -> VariantsListResult:
         """Execute variants analysis query.
@@ -99,9 +100,9 @@ class GetVariantsHandler(QueryHandler[GetVariantsQuery, VariantsListResult]):
         dataset = result.scalar_one_or_none()
 
         if not dataset:
-            raise NotFoundError(f"Dataset {query.dataset_id} not found")
+            raise NotFoundError(resource="Dataset", resource_id=query.dataset_id)
 
-        if not dataset.parquet_path:
+        if not dataset.parquet_s3_key:
             return VariantsListResult(
                 dataset_id=query.dataset_id,
                 variants=[],
@@ -112,7 +113,7 @@ class GetVariantsHandler(QueryHandler[GetVariantsQuery, VariantsListResult]):
         # Query DuckDB for variants
         try:
             variants_result = self._compute_variants(
-                dataset.parquet_path,
+                dataset.parquet_s3_key,
                 query.dataset_id,
                 query.top_n,
                 query.filters,
@@ -153,6 +154,7 @@ class GetVariantsHandler(QueryHandler[GetVariantsQuery, VariantsListResult]):
         filters: dict,
     ) -> VariantsListResult:
         """Compute variants using DuckDB SQL."""
+        assert self.duckdb is not None, "DuckDB connection is required"
         where_clause = ""
         if filters:
             conditions = [f"{k} = '{v}'" if isinstance(v, str) else f"{k} = {v}" 

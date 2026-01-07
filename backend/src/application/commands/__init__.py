@@ -10,6 +10,6 @@ Usage:
     await command_bus.dispatch(command)
 """
 
-from src.application.commands.base import BaseCommand, CommandHandler, CommandBus
+from src.application.commands.base import BaseCommand, CommandHandler, CommandBus, CommandSuccess
 
-__all__ = ["BaseCommand", "CommandHandler", "CommandBus"]
+__all__ = ["BaseCommand", "CommandHandler", "CommandBus", "CommandSuccess"]

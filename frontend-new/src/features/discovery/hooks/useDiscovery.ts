@@ -6,9 +6,8 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { sdk } from '@/api/sdk';
 import type { Job, DiscoveryRequest, DiscoveryResponse, DiscoveredModel, AnalysisMetadata } from '../types';
-
-const API_BASE = '/api/v1';
 
 // ============================================
 // Query Keys
@@ -30,9 +29,7 @@ export function useAnalysisMetadata() {
     return useQuery<AnalysisMetadata>({
         queryKey: discoveryQueryKeys.metadata(),
         queryFn: async () => {
-            const response = await fetch(`${API_BASE}/analyses/metadata`);
-            if (!response.ok) throw new Error('Failed to fetch analysis metadata');
-            return response.json();
+            return sdk.analyses.getMetadata();
         },
         staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     });
@@ -47,23 +44,7 @@ export function useDiscoveryMutation() {
 
     return useMutation<DiscoveryResponse, Error, DiscoveryRequest>({
         mutationFn: async (request) => {
-            const response = await fetch(`${API_BASE}/discovery/discover`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    dataset_id: request.datasetId,  // API now uses dataset_id
-                    miner_type: request.minerType,
-                    model_name: request.modelName || `${request.minerType} Model`,
-                    parameters: request.parameters,
-                }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.detail || `Discovery failed: ${response.status}`);
-            }
-
-            return response.json();
+            return sdk.discovery.discover(request);
         },
         onSuccess: (_data, variables) => {
             // Invalidate models list after discovery
@@ -107,12 +88,7 @@ export function useJobStatus(jobId: string | null, options: UseJobStatusOptions 
         queryKey: discoveryQueryKeys.job(jobId || ''),
         queryFn: async () => {
             if (!jobId) throw new Error('No job ID');
-
-            const response = await fetch(`${API_BASE}/jobs/${jobId}`);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch job status: ${response.status}`);
-            }
-            return response.json();
+            return sdk.jobs.get(jobId);
         },
         enabled: enabled && !!jobId && isPolling,
         refetchInterval: isPolling ? pollInterval : false,
@@ -168,9 +144,7 @@ export function useDiscoveredModels(datasetId: string) {
     return useQuery<DiscoveredModel[]>({
         queryKey: discoveryQueryKeys.models(datasetId),
         queryFn: async () => {
-            const response = await fetch(`${API_BASE}/discovery/models?dataset_id=${datasetId}`);
-            if (!response.ok) throw new Error('Failed to fetch models');
-            return response.json();
+            return sdk.discovery.listModels(datasetId);
         },
         enabled: !!datasetId,
     });
@@ -184,9 +158,7 @@ export function useModelVisualization(modelId: string) {
     return useQuery({
         queryKey: discoveryQueryKeys.model(modelId),
         queryFn: async () => {
-            const response = await fetch(`${API_BASE}/discovery/models/${modelId}`);
-            if (!response.ok) throw new Error('Failed to fetch model');
-            return response.json();
+            return sdk.discovery.getModel(modelId);
         },
         enabled: !!modelId,
     });

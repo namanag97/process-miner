@@ -9,7 +9,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 
-from src.api.dependencies import CurrentUser, ServiceContainer
+from src.api.dependencies import CurrentUser, ReadDBSession, WriteDBSession, ServiceContainer
 from src.features.process_mining.enums import MinerType
 from src.features.process_mining.models import Dataset, DatasetStatus, ProcessModel
 from src.features.process_mining.schemas import (

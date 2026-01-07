@@ -51,7 +51,7 @@ from src.platform.core.validation import (
     sanitize_search_query,
     validate_uuid,
 )
-from src.platform.models import Project, Workspace, WorkspaceMember
+from src.platform.users import Project, Workspace, WorkspaceMember
 from src.platform.schemas import (
     ProjectCreateRequest,
     ProjectDetailResponse,

@@ -176,7 +176,7 @@ async def _get_mock_user(db: AsyncSession) -> "User":
     """
     from datetime import datetime
 
-    from src.platform.models import Organization, User, Workspace, WorkspaceMember
+    from src.platform.users import Organization, User, Workspace, WorkspaceMember
 
     # First, try to find the seeded MVP user (preferred)
     result = await db.execute(select(User).filter(User.email == "analyst@example.com"))

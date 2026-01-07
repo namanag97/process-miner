@@ -71,7 +71,7 @@ class DeleteDatasetHandler(CommandHandler[DeleteDatasetCommand]):
         dataset = result.scalar_one_or_none()
 
         if not dataset:
-            raise NotFoundError(f"Dataset {command.dataset_id} not found")
+            raise NotFoundError(resource="Dataset", resource_id=command.dataset_id)
 
         dataset_name = dataset.name
 

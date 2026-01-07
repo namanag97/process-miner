@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from src.api.dependencies import CurrentUser, DBSession
+from src.platform.core.exceptions import NotFoundError
 from src.platform.core.logging_config import get_logger
 from src.platform.workflows import (
     Workflow,
@@ -72,11 +73,15 @@ async def list_workflows(
     result = await db.execute(query)
     workflows = result.scalars().all()
 
+    # Calculate page number from offset
+    current_page = (offset // limit) + 1 if limit > 0 else 1
+
     return WorkflowListResponse(
         items=[WorkflowResponse.model_validate(w) for w in workflows],
         total=total,
-        
-        
+        page=current_page,
+        page_size=limit,
+        pages=(total + limit - 1) // limit if total > 0 else 0,
     )
 
 
@@ -98,7 +103,7 @@ async def get_workflow(
     workflow = result.scalar_one_or_none()
 
     if not workflow:
-        raise HTTPException(status_code=404, detail=f"Workflow not found: {workflow_id}")
+        raise NotFoundError(resource='Workflow', resource_id=workflow_id)
 
     return WorkflowResponse.model_validate(workflow)
 
@@ -124,7 +129,7 @@ async def get_workflow_tasks(
     workflow = result.scalar_one_or_none()
 
     if not workflow:
-        raise HTTPException(status_code=404, detail=f"Workflow not found: {workflow_id}")
+        raise NotFoundError(resource='Workflow', resource_id=workflow_id)
 
     # Tasks are already ordered by task_order via relationship
     return [WorkflowTaskResponse.model_validate(t) for t in workflow.tasks]

@@ -2,6 +2,18 @@
 
 Exports all workflows for worker registration.
 
+All workflows implement:
+- Query handlers for real-time progress tracking (get_progress)
+- Deterministic workflow IDs for idempotent starts
+- Progress state that survives worker restarts
+
+Workflow ID Patterns:
+    - Ingestion: f"ingest-dataset-{dataset_id}"
+    - Validation: f"validate-dataset-{dataset_id}"
+    - Discovery: f"discover-{dataset_id}-{miner_type}"
+    - Conformance: f"conformance-{dataset_id}-{model_id}"
+    - Quality: f"quality-{model_id}-{dataset_id}"
+
 Ingestion Workflows:
     - DatasetIngestionWorkflow: Full dataset ingestion lifecycle
     - DatasetValidationWorkflow: Validation and column detection
@@ -9,6 +21,7 @@ Ingestion Workflows:
 Analysis Workflows:
     - ProcessDiscoveryWorkflow: Process model discovery
     - ConformanceCheckWorkflow: Conformance checking
+    - QualityEvaluationWorkflow: Comprehensive quality metrics
 """
 
 from src.platform.temporal.workflows.analysis import (
@@ -19,6 +32,7 @@ from src.platform.temporal.workflows.ingestion import (
     DatasetIngestionWorkflow,
     DatasetValidationWorkflow,
 )
+from src.platform.temporal.workflows.quality import QualityEvaluationWorkflow
 
 # All ingestion workflows
 INGESTION_WORKFLOWS = [
@@ -30,6 +44,7 @@ INGESTION_WORKFLOWS = [
 ANALYSIS_WORKFLOWS = [
     ProcessDiscoveryWorkflow,
     ConformanceCheckWorkflow,
+    QualityEvaluationWorkflow,
 ]
 
 # Combined list
@@ -43,4 +58,5 @@ __all__ = [
     "DatasetIngestionWorkflow",
     "DatasetValidationWorkflow",
     "ProcessDiscoveryWorkflow",
+    "QualityEvaluationWorkflow",
 ]

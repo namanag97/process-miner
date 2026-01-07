@@ -14,9 +14,14 @@ from src.features.process_mining.models import Dataset
 from src.features.process_mining.schemas import (
     DatasetResponse,
 )
+from src.platform.core.exceptions import (
+    BadRequestError,
+    NotFoundError,
+    ProcessingError,
+)
 from src.platform.core.logging_config import get_logger
 from src.platform.devconsole import log_error, log_info
-from src.platform.models import Project, Workspace, WorkspaceMember
+from src.platform.users import Project, Workspace, WorkspaceMember
 from src.platform.schemas import (
     ProjectCreateRequest,
     ProjectDetailResponse,
@@ -74,14 +79,7 @@ async def create_project(
             error_code="PROJ_WORKSPACE_REQUIRED",
             user_id=user.id,
         )
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "Workspace ID is required to create a project",
-                "error_code": "PROJ_WORKSPACE_REQUIRED",
-                "suggestion": "Provide a workspace_id query parameter",
-            },
-        )
+        raise BadRequestError(message="Workspace ID is required to create a project")
 
     # Verify user has PROJECT_CREATE permission in workspace
     auth_service = AuthorizationService(db)
@@ -129,15 +127,7 @@ async def create_project(
             name=request.name,
             reason=str(e),
         )
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Failed to create project",
-                "error_code": "PROJ_CREATE_FAILED",
-                "reason": str(e),
-                "suggestion": "Check database connectivity and ensure the workspace exists",
-            },
-        )
+        raise ProcessingError(message="Failed to create project")
 
 
 @router.get("", response_model=ProjectListResponse)
@@ -235,15 +225,7 @@ async def get_project(
                 error_code="PROJ_NOT_FOUND",
                 project_id=project_id,
             )
-            raise HTTPException(
-                status_code=404,
-                detail={
-                    "error": "Project not found",
-                    "error_code": "PROJ_NOT_FOUND",
-                    "project_id": project_id,
-                    "suggestion": "Check that the project ID is correct and you have access to it",
-                },
-            )
+            raise NotFoundError(resource="Project", resource_id=project_id)
         raise
 
     # Get datasets for this project
@@ -317,15 +299,7 @@ async def update_project(
                 error_code="PROJ_NOT_FOUND",
                 project_id=project_id,
             )
-            raise HTTPException(
-                status_code=404,
-                detail={
-                    "error": "Project not found",
-                    "error_code": "PROJ_NOT_FOUND",
-                    "project_id": project_id,
-                    "suggestion": "Verify the project ID exists and you have access before updating",
-                },
-            )
+            raise NotFoundError(resource="Project", resource_id=project_id)
         raise
 
     if request.name is not None:
@@ -364,16 +338,7 @@ async def update_project(
             project_id=project_id,
             reason=str(e),
         )
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Failed to update project",
-                "error_code": "PROJ_UPDATE_FAILED",
-                "project_id": project_id,
-                "reason": str(e),
-                "suggestion": "Check database connectivity and retry",
-            },
-        )
+        raise ProcessingError(message="Failed to update project")
 
 
 @router.delete("/{project_id}", status_code=204)
@@ -409,15 +374,7 @@ async def delete_project(
                 error_code="PROJ_NOT_FOUND",
                 project_id=project_id,
             )
-            raise HTTPException(
-                status_code=404,
-                detail={
-                    "error": "Project not found",
-                    "error_code": "PROJ_NOT_FOUND",
-                    "project_id": project_id,
-                    "suggestion": "Verify the project ID before attempting deletion",
-                },
-            )
+            raise NotFoundError(resource="Project", resource_id=project_id)
         raise
 
     # Get dataset count for logging
@@ -460,16 +417,7 @@ async def delete_project(
             project_id=project_id,
             reason=str(e),
         )
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Failed to delete project",
-                "error_code": "PROJ_DELETE_FAILED",
-                "project_id": project_id,
-                "reason": str(e),
-                "suggestion": "Check database connectivity and ensure no foreign key constraints are blocking deletion",
-            },
-        )
+        raise ProcessingError(message="Failed to delete project")
 
 
 # =============================================================================
@@ -549,17 +497,7 @@ async def add_file_to_project(
             dataset_id=dataset_id,
             reason=str(e),
         )
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Failed to add dataset to project",
-                "error_code": "PROJ_ADD_DATASET_FAILED",
-                "project_id": project_id,
-                "dataset_id": dataset_id,
-                "reason": str(e),
-                "suggestion": "Check database connectivity and retry",
-            },
-        )
+        raise ProcessingError(message="Failed to add dataset to project")
 
 
 @router.delete("/{project_id}/files/{dataset_id}", status_code=204)
@@ -604,16 +542,7 @@ async def remove_file_from_project(
             project_id=project_id,
             dataset_id=dataset_id,
         )
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "Dataset is not in this project",
-                "error_code": "PROJ_DATASET_MISMATCH",
-                "project_id": project_id,
-                "dataset_id": dataset_id,
-                "suggestion": "Verify that the dataset belongs to the specified project",
-            },
-        )
+        raise BadRequestError(message="Dataset is not in this project")
 
     dataset.project_id = None
 
@@ -657,14 +586,4 @@ async def remove_file_from_project(
             dataset_id=dataset_id,
             reason=str(e),
         )
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Failed to remove dataset from project",
-                "error_code": "PROJ_REMOVE_DATASET_FAILED",
-                "project_id": project_id,
-                "dataset_id": dataset_id,
-                "reason": str(e),
-                "suggestion": "Check database connectivity and retry",
-            },
-        )
+        raise ProcessingError(message="Failed to remove dataset from project")

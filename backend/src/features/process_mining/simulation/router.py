@@ -40,7 +40,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
 
-from src.api.dependencies import CurrentUser, ServiceContainer
+from src.api.dependencies import CurrentUser, ReadDBSession, WriteDBSession, ServiceContainer
 from src.features.process_mining.models import Dataset, ProcessCase, ProcessEvent, ProcessModel
 from src.features.process_mining.schemas import (
     PlayOutRequest,
@@ -52,6 +52,7 @@ from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
 from src.platform.core.safe_unpickler import safe_loads
 from src.platform.workspaces.authorization import require_dataset_permission
+from src.platform.core.exceptions import BadRequestError, ModelNotFoundError, NotFoundError
 
 logger = get_logger(__name__)
 
@@ -74,14 +75,14 @@ async def play_out_model(
     model = result.scalar_one_or_none()
 
     if not model:
-        raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
+        raise ModelNotFoundError(model_id=model_id)
 
     # Check permission on source dataset if exists
     if model.dataset_id:
         await require_dataset_permission(db, model.dataset_id, user, Permission.DATASET_READ)
 
     if not model.serialized_model:
-        raise HTTPException(status_code=400, detail="Model has no serialized data")
+        raise BadRequestError(message="Model has no serialized data")
 
     # BUG-028 FIX: Use safe_loads instead of pickle.loads to prevent RCE
     model_data = safe_loads(model.serialized_model)
@@ -154,7 +155,7 @@ async def simulate_scenario(
     event_log = result.scalar_one_or_none()
 
     if not event_log:
-        raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+        raise NotFoundError(resource='Dataset', resource_id=dataset_id)
 
     pm4py_log = container.filtering.to_pm4py_log(event_log)
     simulation_result = container.simulation.simulate_scenario(pm4py_log, request.modifications)
@@ -185,7 +186,7 @@ async def estimate_capacity(
     event_log = result.scalar_one_or_none()
 
     if not event_log:
-        raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+        raise NotFoundError(resource='Dataset', resource_id=dataset_id)
 
     pm4py_log = container.filtering.to_pm4py_log(event_log)
     capacity_result = container.simulation.estimate_capacity(pm4py_log, target_throughput)

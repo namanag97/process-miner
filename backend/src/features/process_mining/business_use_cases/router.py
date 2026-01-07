@@ -19,6 +19,7 @@ from src.api.dependencies import ReadDBSession
 from src.features.process_mining.business_use_cases.service import business_use_cases
 from src.features.process_mining.models import Dataset, ProcessModel
 from src.platform.core.logging_config import get_logger
+from src.platform.core.exceptions import ModelNotFoundError, NotFoundError, ProcessingError
 
 logger = get_logger(__name__)
 
@@ -30,7 +31,7 @@ async def _get_dataset_or_404(db: ReadDBSession, dataset_id: str) -> Dataset:
     result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
     if not dataset:
-        raise HTTPException(status_code=404, detail=f"Dataset not found: {dataset_id}")
+        raise NotFoundError(resource='Dataset', resource_id=dataset_id)
     return dataset
 
 
@@ -39,7 +40,7 @@ async def _get_model_or_404(db: ReadDBSession, model_id: str) -> ProcessModel:
     result = await db.execute(select(ProcessModel).where(ProcessModel.id == model_id))
     model = result.scalar_one_or_none()
     if not model:
-        raise HTTPException(status_code=404, detail=f"Reference model not found: {model_id}")
+        raise ModelNotFoundError(model_id=model_id)
     return model
 
 
@@ -63,7 +64,7 @@ async def detect_p2p_mavericks(
         return business_use_cases.detect_mavericks(event_log, reference_model, threshold)
     except Exception as e:
         logger.error("p2p_maverick_detection_failed", error=str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Maverick detection failed: {e!s}") from e
+        raise ProcessingError(message=f"Maverick detection failed: {e!s}") from e
 
 
 @router.get("/p2p/audit-report/{dataset_id}/{reference_model_id}")
@@ -85,7 +86,7 @@ async def generate_p2p_audit_report(
         return report
     except Exception as e:
         logger.error("p2p_audit_report_failed", error=str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Audit report generation failed: {e!s}") from e
+        raise ProcessingError(message=f"Audit report generation failed: {e!s}") from e
 
 
 # =============================================================================
@@ -107,7 +108,7 @@ async def split_log_by_attribute(
         return business_use_cases.split_log_by_attribute(event_log, attribute, value)
     except Exception as e:
         logger.error("log_split_failed", error=str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Log split failed: {e!s}") from e
+        raise ProcessingError(message=f"Log split failed: {e!s}") from e
 
 
 @router.get("/o2c/compare/{dataset_id1}/{dataset_id2}")
@@ -128,7 +129,7 @@ async def compare_process_variants(
         )
     except Exception as e:
         logger.error("process_comparison_failed", error=str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Process comparison failed: {e!s}") from e
+        raise ProcessingError(message=f"Process comparison failed: {e!s}") from e
 
 
 # =============================================================================
@@ -157,7 +158,7 @@ async def simulate_process_changes(
         )
     except Exception as e:
         logger.error("simulation_failed", error=str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Simulation failed: {e!s}") from e
+        raise ProcessingError(message=f"Simulation failed: {e!s}") from e
 
 
 # =============================================================================
@@ -181,4 +182,4 @@ async def detect_journey_dropoffs(
         return business_use_cases.detect_journey_dropoffs(event_log, expected_path_list)
     except Exception as e:
         logger.error("journey_dropoff_detection_failed", error=str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Drop-off detection failed: {e!s}") from e
+        raise ProcessingError(message=f"Drop-off detection failed: {e!s}") from e

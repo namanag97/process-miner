@@ -52,8 +52,13 @@ async def discover_model(ctx: DAGContext, params: dict[str, Any]) -> TaskResult:
         except ValueError:
             return TaskResult.fail(f"Invalid miner type: {miner_type}")
 
-        # Discover model (mining_service loads the dataset internally)
-        model_data, model_format = mining_service.discover_from_dataset_id(dataset_id, miner_enum)
+        # TODO: Fix this - mining_service.discover_from_dataset_id doesn't exist
+        # Need to load Dataset object from DB first, then call mining_service.discover(dataset, miner_enum)
+        # For now, this DAG task is non-functional and needs refactoring
+        raise NotImplementedError(
+            "DAG task discover_model needs refactoring: discover_from_dataset_id method doesn't exist. "
+            "Need to load Dataset ORM object from database first, then call mining_service.discover(dataset, miner_type)"
+        )
 
         # Serialize model
         serialized = mining_service.serialize_model(model_data)
@@ -143,11 +148,14 @@ async def check_conformance(ctx: DAGContext, params: dict[str, Any]) -> TaskResu
     try:
         from src.features.process_mining.services.conformance import conformance_service
 
-        # Perform conformance check
-        conf_result = conformance_service.check_conformance_by_ids(
-            dataset_id=dataset_id,
-            model_id=model_id,
-            method=method,
+        # TODO: Fix this - conformance_service.check_conformance_by_ids doesn't exist
+        # Need to load Dataset and ProcessModel objects from DB first,
+        # then call conformance_service.check_conformance(event_log, model, method)
+        # For now, this DAG task is non-functional and needs refactoring
+        raise NotImplementedError(
+            "DAG task check_conformance needs refactoring: check_conformance_by_ids method doesn't exist. "
+            "Need to load Dataset and ProcessModel ORM objects from database first, "
+            "then call conformance_service.check_conformance(event_log, model, method)"
         )
 
         # Store in context

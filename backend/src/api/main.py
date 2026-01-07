@@ -122,7 +122,7 @@ async def _seed_mvp_data() -> None:
     from sqlalchemy import select
 
     from src.platform.infrastructure.database import async_session_maker
-    from src.platform.models import Organization, Project, User, Workspace, WorkspaceMember
+    from src.platform.users import Organization, Project, User, Workspace, WorkspaceMember
 
     try:
         async with async_session_maker() as db:

@@ -71,7 +71,7 @@ from src.platform.core.security import (
     validate_refresh_token,
     verify_password,
 )
-from src.platform.models import Organization, User, Workspace, WorkspaceMember
+from src.platform.users import Organization, User, Workspace, WorkspaceMember
 from src.platform.schemas import (
     CurrentUserResponse,
     OrganizationResponse,
@@ -526,9 +526,9 @@ async def reset_password(
     logger.warning("reset_password_attempted", msg="Token validation not implemented")
 
     # Return HTTP 501 Not Implemented instead of 500
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Password reset token validation is not yet available. Please contact support.",
+    from src.platform.core.exceptions import ProcessingError
+    raise ProcessingError(
+        message="Password reset token validation is not yet available. Please contact support."
     )
 
 

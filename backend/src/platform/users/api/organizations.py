@@ -48,7 +48,7 @@ from src.platform.core.exceptions import (
 )
 from src.platform.core.logging_config import get_logger
 from src.platform.core.security import hash_password
-from src.platform.models import Organization, User, Workspace
+from src.platform.users import Organization, User, Workspace
 from src.platform.organizations.schemas import (
     BillingResponse,
     InviteMemberRequest,
@@ -227,7 +227,8 @@ async def delete_organization(
     ws_count = await db.execute(
         select(func.count()).select_from(Workspace).where(Workspace.org_id == org_id)
     )
-    if ws_count.scalar() > 0:
+    count = ws_count.scalar()
+    if count is not None and count > 0:
         raise ValidationError("Cannot delete organization with existing workspaces")
 
     await db.delete(org)

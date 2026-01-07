@@ -25,6 +25,15 @@ Upload CSV → User Maps Columns → Ingest → Dataset Ready → Discovery/Anal
 - Missing environment configuration
 - Missing CQRS database aliases
 
+**Fixed During This Session:**
+- `ReadDBSession` imports added to 16 router files
+- Model imports migrated from `src.platform.models` to `src.platform.users` in 15 files
+- App now loads without import errors
+
+**Remaining Import Cleanup (26 files):**
+Some files still import models from `src.platform.models` using deferred imports inside functions.
+These work but should be cleaned up for consistency. Non-blocking.
+
 ---
 
 ## Issue 1: HTTPException → AppException Conversion

@@ -6,7 +6,7 @@ Provides cached computed statistics from the dataset_statistics table.
 from fastapi import APIRouter
 from sqlalchemy import select
 
-from src.api.dependencies import CurrentUser
+from src.api.dependencies import CurrentUser, ReadDBSession
 from src.features.process_mining.models.dataset import DatasetMetadata
 from src.features.process_mining.schemas.datasets import DatasetStatisticsResponse
 from src.platform.core.logging_config import get_logger

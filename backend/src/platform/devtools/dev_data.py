@@ -15,6 +15,7 @@ from sqlalchemy import inspect, text
 
 from src.platform.core.config import get_settings
 from src.platform.infrastructure.database import get_session_context
+from src.platform.core.exceptions import BadRequestError, NotFoundError
 
 router = APIRouter(prefix="/dev/data", tags=["DevData"])
 settings = get_settings()
@@ -23,7 +24,7 @@ settings = get_settings()
 def _check_debug():
     """Ensure we're in debug mode."""
     if not settings.debug:
-        raise HTTPException(status_code=404, detail="Not found")
+        raise NotFoundError(resource='Resource', resource_id='unknown')
 
 
 @router.get("/tables")
@@ -53,7 +54,7 @@ async def get_records(
 
     # Validate table name to prevent SQL injection
     if not table.replace("_", "").isalnum():
-        raise HTTPException(status_code=400, detail="Invalid table name")
+        raise BadRequestError(message="Invalid table name")
 
     async with get_session_context() as session:
         # Get total count
@@ -92,7 +93,7 @@ async def get_record(table: str, record_id: str) -> dict[str, Any]:
     _check_debug()
 
     if not table.replace("_", "").isalnum():
-        raise HTTPException(status_code=400, detail="Invalid table name")
+        raise BadRequestError(message="Invalid table name")
 
     async with get_session_context() as session:
         result = await session.execute(
@@ -101,7 +102,7 @@ async def get_record(table: str, record_id: str) -> dict[str, Any]:
 
         row = result.fetchone()
         if not row:
-            raise HTTPException(status_code=404, detail="Record not found")
+            raise NotFoundError(resource='Resource', resource_id='unknown')
 
         columns = list(result.keys())
         return dict(zip(columns, row, strict=False))

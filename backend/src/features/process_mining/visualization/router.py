@@ -52,6 +52,7 @@ from src.features.process_mining.schemas import (
     VariantResponse,
 )
 from src.platform.core.logging_config import get_logger
+from src.platform.core.exceptions import BadRequestError, ConflictError, ModelNotFoundError, NotFoundError, ProcessingError
 
 logger = get_logger(__name__)
 
@@ -92,15 +93,14 @@ async def get_dfg(
 
     if not event_log:
         logger.warning("log_not_found", dataset_id=dataset_id)
-        raise HTTPException(status_code=404, detail=f"Event log not found: {dataset_id}")
+        raise NotFoundError(resource='Dataset', resource_id=dataset_id)
 
     # FIX: Validate dataset is ready for visualization
 
     if event_log.status != DatasetStatus.READY.value:
         logger.warning("dataset_not_ready", dataset_id=dataset_id, status=event_log.status)
-        raise HTTPException(
-            status_code=409,
-            detail=f"Dataset not ready (status: {event_log.status}). Complete ingestion first.",
+        raise ConflictError(
+            message=f"Dataset not ready (status: {event_log.status}). Complete ingestion first."
         )
 
     # Get DFG data (discovery service uses efficient DuckDB path internally)
@@ -151,10 +151,10 @@ async def get_petri_net(
     model = result.scalar_one_or_none()
 
     if not model:
-        raise HTTPException(status_code=404, detail=f"Model not found: {model_id}")
+        raise ModelNotFoundError(model_id=model_id)
 
     if not model.serialized_model:
-        raise HTTPException(status_code=400, detail="Model has no data")
+        raise BadRequestError(message="Model has no data")
 
     # Deserialize model
     model_data = container.discovery.deserialize_model(model.serialized_model)
@@ -167,9 +167,8 @@ async def get_petri_net(
     elif model_format == ModelFormat.PROCESS_TREE:
         net, im, fm = container.discovery.tree_to_petri_net(model_data)
     else:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot extract Petri net from format: {model.model_format}",
+        raise BadRequestError(
+            message=f"Cannot extract Petri net from format: {model.model_format}"
         )
 
     # Extract structure
@@ -234,10 +233,10 @@ async def get_model_svg(
     model = result.scalar_one_or_none()
 
     if not model:
-        raise HTTPException(status_code=404, detail=f"Model not found: {model_id}")
+        raise ModelNotFoundError(model_id=model_id)
 
     if not model.serialized_model:
-        raise HTTPException(status_code=400, detail="Model has no data")
+        raise BadRequestError(message="Model has no data")
 
     # Deserialize and visualize
     model_data = container.discovery.deserialize_model(model.serialized_model)
@@ -254,9 +253,8 @@ async def get_model_svg(
             error_type=type(e).__name__,
             exc_info=True,
         )
-        raise HTTPException(
-            status_code=500,
-            detail=f"Model visualization failed for {model_id} (format: {model_format.value}): {e!s}",
+        raise ProcessingError(
+            message=f"Model visualization failed for {model_id} (format: {model_format.value}): {e!s}"
         )
 
     return Response(
@@ -283,7 +281,7 @@ async def get_dfg_svg(
     event_log = result.scalar_one_or_none()
 
     if not event_log:
-        raise HTTPException(status_code=404, detail=f"Event log not found: {dataset_id}")
+        raise NotFoundError(resource='Dataset', resource_id=dataset_id)
 
     # Discover DFG using efficient DuckDB path
     try:
@@ -300,8 +298,8 @@ async def get_dfg_svg(
             error_type=type(e).__name__,
             exc_info=True,
         )
-        raise HTTPException(
-            status_code=500, detail=f"DFG visualization failed for dataset {dataset_id}: {e!s}"
+        raise ProcessingError(
+            message=f"DFG visualization failed for dataset {dataset_id}: {e!s}"
         )
 
     return Response(
@@ -332,7 +330,7 @@ async def get_footprints(
     event_log = result.scalar_one_or_none()
 
     if not event_log:
-        raise HTTPException(status_code=404, detail=f"Event log not found: {dataset_id}")
+        raise NotFoundError(resource='Dataset', resource_id=dataset_id)
 
     footprints = container.discovery.get_footprints(event_log)
 
@@ -342,9 +340,8 @@ async def get_footprints(
             dataset_id=dataset_id,
             error=footprints.get("error"),
         )
-        raise HTTPException(
-            status_code=500,
-            detail=f"Footprint computation failed for dataset {dataset_id}: {footprints['error']}",
+        raise ProcessingError(
+            message=f"Footprint computation failed for dataset {dataset_id}: {footprints['error']}"
         )
 
     return footprints
@@ -395,15 +392,15 @@ async def get_explorer_data(
 
     if not event_log:
         logger.warning("log_not_found", dataset_id=dataset_id)
-        raise HTTPException(status_code=404, detail=f"Event log not found: {dataset_id}")
+        raise NotFoundError(resource='Dataset', resource_id=dataset_id)
 
     # FIX: Validate dataset is ready for visualization
 
     if event_log.status != DatasetStatus.READY.value:
         logger.warning("dataset_not_ready", dataset_id=dataset_id, status=event_log.status)
-        raise HTTPException(
-            status_code=409,
-            detail=f"Dataset not ready (status: {event_log.status}). Complete ingestion first.",
+        raise ConflictError(
+            message=
+            f"Dataset not ready (status: {event_log.status}). Complete ingestion first.",
         )
 
     # Get DFG data

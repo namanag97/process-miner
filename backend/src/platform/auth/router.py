@@ -61,9 +61,14 @@ from src.platform.core.config import get_settings
 from src.platform.core.error_messages import ErrorMessages
 from src.platform.core.exceptions import (
     AuthenticationError,
+    BadRequestError,
     ConflictError,
     ProcessingError,
 )
+
+
+
+
 from src.platform.core.logging_config import get_logger
 from src.platform.core.security import (
     TokenPair,
@@ -72,7 +77,8 @@ from src.platform.core.security import (
     validate_refresh_token,
     verify_password,
 )
-from src.platform.models import Organization, User, Workspace, WorkspaceMember
+from src.platform.users import Organization, User, Workspace, WorkspaceMember
+from src.platform.devconsole import log_error, log_info
 from src.platform.schemas import (
     CurrentUserResponse,
     OrganizationResponse,
@@ -554,14 +560,7 @@ async def oauth_google_init() -> dict:
     Note: OAuth integration not yet implemented.
     """
     logger.info("oauth_google_init_attempted")
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail={
-            "code": "OAUTH_NOT_IMPLEMENTED",
-            "message": "Google OAuth integration not yet configured",
-            "provider": "google",
-        },
-    )
+    raise ProcessingError(message="OAuth integration not yet implemented")
 
 
 @router.get("/oauth/google/callback")
@@ -573,10 +572,7 @@ async def oauth_google_callback(
 
     Note: OAuth integration not yet implemented.
     """
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Google OAuth callback not implemented",
-    )
+    raise ProcessingError(message="OAuth integration not yet implemented")
 
 
 @router.get("/oauth/github")
@@ -586,14 +582,7 @@ async def oauth_github_init() -> dict:
     Note: OAuth integration not yet implemented.
     """
     logger.info("oauth_github_init_attempted")
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail={
-            "code": "OAUTH_NOT_IMPLEMENTED",
-            "message": "GitHub OAuth integration not yet configured",
-            "provider": "github",
-        },
-    )
+    raise ProcessingError(message="OAuth integration not yet implemented")
 
 
 @router.get("/oauth/github/callback")
@@ -605,10 +594,7 @@ async def oauth_github_callback(
 
     Note: OAuth integration not yet implemented.
     """
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="GitHub OAuth callback not implemented",
-    )
+    raise ProcessingError(message="OAuth integration not yet implemented")
 
 
 # =============================================================================
@@ -627,10 +613,7 @@ async def get_current_user_legacy(
     Only works when AUTH_ENABLED=false.
     """
     if settings.auth_enabled:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Legacy endpoint disabled when auth is enabled. Use /auth/login.",
-        )
+        raise BadRequestError(message="Legacy endpoint disabled when auth is enabled. Use /auth/login.")
 
     from src.api.dependencies import _get_mock_user
 

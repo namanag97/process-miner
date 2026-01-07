@@ -37,7 +37,13 @@ class IngestionService:
     """
 
     def __init__(self, session: Any = None, storage: Any = None):
-        """Initialize with optional database session and storage service."""
+        """Initialize with database session and storage service.
+        
+        Args:
+            session: Database session (required for DB operations like store_only).
+                    Can be None if only using stateless methods like detect_columns.
+            storage: Storage service (defaults to storage_service singleton).
+        """
         self.session = session
         self.storage = storage or storage_service
 
@@ -582,5 +588,19 @@ class IngestionService:
         return storage_path
 
 
-# DEPRECATED: Singleton pattern removed. Use Container.ingestion instead.
-ingestion_service = IngestionService()
+def get_ingestion_service(session: Any = None, storage: Any = None) -> IngestionService:
+    """Factory function to create IngestionService with proper dependencies.
+    
+    Args:
+        session: Database session for operations that need DB access.
+        storage: Optional storage service override.
+    
+    Returns:
+        Configured IngestionService instance.
+    """
+    return IngestionService(session=session, storage=storage)
+
+
+# DEPRECATED: Singleton pattern - only use for stateless methods like detect_columns.
+# For session-dependent methods (store_only, ingest_csv), use get_ingestion_service(session).
+ingestion_service = IngestionService(session=None)

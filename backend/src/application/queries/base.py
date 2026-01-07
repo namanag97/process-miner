@@ -8,9 +8,12 @@ Provides:
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from src.platform.core.logging_config import get_logger
+
+if TYPE_CHECKING:
+    import duckdb
 
 logger = get_logger(__name__)
 
@@ -53,6 +56,56 @@ class QueryHandler(ABC, Generic[T, R]):
             async def handle(self, query: GetDatasetQuery) -> DatasetResponse:
                 # Fetch and return data
     """
+
+    def __init__(
+        self,
+        duckdb_conn: "duckdb.DuckDBPyConnection | None" = None,
+        cache: Any | None = None,
+    ):
+        """Initialize query handler with optional DuckDB connection and cache.
+
+        Args:
+            duckdb_conn: DuckDB connection for analytical queries
+            cache: Cache instance for storing query results
+        """
+        self.duckdb = duckdb_conn
+        self.cache = cache
+
+    async def get_cached(self, query: "BaseQuery") -> Any | None:
+        """Get cached result for a query.
+
+        Args:
+            query: The query to look up in cache
+
+        Returns:
+            Cached result if found, None otherwise
+        """
+        if not self.cache:
+            return None
+        key = f"{query.__class__.__name__}:{hash(str(query))}"
+        try:
+            return await self.cache.get(key)
+        except Exception as e:
+            logger.warning("cache_get_failed", error=str(e))
+            return None
+
+    async def set_cached(
+        self, query: "BaseQuery", result: Any, ttl: int = 3600
+    ) -> None:
+        """Cache a query result.
+
+        Args:
+            query: The query being cached
+            result: The result to cache
+            ttl: Time-to-live in seconds (default: 1 hour)
+        """
+        if not self.cache:
+            return
+        key = f"{query.__class__.__name__}:{hash(str(query))}"
+        try:
+            await self.cache.set(key, result, ttl=ttl)
+        except Exception as e:
+            logger.warning("cache_set_failed", error=str(e))
 
     @abstractmethod
     async def handle(self, query: T) -> R:

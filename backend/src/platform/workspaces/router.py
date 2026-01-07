@@ -41,7 +41,7 @@ from src.platform.core.exceptions import ConflictError, NotFoundError
 from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
 from src.platform.core.validation import calculate_total_pages, validate_uuid
-from src.platform.models import Organization, Project, Workspace, WorkspaceMember
+from src.platform.users import Organization, Project, Workspace, WorkspaceMember
 from src.platform.schemas import (
     ProjectResponse,
     WorkspaceCreateRequest,
@@ -593,7 +593,7 @@ async def update_workspace_member_role(
     return WorkspaceMemberResponse(
         user_id=user_id,
         email=target_user.email if target_user else "",
-        name=target_user.name if target_user else "",
+        name=(target_user.name or "") if target_user else "",
         role=request.role,
         joined_at=member.joined_at,
     )

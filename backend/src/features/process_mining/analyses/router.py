@@ -44,6 +44,7 @@ from src.features.process_mining.schemas import (
 )
 from src.features.process_mining.services.registry import analysis_registry
 from src.platform.core.logging_config import get_logger
+from src.platform.core.exceptions import NotFoundError
 
 logger = get_logger(__name__)
 
@@ -106,7 +107,7 @@ async def create_analysis(
     log_result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
     event_log = log_result.scalar_one_or_none()
     if not event_log:
-        raise HTTPException(status_code=404, detail=f"Event log not found: {dataset_id}")
+        raise NotFoundError(resource='Dataset', resource_id=dataset_id)
 
     analysis = Analysis(
         dataset_id=dataset_id,
@@ -193,7 +194,7 @@ async def get_analysis(
     analysis = result.scalar_one_or_none()
 
     if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
+        raise NotFoundError(resource='Analysis', resource_id='unknown')
 
     response = _analysis_to_response(analysis)
 
@@ -263,7 +264,7 @@ async def delete_analysis(
     analysis = result.scalar_one_or_none()
 
     if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
+        raise NotFoundError(resource='Analysis', resource_id='unknown')
 
     await db.delete(analysis)
     await db.commit()
@@ -287,7 +288,7 @@ async def list_analyses_for_log(
     # Verify log exists
     log_result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
     if not log_result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail=f"Event log not found: {dataset_id}")
+        raise NotFoundError(resource='Dataset', resource_id=dataset_id)
 
     result = await db.execute(
         select(Analysis)

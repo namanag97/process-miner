@@ -21,7 +21,8 @@ from src.platform.core.security import (
     validate_refresh_token,
     verify_password,
 )
-from src.platform.models import Organization, User, Workspace, WorkspaceMember
+from src.platform.users import Organization, User, Workspace, WorkspaceMember
+from src.platform.core.exceptions import AuthenticationError, BadRequestError
 from src.platform.schemas import (
     CurrentUserResponse,
     OrganizationResponse,
@@ -130,10 +131,7 @@ async def register(
     # Check if user already exists
     existing = await db.execute(select(User).filter(User.email == request.email))
     if existing.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered",
-        )
+        raise BadRequestError(message="Email already registered")
 
     # Create organization
     org_name = request.organization_name or f"{request.name}'s Organization"
@@ -212,18 +210,12 @@ async def login(
     user = result.scalar_one_or_none()
 
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
-        )
+        raise AuthenticationError(message="Invalid email or password")
 
     # Verify password (skip in dev mode if no password hash)
     if settings.auth_enabled:
         if not user.password_hash or not verify_password(request.password, user.password_hash):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password",
-            )
+            raise AuthenticationError(message="Invalid email or password")
 
     # Update last login
     user.last_login_at = datetime.utcnow()
@@ -255,10 +247,7 @@ async def refresh_token(
     user = result.scalar_one_or_none()
 
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-        )
+        raise AuthenticationError(message="User not found")
 
     # Generate new tokens
     return create_token_pair(user.id, user.email, user.org_id)
@@ -320,10 +309,7 @@ async def get_current_user_legacy(
     Only works when AUTH_ENABLED=false.
     """
     if settings.auth_enabled:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Legacy endpoint disabled when auth is enabled. Use /auth/login.",
-        )
+        raise BadRequestError(message="Legacy endpoint disabled when auth is enabled. Use /auth/login.")
 
     from src.api.dependencies import _get_mock_user
 

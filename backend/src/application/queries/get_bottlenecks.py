@@ -52,8 +52,9 @@ class GetBottlenecksHandler(QueryHandler[GetBottlenecksQuery, list[BottleneckRes
     """
 
     def __init__(self, db: AsyncSession, duckdb: DuckDBManager):
+        super().__init__(duckdb_conn=duckdb.get_connection() if duckdb else None)
         self.db = db
-        self.duckdb = duckdb
+        self.duckdb_manager = duckdb
 
     async def handle(self, query: GetBottlenecksQuery) -> list[BottleneckResult]:
         """Execute bottleneck analysis query.
@@ -86,16 +87,16 @@ class GetBottlenecksHandler(QueryHandler[GetBottlenecksQuery, list[BottleneckRes
         dataset = result.scalar_one_or_none()
 
         if not dataset:
-            raise NotFoundError(f"Dataset {query.dataset_id} not found")
+            raise NotFoundError(resource="Dataset", resource_id=query.dataset_id)
 
-        if not dataset.parquet_path:
+        if not dataset.parquet_s3_key:
             logger.warning("dataset_no_parquet", dataset_id=query.dataset_id)
             return []
 
         # Query DuckDB for bottleneck analysis
         try:
             bottlenecks = self._compute_bottlenecks(
-                dataset.parquet_path,
+                dataset.parquet_s3_key,
                 query.top_n,
                 query.filters,
             )
@@ -128,6 +129,7 @@ class GetBottlenecksHandler(QueryHandler[GetBottlenecksQuery, list[BottleneckRes
         Note: This uses a simplified computation. In production,
         you'd compute actual wait times between activities.
         """
+        assert self.duckdb is not None, "DuckDB connection is required"
         # Build filter clause if provided
         where_clause = ""
         if filters:

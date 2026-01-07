@@ -70,6 +70,30 @@ class AppException(Exception):
 
 
 # =============================================================================
+# Bad Request Errors (400)
+# =============================================================================
+
+
+class BadRequestError(AppException):
+    """Bad request - malformed or invalid request."""
+
+    def __init__(
+        self,
+        message: str,
+        error_code: ErrorCode = ErrorCode.BAD_REQUEST,
+        details: dict | None = None,
+        **kwargs,
+    ):
+        super().__init__(
+            message=message,
+            error_code=error_code,
+            status_code=400,
+            details=details,
+            **kwargs,
+        )
+
+
+# =============================================================================
 # Validation Errors (422)
 # =============================================================================
 
@@ -116,7 +140,7 @@ class InvalidFileError(ValidationError):
         expected_types: list[str] | None = None,
         **kwargs,
     ):
-        details = {}
+        details: dict[str, Any] = {}
         if filename:
             details["filename"] = filename
         if expected_types:
@@ -297,7 +321,7 @@ class IngestionError(ProcessingError):
         line_number: int | None = None,
         **kwargs,
     ):
-        details = {}
+        details: dict[str, Any] = {}
         if filename:
             details["filename"] = filename
         if line_number:
@@ -320,7 +344,7 @@ class TimeoutError(ProcessingError):
         timeout_seconds: float | None = None,
         **kwargs,
     ):
-        details = {}
+        details: dict[str, Any] = {}
         if operation:
             details["operation"] = operation
         if timeout_seconds:

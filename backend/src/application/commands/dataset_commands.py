@@ -89,13 +89,13 @@ class DeleteDatasetCommand(BaseCommand):
 # =============================================================================
 
 
-class CreateDatasetHandler(CommandHandler[str]):
+class CreateDatasetHandler(CommandHandler[CreateDatasetCommand]):
     """Handler for CreateDatasetCommand.
-    
+
     Creates a new dataset record in PostgreSQL.
     Emits DatasetCreatedEvent for read model sync.
     """
-    
+
     async def handle(self, cmd: CreateDatasetCommand) -> str:
         from src.features.process_mining.models import Dataset, DatasetStatus
         
@@ -126,33 +126,45 @@ class CreateDatasetHandler(CommandHandler[str]):
         return dataset.id
 
 
-class UpdateMappingHandler(CommandHandler[CommandSuccess]):
+class UpdateMappingHandler(CommandHandler[UpdateMappingCommand]):
     """Handler for UpdateMappingCommand.
-    
+
     Updates column mapping and validates it against the dataset schema.
     """
-    
+
     async def handle(self, cmd: UpdateMappingCommand) -> CommandSuccess:
-        from src.features.process_mining.models import Dataset, DatasetStatus
+        from src.features.process_mining.models import Dataset, DatasetStatus, DatasetColumnMapping
         from src.shared.events import DATASET_COLUMNS_MAPPED
-        
+
         # Get dataset
         result = await self.db.execute(
             select(Dataset).where(Dataset.id == cmd.dataset_id)
         )
         dataset = result.scalar_one_or_none()
-        
+
         if not dataset:
             raise ValueError(f"Dataset not found: {cmd.dataset_id}")
-        
-        # Update mapping
-        dataset.case_id_column = cmd.case_id_column
-        dataset.activity_column = cmd.activity_column
-        dataset.timestamp_column = cmd.timestamp_column
-        dataset.resource_column = cmd.resource_column
-        dataset.cost_column = cmd.cost_column
+
+        # Create or update column mapping
+        if dataset.column_mapping:
+            # Update existing mapping
+            dataset.column_mapping.case_id_column = cmd.case_id_column
+            dataset.column_mapping.activity_column = cmd.activity_column
+            dataset.column_mapping.timestamp_column = cmd.timestamp_column
+            dataset.column_mapping.resource_column = cmd.resource_column
+        else:
+            # Create new mapping
+            mapping = DatasetColumnMapping(
+                dataset_id=cmd.dataset_id,
+                case_id_column=cmd.case_id_column,
+                activity_column=cmd.activity_column,
+                timestamp_column=cmd.timestamp_column,
+                resource_column=cmd.resource_column,
+            )
+            self.db.add(mapping)
+
         dataset.status = DatasetStatus.MAPPED.value
-        
+
         await self.db.flush()
         
         # Emit domain event
@@ -174,7 +186,7 @@ class UpdateMappingHandler(CommandHandler[CommandSuccess]):
         )
 
 
-class TriggerIngestionHandler(CommandHandler[CommandSuccess]):
+class TriggerIngestionHandler(CommandHandler[TriggerIngestionCommand]):
     """Handler for TriggerIngestionCommand.
     
     Validates dataset state and triggers Temporal workflow.
@@ -220,12 +232,12 @@ class TriggerIngestionHandler(CommandHandler[CommandSuccess]):
         )
 
 
-class DeleteDatasetHandler(CommandHandler[CommandSuccess]):
+class DeleteDatasetHandler(CommandHandler[DeleteDatasetCommand]):
     """Handler for DeleteDatasetCommand.
-    
+
     Deletes dataset from PostgreSQL and emits event for cache invalidation.
     """
-    
+
     async def handle(self, cmd: DeleteDatasetCommand) -> CommandSuccess:
         from src.features.process_mining.models import Dataset
         

@@ -19,6 +19,7 @@ from src.features.process_mining.schemas.workflows import (
     WorkflowTemplate,
 )
 from src.platform.core.logging_config import get_logger
+from src.platform.core.exceptions import ProcessingError
 
 logger = get_logger(__name__)
 
@@ -82,9 +83,8 @@ async def create_workflow(
 
     Note: Consider using POST /api/v1/dags instead for new workflows.
     """
-    raise HTTPException(
-        status_code=501,
-        detail="Workflows have been migrated to DAGs. Use POST /api/v1/dags instead.",
+    raise ProcessingError(
+        message="Workflows have been migrated to DAGs. Use POST /api/v1/dags instead."
     )
 
 
@@ -94,9 +94,8 @@ async def get_workflow(workflow_id: str) -> WorkflowResponse:
 
     Note: Use GET /api/v1/dags/{id} instead.
     """
-    raise HTTPException(
-        status_code=501,
-        detail="Workflows have been migrated to DAGs. Use GET /api/v1/dags/{id} instead.",
+    raise ProcessingError(
+        message="Workflows have been migrated to DAGs. Use GET /api/v1/dags/{id} instead."
     )
 
 
@@ -106,9 +105,8 @@ async def delete_workflow(workflow_id: str) -> dict:
 
     Note: Use DELETE /api/v1/dags/{id} instead.
     """
-    raise HTTPException(
-        status_code=501,
-        detail="Workflows have been migrated to DAGs. Use DELETE /api/v1/dags/{id} instead.",
+    raise ProcessingError(
+        message="Workflows have been migrated to DAGs. Use DELETE /api/v1/dags/{id} instead."
     )
 
 
@@ -126,9 +124,8 @@ async def run_workflow(
 
     Note: Use POST /api/v1/dags/{id}/trigger instead.
     """
-    raise HTTPException(
-        status_code=501,
-        detail="Workflows have been migrated to DAGs. Use POST /api/v1/dags/trigger instead.",
+    raise ProcessingError(
+        message="Workflows have been migrated to DAGs. Use POST /api/v1/dags/trigger instead."
     )
 
 
@@ -148,7 +145,6 @@ async def get_workflow_run(run_id: str) -> WorkflowRunResponse:
 
     Note: Use GET /api/v1/dags/runs/{id} instead.
     """
-    raise HTTPException(
-        status_code=501,
-        detail="Workflows have been migrated to DAGs. Use GET /api/v1/dags/runs/{id} instead.",
+    raise ProcessingError(
+        message="Workflows have been migrated to DAGs. Use GET /api/v1/dags/runs/{id} instead."
     )
