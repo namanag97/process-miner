@@ -17,6 +17,7 @@ import {
 } from '../hooks';
 import { JobStatusPanel, ModelList, JSONViewer, GraphViewer } from '../components';
 import { AnalysisModeSelector } from '../../explorer/components/AnalysisModeSelector';
+import { ComponentErrorBoundary } from '@/shared/ui';
 import type { Job, DiscoveredModel, ModelFormat } from '../types';
 import type { ProcessModel } from '@/api/sdk';
 import styles from './DiscoveryPage.module.css';
@@ -86,30 +87,47 @@ export function DiscoveryPage() {
             // Transform model data to graph format
             const graphData = transformToGraphData(modelDetail);
             return (
-                <GraphViewer
-                    nodes={graphData.nodes}
-                    edges={graphData.edges}
-                    title={selectedModel.name}
-                />
+                <ComponentErrorBoundary
+                    componentName="Graph Viewer"
+                    variant="card"
+                    onError={(error) => logError('GraphViewer', error, { modelId: selectedModel.id })}
+                >
+                    <GraphViewer
+                        nodes={graphData.nodes}
+                        edges={graphData.edges}
+                        title={selectedModel.name}
+                    />
+                </ComponentErrorBoundary>
             );
         }
 
         // JSON-based models (Temporal Profile, Log Skeleton, Declare, etc.)
         if (['temporal_profile', 'log_skeleton', 'declare', 'batches'].includes(format)) {
             return (
-                <JSONViewer
-                    data={modelDetail.data ?? modelDetail}
-                    title={selectedModel.name}
-                />
+                <ComponentErrorBoundary
+                    componentName="JSON Viewer"
+                    variant="alert"
+                    onError={(error) => logError('JSONViewer', error, { modelId: selectedModel.id })}
+                >
+                    <JSONViewer
+                        data={modelDetail.data ?? modelDetail}
+                        title={selectedModel.name}
+                    />
+                </ComponentErrorBoundary>
             );
         }
 
         // Default fallback
         return (
-            <JSONViewer
-                data={modelDetail.data ?? modelDetail}
-                title={selectedModel.name}
-            />
+            <ComponentErrorBoundary
+                componentName="Model Viewer"
+                variant="alert"
+            >
+                <JSONViewer
+                    data={modelDetail.data ?? modelDetail}
+                    title={selectedModel.name}
+                />
+            </ComponentErrorBoundary>
         );
     };
 

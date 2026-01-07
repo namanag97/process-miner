@@ -133,18 +133,81 @@ import { Button } from 'antd';
 
 ### Error Handling
 
-```typescript
-// Query errors handled declaratively
-const { data, error, isError } = useQuery({...});
-if (isError) return <ErrorAlert error={error} />;
+The app uses a **three-tier error boundary strategy** for graceful degradation:
 
-// Imperative errors
-try {
-  await api.deleteDataset(id);
-  message.success('Deleted');
-} catch (error) {
-  message.error(`Failed: ${error.message}`);
-}
+```
+┌─────────────────────────────────────────────────────┐
+│ GlobalErrorBoundary (App Level)                     │
+│ - Catches catastrophic errors                       │
+│ - Shows full-page error with reload option          │
+│ - Already wrapped in App.tsx                        │
+└─────────────────────────────────────────────────────┘
+        │
+        ▼
+┌─────────────────────────────────────────────────────┐
+│ FeatureErrorBoundary (Route Level)                  │
+│ - Wrap routes with errorElement                     │
+│ - Feature-specific error UI                         │
+│ - Rest of app continues working                     │
+└─────────────────────────────────────────────────────┘
+        │
+        ▼
+┌─────────────────────────────────────────────────────┐
+│ ComponentErrorBoundary (Component Level)            │
+│ - Wrap risky components (graphs, third-party libs)  │
+│ - Inline error with retry button                    │
+│ - Component can retry without page reload           │
+└─────────────────────────────────────────────────────┘
+```
+
+**Route-level error boundaries:**
+```typescript
+import { wrapRoutesWithErrorBoundary } from '@/shared/core';
+
+export const featureRoutes = wrapRoutesWithErrorBoundary(
+  [
+    { path: '/feature', element: <FeaturePage /> },
+    { path: '/feature/:id', element: <FeatureDetailPage /> },
+  ],
+  { featureName: 'My Feature', fallbackPath: '/workspace' }
+);
+```
+
+**Component-level error boundaries:**
+```typescript
+import { ComponentErrorBoundary } from '@/shared/ui';
+
+// Wrap risky components (third-party libs, complex visualizations)
+<ComponentErrorBoundary componentName="Process Graph" variant="card">
+  <CytoscapeCanvas data={graphData} />
+</ComponentErrorBoundary>
+```
+
+**Query errors with automatic notifications:**
+```typescript
+import { useQueryWithErrorHandling } from '@/shared/hooks';
+
+const { data } = useQueryWithErrorHandling({
+  queryKey: ['datasets'],
+  queryFn: () => api.getDatasets(),
+  errorMessage: 'Failed to load datasets',
+  showNotification: true,
+});
+```
+
+**Safe async operations in event handlers:**
+```typescript
+import { useSafeAsync } from '@/shared/hooks';
+
+const { execute, isLoading, error } = useSafeAsync({
+  featureName: 'Upload',
+  showNotification: true,
+});
+
+const handleUpload = async (file) => {
+  const result = await execute(api.uploadDataset(file));
+  if (result) navigate(`/datasets/${result.id}`);
+};
 ```
 
 ### DevConsole Logging

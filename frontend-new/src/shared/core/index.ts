@@ -31,3 +31,10 @@ export {
   type FeatureConfig,
   type NavItem,
 } from './plugins/FeatureRegistry';
+
+// Route Utilities
+export {
+  createRouteWithErrorBoundary,
+  wrapRoutesWithErrorBoundary,
+  createParentRouteWithErrorBoundary,
+} from './utils/createRouteWithErrorBoundary';
