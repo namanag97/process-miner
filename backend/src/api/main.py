@@ -159,7 +159,7 @@ async def _seed_mvp_data() -> None:
             user = User(
                 id="mvp-user-001",
                 org_id="mvp-org-001",
-                email="analyst@company.local",
+                email="analyst@example.com",
                 name="Process Analyst",
                 role="admin",
             )

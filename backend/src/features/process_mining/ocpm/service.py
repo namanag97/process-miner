@@ -619,45 +619,71 @@ class OCPMService:
         This enables deep object-centric queries without re-parsing the blob.
         """
         # 1. Get or Create Event Types (BUG-085 FIX: avoid IntegrityError)
+        # Refactored to use safe upsert with retry loop
         from sqlalchemy import select as sa_select
+        from sqlalchemy.exc import IntegrityError
         
         event_types = {}
         activities = self.get_activities(ocel)
         for act in activities:
-            # Check if exists
-            result = await session.execute(
-                sa_select(OCEL2EventType).where(
-                    OCEL2EventType.dataset_id == source_dataset_id,
-                    OCEL2EventType.name == act
+            et = None
+            for _ in range(3):
+                # Try fetch
+                result = await session.execute(
+                    sa_select(OCEL2EventType).where(
+                        OCEL2EventType.dataset_id == source_dataset_id,
+                        OCEL2EventType.name == act
+                    )
                 )
-            )
-            et = result.scalar_one_or_none()
+                et = result.scalar_one_or_none()
+                if et:
+                    break
+                
+                # Try create
+                try:
+                    async with session.begin_nested():
+                        et = OCEL2EventType(name=act, dataset_id=source_dataset_id)
+                        session.add(et)
+                        await session.flush()
+                    break
+                except IntegrityError:
+                    continue
             
             if not et:
-                # BUG-083 & 084 FIX: Add dataset_id for multi-tenancy
-                et = OCEL2EventType(name=act, dataset_id=source_dataset_id)
-                session.add(et)
-            
+                 raise IntegrityError(f"Could not create event type {act}", params=None, orig=None)
+
             event_types[act] = et
 
         # 2. Get or Create Object Types (BUG-085 FIX: avoid IntegrityError)
         object_types = {}
         ot_names = self.get_object_types(ocel)
         for ot in ot_names:
-            # Check if exists
-            result = await session.execute(
-                sa_select(OCEL2ObjectType).where(
-                    OCEL2ObjectType.dataset_id == source_dataset_id,
-                    OCEL2ObjectType.name == ot
+            obj_type = None
+            for _ in range(3):
+                # Try fetch
+                result = await session.execute(
+                    sa_select(OCEL2ObjectType).where(
+                        OCEL2ObjectType.dataset_id == source_dataset_id,
+                        OCEL2ObjectType.name == ot
+                    )
                 )
-            )
-            obj_type = result.scalar_one_or_none()
+                obj_type = result.scalar_one_or_none()
+                if obj_type:
+                    break
+                
+                # Try create
+                try:
+                    async with session.begin_nested():
+                        obj_type = OCEL2ObjectType(name=ot, dataset_id=source_dataset_id)
+                        session.add(obj_type)
+                        await session.flush()
+                    break
+                except IntegrityError:
+                    continue
             
             if not obj_type:
-                # BUG-083 & 084 FIX: Add dataset_id for multi-tenancy
-                obj_type = OCEL2ObjectType(name=ot, dataset_id=source_dataset_id)
-                session.add(obj_type)
-            
+                 raise IntegrityError(f"Could not create object type {ot}", params=None, orig=None)
+
             object_types[ot] = obj_type
 
         await session.flush()  # Get IDs

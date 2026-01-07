@@ -17,8 +17,11 @@ import {
 } from '../hooks';
 import { JobStatusPanel, ModelList, JSONViewer, GraphViewer } from '../components';
 import { AnalysisModeSelector } from '../../explorer/components/AnalysisModeSelector';
-import type { Job, DiscoveredModel, ModelFormat } from '../types';
+import type { Job, ProcessModel, ModelFormat } from '@/src/api/sdk';
 import styles from './DiscoveryPage.module.css';
+
+// Alias for backward compatibility
+type DiscoveredModel = ProcessModel;
 
 export function DiscoveryPage() {
     // IMPORTANT: Use datasetId (not datasetId) - this is the standard naming convention

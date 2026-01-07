@@ -38,7 +38,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.dependencies import ServiceContainer, get_db
+from src.api.dependencies import CurrentUser, ServiceContainer, get_db
 from src.features.process_mining.models import Dataset
 from src.features.process_mining.schemas import (
     BottleneckListResponse,
@@ -78,6 +78,7 @@ async def _get_pm4py_log(dataset_id: str, db: AsyncSession, container: ServiceCo
 @router.get("/datasets/{dataset_id}/bottlenecks", response_model=BottleneckListResponse)
 async def get_bottlenecks(
     dataset_id: str,
+    user: CurrentUser,
     container: ServiceContainer,
     db: AsyncSession = Depends(get_db),
 ) -> BottleneckListResponse:
@@ -107,6 +108,7 @@ async def get_bottlenecks(
 @router.get("/datasets/{dataset_id}/rework", response_model=ReworkListResponse)
 async def get_rework(
     dataset_id: str,
+    user: CurrentUser,
     container: ServiceContainer,
     db: AsyncSession = Depends(get_db),
 ) -> ReworkListResponse:
@@ -137,6 +139,7 @@ async def get_rework(
 @router.get("/datasets/{dataset_id}/service-times")
 async def get_service_times(
     dataset_id: str,
+    user: CurrentUser,
     container: ServiceContainer,
     db: AsyncSession = Depends(get_db),
 ) -> list[ServiceTimeResponse]:
@@ -162,32 +165,55 @@ async def get_service_times(
 @router.get("/datasets/{dataset_id}/cycle-time", response_model=CycleTimeResponse)
 async def get_cycle_time(
     dataset_id: str,
+    user: CurrentUser,
     container: ServiceContainer,
     db: AsyncSession = Depends(get_db),
 ) -> CycleTimeResponse:
     """Get cycle time (case duration) statistics."""
     logger.info("getting_cycle_time", dataset_id=dataset_id)
+
+    # Add caching for consistency with other endpoints
+    cache_key = f"cycle_time:{CACHE_VERSION}:{dataset_id}"
+    cached = cache_service.get(cache_key)
+    if cached:
+        return CycleTimeResponse(**cached)
+
     pm4py_log, _ = await _get_pm4py_log(dataset_id, db, container)
     result = container.analytics.get_cycle_time(pm4py_log)
-    return CycleTimeResponse(dataset_id=dataset_id, **result)
+    response = CycleTimeResponse(dataset_id=dataset_id, **result)
+
+    cache_service.set(cache_key, response.model_dump(), ttl=3600)
+    return response
 
 
 @router.get("/datasets/{dataset_id}/throughput", response_model=ThroughputResponse)
 async def get_throughput(
     dataset_id: str,
+    user: CurrentUser,
     container: ServiceContainer,
     db: AsyncSession = Depends(get_db),
 ) -> ThroughputResponse:
     """Get throughput metrics (cases per day/week/month)."""
     logger.info("getting_throughput", dataset_id=dataset_id)
+
+    # Add caching for consistency with other endpoints
+    cache_key = f"throughput:{CACHE_VERSION}:{dataset_id}"
+    cached = cache_service.get(cache_key)
+    if cached:
+        return ThroughputResponse(**cached)
+
     pm4py_log, _ = await _get_pm4py_log(dataset_id, db, container)
     result = container.analytics.get_throughput(pm4py_log)
-    return ThroughputResponse(dataset_id=dataset_id, **result)
+    response = ThroughputResponse(dataset_id=dataset_id, **result)
+
+    cache_service.set(cache_key, response.model_dump(), ttl=3600)
+    return response
 
 
 @router.get("/datasets/{dataset_id}/patterns")
 async def get_patterns(
     dataset_id: str,
+    user: CurrentUser,
     container: ServiceContainer,
     min_support: float = 0.1,
     db: AsyncSession = Depends(get_db),
@@ -202,6 +228,7 @@ async def get_patterns(
 @router.get("/datasets/{dataset_id}/rework-chains", response_model=ReworkChainListResponse)
 async def get_rework_chains(
     dataset_id: str,
+    user: CurrentUser,
     container: ServiceContainer,
     db: AsyncSession = Depends(get_db),
 ) -> ReworkChainListResponse:
@@ -245,6 +272,7 @@ async def get_rework_chains(
 @router.get("/datasets/{dataset_id}/performance", response_model=PerformanceDashboardResponse)
 async def get_performance_dashboard(
     dataset_id: str,
+    user: CurrentUser,
     container: ServiceContainer,
     db: AsyncSession = Depends(get_db),
 ) -> PerformanceDashboardResponse:

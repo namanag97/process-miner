@@ -295,6 +295,7 @@ async def delete_workspace(
 
     Requires WORKSPACE_DELETE permission (owner role only).
     WARNING: This permanently deletes all projects in the workspace.
+    Fails if any projects contain datasets (delete datasets first).
     """
     # Validate UUID format
     validate_uuid(workspace_id, "workspace_id")
@@ -309,6 +310,22 @@ async def delete_workspace(
 
     if not workspace:
         raise NotFoundError(resource="Workspace", resource_id=workspace_id)
+
+    # Check for datasets in workspace projects (prevent data loss)
+    from src.features.process_mining.models import Dataset
+
+    dataset_count_result = await db.execute(
+        select(func.count())
+        .select_from(Dataset)
+        .join(Project, Project.id == Dataset.project_id)
+        .where(Project.workspace_id == workspace_id)
+    )
+    dataset_count = dataset_count_result.scalar() or 0
+
+    if dataset_count > 0:
+        raise ConflictError(
+            message=f"Cannot delete workspace with {dataset_count} dataset(s). Delete all datasets first.",
+        )
 
     # Delete all projects in this workspace
     await db.execute(delete(Project).where(Project.workspace_id == workspace_id))

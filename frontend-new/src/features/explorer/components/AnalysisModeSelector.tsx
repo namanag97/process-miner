@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { sdk } from '@/src/api/sdk';
 import styles from './AnalysisModeSelector.module.css';
 
 // ============================================
@@ -38,7 +39,6 @@ export interface AnalysisModeSelectorProps {
     datasetId: string;
     onAnalysisStarted?: (jobId: string) => void;
     onClose?: () => void;
-    apiBaseUrl?: string;
 }
 
 // ============================================
@@ -49,7 +49,6 @@ export function AnalysisModeSelector({
     datasetId,
     onAnalysisStarted,
     onClose,
-    apiBaseUrl = '/api/v1',
 }: AnalysisModeSelectorProps) {
     const [metadata, setMetadata] = useState<AnalysisMetadata | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<string>('Discovery');
@@ -64,9 +63,7 @@ export function AnalysisModeSelector({
         async function fetchMetadata() {
             setIsLoading(true);
             try {
-                const response = await fetch(`${apiBaseUrl}/analyses/metadata`);
-                if (!response.ok) throw new Error('Failed to fetch analysis types');
-                const data = await response.json();
+                const data = await sdk.analyses.getMetadata();
                 setMetadata(data);
                 // Set default category
                 if (data.categories && data.categories.length > 0) {
@@ -79,7 +76,7 @@ export function AnalysisModeSelector({
             }
         }
         fetchMetadata();
-    }, [apiBaseUrl]);
+    }, []);
 
     // Filter analysis types by selected category
     const filteredTypes = metadata

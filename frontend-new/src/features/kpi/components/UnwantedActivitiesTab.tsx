@@ -6,8 +6,8 @@ import {
   QueryError,
   EmptyState,
   tokens,
-  useRework,
 } from '@/src/shared/design-system';
+import { useRework } from '@/src/api/hooks';
 
 const { Text } = Typography;
 

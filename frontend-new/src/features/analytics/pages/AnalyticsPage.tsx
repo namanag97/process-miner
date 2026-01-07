@@ -234,7 +234,7 @@ export function AnalyticsPage() {
                   <Space>
                     <span>{logItem.name}</span>
                     <Text type="secondary" style={{ fontSize: tokens.fontSize.xs }}>
-                      ({formatCompactNumber(logItem.totalCases)} cases)
+                      ({formatCompactNumber(logItem.caseCount)} cases)
                     </Text>
                   </Space>
                 ),

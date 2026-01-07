@@ -7,7 +7,7 @@
 
 import { useEffect } from 'react';
 import { useJobStatus } from '../hooks';
-import type { Job } from '../types';
+import type { Job } from '@/src/api/sdk';
 import styles from './JobStatusPanel.module.css';
 
 export interface JobStatusPanelProps {
@@ -62,6 +62,7 @@ export function JobStatusPanel({
     }
 
     const statusColors: Record<string, string> = {
+        pending: 'var(--color-warning, #f59e0b)',
         queued: 'var(--color-warning, #f59e0b)',
         running: 'var(--color-primary, #6366f1)',
         completed: 'var(--color-success, #10b981)',
@@ -70,6 +71,7 @@ export function JobStatusPanel({
     };
 
     const statusIcons: Record<string, string> = {
+        pending: '⏳',
         queued: '⏳',
         running: '🔄',
         completed: '✅',
@@ -88,7 +90,7 @@ export function JobStatusPanel({
             </div>
 
             {/* Progress Bar */}
-            {(job.status === 'running' || job.status === 'queued') && (
+            {(job.status === 'running' || job.status === 'queued' || job.status === 'pending') && (
                 <div className={styles.progressContainer}>
                     <div className={styles.progressBar}>
                         <div
@@ -118,7 +120,7 @@ export function JobStatusPanel({
             )}
 
             {/* Cancel Button */}
-            {(job.status === 'running' || job.status === 'queued') && onCancel && (
+            {(job.status === 'running' || job.status === 'queued' || job.status === 'pending') && onCancel && (
                 <button className={styles.cancelButton} onClick={onCancel}>
                     Cancel
                 </button>

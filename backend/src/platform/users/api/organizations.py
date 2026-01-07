@@ -33,6 +33,7 @@ Organizations are the top-level tenant container:
 - **422**: Slug already exists, invalid input
 """
 
+import secrets
 from datetime import datetime
 from uuid import uuid4
 
@@ -46,6 +47,7 @@ from src.platform.core.exceptions import (
     ValidationError,
 )
 from src.platform.core.logging_config import get_logger
+from src.platform.core.security import hash_password
 from src.platform.models import Organization, User, Workspace
 from src.platform.organizations.schemas import (
     BillingResponse,
@@ -299,19 +301,28 @@ async def invite_member(
             joined_at=datetime.utcnow(),
         )
     else:
-        # Create placeholder user (they'll complete registration)
+        # Create user with temporary password
+        # User will need to use "forgot password" flow to set their own password
+        temp_password = secrets.token_urlsafe(16)
         new_user = User(
             id=str(uuid4()),
             org_id=org_id,
             email=request.email.lower(),
             name=request.email.split("@")[0],
+            password_hash=hash_password(temp_password),
             role=request.role,
             created_at=datetime.utcnow(),
         )
         db.add(new_user)
         await db.commit()
 
-        logger.info("member_invited", org_id=org_id, email=request.email, by_user=user.id)
+        logger.info(
+            "member_invited",
+            org_id=org_id,
+            email=request.email,
+            by_user=user.id,
+            note="User should use forgot-password flow to set password",
+        )
 
         return MemberResponse(
             user_id=new_user.id,

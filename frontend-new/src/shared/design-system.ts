@@ -18,6 +18,7 @@ import { message } from 'antd';
 // ==============================================
 import React, { createContext, useContext, ReactNode } from 'react';
 import apiClient from '../api/client';
+import { env } from '../config/env';
 import type { ProcessMiningSdk } from './components';
 
 // ==============================================
@@ -234,8 +235,7 @@ export const useSDK = (): SDKContextType => {
     const context = useContext(SDKContext);
     if (!context) {
         // Fallback for components used outside provider
-        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-        return createSDKInstance(baseUrl);
+        return createSDKInstance(env.API_BASE_URL);
     }
     return context;
 };
@@ -246,7 +246,7 @@ interface SDKProviderProps {
 }
 
 export const SDKProvider: React.FC<SDKProviderProps> = ({ children, baseUrl }) => {
-    const url = baseUrl || import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const url = baseUrl || env.API_BASE_URL;
     const value: SDKContextType = createSDKInstance(url);
     return React.createElement(SDKContext.Provider, { value }, children);
 };
@@ -480,7 +480,8 @@ export const luminaTheme = {
 // ==============================================
 // Re-export UI Components
 // ==============================================
-export { PageHeader, MetricCard, ProcessQuestion, EmptyState, AppShell, ErrorBoundary, ProcessMiningSdk } from './components';
+export { PageHeader, MetricCard, ProcessQuestion, EmptyState, AppShell, ErrorBoundary } from './components';
+export type { ProcessMiningSdk } from './components';
 
 interface LoadingStateProps {
     type?: 'card' | 'inline' | 'page' | 'fullPage';

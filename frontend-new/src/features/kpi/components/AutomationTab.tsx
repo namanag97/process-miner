@@ -6,8 +6,8 @@ import {
   QueryError,
   EmptyState,
   tokens,
-  useAutomation,
 } from '@/src/shared/design-system';
+import { useAutomation } from '@/src/api/hooks';
 
 const { Text } = Typography;
 

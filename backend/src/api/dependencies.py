@@ -138,7 +138,7 @@ async def get_current_user_optional(
 async def _get_mock_user(db: AsyncSession) -> "User":
     """Get the seeded MVP user for development when auth is disabled.
 
-    This function returns the pre-seeded MVP user (analyst@company.local)
+    This function returns the pre-seeded MVP user (analyst@example.com)
     which has access to mvp-ws-001 - the workspace the frontend is hardcoded to use.
 
     The seeding happens in main.py's _seed_mvp_data() during application startup.
@@ -148,7 +148,7 @@ async def _get_mock_user(db: AsyncSession) -> "User":
     from src.platform.models import Organization, User, Workspace, WorkspaceMember
 
     # First, try to find the seeded MVP user (preferred)
-    result = await db.execute(select(User).filter(User.email == "analyst@company.local"))
+    result = await db.execute(select(User).filter(User.email == "analyst@example.com"))
     user = result.scalar_one_or_none()
 
     if user:
@@ -190,7 +190,7 @@ async def _get_mock_user(db: AsyncSession) -> "User":
     user = User(
         id="mvp-user-001",
         org_id="mvp-org-001",
-        email="analyst@company.local",
+        email="analyst@example.com",
         name="Process Analyst",
         auth_provider="local",
         role="admin",

@@ -30,7 +30,7 @@ Organizational mining analyzes how people work together:
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 
-from src.api.dependencies import DBSession, ServiceContainer
+from src.api.dependencies import CurrentUser, DBSession, ServiceContainer
 from src.features.process_mining.models import Dataset
 from src.features.process_mining.schemas import (
     NetworkEdge,
@@ -41,6 +41,8 @@ from src.features.process_mining.schemas import (
     SocialNetworkResponse,
 )
 from src.platform.core.logging_config import get_logger
+from src.platform.core.permissions import Permission
+from src.platform.workspaces.authorization import require_dataset_permission
 
 logger = get_logger(__name__)
 

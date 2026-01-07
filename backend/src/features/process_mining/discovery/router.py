@@ -155,6 +155,7 @@ async def discover_model(
 @router.get("/models", response_model=ModelListResponse)
 async def list_models(
     db: DBSession,
+    user: CurrentUser,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     dataset_id: str | None = Query(None),
@@ -177,7 +178,7 @@ async def list_models(
 
 
 @router.get("/models/{model_id}", response_model=ModelResponse)
-async def get_model(db: DBSession, model_id: str):
+async def get_model(db: DBSession, user: CurrentUser, model_id: str):
     """Get details of a discovered process model."""
     model = (await db.execute(select(ProcessModel).where(ProcessModel.id == model_id))).scalar_one_or_none()
     if not model:
@@ -187,12 +188,22 @@ async def get_model(db: DBSession, model_id: str):
 
 
 @router.delete("/models/{model_id}")
-async def delete_model(db: DBSession, model_id: str):
-    """Delete a discovered process model."""
+async def delete_model(db: DBSession, user: CurrentUser, model_id: str):
+    """Delete a discovered process model.
+
+    Requires DATASET_UPDATE permission on the model's dataset.
+    """
+    from src.platform.core.permissions import Permission
+    from src.platform.users.services import require_dataset_permission
+
     model = (await db.execute(select(ProcessModel).where(ProcessModel.id == model_id))).scalar_one_or_none()
     if not model:
         raise ModelNotFoundError(model_id)
+
+    # Verify user has permission to modify the dataset this model belongs to
+    await require_dataset_permission(db, model.dataset_id, user, Permission.DATASET_UPDATE)
+
     await db.delete(model)
     await db.flush()
-    logger.info("delete_model_completed", model_id=model_id)
+    logger.info("delete_model_completed", model_id=model_id, user_id=user.id)
     return {"status": "deleted", "id": model_id}

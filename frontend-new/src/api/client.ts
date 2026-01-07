@@ -6,7 +6,9 @@
  */
 import axios, { AxiosRequestConfig, AxiosError } from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { env } from '../config/env';
+
+const API_BASE_URL = env.API_BASE_URL;
 
 export const apiClient = axios.create({
     baseURL: API_BASE_URL,
@@ -17,7 +19,7 @@ export const apiClient = axios.create({
 // Request interceptor for auth token
 apiClient.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('auth_token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }

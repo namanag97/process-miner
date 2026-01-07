@@ -66,11 +66,19 @@ async def get_statistics(
             )
 
     # Compute basic statistics if not stored
+    # Compute total_variants from ProcessCase
+    variant_count_result = await db.execute(
+        select(func.count(func.distinct(ProcessCase.variant_key)))
+        .where(ProcessCase.dataset_id == dataset_id)
+        .where(ProcessCase.variant_key.isnot(None))
+    )
+    total_variants = variant_count_result.scalar() or 0
+
     return StatisticsResponse(
         total_events=dataset.total_events,
         total_cases=dataset.total_cases,
         total_activities=dataset.total_activities,
-        total_variants=0,
+        total_variants=total_variants,
         activities=[],
         start_activities={},
         end_activities={},
@@ -454,12 +462,20 @@ async def get_metadata(
                 "end": last_event.isoformat(),
             }
 
+    # Compute total_variants from ProcessCase
+    variant_count_result = await db.execute(
+        select(func.count(func.distinct(ProcessCase.variant_key)))
+        .where(ProcessCase.dataset_id == dataset_id)
+        .where(ProcessCase.variant_key.isnot(None))
+    )
+    total_variants = variant_count_result.scalar() or 0
+
     return MetadataResponse(
         dataset_id=dataset_id,
         total_events=dataset.total_events,
         total_cases=dataset.total_cases,
         total_activities=dataset.total_activities,
-        total_variants=0,  # Would compute from ProcessCase
+        total_variants=total_variants,
         first_event_at=first_event,
         last_event_at=last_event,
         avg_case_duration_seconds=avg_duration,

@@ -6,8 +6,8 @@ import {
   QueryError,
   EmptyState,
   tokens,
-  useDeadlines,
 } from '@/src/shared/design-system';
+import { useDeadlines } from '@/src/api/hooks';
 
 const { Text } = Typography;
 

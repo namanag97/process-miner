@@ -71,45 +71,67 @@ class Resource(Base):
 async def get_or_create_activity(session, dataset_id: str, name: str) -> Activity:
     """Get existing activity or create new one.
     
-    Uses INSERT ... ON CONFLICT DO NOTHING pattern for concurrent safety.
+    Uses robust check-then-insert with retry loop for concurrent safety.
     """
     from sqlalchemy import select
+    from sqlalchemy.exc import IntegrityError
     
-    # Try to get existing
-    result = await session.execute(
-        select(Activity).where(
-            Activity.dataset_id == dataset_id,
-            Activity.name == name
+    # Retry loop to handle race conditions
+    for _ in range(3):
+        # 1. Try to get existing
+        result = await session.execute(
+            select(Activity).where(
+                Activity.dataset_id == dataset_id,
+                Activity.name == name
+            )
         )
-    )
-    activity = result.scalar_one_or_none()
-    
-    if activity:
-        return activity
-    
-    # Create new
-    activity = Activity(dataset_id=dataset_id, name=name)
-    session.add(activity)
-    await session.flush()
-    return activity
+        activity = result.scalar_one_or_none()
+        
+        if activity:
+            return activity
+        
+        # 2. Try to create new
+        # Use a nested transaction (savepoint) so we can rollback cleanly if it fails
+        try:
+            async with session.begin_nested():
+                activity = Activity(dataset_id=dataset_id, name=name)
+                session.add(activity)
+                await session.flush()
+            return activity
+        except IntegrityError:
+            # Race condition: someone else inserted it between our select and insert
+            # The nested transaction rolled back, so session is clean.
+            # Loop again to fetch the newly created record.
+            continue
+            
+    # Should not happen unless DB is behaving very strangely
+    raise IntegrityError(f"Failed to get_or_create activity '{name}' after retries", params=None, orig=None)
 
 
 async def get_or_create_resource(session, dataset_id: str, name: str) -> Resource:
     """Get existing resource or create new one."""
     from sqlalchemy import select
+    from sqlalchemy.exc import IntegrityError
     
-    result = await session.execute(
-        select(Resource).where(
-            Resource.dataset_id == dataset_id,
-            Resource.name == name
+    for _ in range(3):
+        result = await session.execute(
+            select(Resource).where(
+                Resource.dataset_id == dataset_id,
+                Resource.name == name
+            )
         )
-    )
-    resource = result.scalar_one_or_none()
-    
-    if resource:
-        return resource
-    
-    resource = Resource(dataset_id=dataset_id, name=name)
-    session.add(resource)
-    await session.flush()
-    return resource
+        resource = result.scalar_one_or_none()
+        
+        if resource:
+            return resource
+        
+        try:
+            async with session.begin_nested():
+                resource = Resource(dataset_id=dataset_id, name=name)
+                session.add(resource)
+                await session.flush()
+            return resource
+        except IntegrityError:
+            continue
+            
+    raise IntegrityError(f"Failed to get_or_create resource '{name}' after retries", params=None, orig=None)

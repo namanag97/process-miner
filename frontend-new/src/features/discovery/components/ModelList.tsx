@@ -5,8 +5,11 @@
  */
 
 import { useDiscoveredModels } from '../hooks';
-import type { DiscoveredModel, ModelFormat } from '../types';
+import type { ProcessModel, ModelFormat } from '@/src/api/sdk';
 import styles from './ModelList.module.css';
+
+// Alias for backward compatibility
+type DiscoveredModel = ProcessModel;
 
 export interface ModelListProps {
     datasetId: string;
@@ -98,15 +101,15 @@ export function ModelList({
                     >
                         <div className={styles.modelHeader}>
                             <span className={styles.formatIcon}>
-                                {formatIcons[model.modelFormat] || '📄'}
+                                {model.modelFormat ? formatIcons[model.modelFormat] || '📄' : '📄'}
                             </span>
                             <span className={styles.modelName}>{model.name}</span>
                         </div>
                         <div className={styles.modelMeta}>
                             <span className={styles.formatBadge}>
-                                {formatLabels[model.modelFormat] || model.modelFormat}
+                                {model.modelFormat ? formatLabels[model.modelFormat] || model.modelFormat : 'Unknown'}
                             </span>
-                            <span className={styles.minerType}>{model.minerType}</span>
+                            <span className={styles.minerType}>{model.minerType || 'Unknown'}</span>
                         </div>
                         {(model.fitness !== undefined || model.precision !== undefined) && (
                             <div className={styles.metrics}>
