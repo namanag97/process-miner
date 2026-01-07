@@ -14,6 +14,7 @@ from sqlalchemy import select
 from src.api.dependencies import CurrentUser, DBSession
 from src.features.process_mining.models import DatasetColumnMapping, DatasetStatus
 from src.features.process_mining.schemas.analyses import JobStatusResponse
+from src.platform.core.enums import JobStatus, JobType
 from src.platform.core.exceptions import ValidationError
 from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
@@ -132,13 +133,16 @@ async def trigger_ingestion(
 
     logger.info("ingestion_triggered", dataset_id=dataset_id, workflow_id=workflow_id)
 
+    from datetime import timezone
+    now = datetime.now(timezone.utc)
+    
     return JobStatusResponse(
         id=workflow_id,
-        job_type="ingest_dataset",
-        status=JobStatus.PENDING.value,
+        job_type=JobType.INGESTION,
+        status=JobStatus.QUEUED,
         progress=0,
         stage="queued",
-        created_at=datetime.utcnow(),
+        created_at=now,
         result={
             "workflow_id": workflow_id,
             "workflow_run_id": workflow_run_id,
@@ -232,13 +236,16 @@ async def trigger_reingest(
 
     logger.info("reingest_triggered", dataset_id=dataset_id, workflow_id=workflow_id)
 
+    from datetime import timezone
+    now = datetime.now(timezone.utc)
+
     return JobStatusResponse(
         id=workflow_id,
-        job_type="reingest_dataset",
-        status=JobStatus.PENDING.value,
+        job_type=JobType.INGESTION,
+        status=JobStatus.QUEUED,
         progress=0,
         stage="queued",
-        created_at=datetime.utcnow(),
+        created_at=now,
         result={
             "workflow_id": workflow_id,
             "workflow_run_id": handle.result_run_id,

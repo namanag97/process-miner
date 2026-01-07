@@ -83,7 +83,7 @@ async def get_algorithm(
     algorithm = await service.get_algorithm(algorithm_id)
 
     if not algorithm:
-        raise ResourceNotFoundError(f"Algorithm not found: {algorithm_id}")
+        raise ResourceNotFoundError("Algorithm", algorithm_id)
 
     return algorithm
 

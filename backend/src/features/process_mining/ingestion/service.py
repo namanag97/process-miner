@@ -25,6 +25,7 @@ from src.features.process_mining.models import (
 )
 from src.platform.core.exceptions import ValidationError
 from src.platform.core.logging_config import get_logger
+from src.platform.storage.storage import storage_service
 
 logger = get_logger(__name__)
 
@@ -34,6 +35,11 @@ class IngestionService:
     Data Ingestion Service.
     Handles CSV, XES file parsing and event log creation.
     """
+
+    def __init__(self, session: Any = None, storage: Any = None):
+        """Initialize with optional database session and storage service."""
+        self.session = session
+        self.storage = storage or storage_service
 
     async def ingest_csv(
         self,

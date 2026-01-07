@@ -107,7 +107,7 @@ async def test_delete_dataset(auth_client: AsyncClient, seeded_project, db_sessi
         project_id=seeded_project.id,
         name="To Delete",
         source_format="csv",
-        original_filename="test.csv",
+        source_file="test.csv",
         status=DatasetStatus.PENDING.value,
     )
     db_session.add(dataset)

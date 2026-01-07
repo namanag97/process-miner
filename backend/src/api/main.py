@@ -38,6 +38,7 @@ from src.api.routers import (
     projects_router,
     quality_metrics_router,
     simulation_router,
+    # telemetry_router,  # TODO: Create telemetry router
     visualization_router,
     workflows_api_router,
     workflows_router,
@@ -533,9 +534,25 @@ For support, please contact the developer team or refer to the internal document
     app.include_router(workflows_api_router, prefix=settings.api_prefix)  # Temporal workflow status
     app.include_router(dags_router, prefix=settings.api_prefix)
     app.include_router(audit_router, prefix=settings.api_prefix)
-    app.include_router(dev_log_router, prefix=settings.api_prefix)
-    app.include_router(dev_logs_stream_router, prefix=settings.api_prefix)
-    app.include_router(dev_data_router, prefix=settings.api_prefix)
+
+    # Dev/Debug endpoints - ONLY in development/staging (NOT production)
+    if settings.environment.lower() in ["development", "staging"]:
+        logger.warning(
+            "dev_endpoints_enabled",
+            environment=settings.environment,
+            message="Dev/debug endpoints are ENABLED. These should be disabled in production!",
+        )
+        app.include_router(dev_log_router, prefix=settings.api_prefix)
+        app.include_router(dev_logs_stream_router, prefix=settings.api_prefix)
+        app.include_router(dev_data_router, prefix=settings.api_prefix)
+    else:
+        logger.info(
+            "dev_endpoints_disabled",
+            environment=settings.environment,
+            message="Dev/debug endpoints are disabled for production safety.",
+        )
+
+    # app.include_router(telemetry_router, prefix=settings.api_prefix)  # TODO: Create telemetry router
 
     return app
 

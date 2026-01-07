@@ -86,18 +86,23 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Create an async HTTP client for testing."""
 
     # Override the database dependency to use test session
-    from src.platform.infrastructure.database import get_session
+    from src.api.dependencies import get_db
+    from src.platform.health.router import mark_startup_complete
 
     async def override_get_db():
         yield db_session
 
-    app.dependency_overrides[get_session] = override_get_db
+    app.dependency_overrides[get_db] = override_get_db
+
+    # Mark startup complete for health checks (lifespan not triggered in tests)
+    mark_startup_complete()
 
     transport = ASGITransport(app=app)
     async with AsyncClient(
         transport=transport,
         base_url="http://test",
         headers={"Content-Type": "application/json"},
+        follow_redirects=True,
     ) as ac:
         yield ac
 
@@ -113,8 +118,15 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 @pytest_asyncio.fixture(scope="function")
 async def auth_client(client: AsyncClient, seeded_user: User) -> AsyncClient:
     """HTTP client with auth headers for the seeded user."""
-    # In dev mode with AUTH_ENABLED=false, just add a placeholder header
-    # The auth system will use the mock user
+    from src.api.dependencies import get_current_user
+    from src.api.main import app
+
+    # Override get_current_user to return the seeded test user
+    async def override_get_current_user():
+        return seeded_user
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+
     client.headers["Authorization"] = "Bearer test-token"
     return client
 
@@ -221,7 +233,7 @@ async def seeded_dataset_pending(
         project_id=seeded_project.id,
         name="Test Dataset (Pending)",
         source_format="csv",
-        original_filename="test.csv",
+        source_file="test.csv",
         status=DatasetStatus.PENDING.value,
     )
     db_session.add(dataset)
@@ -245,15 +257,12 @@ async def seeded_dataset_ready(
         project_id=seeded_project.id,
         name="Test Dataset (Ready)",
         source_format="csv",
-        original_filename="test.csv",
+        source_file="test.csv",
         status=DatasetStatus.READY.value,
         total_cases=3,
         total_events=9,
         total_activities=3,
         activities_json=json.dumps(["Start", "Process", "End"]),
-        case_id_column="case_id",
-        activity_column="activity",
-        timestamp_column="timestamp",
     )
     db_session.add(dataset)
     await db_session.flush()
@@ -272,6 +281,7 @@ async def seeded_dataset_ready(
         for j, activity in enumerate(activities):
             event = ProcessEvent(
                 id=str(uuid4()),
+                dataset_id=dataset.id,
                 case_ref_id=case.id,
                 activity=activity,
                 timestamp=datetime(2024, 1, 1, 10, j, 0, tzinfo=timezone.utc),

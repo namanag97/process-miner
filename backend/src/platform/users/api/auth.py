@@ -543,116 +543,22 @@ async def logout() -> dict[str, str]:
 
 
 # =============================================================================
-# OAuth Endpoints (Placeholders)
+# OAuth/Social Auth Endpoints
+# =============================================================================
+# REMOVED FOR MVP: OAuth endpoints have been removed to reduce security surface
+# and simplify the MVP authentication flow. MVP uses email/password only.
+# OAuth can be added post-MVP if needed.
+#
+# Removed endpoints:
+# - GET /api/v1/auth/oauth/google
+# - GET /api/v1/auth/oauth/google/callback
+# - GET /api/v1/auth/oauth/github
+# - GET /api/v1/auth/oauth/github/callback
+#
 # =============================================================================
 
 
-@router.get("/oauth/google")
-async def oauth_google_init() -> dict:
-    """Initiate Google OAuth flow.
-
-    Note: OAuth integration not yet implemented.
-    """
-    logger.info("oauth_google_init_attempted")
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail={
-            "code": "OAUTH_NOT_IMPLEMENTED",
-            "message": "Google OAuth integration not yet configured",
-            "provider": "google",
-        },
-    )
-
-
-@router.get("/oauth/google/callback")
-async def oauth_google_callback(
-    code: str | None = Query(None),
-    state: str | None = Query(None),
-) -> dict:
-    """Google OAuth callback.
-
-    Note: OAuth integration not yet implemented.
-    """
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Google OAuth callback not implemented",
-    )
-
-
-@router.get("/oauth/github")
-async def oauth_github_init() -> dict:
-    """Initiate GitHub OAuth flow.
-
-    Note: OAuth integration not yet implemented.
-    """
-    logger.info("oauth_github_init_attempted")
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail={
-            "code": "OAUTH_NOT_IMPLEMENTED",
-            "message": "GitHub OAuth integration not yet configured",
-            "provider": "github",
-        },
-    )
-
-
-@router.get("/oauth/github/callback")
-async def oauth_github_callback(
-    code: str | None = Query(None),
-    state: str | None = Query(None),
-) -> dict:
-    """GitHub OAuth callback.
-
-    Note: OAuth integration not yet implemented.
-    """
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="GitHub OAuth callback not implemented",
-    )
-
-
 # =============================================================================
-# Legacy MVP Endpoint (for backwards compatibility)
+# Legacy MVP Endpoint (REMOVED)
 # =============================================================================
-
-
-@router.get("/me/legacy", response_model=CurrentUserResponse, deprecated=True)
-async def get_current_user_legacy(
-    db: DBSession,
-    email: str | None = Query(None, description="Email to identify user (MVP mode)"),
-) -> CurrentUserResponse:
-    """Legacy MVP endpoint - use /auth/me with JWT instead.
-
-    DEPRECATED: This endpoint bypasses authentication.
-    Only works when AUTH_ENABLED=false.
-    """
-    if settings.auth_enabled:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Legacy endpoint disabled when auth is enabled. Use /auth/login.",
-        )
-
-    from src.api.dependencies import _get_mock_user
-
-    user = await _get_mock_user(db)
-
-    # Get organization
-    org = None
-    if user.org_id:
-        org_result = await db.execute(select(Organization).filter(Organization.id == user.org_id))
-        org = org_result.scalar_one_or_none()
-
-    # Get workspaces
-    workspaces_result = await db.execute(
-        select(Workspace)
-        .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)
-        .filter(WorkspaceMember.user_id == user.id)
-    )
-    workspaces: list[Workspace] = list(workspaces_result.scalars().all())
-
-    return CurrentUserResponse(
-        user=_user_to_response(user),
-        organization=_org_to_response(org) if org else None,
-        workspaces=[_workspace_to_response(w) for w in workspaces],
-        current_workspace_id=workspaces[0].id if workspaces else None,
-    )
+# Removed for security hardening.

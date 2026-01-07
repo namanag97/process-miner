@@ -60,7 +60,7 @@ class CancelResponse(BaseModel):
 
 
 @router.get("/{workflow_id}", response_model=OperationStatus)
-async def get_operation_status(workflow_id: str) -> OperationStatus:
+async def get_operation_status(workflow_id: str, user: CurrentUser) -> OperationStatus:
     """Get operation status from Temporal.
 
     This is the ONLY place to get job/workflow status.
@@ -191,7 +191,7 @@ async def list_operations(
                     workflows.append(
                         OperationStatus(
                             workflow_id=workflow.id,
-                            status=workflow.status.name if run.status else "UNKNOWN" if workflow.status else "UNKNOWN",
+                            status=workflow.status.name if workflow.status else "UNKNOWN",
                             progress=0,  # Would need query for each
                             current_step=None,
                             started_at=workflow.start_time.isoformat()
@@ -256,7 +256,7 @@ async def cancel_operation(workflow_id: str, user: CurrentUser) -> CancelRespons
 
 
 @router.get("/{workflow_id}/result")
-async def get_operation_result(workflow_id: str):
+async def get_operation_result(workflow_id: str, user: CurrentUser):
     """Get the final result of a completed operation.
 
     Only available for COMPLETED workflows.
@@ -275,10 +275,10 @@ async def get_operation_result(workflow_id: str):
 
         # Get workflow status first
         desc = await handle.describe()
-        if desc.status.name if run.status else "UNKNOWN" != "COMPLETED":
+        if (desc.status.name if desc.status else "UNKNOWN") != "COMPLETED":
             raise HTTPException(
                 status_code=400,
-                detail=f"Operation not completed. Status: {desc.status.name if run.status else "UNKNOWN"}",
+                detail=f"Operation not completed. Status: {desc.status.name if desc.status else 'UNKNOWN'}",
             )
 
         # Get result

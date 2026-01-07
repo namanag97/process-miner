@@ -214,7 +214,7 @@ export function WorkflowProgressCard({
                             border: `1px solid ${tokens.colors.error[200]}`,
                         }}
                     >
-                        <Text style={{ color: tokens.colors.error[700], fontSize: 13 }}>
+                        <Text style={{ color: tokens.colors.error[600], fontSize: 13 }}>
                             {progress.errorMessage}
                         </Text>
                     </div>

@@ -2,6 +2,11 @@
 
 Dataset lifecycle management for process mining event logs.
 
+## CQRS Pattern
+- GET endpoints use ReadDBSession (read-optimized connection pool)
+- DELETE endpoint uses WriteDBSession (write-optimized connection pool)
+- DELETE emits domain events for cache invalidation
+
 ## Business Context
 Datasets (event logs) are the foundation of process mining:
 - Upload CSV/XES files containing process execution data
@@ -41,9 +46,10 @@ import json
 from typing import Any
 
 from fastapi import APIRouter, Query
+
 from sqlalchemy import func, select
 
-from src.api.dependencies import CurrentUser, DBSession
+from src.api.dependencies import CurrentUser, ReadDBSession, WriteDBSession
 from src.features.process_mining.models import Dataset
 from src.features.process_mining.schemas.datasets import (
     DatasetDetailResponse,
@@ -53,6 +59,8 @@ from src.features.process_mining.schemas.datasets import (
 from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
 from src.platform.users.services import require_dataset_permission
+from src.shared.events import DATASET_DELETED, log_dataset_event
+from src.platform.infrastructure.cache import invalidate_dataset_cache
 
 logger = get_logger(__name__)
 
@@ -66,7 +74,7 @@ router = APIRouter()
     description="List all datasets with pagination and filtering.",
 )
 async def list_datasets(
-    db: DBSession,
+    db: ReadDBSession,  # CQRS: Read-optimized pool for GET
     user: CurrentUser,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -171,7 +179,7 @@ async def list_datasets(
     description="Get detailed information about a dataset.",
 )
 async def get_dataset(
-    db: DBSession,
+    db: ReadDBSession,  # CQRS: Read-optimized pool for GET
     dataset_id: str,
     user: CurrentUser,
 ) -> DatasetDetailResponse:
@@ -273,7 +281,7 @@ async def get_dataset(
     description="Get list of sheets for multi-sheet files (Excel). CSV/XES files return a single sheet.",
 )
 async def get_dataset_sheets(
-    db: DBSession,
+    db: ReadDBSession,  # CQRS: Read-optimized pool for GET
     dataset_id: str,
     user: CurrentUser,
 ) -> dict[str, Any]:
@@ -319,11 +327,15 @@ async def get_dataset_sheets(
     },
 )
 async def delete_dataset(
-    db: DBSession,
+    db: WriteDBSession,  # CQRS: Write-optimized pool for DELETE
     dataset_id: str,
     user: CurrentUser,
 ) -> dict[str, Any]:
-    """Delete dataset and cascade to related records."""
+    """Delete dataset and cascade to related records.
+    
+    CQRS: Uses WriteDBSession for transactional delete.
+    Emits DATASET_DELETED event for cache invalidation.
+    """
     from src.platform.infrastructure.object_storage import get_storage_client
 
     logger.info(
@@ -375,6 +387,23 @@ async def delete_dataset(
                 error=str(e),
                 error_type=type(e).__name__,
             )
+
+    # CQRS: Emit domain event for read model sync
+    await log_dataset_event(
+        session=db,
+        dataset_id=dataset_id,
+        event_type=DATASET_DELETED,
+        payload={
+            "dataset_name": dataset_name,
+            "storage_key": storage_key,
+            "events_deleted": total_events,
+            "cases_deleted": total_cases,
+        },
+        user_id=user.id,
+    )
+    
+    # CQRS: Invalidate analytics caches
+    invalidate_dataset_cache(dataset_id)
 
     logger.info(
         "delete_dataset_success",
