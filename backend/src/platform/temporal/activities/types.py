@@ -81,24 +81,7 @@ class ParseToParquetOutput:
     parquet_size_bytes: int | None = None
 
 
-@dataclass
-class BulkCopyInput:
-    """Input for bulk_copy_to_db_activity."""
 
-    dataset_id: str
-    cases_data: list[dict[str, Any]]
-    events_data: list[dict[str, Any]]
-    batch_size: int = 5000
-
-
-@dataclass
-class BulkCopyOutput:
-    """Output from bulk_copy_to_db_activity."""
-
-    dataset_id: str
-    cases_inserted: int
-    events_inserted: int
-    duration_ms: float
 
 
 @dataclass
