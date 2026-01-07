@@ -8,8 +8,11 @@ import { BackendHealthProvider } from './shared/context/BackendHealthContext';
 import { GlobalErrorBoundary, ErrorReport } from './shared/ui/GlobalErrorBoundary';
 import { PageLoader } from './shared/ui/PageLoader';
 import { DevConsole, devLog } from './shared/ui/DevConsole';
+import { OfflineBanner } from './shared/ui/OfflineBanner';
 import { createLogger } from './shared/lib/logger';
 import { useFeatureRoutes } from './shared/core/plugins/FeatureRegistry';
+import { initializeQueryPersistence } from './api/queryClient';
+import { useOfflineQueueProcessor } from './api/offlineQueue';
 
 // ============================================
 // Feature Auto-Registration
@@ -89,6 +92,13 @@ function renderRouteObject(route: RouteObject, index: number): React.ReactNode {
       element={route.element}
     />
   );
+}
+
+// Component to handle offline queue processing
+function OfflineQueueManager() {
+  // This hook processes queued mutations when back online
+  useOfflineQueueProcessor();
+  return null;
 }
 
 // Main app layout with shell
@@ -182,6 +192,11 @@ function AppLayout() {
 }
 
 function App() {
+  // Initialize query persistence on mount
+  useEffect(() => {
+    initializeQueryPersistence();
+  }, []);
+
   return (
     <GlobalErrorBoundary onError={handleGlobalError}>
       <ConfigProvider theme={luminaTheme}>
@@ -190,6 +205,10 @@ function App() {
             <UserProvider>
               <NotificationProvider>
                 <BrowserRouter>
+                  {/* Offline status banner */}
+                  <OfflineBanner />
+                  {/* Offline queue processor */}
+                  <OfflineQueueManager />
                   {/* No authentication - direct access to app */}
                   <AppLayout />
                   {/* Dev Console - only renders in development */}

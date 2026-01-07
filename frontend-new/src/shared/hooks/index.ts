@@ -18,3 +18,19 @@ export {
   useSafeMutation,
 } from './useSafeAsync';
 export type { UseSafeAsyncOptions, UseSafeAsyncReturn } from './useSafeAsync';
+
+// Network Resilience Hooks
+export {
+  useNetworkStatus,
+  useNetworkInfo,
+  useOfflineDuration,
+} from './useNetworkStatus';
+
+export {
+  useSlowRequestDetection,
+  useProgressiveSlowDetection,
+} from './useSlowRequestDetection';
+export type {
+  UseSlowRequestDetectionOptions,
+  UseSlowRequestDetectionReturn,
+} from './useSlowRequestDetection';

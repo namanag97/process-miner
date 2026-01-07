@@ -111,18 +111,36 @@ export function MapDataStep({ preview, mapping, onMappingChange, onNext, onBack 
         const value = localMapping[field];
         const suggestion = suggestions[field.replace('_column', '')];
         const isSuggested = value === suggestion;
+        const isMapped = !!value;
 
         return (
-            <Card size="small" style={{ marginBottom: tokens.spacing[3] }}>
+            <Card
+                size="small"
+                style={{
+                    marginBottom: tokens.spacing[3],
+                    border: isMapped
+                        ? `1px solid ${tokens.colors.success[500]}`
+                        : `1px solid ${tokens.colors.neutral[200]}`,
+                    backgroundColor: isMapped
+                        ? tokens.colors.success[50]
+                        : tokens.colors.neutral[0],
+                    transition: 'all 0.15s ease',
+                }}
+            >
                 <Row align="middle" gutter={16}>
-                    <Col span={8}>
+                    <Col span={7}>
                         <Space>
-                            {icon}
+                            <span style={{ color: isMapped ? tokens.colors.success[600] : tokens.colors.neutral[500] }}>
+                                {icon}
+                            </span>
                             <Text strong>{label}</Text>
-                            {required && <Text type="danger">*</Text>}
+                            {required && <Text type="danger" style={{ fontSize: 11 }}>*</Text>}
                         </Space>
                     </Col>
-                    <Col span={12}>
+                    <Col span={2} style={{ textAlign: 'center' }}>
+                        <span style={{ color: tokens.colors.neutral[400] }}>→</span>
+                    </Col>
+                    <Col span={10}>
                         <Select
                             value={value}
                             onChange={(val) => updateField(field, val)}
@@ -134,7 +152,7 @@ export function MapDataStep({ preview, mapping, onMappingChange, onNext, onBack 
                                 <Option key={col} value={col}>
                                     {col}
                                     {col === suggestion && (
-                                        <Tag color="blue" style={{ marginLeft: 8 }}>
+                                        <Tag color="blue" style={{ marginLeft: 8, fontSize: 10 }}>
                                             Suggested
                                         </Tag>
                                     )}
@@ -142,14 +160,14 @@ export function MapDataStep({ preview, mapping, onMappingChange, onNext, onBack 
                             ))}
                         </Select>
                     </Col>
-                    <Col span={4}>
+                    <Col span={5} style={{ textAlign: 'right' }}>
                         {isSuggested && (
-                            <Tag icon={<BulbOutlined />} color="processing">
-                                AI Match
+                            <Tag icon={<BulbOutlined />} color="processing" style={{ borderRadius: tokens.radius.sm }}>
+                                Auto-detected
                             </Tag>
                         )}
                         {value && !isSuggested && (
-                            <Tag icon={<CheckCircleOutlined />} color="success">
+                            <Tag icon={<CheckCircleOutlined />} color="success" style={{ borderRadius: tokens.radius.sm }}>
                                 Set
                             </Tag>
                         )}
