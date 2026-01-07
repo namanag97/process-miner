@@ -80,7 +80,7 @@ async function startIngestion(datasetId: string, _mapping: ColumnMapping): Promi
 
 async function checkJobStatus(jobId: string): Promise<{ id: string; status: string; progress?: number; error?: string }> {
     const data = await sdk.jobs.get(jobId);
-    return { id: jobId, ...data };
+    return { ...data, id: data.id ?? jobId };
 }
 
 async function getPresignedUrl(filename: string, fileSize: number, projectId: string, contentType = 'text/csv'): Promise<PresignedUploadResponse> {
@@ -157,17 +157,30 @@ export function useUploadWizard(_projectId: string, initialDatasetId?: string) {
         }
     }, [previewData]);
 
-    // Poll job status when finalizing
+    // Poll job status when finalizing with adaptive intervals
     const { data: jobStatus } = useQuery({
         queryKey: ['wizard', 'job', state.jobId],
         queryFn: () => checkJobStatus(state.jobId!),
         enabled: !!state.jobId && state.currentStep === 'finalize',
         refetchInterval: (query) => {
             const status = query.state.data?.status;
+            // Stop polling on terminal states
             if (status === 'completed' || status === 'failed' || status === 'cancelled') {
                 return false;
             }
-            return 2000; // Poll every 2s
+            // Adaptive polling based on data age
+            // TanStack Query tracks dataUpdatedAt, use it to estimate how long polling has been going
+            const dataUpdatedAt = query.state.dataUpdatedAt;
+
+            // Use dataUpdatedAt to infer elapsed time (rough estimate)
+            // If data was recently updated, we're probably still in early phase
+            const timeSinceUpdate = dataUpdatedAt ? Date.now() - dataUpdatedAt : 0;
+
+            // Progressive slowdown based on accumulated time
+            // We track this implicitly through query state
+            if (timeSinceUpdate < 10000 || !dataUpdatedAt) return 2000;   // Early phase: every 2s
+            if (timeSinceUpdate < 60000) return 4000;                      // Mid phase: every 4s
+            return 8000;                                                    // Late phase: every 8s
         },
     });
 

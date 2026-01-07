@@ -4,15 +4,19 @@
  * Provides hooks for:
  * - Detecting columns from uploaded CSV file
  * - Starting analysis (triggering /ingest endpoint)
- * - Polling job status
- * 
+ * - Polling job status with adaptive intervals
+ *
+ * UPDATED: Now uses adaptive polling with visibility detection and error backoff.
+ *
  * BUG-043 FIX: Added auth header injection
  * BUG-045 FIX: Added AbortController support for cancellation
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef } from 'react';
 import { message } from 'antd';
 import { queryKeys, instrumentedFetch } from '@lumina/design-system';
+import { useAdaptivePolling } from '@/hooks';
 import { env } from '../../../../config/env';
 
 // ============================================
@@ -52,6 +56,9 @@ export interface JobStatus {
     error?: string;
     result?: Record<string, unknown>;
 }
+
+// Terminal statuses
+const TERMINAL_STATUSES = ['completed', 'failed', 'cancelled'];
 
 // ============================================
 // BUG-043 FIX: Auth Header Helper
@@ -162,7 +169,7 @@ export function useStartAnalysis() {
 }
 
 // ============================================
-// Job Status Polling
+// Job Status Polling (Adaptive)
 // ============================================
 
 async function getJobStatus(jobId: string, signal?: AbortSignal): Promise<JobStatus> {
@@ -183,19 +190,121 @@ async function getJobStatus(jobId: string, signal?: AbortSignal): Promise<JobSta
     return response.json();
 }
 
-export function useJobStatus(jobId: string | null, options?: { refetchInterval?: number }) {
-    return useQuery({
-        queryKey: ['jobs', jobId],
-        queryFn: ({ signal }) => getJobStatus(jobId!, signal),
-        enabled: !!jobId,
-        refetchInterval: (query) => {
-            // Stop polling when job is complete
-            const status = query.state.data?.status;
-            if (status === 'completed' || status === 'failed' || status === 'cancelled') {
-                return false;
-            }
-            return options?.refetchInterval ?? 2000; // Poll every 2 seconds
-        },
-    });
+export interface UseJobStatusOptions {
+    /** @deprecated Use adaptive intervals instead */
+    refetchInterval?: number;
+    enabled?: boolean;
+    onComplete?: (job: JobStatus) => void;
+    onError?: (error: Error) => void;
+    // Adaptive interval overrides
+    initialInterval?: number;
+    normalInterval?: number;
+    slowInterval?: number;
+    longRunningInterval?: number;
 }
 
+export interface UseJobStatusResult {
+    data: JobStatus | undefined;
+    isLoading: boolean;
+    isFetching: boolean;
+    error: Error | null;
+    isError: boolean;
+    refetch: () => Promise<unknown>;
+    isPolling: boolean;
+    stopPolling: () => void;
+    resumePolling: () => void;
+    errorCount: number;
+    isVisible: boolean;
+    elapsedTime: number;
+    currentInterval: number | null;
+}
+
+/**
+ * Poll job status with adaptive intervals.
+ *
+ * Features:
+ * - Adaptive polling (fast at start, slower over time)
+ * - Pauses when browser tab is hidden (saves bandwidth)
+ * - Error backoff (slows down if server is unresponsive)
+ * - Automatically stops on terminal states
+ */
+export function useJobStatus(
+    jobId: string | null,
+    options: UseJobStatusOptions = {}
+): UseJobStatusResult {
+    const {
+        refetchInterval, // deprecated
+        enabled = true,
+        onComplete,
+        onError,
+        initialInterval = refetchInterval ?? 2000,
+        normalInterval = 4000,
+        slowInterval = 8000,
+        longRunningInterval = 15000,
+    } = options;
+
+    const onCompleteRef = useRef(onComplete);
+    const onErrorRef = useRef(onError);
+    const lastStatusRef = useRef<string | null>(null);
+
+    // Update refs to avoid stale closures
+    useEffect(() => {
+        onCompleteRef.current = onComplete;
+        onErrorRef.current = onError;
+    }, [onComplete, onError]);
+
+    const isTerminal = useCallback((job: JobStatus): boolean => {
+        return TERMINAL_STATUSES.includes(job.status);
+    }, []);
+
+    const result = useAdaptivePolling<JobStatus, Error>({
+        queryKey: ['jobs', jobId],
+        queryFn: () => getJobStatus(jobId!),
+        isTerminal,
+        enabled: enabled && !!jobId,
+        initialInterval,
+        normalInterval,
+        slowInterval,
+        longRunningInterval,
+    });
+
+    // Handle status changes and callbacks
+    useEffect(() => {
+        if (!result.data) return;
+
+        const currentStatus = result.data.status;
+        const previousStatus = lastStatusRef.current;
+
+        if (currentStatus === previousStatus) return;
+        lastStatusRef.current = currentStatus;
+
+        if (currentStatus === 'completed') {
+            onCompleteRef.current?.(result.data);
+        } else if (currentStatus === 'failed' || currentStatus === 'cancelled') {
+            onErrorRef.current?.(new Error(result.data.error || 'Job failed'));
+        }
+    }, [result.data]);
+
+    // Handle query errors
+    useEffect(() => {
+        if (result.error) {
+            onErrorRef.current?.(result.error);
+        }
+    }, [result.error]);
+
+    return {
+        data: result.data,
+        isLoading: result.isLoading,
+        isFetching: result.isFetching,
+        error: result.error,
+        isError: result.isError,
+        refetch: result.refetch,
+        isPolling: result.isPolling,
+        stopPolling: result.stopPolling,
+        resumePolling: result.resumePolling,
+        errorCount: result.errorCount,
+        isVisible: result.isVisible,
+        elapsedTime: result.elapsedTime,
+        currentInterval: result.currentInterval,
+    };
+}

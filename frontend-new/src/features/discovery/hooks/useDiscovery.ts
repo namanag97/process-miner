@@ -1,13 +1,41 @@
 /**
  * Discovery Feature - API Hooks
- * 
+ *
  * React Query hooks for discovery operations with proper job polling.
+ *
+ * UPDATED: Now uses adaptive polling with visibility detection and error backoff.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { sdk } from '@/api/sdk';
-import type { Job, DiscoveryRequest, DiscoveryResponse, DiscoveredModel, AnalysisMetadata } from '../types';
+import { useEffect, useCallback, useRef } from 'react';
+import {
+    sdk,
+    Job as SDKJob,
+    DiscoveryRequest as SDKDiscoveryRequest,
+    DiscoveryResponse as SDKDiscoveryResponse,
+} from '@/api/sdk';
+import { useAdaptivePolling } from '@/hooks/useAdaptivePolling';
+import type { Job, DiscoveryRequest, DiscoveredModel, AnalysisMetadata } from '../types';
+
+// Terminal job statuses
+const TERMINAL_STATUSES = ['completed', 'failed', 'cancelled'];
+
+// Convert SDK Job to local Job type
+function toLocalJob(sdkJob: SDKJob): Job {
+    return {
+        id: sdkJob.id,
+        jobType: sdkJob.type || sdkJob.jobType || 'unknown',
+        status: sdkJob.status as Job['status'],
+        progress: sdkJob.progress ?? 0,
+        stage: sdkJob.stage,
+        entityType: sdkJob.entityType,
+        entityId: sdkJob.entityId,
+        error: sdkJob.error,
+        createdAt: sdkJob.createdAt,
+        startedAt: sdkJob.startedAt,
+        completedAt: sdkJob.completedAt,
+    };
+}
 
 // ============================================
 // Query Keys
@@ -42,9 +70,10 @@ export function useAnalysisMetadata() {
 export function useDiscoveryMutation() {
     const queryClient = useQueryClient();
 
-    return useMutation<DiscoveryResponse, Error, DiscoveryRequest>({
+    return useMutation<SDKDiscoveryResponse, Error, DiscoveryRequest>({
         mutationFn: async (request) => {
-            return sdk.discovery.discover(request);
+            // Cast to SDK type (local type is more permissive)
+            return sdk.discovery.discover(request as unknown as SDKDiscoveryRequest);
         },
         onSuccess: (_data, variables) => {
             // Invalidate models list after discovery
@@ -56,27 +85,62 @@ export function useDiscoveryMutation() {
 }
 
 // ============================================
-// useJobStatus - Poll job status with auto-stop
+// useJobStatus - Poll job status with adaptive intervals
 // ============================================
 
 interface UseJobStatusOptions {
+    /** @deprecated Interval is now adaptive. Use initialInterval instead. */
     pollInterval?: number;
     enabled?: boolean;
     onComplete?: (job: Job) => void;
     onError?: (error: Error) => void;
+    // Adaptive interval overrides
+    initialInterval?: number;
+    normalInterval?: number;
+    slowInterval?: number;
+    longRunningInterval?: number;
 }
 
-export function useJobStatus(jobId: string | null, options: UseJobStatusOptions = {}) {
+interface UseJobStatusResult {
+    data: Job | undefined;
+    isLoading: boolean;
+    isFetching: boolean;
+    error: Error | null;
+    isError: boolean;
+    refetch: () => Promise<unknown>;
+    isPolling: boolean;
+    stopPolling: () => void;
+    errorCount: number;
+    isVisible: boolean;
+    elapsedTime: number;
+    currentInterval: number | null;
+    resumePolling: () => void;
+}
+
+/**
+ * Poll job status with adaptive intervals.
+ *
+ * Features:
+ * - Adaptive polling (fast at start, slower over time)
+ * - Pauses when browser tab is hidden (saves bandwidth)
+ * - Error backoff (slows down if server is unresponsive)
+ * - Automatically stops on terminal states
+ */
+export function useJobStatus(jobId: string | null, options: UseJobStatusOptions = {}): UseJobStatusResult {
     const {
-        pollInterval = 2000,
+        pollInterval, // deprecated
         enabled = true,
         onComplete,
-        onError
+        onError,
+        initialInterval = pollInterval ?? 2000,
+        normalInterval = 4000,
+        slowInterval = 8000,
+        longRunningInterval = 15000,
     } = options;
 
-    const [isPolling, setIsPolling] = useState(true);
     const onCompleteRef = useRef(onComplete);
     const onErrorRef = useRef(onError);
+    const lastStatusRef = useRef<string | null>(null);
 
     // Update refs to avoid stale closures
     useEffect(() => {
@@ -84,55 +148,64 @@ export function useJobStatus(jobId: string | null, options: UseJobStatusOptions 
         onErrorRef.current = onError;
     }, [onComplete, onError]);
 
-    const query = useQuery<Job>({
-        queryKey: discoveryQueryKeys.job(jobId || ''),
-        queryFn: async () => {
-            if (!jobId) throw new Error('No job ID');
-            return sdk.jobs.get(jobId);
-        },
-        enabled: enabled && !!jobId && isPolling,
-        refetchInterval: isPolling ? pollInterval : false,
-    });
-
-    // Handle completion/failure
-    useEffect(() => {
-        if (query.data) {
-            const { status } = query.data;
-            if (status === 'completed' || status === 'failed' || status === 'cancelled') {
-                setIsPolling(false);
-
-                if (status === 'completed') {
-                    onCompleteRef.current?.(query.data);
-                } else if (status === 'failed') {
-                    onErrorRef.current?.(new Error(query.data.error || 'Job failed'));
-                }
-            }
-        }
-    }, [query.data]);
-
-    // Stop polling on error
-    useEffect(() => {
-        if (query.error) {
-            setIsPolling(false);
-            onErrorRef.current?.(query.error);
-        }
-    }, [query.error]);
-
-    // Reset polling when job ID changes
-    useEffect(() => {
-        if (jobId) {
-            setIsPolling(true);
-        }
-    }, [jobId]);
-
-    const stopPolling = useCallback(() => {
-        setIsPolling(false);
+    const isTerminal = useCallback((job: Job): boolean => {
+        return TERMINAL_STATUSES.includes(job.status);
     }, []);
 
+    const result = useAdaptivePolling<Job, Error>({
+        queryKey: [...discoveryQueryKeys.job(jobId || '')],
+        queryFn: async (): Promise<Job> => {
+            if (!jobId) throw new Error('No job ID');
+            const sdkJob = await sdk.jobs.get(jobId);
+            return toLocalJob(sdkJob);
+        },
+        isTerminal,
+        enabled: enabled && !!jobId,
+        initialInterval,
+        normalInterval,
+        slowInterval,
+        longRunningInterval,
+    });
+
+    // Handle status changes and callbacks
+    useEffect(() => {
+        if (!result.data) return;
+
+        const currentStatus = result.data.status;
+        const previousStatus = lastStatusRef.current;
+
+        if (currentStatus === previousStatus) return;
+        lastStatusRef.current = currentStatus;
+
+        if (currentStatus === 'completed') {
+            onCompleteRef.current?.(result.data);
+        } else if (currentStatus === 'failed' || currentStatus === 'cancelled') {
+            onErrorRef.current?.(new Error(result.data.error || 'Job failed'));
+        }
+    }, [result.data]);
+
+    // Handle query errors
+    useEffect(() => {
+        if (result.error) {
+            onErrorRef.current?.(result.error);
+        }
+    }, [result.error]);
+
     return {
-        ...query,
-        isPolling,
-        stopPolling,
+        data: result.data,
+        isLoading: result.isLoading,
+        isFetching: result.isFetching,
+        error: result.error,
+        isError: result.isError,
+        refetch: result.refetch,
+        isPolling: result.isPolling,
+        stopPolling: result.stopPolling,
+        // Additional adaptive polling info
+        errorCount: result.errorCount,
+        isVisible: result.isVisible,
+        elapsedTime: result.elapsedTime,
+        currentInterval: result.currentInterval,
+        resumePolling: result.resumePolling,
     };
 }
 
@@ -141,10 +214,11 @@ export function useJobStatus(jobId: string | null, options: UseJobStatusOptions 
 // ============================================
 
 export function useDiscoveredModels(datasetId: string) {
-    return useQuery<DiscoveredModel[]>({
+    return useQuery<DiscoveredModel[], Error>({
         queryKey: discoveryQueryKeys.models(datasetId),
-        queryFn: async () => {
-            return sdk.discovery.listModels(datasetId);
+        queryFn: async (): Promise<DiscoveredModel[]> => {
+            const result = await sdk.discovery.listModels(datasetId);
+            return result as DiscoveredModel[];
         },
         enabled: !!datasetId,
     });

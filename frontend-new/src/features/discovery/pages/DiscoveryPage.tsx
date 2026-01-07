@@ -18,6 +18,7 @@ import {
 import { JobStatusPanel, ModelList, JSONViewer, GraphViewer } from '../components';
 import { AnalysisModeSelector } from '../../explorer/components/AnalysisModeSelector';
 import type { Job, DiscoveredModel, ModelFormat } from '../types';
+import type { ProcessModel } from '@/api/sdk';
 import styles from './DiscoveryPage.module.css';
 
 export function DiscoveryPage() {
@@ -97,7 +98,7 @@ export function DiscoveryPage() {
         if (['temporal_profile', 'log_skeleton', 'declare', 'batches'].includes(format)) {
             return (
                 <JSONViewer
-                    data={modelDetail.data || modelDetail}
+                    data={modelDetail.data ?? modelDetail}
                     title={selectedModel.name}
                 />
             );
@@ -106,7 +107,7 @@ export function DiscoveryPage() {
         // Default fallback
         return (
             <JSONViewer
-                data={modelDetail}
+                data={modelDetail.data ?? modelDetail}
                 title={selectedModel.name}
             />
         );
@@ -220,7 +221,7 @@ interface PetriArc {
     target: string | { name?: string };
 }
 
-interface ProcessModelDetail {
+interface ModelData {
     // DFG format
     nodes?: DFGNode[];
     edges?: DFGEdge[];
@@ -231,7 +232,9 @@ interface ProcessModelDetail {
 }
 
 // Helper to transform model data to graph format
-function transformToGraphData(modelDetail: ProcessModelDetail) {
+function transformToGraphData(model: ProcessModel) {
+    // Extract the data from the model (could be in data field or directly on the model)
+    const modelDetail = (model.data || model) as ModelData;
     // Handle DFG format (already has nodes/edges)
     if (modelDetail.nodes && modelDetail.edges) {
         return {

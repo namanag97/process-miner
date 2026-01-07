@@ -149,10 +149,29 @@ export function useJobStream(jobId: string | null, options: UseJobStreamOptions 
             }
         };
 
-        poll();
-        const interval = setInterval(poll, 2000);
+        // Use adaptive intervals for polling fallback
+        // Start fast (2s), then slow down (5s after 10s, 10s after 60s)
+        let pollCount = 0;
+        const getInterval = () => {
+            if (pollCount < 5) return 2000;    // First 10s: every 2s
+            if (pollCount < 17) return 5000;   // Next 60s: every 5s
+            return 10000;                       // After 70s: every 10s
+        };
 
-        return () => clearInterval(interval);
+        poll();
+        let timeoutId: ReturnType<typeof setTimeout>;
+
+        const schedulePoll = () => {
+            timeoutId = setTimeout(() => {
+                poll();
+                pollCount++;
+                schedulePoll();
+            }, getInterval());
+        };
+
+        schedulePoll();
+
+        return () => clearTimeout(timeoutId);
     }, [connectionError, jobId, enabled, onProgress, onComplete, onError]);
 
     return {
