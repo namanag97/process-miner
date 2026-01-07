@@ -8,7 +8,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Slider, Typography, Space, Tooltip } from 'antd';
 import { FilterOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import { tokens } from '@/src/shared/design-system';
+import { tokens } from '@lumina/design-system';
 
 const { Text } = Typography;
 
