@@ -183,9 +183,7 @@ async def get_dataset(
     )
 
     # Verify permission
-    _, dataset = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_READ
-    )
+    _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
 
     logger.debug(
         "get_dataset_permission_verified",
@@ -226,8 +224,12 @@ async def get_dataset(
             "total_cases": dataset.metadata_record.total_cases,
             "total_activities": dataset.metadata_record.total_activities,
             "total_variants": dataset.metadata_record.total_variants,
-            "first_event_at": dataset.metadata_record.first_event_at.isoformat() if dataset.metadata_record.first_event_at else None,
-            "last_event_at": dataset.metadata_record.last_event_at.isoformat() if dataset.metadata_record.last_event_at else None,
+            "first_event_at": dataset.metadata_record.first_event_at.isoformat()
+            if dataset.metadata_record.first_event_at
+            else None,
+            "last_event_at": dataset.metadata_record.last_event_at.isoformat()
+            if dataset.metadata_record.last_event_at
+            else None,
             "avg_case_duration": dataset.metadata_record.avg_case_duration,
         }
         logger.debug(
@@ -289,9 +291,7 @@ async def delete_dataset(
     )
 
     # Verify permission
-    _, dataset = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_DELETE
-    )
+    _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_DELETE)
 
     dataset_name = dataset.name
     storage_key = dataset.storage_key

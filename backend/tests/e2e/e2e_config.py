@@ -2,6 +2,7 @@
 
 try:
     import yaml
+
     HAS_YAML = True
 except ImportError:
     HAS_YAML = False
@@ -13,6 +14,7 @@ from pathlib import Path
 @dataclass
 class E2EConfig:
     """Configuration for E2E API testing."""
+
     base_url: str
     api_prefix: str
     timeout_seconds: int
@@ -26,14 +28,14 @@ class E2EConfig:
     bug_report_dir: str
     update_bug_tracker: bool
     exclude_patterns: list[str]
-    
+
     @classmethod
     def from_yaml(cls, config_file: Path) -> "E2EConfig":
         """Load configuration from YAML file.
-        
+
         Args:
             config_file: Path to config YAML file
-            
+
         Returns:
             E2EConfig instance
         """
@@ -43,10 +45,10 @@ class E2EConfig:
                 "Install it with: pip install pyyaml\n"
                 "Or use E2EConfig.default() to use default configuration."
             )
-        
-        with open(config_file, "r") as f:
+
+        with open(config_file) as f:
             data = yaml.safe_load(f)
-        
+
         return cls(
             base_url=data["base_url"],
             api_prefix=data["api_prefix"],
@@ -62,11 +64,11 @@ class E2EConfig:
             update_bug_tracker=data["update_bug_tracker"],
             exclude_patterns=data.get("exclude_patterns", []),
         )
-    
+
     @classmethod
     def default(cls) -> "E2EConfig":
         """Create default configuration.
-        
+
         Returns:
             E2EConfig with default values
         """

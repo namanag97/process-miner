@@ -12,7 +12,7 @@ async def test_get_bottlenecks(auth_client: AsyncClient, seeded_dataset_ready):
     )
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "bottlenecks" in data
     assert isinstance(data["bottlenecks"], list)
 
@@ -20,12 +20,10 @@ async def test_get_bottlenecks(auth_client: AsyncClient, seeded_dataset_ready):
 @pytest.mark.asyncio
 async def test_get_rework(auth_client: AsyncClient, seeded_dataset_ready):
     """Test analyzing rework patterns."""
-    response = await auth_client.get(
-        f"/api/v1/analytics/datasets/{seeded_dataset_ready.id}/rework"
-    )
+    response = await auth_client.get(f"/api/v1/analytics/datasets/{seeded_dataset_ready.id}/rework")
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "rework_cases" in data or "total_rework" in data
 
 
@@ -37,7 +35,7 @@ async def test_get_service_times(auth_client: AsyncClient, seeded_dataset_ready)
     )
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "activities" in data or "service_times" in data
 
 
@@ -49,7 +47,7 @@ async def test_get_cycle_time(auth_client: AsyncClient, seeded_dataset_ready):
     )
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "mean" in data or "median" in data
 
 
@@ -61,7 +59,7 @@ async def test_get_throughput(auth_client: AsyncClient, seeded_dataset_ready):
     )
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "throughput" in data or "cases_per_day" in data
 
 
@@ -73,7 +71,7 @@ async def test_get_performance_dashboard(auth_client: AsyncClient, seeded_datase
     )
     assert response.status_code == 200
     data = response.json()
-    
+
     # Should have multiple performance metrics
     assert isinstance(data, dict)
     assert len(data) > 0

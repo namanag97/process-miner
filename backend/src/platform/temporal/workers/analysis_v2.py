@@ -9,18 +9,18 @@ from temporalio.client import Client
 from temporalio.worker import Worker
 
 from src.platform.temporal.activities_v2.analysis import (
-    load_event_log,
-    discover_process_model,
-    compute_model_metrics,
-    save_process_model,
-    load_process_model,
     check_conformance,
+    compute_model_metrics,
+    discover_process_model,
+    load_event_log,
+    load_process_model,
     save_conformance_result,
+    save_process_model,
 )
 from src.platform.temporal.config import get_temporal_config
 from src.platform.temporal.workflows_v2.analysis import (
-    ProcessDiscoveryWorkflowV2,
     ConformanceCheckWorkflowV2,
+    ProcessDiscoveryWorkflowV2,
 )
 
 
@@ -53,7 +53,6 @@ async def run_analysis_worker_v2() -> None:
         max_cached_workflows=config.max_cached_workflows,
     )
 
-    print(f"Starting analysis worker v2 on queue: {config.QUEUE_ANALYSIS}")
     await worker.run()
 
 

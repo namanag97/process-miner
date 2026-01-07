@@ -44,8 +44,6 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 
 from src.api.dependencies import CurrentUser, DBSession, ServiceContainer
-from src.platform.workspaces.authorization import require_dataset_permission
-from src.platform.core.permissions import Permission
 from src.features.process_mining.models import Dataset, ProcessCase, ProcessEvent
 from src.features.process_mining.schemas import (
     FilterConfig,
@@ -60,6 +58,8 @@ from src.features.process_mining.schemas import (
     FilterTemplateResponse,
 )
 from src.platform.core.logging_config import get_logger
+from src.platform.core.permissions import Permission
+from src.platform.workspaces.authorization import require_dataset_permission
 
 logger = get_logger(__name__)
 
@@ -88,9 +88,7 @@ async def apply_filters(
     logger.info("applying_filters", dataset_id=dataset_id, filter_count=len(request.filters))
 
     # BUG-072 FIX: Require dataset permission instead of direct DB access
-    _, source_log = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_READ
-    )
+    _, source_log = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
 
     # Convert to PM4Py log
     pm4py_log = container.filtering.to_pm4py_log(source_log)
@@ -228,9 +226,7 @@ async def preview_filters(
     logger.info("previewing_filters", dataset_id=dataset_id, filter_count=len(request.filters))
 
     # BUG-072 FIX: Require dataset permission
-    _, source_log = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_READ
-    )
+    _, source_log = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
 
     # Convert to PM4Py log
     pm4py_log = container.filtering.to_pm4py_log(source_log)
@@ -278,9 +274,7 @@ async def get_filter_options(
     logger.info("getting_filter_options", dataset_id=dataset_id)
 
     # BUG-072 FIX: Require dataset permission
-    _, source_log = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_READ
-    )
+    _, source_log = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
 
     # Convert to PM4Py log
     pm4py_log = container.filtering.to_pm4py_log(source_log)
@@ -308,9 +302,7 @@ async def list_filtered_logs(
     logger.info("listing_filtered_logs", source_dataset_id=dataset_id)
 
     # BUG-072 FIX: Require dataset permission
-    _, source_log = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_READ
-    )
+    _, source_log = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
 
     # Get filtered logs
     query = (
@@ -394,7 +386,9 @@ async def delete_filtered_log(
     filtered_log = result.scalar_one_or_none()
 
     if not filtered_log:
-        logger.error("delete_filtered_log_not_found", dataset_id=dataset_id, filtered_id=filtered_id)
+        logger.error(
+            "delete_filtered_log_not_found", dataset_id=dataset_id, filtered_id=filtered_id
+        )
         raise HTTPException(
             status_code=404,
             detail=f"Filtered log {filtered_id} not found for source dataset {dataset_id}. Verify both IDs are correct.",

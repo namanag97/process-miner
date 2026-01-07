@@ -6,7 +6,7 @@ Provides:
 - Row-level security helpers for org_id filtering
 """
 
-from src.platform.users.services.authorization import (  # noqa: F401
+from src.platform.users.services.authorization import (
     AuthorizationService,
     require_dataset_permission,
     require_project_permission,

@@ -24,7 +24,8 @@ import {
   PlusOutlined,
   QuestionCircleOutlined,
 } from '@ant-design/icons';
-import { tokens, toast, logAction, logError, ErrorBoundary, type ActivityDetail } from '@/src/shared/design-system';
+import { tokens, toast, logAction, logError, ErrorBoundary } from '@/src/shared/design-system';
+import type { ActivityDetail } from '../types';
 import { createLogger } from '../../../shared/lib/logger';
 
 // Import components
@@ -157,10 +158,10 @@ export function ExplorerDetailPage() {
     { source: 'ExplorerDetailPage', hookType: 'useVariants', datasetId: datasetId || '', endpoint: '/api/datasets/variants', disableFallback: false }
   );
 
-  const activitiesWithFallback = useFallbackData(
-    activities,
+  const activitiesWithFallback = useFallbackData<ActivityDetail[] | undefined>(
+    activities as ActivityDetail[] | undefined,
     activitiesError,
-    mockOrderToCashActivities as typeof activities,
+    mockOrderToCashActivities as ActivityDetail[],
     { source: 'ExplorerDetailPage', hookType: 'useActivities', datasetId: datasetId || '', endpoint: '/api/discovery/activities', disableFallback: false }
   );
 

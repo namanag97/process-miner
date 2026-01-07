@@ -9,7 +9,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from src.shared.schemas import PaginatedResponse
 
-
 # =============================================================================
 # Workflow Task Schemas
 # =============================================================================
@@ -42,10 +41,14 @@ class WorkflowResponse(BaseModel):
     id: str
     temporal_workflow_id: str | None = Field(None, description="Temporal's workflow ID")
     temporal_run_id: str | None = Field(None, description="Temporal's run ID")
-    workflow_type: str = Field(..., description="ingestion, discovery, conformance, prediction, export")
+    workflow_type: str = Field(
+        ..., description="ingestion, discovery, conformance, prediction, export"
+    )
     entity_type: str | None = Field(None, description="dataset, model, analysis")
     entity_id: str | None = None
-    status: str = Field(..., description="pending, running, completed, failed, cancelled, timed_out")
+    status: str = Field(
+        ..., description="pending, running, completed, failed, cancelled, timed_out"
+    )
     progress_percent: int = Field(0, ge=0, le=100)
     current_step: str | None = Field(None, description="Human-readable current step")
     error_code: str | None = None
@@ -54,7 +57,9 @@ class WorkflowResponse(BaseModel):
     created_at: datetime
     started_at: datetime | None = None
     completed_at: datetime | None = None
-    tasks: list[WorkflowTaskResponse] = Field(default_factory=list, description="Task-level progress")
+    tasks: list[WorkflowTaskResponse] = Field(
+        default_factory=list, description="Task-level progress"
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -82,8 +87,8 @@ class WorkflowSummaryResponse(BaseModel):
 
 
 __all__ = [
-    "WorkflowTaskResponse",
-    "WorkflowResponse",
     "WorkflowListResponse",
+    "WorkflowResponse",
     "WorkflowSummaryResponse",
+    "WorkflowTaskResponse",
 ]

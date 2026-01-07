@@ -12,7 +12,7 @@ async def test_get_filter_options(auth_client: AsyncClient, seeded_dataset_ready
     )
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "activities" in data or "time_range" in data
 
 
@@ -32,7 +32,7 @@ async def test_preview_filter(auth_client: AsyncClient, seeded_dataset_ready):
     )
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "cases_retained" in data or "events_retained" in data
 
 
@@ -53,7 +53,7 @@ async def test_apply_filter(auth_client: AsyncClient, seeded_dataset_ready):
     )
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "id" in data or "filtered_dataset_id" in data
 
 
@@ -63,5 +63,5 @@ async def test_get_filter_templates(auth_client: AsyncClient):
     response = await auth_client.get("/api/v1/filtering/templates")
     assert response.status_code == 200
     data = response.json()
-    
-    assert isinstance(data, list) or isinstance(data, dict)
+
+    assert isinstance(data, (list, dict))

@@ -9,7 +9,9 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from './queryKeys';
-import { apiClient, API_PREFIX } from '../sdk';
+import apiClient from '../client';
+
+const API_PREFIX = '/api/v1';
 
 // ============================================
 // Types
@@ -90,11 +92,12 @@ export function useOperationStatus(
         queryKey: [...queryKeys.jobs.all, 'operations', workflowId],
         queryFn: () => operationsApi.get(workflowId!),
         enabled: !!workflowId && (options?.enabled ?? true),
-        refetchInterval: (data) => {
+        refetchInterval: (query) => {
             if (options?.refetchInterval !== undefined) {
                 return options.refetchInterval;
             }
             // Auto-poll while running
+            const data = query.state.data;
             if (data && data.status === 'RUNNING') {
                 return 2000;
             }
@@ -161,7 +164,8 @@ export function useOperationPolling(
         queryKey: [...queryKeys.jobs.all, 'operations', 'polling', workflowId],
         queryFn: () => operationsApi.get(workflowId!),
         enabled: !!workflowId && enabled,
-        refetchInterval: (data) => {
+        refetchInterval: (query) => {
+            const data = query.state.data;
             if (!data) return pollingInterval;
 
             // Stop polling when complete

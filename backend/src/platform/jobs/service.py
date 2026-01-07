@@ -13,9 +13,9 @@ from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.platform.infrastructure.repositories import SQLAlchemyAsyncJobRepository
 from src.platform.core.enums import EntityType, JobStatus, JobType
 from src.platform.core.logging_config import get_logger
+from src.platform.infrastructure.repositories import SQLAlchemyAsyncJobRepository
 from src.platform.models import AsyncJob
 
 logger = get_logger(__name__)

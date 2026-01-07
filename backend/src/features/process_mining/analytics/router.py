@@ -32,8 +32,6 @@ Results are cached for 1 hour. Subsequent calls return cached data.
 - **404**: Dataset not found (verify dataset_id UUID)
 """
 
-from typing import cast
-
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

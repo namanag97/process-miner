@@ -9,7 +9,7 @@ from .router import router
 from .service import FilteringService, filtering_service
 
 __all__ = [
-    "router",
     "FilteringService",
     "filtering_service",
+    "router",
 ]

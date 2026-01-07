@@ -6,29 +6,29 @@ Contains DAG-compatible task functions organized by domain:
 - prediction: ML model training
 """
 
-from src.platform.dag.tasks.dataset import (
-    validate_file,
-    detect_columns,
-    ingest_dataset,
-)
 from src.platform.dag.tasks.analysis import (
-    discover_model,
     check_conformance,
     compute_statistics,
+    discover_model,
+)
+from src.platform.dag.tasks.dataset import (
+    detect_columns,
+    ingest_dataset,
+    validate_file,
 )
 from src.platform.dag.tasks.prediction import (
     train_predictor,
 )
 
 __all__ = [
-    # Dataset
-    "validate_file",
-    "detect_columns",
-    "ingest_dataset",
-    # Analysis
-    "discover_model",
     "check_conformance",
     "compute_statistics",
+    "detect_columns",
+    # Analysis
+    "discover_model",
+    "ingest_dataset",
     # Prediction
     "train_predictor",
+    # Dataset
+    "validate_file",
 ]

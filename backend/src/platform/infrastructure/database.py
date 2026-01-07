@@ -58,11 +58,12 @@ async def get_session_context() -> AsyncGenerator[AsyncSession, None]:
 async def init_database() -> None:
     """Initialize database - create all tables."""
     # Import the shared Base to register all models
-    from src.shared.database import Base
+    import src.features.process_mining.models
+
     # Import all models to ensure they're registered with the Base
-    import src.platform.models  # noqa: F401
+    import src.platform.models
     import src.platform.workflows.models  # noqa: F401 - Workflow, WorkflowTask
-    import src.features.process_mining.models  # noqa: F401
+    from src.shared.database import Base
 
     logger.info("database_initializing", url=settings.database_url)
     async with async_engine.begin() as conn:

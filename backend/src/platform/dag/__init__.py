@@ -13,6 +13,7 @@ Components:
 - tasks: DAG-compatible task functions
 """
 
+from src.platform.dag.executor import DAGExecutor
 from src.platform.dag.models import (
     DAGDefinition,
     DAGDefinitionEdge,
@@ -24,41 +25,39 @@ from src.platform.dag.models import (
 )
 from src.platform.dag.registry import (
     DAGContext,
-    TaskResult,
     TaskRegistry,
+    TaskResult,
     dag_task,
     task_registry,
 )
+from src.platform.dag.service import DAGService
 from src.platform.dag.templates import (
     TEMPLATES,
     get_template,
     list_templates,
 )
-from src.platform.dag.executor import DAGExecutor
-from src.platform.dag.service import DAGService
 
 __all__ = [
-    # Models
-    "DAGDefinition",
-    "DAGDefinitionStep",
-    "DAGDefinitionEdge",
-    "DAGRun",
-    "DAGRunStep",
-    "DAGRunStatus",
-    "DAGStepStatus",
-    # Registry
-    "DAGContext",
-    "TaskResult",
-    "TaskRegistry",
-    "dag_task",
-    "task_registry",
     # Templates
     "TEMPLATES",
-    "get_template",
-    "list_templates",
+    # Registry
+    "DAGContext",
+    # Models
+    "DAGDefinition",
+    "DAGDefinitionEdge",
+    "DAGDefinitionStep",
     # Executor
     "DAGExecutor",
+    "DAGRun",
+    "DAGRunStatus",
+    "DAGRunStep",
     # Service
     "DAGService",
+    "DAGStepStatus",
+    "TaskRegistry",
+    "TaskResult",
+    "dag_task",
+    "get_template",
+    "list_templates",
+    "task_registry",
 ]
-

@@ -10,8 +10,8 @@ from src.platform.users.workspace import Workspace, WorkspaceMember
 
 __all__ = [
     "Organization",
+    "Project",
+    "User",
     "Workspace",
     "WorkspaceMember",
-    "User",
-    "Project",
 ]

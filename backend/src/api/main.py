@@ -44,9 +44,9 @@ from src.api.routers import (
     workspaces_router,
 )
 from src.platform.audit.router import router as audit_router
+from src.platform.core.api_logging import APILoggingMiddleware
 from src.platform.core.config import get_settings
 from src.platform.core.exceptions import AppException
-from src.platform.core.api_logging import APILoggingMiddleware
 from src.platform.core.logging_config import configure_logging, get_logger
 from src.platform.core.middleware import PerformanceLoggingMiddleware, RequestLoggingMiddleware
 from src.platform.devconsole.streaming import router as dev_logs_stream_router
@@ -85,6 +85,7 @@ async def lifespan(app: FastAPI):
     # Connect log broker for DevConsole
     if settings.debug:
         from src.platform.devconsole.broker import startup_log_broker
+
         await startup_log_broker()
 
     # Mark startup complete for health checks
@@ -100,6 +101,7 @@ async def lifespan(app: FastAPI):
     # Disconnect log broker
     if settings.debug:
         from src.platform.devconsole.broker import shutdown_log_broker
+
         await shutdown_log_broker()
 
     logger.info("application_stopped")
@@ -119,7 +121,7 @@ async def _seed_mvp_data() -> None:
     from sqlalchemy import select
 
     from src.platform.infrastructure.database import async_session_maker
-    from src.platform.models import Organization, User, Workspace, WorkspaceMember, Project
+    from src.platform.models import Organization, Project, User, Workspace, WorkspaceMember
 
     try:
         async with async_session_maker() as db:
@@ -185,8 +187,6 @@ async def _seed_mvp_data() -> None:
 
     except Exception as e:
         logger.warning("mvp_seed_data_failed", error=str(e))
-
-
 
 
 # =============================================================================
@@ -360,7 +360,14 @@ For support, please contact the developer team or refer to the internal document
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-        expose_headers=["X-Request-ID", "X-Trace-ID", "X-Correlation-ID", "X-Request-Duration-Ms", "ETag", "Retry-After"],
+        expose_headers=[
+            "X-Request-ID",
+            "X-Trace-ID",
+            "X-Correlation-ID",
+            "X-Request-Duration-Ms",
+            "ETag",
+            "Retry-After",
+        ],
     )
 
     # Logging middleware (order matters - API logging first, then performance, then request)
@@ -471,7 +478,6 @@ For support, please contact the developer team or refer to the internal document
             headers={"X-Request-ID": correlation_id} if correlation_id else None,
         )
 
-
     # Root endpoint
     @app.get("/", tags=["Health"])
     async def root() -> dict[str, Any]:
@@ -521,7 +527,9 @@ For support, please contact the developer team or refer to the internal document
     # Platform Infrastructure Routers
     # =========================================================================
     app.include_router(jobs_router, prefix=settings.api_prefix)
-    app.include_router(operations_router, prefix=settings.api_prefix)  # Unified Temporal operations (v2)
+    app.include_router(
+        operations_router, prefix=settings.api_prefix
+    )  # Unified Temporal operations (v2)
     app.include_router(workflows_api_router, prefix=settings.api_prefix)  # Temporal workflow status
     app.include_router(dags_router, prefix=settings.api_prefix)
     app.include_router(audit_router, prefix=settings.api_prefix)

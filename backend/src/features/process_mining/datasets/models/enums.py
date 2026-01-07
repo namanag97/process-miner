@@ -8,7 +8,7 @@ from enum import Enum
 
 class DatasetStatus(str, Enum):
     """Dataset lifecycle states.
-    
+
     4-Phase Flow:
     1. PENDING → File upload initiated (presigned URL generated)
     2. UPLOADED → File stored in S3, awaiting validation
@@ -17,7 +17,7 @@ class DatasetStatus(str, Enum):
     5. MAPPED → Column mapping confirmed, ready for ingestion
     6. INGESTING → Background job parsing and storing events
     7. READY → Dataset ready for analysis
-    
+
     Error/Archive states:
     - ERROR → Any phase failed
     - ARCHIVED → Dataset archived by user

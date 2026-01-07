@@ -4,7 +4,7 @@ Workspaces contain projects and have members with roles.
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from sqlalchemy import DateTime, ForeignKey, String, Text

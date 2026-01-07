@@ -15,7 +15,7 @@ from src.shared.database import Base
 from .enums import DatasetStatus
 
 if TYPE_CHECKING:
-    from src.platform.models import Project
+    pass
 
 
 class Dataset(Base):
@@ -114,7 +114,7 @@ class Dataset(Base):
 
 class DatasetColumn(Base):
     """Detected column metadata from validation phase.
-    
+
     Stores information about each column in the uploaded file,
     including type detection and sample values for mapping UI.
     """
@@ -125,27 +125,33 @@ class DatasetColumn(Base):
     dataset_id: Mapped[str] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    
+
     # Column info
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    dtype: Mapped[str] = mapped_column(String(50), nullable=False)  # STRING, INTEGER, DATETIME, FLOAT
+    dtype: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # STRING, INTEGER, DATETIME, FLOAT
     position: Mapped[int] = mapped_column(Integer, nullable=False)  # Column index in file
-    
+
     # Statistics for mapping UI
-    sample_values_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # First 5 unique values
+    sample_values_json: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # First 5 unique values
     null_count: Mapped[int] = mapped_column(Integer, default=0)
     null_percentage: Mapped[float] = mapped_column(Float, default=0.0)
     unique_count: Mapped[int] = mapped_column(Integer, default=0)
-    
+
     # Process mining column suggestion
-    suggested_role: Mapped[str | None] = mapped_column(String(50), nullable=True)  # case_id, activity, timestamp, resource
+    suggested_role: Mapped[str | None] = mapped_column(
+        String(50), nullable=True
+    )  # case_id, activity, timestamp, resource
     suggestion_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)  # 0.0-1.0
-    
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships
     dataset: Mapped["Dataset"] = relationship(back_populates="columns")
-    
+
     # Composite unique constraint: one entry per column per dataset
     __table_args__ = (
         Index("ix_dataset_columns_dataset_position", "dataset_id", "position", unique=True),
@@ -154,7 +160,7 @@ class DatasetColumn(Base):
 
 class DatasetColumnMapping(Base):
     """Column mapping configuration for ingestion.
-    
+
     Stores the mapping from file columns to process mining concepts.
     Can be auto-generated (high confidence) or user-provided.
     """
@@ -165,25 +171,31 @@ class DatasetColumnMapping(Base):
     dataset_id: Mapped[str] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False, unique=True
     )
-    
+
     # Required mappings
     case_id_column: Mapped[str] = mapped_column(String(255), nullable=False)
     activity_column: Mapped[str] = mapped_column(String(255), nullable=False)
     timestamp_column: Mapped[str] = mapped_column(String(255), nullable=False)
-    
+
     # Optional mappings
-    timestamp_format: Mapped[str | None] = mapped_column(String(100), nullable=True)  # e.g., "%Y-%m-%d %H:%M:%S"
+    timestamp_format: Mapped[str | None] = mapped_column(
+        String(100), nullable=True
+    )  # e.g., "%Y-%m-%d %H:%M:%S"
     resource_column: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    
+
     # Additional columns to preserve as event attributes
-    additional_columns_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # ["cost", "department"]
-    
+    additional_columns_json: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # ["cost", "department"]
+
     # Confidence scores for each mapping (used for display)
-    confidence_scores_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # {"case_id": 0.95, ...}
-    
+    confidence_scores_json: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # {"case_id": 0.95, ...}
+
     # Whether this was auto-mapped or user-provided
     auto_mapped: Mapped[bool] = mapped_column(Boolean, default=False)
-    
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
@@ -193,7 +205,7 @@ class DatasetColumnMapping(Base):
 
 class DatasetMetadata(Base):
     """Computed metadata after ingestion.
-    
+
     Stores aggregate statistics computed after successful ingestion.
     Used for quick display without recomputing from events.
     """
@@ -204,29 +216,28 @@ class DatasetMetadata(Base):
     dataset_id: Mapped[str] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False, unique=True
     )
-    
+
     # Core counts
     total_events: Mapped[int] = mapped_column(Integer, default=0)
     total_cases: Mapped[int] = mapped_column(Integer, default=0)
     total_activities: Mapped[int] = mapped_column(Integer, default=0)
     total_variants: Mapped[int] = mapped_column(Integer, default=0)
-    
+
     # Time range
     first_event_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_event_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    
+
     # Duration stats (seconds)
     avg_case_duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     min_case_duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     max_case_duration: Mapped[float | None] = mapped_column(Float, nullable=True)
-    
+
     # Resource stats
     total_resources: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    
+
     # Computation tracking
     computed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     computation_time_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
-
 
     # Relationships
     dataset: Mapped["Dataset"] = relationship(back_populates="metadata_record")

@@ -74,7 +74,7 @@ def _org_to_response(org: Organization) -> OrganizationResponse:
     """Convert Organization ORM to response."""
     return OrganizationResponse(
         id=org.id,
-        name=org.name,
+        name=org.name or "",
         slug=org.slug,
         plan=org.plan or "free",
         created_at=org.created_at,
@@ -92,7 +92,7 @@ async def _require_org_permission(
 
     if not org:
         logger.warning("org_not_found", org_id=org_id, user_id=user.id)
-        raise NotFoundError(f"Organization {org_id} not found")
+        raise NotFoundError("Organization", org_id)
 
     # Check membership via org_id on user
     if user.org_id != org_id:
@@ -164,7 +164,7 @@ async def create_organization(
 
     org = Organization(
         id=str(uuid4()),
-        name=request.name,
+        name=request.name or "",
         slug=slug,
         plan="free",
         created_at=datetime.utcnow(),
@@ -255,7 +255,7 @@ async def list_members(
         MemberResponse(
             user_id=u.id,
             email=u.email,
-            name=u.name,
+            name=u.name or "",
             role=u.role or "member",
             joined_at=u.created_at,
         )
@@ -287,39 +287,36 @@ async def invite_member(
         existing_user.role = request.role
         await db.commit()
 
-        logger.info(
-            "member_added", org_id=org_id, user_id=existing_user.id, by_user=user.id
-        )
+        logger.info("member_added", org_id=org_id, user_id=existing_user.id, by_user=user.id)
 
         return MemberResponse(
             user_id=existing_user.id,
             email=existing_user.email,
-            name=existing_user.name,
+            name=existing_user.name or "",
             role=request.role,
             joined_at=datetime.utcnow(),
         )
-    else:
-        # Create placeholder user (they'll complete registration)
-        new_user = User(
-            id=str(uuid4()),
-            org_id=org_id,
-            email=request.email.lower(),
-            name=request.email.split("@")[0],
-            role=request.role,
-            created_at=datetime.utcnow(),
-        )
-        db.add(new_user)
-        await db.commit()
+    # Create placeholder user (they'll complete registration)
+    new_user = User(
+        id=str(uuid4()),
+        org_id=org_id,
+        email=request.email.lower(),
+        name=request.email.split("@")[0],
+        role=request.role,
+        created_at=datetime.utcnow(),
+    )
+    db.add(new_user)
+    await db.commit()
 
-        logger.info("member_invited", org_id=org_id, email=request.email, by_user=user.id)
+    logger.info("member_invited", org_id=org_id, email=request.email, by_user=user.id)
 
-        return MemberResponse(
-            user_id=new_user.id,
-            email=new_user.email,
-            name=new_user.name,
-            role=request.role,
-            joined_at=datetime.utcnow(),
-        )
+    return MemberResponse(
+        user_id=new_user.id,
+        email=new_user.email,
+        name=new_user.name or "",
+        role=request.role,
+        joined_at=datetime.utcnow(),
+    )
 
 
 @router.delete("/{org_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -335,13 +332,11 @@ async def remove_member(
     if user_id == user.id:
         raise ValidationError("Cannot remove yourself from organization")
 
-    result = await db.execute(
-        select(User).where(User.id == user_id, User.org_id == org_id)
-    )
+    result = await db.execute(select(User).where(User.id == user_id, User.org_id == org_id))
     target_user = result.scalar_one_or_none()
 
     if not target_user:
-        raise NotFoundError("User not found in organization")
+        raise NotFoundError("User", "organization_member")
 
     # Remove from org (set to null)
     target_user.org_id = None
@@ -361,13 +356,11 @@ async def update_member_role(
     """Change member role (owner only)."""
     await _require_org_permission(db, org_id, user, required_role="owner")
 
-    result = await db.execute(
-        select(User).where(User.id == user_id, User.org_id == org_id)
-    )
+    result = await db.execute(select(User).where(User.id == user_id, User.org_id == org_id))
     target_user = result.scalar_one_or_none()
 
     if not target_user:
-        raise NotFoundError("User not found in organization")
+        raise NotFoundError("User", "organization_member")
 
     target_user.role = request.role
     await db.commit()
@@ -383,7 +376,7 @@ async def update_member_role(
     return MemberResponse(
         user_id=target_user.id,
         email=target_user.email,
-        name=target_user.name,
+        name=target_user.name or "",
         role=request.role,
         joined_at=target_user.created_at,
     )

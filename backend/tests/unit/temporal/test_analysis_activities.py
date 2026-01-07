@@ -36,9 +36,7 @@ class TestLoadEventLogActivity:
             patch(
                 "src.platform.temporal.activities.analysis.AsyncSessionLocal"
             ) as mock_session_local,
-            patch(
-                "src.platform.temporal.activities.analysis.DatasetStatus"
-            ) as mock_status,
+            patch("src.platform.temporal.activities.analysis.DatasetStatus") as mock_status,
         ):
             mock_status.READY.value = "ready"
             mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
@@ -92,9 +90,7 @@ class TestLoadEventLogActivity:
             patch(
                 "src.platform.temporal.activities.analysis.AsyncSessionLocal"
             ) as mock_session_local,
-            patch(
-                "src.platform.temporal.activities.analysis.DatasetStatus"
-            ) as mock_status,
+            patch("src.platform.temporal.activities.analysis.DatasetStatus") as mock_status,
         ):
             mock_status.READY.value = "ready"
             mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
@@ -136,15 +132,9 @@ class TestMineModelActivity:
             patch(
                 "src.platform.temporal.activities.analysis.AsyncSessionLocal"
             ) as mock_session_local,
-            patch(
-                "src.platform.temporal.activities.analysis.mining_service"
-            ) as mock_mining,
-            patch(
-                "src.platform.temporal.activities.analysis.activity"
-            ) as mock_activity,
-            patch(
-                "src.platform.temporal.activities.analysis.MinerType"
-            ) as mock_miner_type,
+            patch("src.platform.temporal.activities.analysis.mining_service") as mock_mining,
+            patch("src.platform.temporal.activities.analysis.activity") as mock_activity,
+            patch("src.platform.temporal.activities.analysis.MinerType") as mock_miner_type,
         ):
             mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_local.return_value.__aexit__ = AsyncMock()
@@ -162,7 +152,7 @@ class TestMineModelActivity:
             )
 
             # This will work partially with mocks
-            with pytest.raises(Exception):
+            with pytest.raises(RuntimeError):
                 await mine_model_activity(input_data)
 
     @pytest.mark.asyncio
@@ -182,12 +172,8 @@ class TestMineModelActivity:
             patch(
                 "src.platform.temporal.activities.analysis.AsyncSessionLocal"
             ) as mock_session_local,
-            patch(
-                "src.platform.temporal.activities.analysis.activity"
-            ) as mock_activity,
-            patch(
-                "src.platform.temporal.activities.analysis.MinerType"
-            ) as mock_miner_type,
+            patch("src.platform.temporal.activities.analysis.activity") as mock_activity,
+            patch("src.platform.temporal.activities.analysis.MinerType") as mock_miner_type,
         ):
             mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_local.return_value.__aexit__ = AsyncMock()
@@ -230,9 +216,7 @@ class TestComputeMetricsActivity:
             patch(
                 "src.platform.temporal.activities.analysis.AsyncSessionLocal"
             ) as mock_session_local,
-            patch(
-                "src.platform.temporal.activities.analysis.mining_service"
-            ) as mock_mining,
+            patch("src.platform.temporal.activities.analysis.mining_service") as mock_mining,
         ):
             mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_local.return_value.__aexit__ = AsyncMock()
@@ -293,9 +277,7 @@ class TestCheckConformanceActivity:
             patch(
                 "src.platform.temporal.activities.analysis.conformance_service"
             ) as mock_conformance,
-            patch(
-                "src.platform.temporal.activities.analysis.ConformanceResult"
-            ) as mock_conf_class,
+            patch("src.platform.temporal.activities.analysis.ConformanceResult") as mock_conf_class,
         ):
             mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_local.return_value.__aexit__ = AsyncMock()

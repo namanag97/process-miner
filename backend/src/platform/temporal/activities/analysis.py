@@ -49,9 +49,9 @@ async def load_event_log_activity(input: LoadEventLogInput) -> LoadEventLogOutpu
         from sqlalchemy import select
 
         from src.features.process_mining.models import Dataset, DatasetStatus
-        from src.platform.infrastructure.tasks.base import AsyncSessionLocal
+        from src.platform.infrastructure.database import async_session_maker
 
-        async with AsyncSessionLocal() as db:
+        async with async_session_maker() as db:
             result = await db.execute(select(Dataset).where(Dataset.id == input.dataset_id))
             dataset = result.scalar_one_or_none()
 
@@ -118,12 +118,12 @@ async def mine_model_activity(input: MineModelInput) -> MineModelOutput:
         from src.features.process_mining.enums import MinerType
         from src.features.process_mining.models import Dataset, ProcessModel
         from src.features.process_mining.services.mining import mining_service
-        from src.platform.infrastructure.tasks.base import AsyncSessionLocal
+        from src.platform.infrastructure.database import async_session_maker
 
         # Heartbeat at start
         activity.heartbeat("loading_dataset")
 
-        async with AsyncSessionLocal() as db:
+        async with async_session_maker() as db:
             # Load dataset
             result = await db.execute(select(Dataset).where(Dataset.id == input.dataset_id))
             dataset = result.scalar_one_or_none()
@@ -239,9 +239,9 @@ async def compute_metrics_activity(input: ComputeMetricsInput) -> ComputeMetrics
 
         from src.features.process_mining.models import Dataset, ProcessModel
         from src.features.process_mining.services.mining import mining_service
-        from src.platform.infrastructure.tasks.base import AsyncSessionLocal
+        from src.platform.infrastructure.database import async_session_maker
 
-        async with AsyncSessionLocal() as db:
+        async with async_session_maker() as db:
             # Load dataset
             result = await db.execute(select(Dataset).where(Dataset.id == input.dataset_id))
             dataset = result.scalar_one_or_none()
@@ -340,9 +340,9 @@ async def check_conformance_activity(input: CheckConformanceInput) -> CheckConfo
             ProcessModel,
         )
         from src.features.process_mining.services.conformance import conformance_service
-        from src.platform.infrastructure.tasks.base import AsyncSessionLocal
+        from src.platform.infrastructure.database import async_session_maker
 
-        async with AsyncSessionLocal() as db:
+        async with async_session_maker() as db:
             # Load dataset
             result = await db.execute(select(Dataset).where(Dataset.id == input.dataset_id))
             dataset = result.scalar_one_or_none()

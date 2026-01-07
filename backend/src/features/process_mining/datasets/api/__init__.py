@@ -28,10 +28,10 @@ router.include_router(ingest_router)
 router.include_router(export_router)
 
 __all__ = [
-    "router",
     "crud_router",
-    "upload_router",
-    "mapping_router",
-    "ingest_router",
     "export_router",
+    "ingest_router",
+    "mapping_router",
+    "router",
+    "upload_router",
 ]

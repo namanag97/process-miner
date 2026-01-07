@@ -10,11 +10,11 @@ async def test_list_datasets(auth_client: AsyncClient, seeded_dataset_ready):
     response = await auth_client.get("/api/v1/datasets")
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "items" in data
     assert "total" in data
     assert data["total"] >= 1
-    
+
     # Should contain our seeded dataset
     dataset_ids = [d["id"] for d in data["items"]]
     assert seeded_dataset_ready.id in dataset_ids
@@ -26,7 +26,7 @@ async def test_get_dataset(auth_client: AsyncClient, seeded_dataset_ready):
     response = await auth_client.get(f"/api/v1/datasets/{seeded_dataset_ready.id}")
     assert response.status_code == 200
     data = response.json()
-    
+
     assert data["id"] == seeded_dataset_ready.id
     assert data["name"] == seeded_dataset_ready.name
     assert data["status"] == seeded_dataset_ready.status
@@ -41,7 +41,7 @@ async def test_get_dataset_statistics(auth_client: AsyncClient, seeded_dataset_r
     response = await auth_client.get(f"/api/v1/datasets/{seeded_dataset_ready.id}/statistics")
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "total_cases" in data
     assert "total_events" in data
     assert "total_activities" in data
@@ -55,7 +55,7 @@ async def test_get_dataset_cases(auth_client: AsyncClient, seeded_dataset_ready)
     response = await auth_client.get(f"/api/v1/datasets/{seeded_dataset_ready.id}/cases")
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "items" in data
     assert "total" in data
     assert data["total"] == 3
@@ -68,7 +68,7 @@ async def test_get_dataset_events(auth_client: AsyncClient, seeded_dataset_ready
     response = await auth_client.get(f"/api/v1/datasets/{seeded_dataset_ready.id}/events")
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "items" in data
     assert "total" in data
     assert data["total"] == 9
@@ -80,7 +80,7 @@ async def test_get_dataset_activities(auth_client: AsyncClient, seeded_dataset_r
     response = await auth_client.get(f"/api/v1/datasets/{seeded_dataset_ready.id}/activities")
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "items" in data
     # Should have Start, Process, End
     assert len(data["items"]) >= 3
@@ -92,7 +92,7 @@ async def test_get_dataset_variants(auth_client: AsyncClient, seeded_dataset_rea
     response = await auth_client.get(f"/api/v1/datasets/{seeded_dataset_ready.id}/variants")
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "items" in data
     assert "total" in data
 
@@ -101,7 +101,7 @@ async def test_get_dataset_variants(auth_client: AsyncClient, seeded_dataset_rea
 async def test_delete_dataset(auth_client: AsyncClient, seeded_project, db_session):
     """Test deleting a dataset."""
     from src.features.process_mining.models import Dataset, DatasetStatus
-    
+
     # Create a dataset to delete
     dataset = Dataset(
         project_id=seeded_project.id,
@@ -113,11 +113,11 @@ async def test_delete_dataset(auth_client: AsyncClient, seeded_project, db_sessi
     db_session.add(dataset)
     await db_session.commit()
     await db_session.refresh(dataset)
-    
+
     # Delete it
     response = await auth_client.delete(f"/api/v1/datasets/{dataset.id}")
     assert response.status_code == 200
-    
+
     # Verify it's gone
     get_response = await auth_client.get(f"/api/v1/datasets/{dataset.id}")
     assert get_response.status_code == 404

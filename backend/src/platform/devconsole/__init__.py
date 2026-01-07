@@ -24,28 +24,28 @@ from .logging import (
     get_system_metrics,
     log_api_request,
     log_api_response,
+    log_auth_event,
     log_error,
     log_info,
     reset_metrics,
-    log_auth_event,
 )
 from .models import DevLogEntry, HeartbeatMessage, LogLevel, SystemMetrics
 
 __all__ = [
-    # Logging functions
-    "log_info",
-    "log_error",
-    "log_auth_event",
-    "log_api_request",
-    "log_api_response",
-    # Metrics
-    "get_system_metrics",
-    "get_error_count",
-    "get_slow_request_count",
-    "reset_metrics",
     # Models
     "DevLogEntry",
     "HeartbeatMessage",
     "LogLevel",
     "SystemMetrics",
+    "get_error_count",
+    "get_slow_request_count",
+    # Metrics
+    "get_system_metrics",
+    "log_api_request",
+    "log_api_response",
+    "log_auth_event",
+    "log_error",
+    # Logging functions
+    "log_info",
+    "reset_metrics",
 ]

@@ -16,8 +16,8 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
 
 from src.api.dependencies import DBSession
-from src.features.process_mining.models import Dataset, ProcessModel
 from src.features.process_mining.business_use_cases.service import business_use_cases
+from src.features.process_mining.models import Dataset, ProcessModel
 from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -123,7 +123,9 @@ async def compare_process_variants(
     event_log2 = await _get_dataset_or_404(db, dataset_id2)
 
     try:
-        return business_use_cases.compare_process_variants(event_log1, event_log2, log1_name, log2_name)
+        return business_use_cases.compare_process_variants(
+            event_log1, event_log2, log1_name, log2_name
+        )
     except Exception as e:
         logger.error("process_comparison_failed", error=str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Process comparison failed: {e!s}") from e
@@ -150,7 +152,9 @@ async def simulate_process_changes(
             "activity_duration_reduction": activity_duration_reduction,
             "capacity_increase": capacity_increase,
         }
-        return business_use_cases.simulate_process_changes(event_log, parameter_changes, num_simulations)
+        return business_use_cases.simulate_process_changes(
+            event_log, parameter_changes, num_simulations
+        )
     except Exception as e:
         logger.error("simulation_failed", error=str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Simulation failed: {e!s}") from e
@@ -171,7 +175,9 @@ async def detect_journey_dropoffs(
     event_log = await _get_dataset_or_404(db, dataset_id)
 
     try:
-        expected_path_list = [s.strip() for s in expected_path.split(",")] if expected_path else None
+        expected_path_list = (
+            [s.strip() for s in expected_path.split(",")] if expected_path else None
+        )
         return business_use_cases.detect_journey_dropoffs(event_log, expected_path_list)
     except Exception as e:
         logger.error("journey_dropoff_detection_failed", error=str(e), exc_info=True)

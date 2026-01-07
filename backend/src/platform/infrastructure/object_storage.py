@@ -972,9 +972,10 @@ class ObjectStorageClient:
 # Global Instance (Singleton Pattern)
 # =============================================================================
 
+
 class LocalStorageClient:
     """Local filesystem storage client for development/testing.
-    
+
     Mimics S3 client interface but stores files locally.
     Enabled when storage_type="local" in settings.
     """
@@ -982,15 +983,15 @@ class LocalStorageClient:
     def __init__(self):
         self.settings = settings
         self.base_path = Path("./data/storage")
-        
+
         # Bucket templates -> local directories
-        env_suffix = "dev" # Default for local
+        env_suffix = "dev"  # Default for local
         self.buckets = {
             "raw": self.base_path / f"pm-raw-{env_suffix}",
             "models": self.base_path / f"pm-models-{env_suffix}",
             "cache": self.base_path / f"pm-cache-{env_suffix}",
         }
-        
+
     def ensure_buckets_exist(self) -> None:
         """Create local directories for buckets."""
         for path in self.buckets.values():
@@ -1015,10 +1016,10 @@ class LocalStorageClient:
     ) -> None:
         dest_path = self._get_object_path(bucket_type, key)
         dest_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         with open(dest_path, "wb") as f:
             f.write(file_obj.read())
-            
+
         logger.info("local_file_uploaded", path=str(dest_path))
 
     def upload_file(
@@ -1031,8 +1032,9 @@ class LocalStorageClient:
     ) -> None:
         dest_path = self._get_object_path(bucket_type, key)
         dest_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         import shutil
+
         shutil.copy2(file_path, dest_path)
         logger.info("local_file_copied", src=str(file_path), dest=str(dest_path))
 
@@ -1040,7 +1042,7 @@ class LocalStorageClient:
         src_path = self._get_object_path(bucket_type, key)
         if not src_path.exists():
             raise ObjectNotFoundError(f"Object not found: {key}", bucket=bucket_type, key=key)
-            
+
         with open(src_path, "rb") as f:
             return io.BytesIO(f.read())
 
@@ -1048,9 +1050,10 @@ class LocalStorageClient:
         src_path = self._get_object_path(bucket_type, key)
         if not src_path.exists():
             raise ObjectNotFoundError(f"Object not found: {key}", bucket=bucket_type, key=key)
-            
+
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         import shutil
+
         shutil.copy2(src_path, dest_path)
 
     def file_exists(self, bucket_type: str, key: str) -> bool:
@@ -1064,14 +1067,14 @@ class LocalStorageClient:
 
     def stream_file(
         self,
-        bucket_type: str, 
+        bucket_type: str,
         key: str,
         chunk_size: int = 64 * 1024,
     ) -> Iterator[bytes]:
         path = self._get_object_path(bucket_type, key)
         if not path.exists():
             raise ObjectNotFoundError(f"Object not found: {key}", bucket=bucket_type, key=key)
-            
+
         with open(path, "rb") as f:
             while chunk := f.read(chunk_size):
                 yield chunk
@@ -1103,7 +1106,7 @@ class LocalStorageClient:
         return f"http://localhost/local-storage/{bucket_type}/{key}"
 
     def configure_lifecycle_policy(self, *args, **kwargs) -> None:
-        pass # No-op for local
+        pass  # No-op for local
 
     def upload_with_compression(
         self,
@@ -1115,12 +1118,13 @@ class LocalStorageClient:
     ) -> None:
         # Reuse standard upload for now, or implement compression if needed
         import gzip
+
         compressed = io.BytesIO()
         with gzip.GzipFile(fileobj=compressed, mode="wb", compresslevel=9) as gz:
             gz.write(data)
         compressed.seek(0)
         self.upload_fileobj(bucket_type, key, compressed, content_type, metadata)
-        
+
     def get_bucket_storage_metrics(self, bucket_type: str) -> dict[str, int]:
         path = self._get_bucket_path(bucket_type)
         total_bytes = 0
@@ -1143,8 +1147,8 @@ class LocalStorageClient:
                 # Local paths are "bucket/parent/file"
                 for p in path.rglob("*"):
                     if p.is_file() and str(p).find(workspace_id) != -1:
-                         object_count += 1
-                         total_bytes += p.stat().st_size
+                        object_count += 1
+                        total_bytes += p.stat().st_size
         return {"object_count": object_count, "total_bytes": total_bytes}
 
 

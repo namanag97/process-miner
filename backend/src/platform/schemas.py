@@ -8,7 +8,7 @@ Contains schemas for:
 """
 
 # Re-export from platform.users for backward compatibility
-from src.platform.users.schemas import (  # noqa: E402
+from src.platform.users.schemas import (
     CurrentUserResponse,
     OrganizationResponse,
     ProjectCreateRequest,
@@ -26,18 +26,18 @@ from src.platform.users.schemas import (  # noqa: E402
 )
 
 __all__ = [
-    "OrganizationResponse",
-    "UserResponse",
-    "WorkspaceMemberResponse",
     "CurrentUserResponse",
-    "WorkspaceResponse",
-    "WorkspaceListResponse",
-    "WorkspaceDetailResponse",
-    "WorkspaceCreateRequest",
-    "WorkspaceUpdateRequest",
-    "ProjectResponse",
-    "ProjectListResponse",
-    "ProjectDetailResponse",
+    "OrganizationResponse",
     "ProjectCreateRequest",
+    "ProjectDetailResponse",
+    "ProjectListResponse",
+    "ProjectResponse",
     "ProjectUpdateRequest",
+    "UserResponse",
+    "WorkspaceCreateRequest",
+    "WorkspaceDetailResponse",
+    "WorkspaceListResponse",
+    "WorkspaceMemberResponse",
+    "WorkspaceResponse",
+    "WorkspaceUpdateRequest",
 ]

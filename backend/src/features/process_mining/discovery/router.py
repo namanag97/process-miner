@@ -12,8 +12,18 @@ from sqlalchemy import func, select
 from src.api.dependencies import CurrentUser, DBSession, ServiceContainer
 from src.features.process_mining.enums import MinerType
 from src.features.process_mining.models import Dataset, DatasetStatus, ProcessModel
-from src.features.process_mining.schemas import DiscoverRequest, MinerInfo, ModelListResponse, ModelResponse
-from src.platform.core.exceptions import DiscoveryError, InvalidInputError, ModelNotFoundError, ProcessNotFoundError
+from src.features.process_mining.schemas import (
+    DiscoverRequest,
+    MinerInfo,
+    ModelListResponse,
+    ModelResponse,
+)
+from src.platform.core.exceptions import (
+    DiscoveryError,
+    InvalidInputError,
+    ModelNotFoundError,
+    ProcessNotFoundError,
+)
 from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -46,11 +56,13 @@ async def discover_model(
     async_mode: bool = True,
 ):
     """Discover a process model from an event log."""
-    import json
-    from src.platform.core.enums import EntityType, JobStatus, JobType
-    from src.platform.models import AsyncJob
 
-    logger.info("discovery_started", dataset_id=request.dataset_id, miner_type=str(request.miner_type), async_mode=async_mode)
+    logger.info(
+        "discovery_started",
+        dataset_id=request.dataset_id,
+        miner_type=str(request.miner_type),
+        async_mode=async_mode,
+    )
 
     # Verify dataset exists and is ready
     query = select(Dataset).where(Dataset.id == request.dataset_id)
@@ -59,7 +71,10 @@ async def discover_model(
     if not event_log:
         raise ProcessNotFoundError(request.dataset_id)
     if event_log.status != DatasetStatus.READY.value:
-        raise InvalidInputError(f"Dataset not ready (status: {event_log.status}). Complete ingestion first.", field="dataset_id")
+        raise InvalidInputError(
+            f"Dataset not ready (status: {event_log.status}). Complete ingestion first.",
+            field="dataset_id",
+        )
     if event_log.total_events == 0:
         raise InvalidInputError("Dataset has no events.", field="dataset_id")
 
@@ -67,90 +82,49 @@ async def discover_model(
     try:
         miner_type = MinerType(request.miner_type)
     except ValueError:
-        raise InvalidInputError(f"Invalid miner type: {request.miner_type}. Valid: {[m.value for m in MinerType]}", field="miner_type")
+        raise InvalidInputError(
+            f"Invalid miner type: {request.miner_type}. Valid: {[m.value for m in MinerType]}",
+            field="miner_type",
+        )
 
-    # Async mode - offload to Temporal workflow
+    # Async mode - offload to Temporal v2 workflow
     if async_mode:
+        from temporalio.common import WorkflowIDReusePolicy
+        from temporalio.exceptions import WorkflowAlreadyStartedError
+
+        from src.platform.temporal.client import get_temporal_client
         from src.platform.temporal.config import get_temporal_config
+        from src.platform.temporal.workflows_v2.analysis import ProcessDiscoveryWorkflowV2
 
         config = get_temporal_config()
 
-        # =====================================================================
-        # V2: Temporal-native architecture
-        # =====================================================================
-        if config.use_temporal_v2:
-            from temporalio.common import WorkflowIDReusePolicy
-            from temporalio.exceptions import WorkflowAlreadyStartedError
+        # Deterministic workflow ID
+        workflow_id = f"discover-{request.dataset_id}-{miner_type.value}"
 
-            from src.platform.temporal.client import get_temporal_client
-            from src.platform.temporal.workflows_v2.analysis import ProcessDiscoveryWorkflowV2
-
-            # Deterministic workflow ID
-            workflow_id = f"discover-{request.dataset_id}-{miner_type.value}"
-
-            client = await get_temporal_client()
-
-            try:
-                handle = await client.start_workflow(
-                    ProcessDiscoveryWorkflowV2.run,
-                    args=[request.dataset_id, miner_type.value, request.model_name],
-                    id=workflow_id,
-                    task_queue=config.QUEUE_ANALYSIS,
-                    id_reuse_policy=WorkflowIDReusePolicy.ALLOW_DUPLICATE_FAILED_ONLY,
-                )
-            except WorkflowAlreadyStartedError:
-                # Already running - return existing ID
-                logger.info("discovery_workflow_already_running", workflow_id=workflow_id)
-
-            logger.info("async_discovery_started_v2", workflow_id=workflow_id, temporal_v2=True)
-            return JSONResponse(status_code=202, content={
-                "workflow_id": workflow_id,
-                "status": "queued",
-                "message": "Discovery started (v2). Use /api/v1/operations/{workflow_id} to check status.",
-                "poll_endpoint": f"/api/v1/operations/{workflow_id}",
-            })
-
-        # =====================================================================
-        # V1: Legacy AsyncJob + Temporal compat layer
-        # =====================================================================
-        from src.platform.temporal.compat import dispatch_workflow, is_temporal_enabled
-
-        async_job = AsyncJob(
-            user_id=user.id, job_type=JobType.DISCOVERY.value, status=JobStatus.QUEUED.value,
-            entity_type=EntityType.MODEL.value,
-            parameters_json=json.dumps({"dataset_id": request.dataset_id, "miner_type": miner_type.value, "model_name": request.model_name}),
-        )
-        db.add(async_job)
-        await db.commit()
+        client = await get_temporal_client()
 
         try:
-            result = await dispatch_workflow(
-                workflow_type="process_discovery",
-                args={
-                    "dataset_id": request.dataset_id,
-                    "miner_type": miner_type.value,
-                    "model_name": request.model_name,
-                    "job_id": async_job.id,
-                },
-                entity_type="analysis",
-                entity_id=request.dataset_id,
+            await client.start_workflow(
+                ProcessDiscoveryWorkflowV2.run,
+                args=[request.dataset_id, miner_type.value, request.model_name],
+                id=workflow_id,
+                task_queue=config.QUEUE_ANALYSIS,
+                id_reuse_policy=WorkflowIDReusePolicy.ALLOW_DUPLICATE_FAILED_ONLY,
             )
-            async_job.task_id = result.get("task_id") or result.get("workflow_id")
-            await db.commit()
-        except Exception as e:
-            logger.error("workflow_dispatch_failed", job_id=async_job.id, error=str(e))
-            async_job.status = JobStatus.FAILED.value
-            async_job.error_message = f"Failed to queue workflow: {e}"
-            await db.commit()
-            raise DiscoveryError(f"Failed to start discovery workflow: {e}", miner_type=miner_type.value)
+        except WorkflowAlreadyStartedError:
+            # Already running - return existing ID
+            logger.info("discovery_workflow_already_running", workflow_id=workflow_id)
 
-        logger.info("async_discovery_started", job_id=async_job.id, workflow_id=result.get("workflow_id"), temporal_enabled=is_temporal_enabled())
-        return JSONResponse(status_code=202, content={
-            "job_id": async_job.id,
-            "workflow_id": result.get("workflow_id"),
-            "status": "queued",
-            "message": "Discovery started. Use /api/v1/jobs/{job_id} to check status.",
-        })
+        logger.info("async_discovery_started", workflow_id=workflow_id)
+        return JSONResponse(
+            status_code=202,
+            content={
+                "workflow_id": workflow_id,
+                "status": "queued",
+                "message": "Discovery started. Use /api/v1/operations/{workflow_id} to check status.",
+                "poll_endpoint": f"/api/v1/operations/{workflow_id}",
+            },
+        )
 
     # Sync mode
     start_time = time.perf_counter()
@@ -163,30 +137,53 @@ async def discover_model(
     model_name = request.model_name or f"{event_log.name}_{miner_type.value}"
     serialized = container.discovery.serialize_model(model_data)
     graph_json = container.discovery.serialize_to_graph_json(model_data, model_format)
-    graph_structure_json = __import__('json').dumps(graph_json) if graph_json else None
+    graph_structure_json = __import__("json").dumps(graph_json) if graph_json else None
 
     fitness, precision = None, None
     if model_format.value in ["petri_net", "process_tree"]:
         try:
-            net, im, fm = model_data if model_format.value == "petri_net" else container.discovery.tree_to_petri_net(model_data)
+            net, im, fm = (
+                model_data
+                if model_format.value == "petri_net"
+                else container.discovery.tree_to_petri_net(model_data)
+            )
             fitness = container.discovery.evaluate_fitness(event_log, net, im, fm).get("fitness")
             precision = container.discovery.evaluate_precision(event_log, net, im, fm)
         except Exception as e:
             logger.warning("quality_metrics_failed", error=str(e))
 
     process_model = ProcessModel(
-        name=model_name, dataset_id=event_log.id, miner_type=miner_type.value, model_format=model_format.value,
-        serialized_model=serialized, graph_structure_json=graph_structure_json, fitness=fitness, precision=precision)
+        name=model_name,
+        dataset_id=event_log.id,
+        miner_type=miner_type.value,
+        model_format=model_format.value,
+        serialized_model=serialized,
+        graph_structure_json=graph_structure_json,
+        fitness=fitness,
+        precision=precision,
+    )
     db.add(process_model)
     await db.flush()
     await db.refresh(process_model)
 
     duration_ms = (time.perf_counter() - start_time) * 1000
-    logger.info("discovery_completed", model_id=process_model.id, fitness=fitness, duration_ms=round(duration_ms, 2))
+    logger.info(
+        "discovery_completed",
+        model_id=process_model.id,
+        fitness=fitness,
+        duration_ms=round(duration_ms, 2),
+    )
 
-    return ModelResponse(id=process_model.id, name=process_model.name, miner_type=process_model.miner_type,
-                        model_format=process_model.model_format, dataset_id=process_model.dataset_id,
-                        fitness=process_model.fitness, precision=process_model.precision, created_at=process_model.created_at)
+    return ModelResponse(
+        id=process_model.id,
+        name=process_model.name,
+        miner_type=process_model.miner_type,
+        model_format=process_model.model_format,
+        dataset_id=process_model.dataset_id,
+        fitness=process_model.fitness,
+        precision=process_model.precision,
+        created_at=process_model.created_at,
+    )
 
 
 # =============================================================================
@@ -212,21 +209,50 @@ async def list_models(
         count_query = count_query.where(ProcessModel.dataset_id == dataset_id)
     total = await db.scalar(count_query) or 0
 
-    models = (await db.execute(query.offset((page - 1) * page_size).limit(page_size))).scalars().all()
-    items = [ModelResponse(id=m.id, name=m.name, miner_type=m.miner_type, model_format=m.model_format,
-                          dataset_id=m.dataset_id, fitness=m.fitness, precision=m.precision, created_at=m.created_at) for m in models]
+    models = (
+        (await db.execute(query.offset((page - 1) * page_size).limit(page_size))).scalars().all()
+    )
+    items = [
+        ModelResponse(
+            id=m.id,
+            name=m.name,
+            miner_type=m.miner_type,
+            model_format=m.model_format,
+            dataset_id=m.dataset_id,
+            fitness=m.fitness,
+            precision=m.precision,
+            created_at=m.created_at,
+        )
+        for m in models
+    ]
 
-    return ModelListResponse(items=items, total=total, page=page, page_size=page_size, pages=(total + page_size - 1) // page_size)
+    return ModelListResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        pages=(total + page_size - 1) // page_size,
+    )
 
 
 @router.get("/models/{model_id}", response_model=ModelResponse)
 async def get_model(db: DBSession, user: CurrentUser, model_id: str):
     """Get details of a discovered process model."""
-    model = (await db.execute(select(ProcessModel).where(ProcessModel.id == model_id))).scalar_one_or_none()
+    model = (
+        await db.execute(select(ProcessModel).where(ProcessModel.id == model_id))
+    ).scalar_one_or_none()
     if not model:
         raise ModelNotFoundError(model_id)
-    return ModelResponse(id=model.id, name=model.name, miner_type=model.miner_type, model_format=model.model_format,
-                        dataset_id=model.dataset_id, fitness=model.fitness, precision=model.precision, created_at=model.created_at)
+    return ModelResponse(
+        id=model.id,
+        name=model.name,
+        miner_type=model.miner_type,
+        model_format=model.model_format,
+        dataset_id=model.dataset_id,
+        fitness=model.fitness,
+        precision=model.precision,
+        created_at=model.created_at,
+    )
 
 
 @router.delete("/models/{model_id}")
@@ -238,7 +264,9 @@ async def delete_model(db: DBSession, user: CurrentUser, model_id: str):
     from src.platform.core.permissions import Permission
     from src.platform.users.services import require_dataset_permission
 
-    model = (await db.execute(select(ProcessModel).where(ProcessModel.id == model_id))).scalar_one_or_none()
+    model = (
+        await db.execute(select(ProcessModel).where(ProcessModel.id == model_id))
+    ).scalar_one_or_none()
     if not model:
         raise ModelNotFoundError(model_id)
 

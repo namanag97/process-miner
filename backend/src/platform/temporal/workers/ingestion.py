@@ -49,7 +49,6 @@ async def run_ingestion_worker() -> None:
         max_cached_workflows=config.max_cached_workflows,
     )
 
-    print(f"Starting ingestion worker on queue: {config.QUEUE_INGESTION}")
     await worker.run()
 
 

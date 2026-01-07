@@ -296,7 +296,7 @@ export const queryKeys = {
     },
     projects: {
         all: () => ['projects'] as const,
-        list: (_options?: Record<string, unknown>) => ['projects', 'list'] as const,
+        list: (_options?: unknown) => ['projects', 'list'] as const,
         detail: (id: string) => ['projects', 'detail', id] as const,
     },
     datasets: {
@@ -692,6 +692,9 @@ export interface DataTableColumn<T = unknown> {
     render?: (value: unknown, record: T) => React.ReactNode;
     width?: number | string;
     sorter?: boolean | ((a: T, b: T) => number);
+    ellipsis?: boolean;
+    fixed?: 'left' | 'right';
+    align?: 'left' | 'center' | 'right';
 }
 
 interface DataTableProps<T> {
@@ -702,7 +705,7 @@ interface DataTableProps<T> {
     searchable?: boolean;
     searchPlaceholder?: string;
     onRowClick?: (record: T) => void;
-    onRefresh?: () => void | Promise<void>;
+    onRefresh?: () => void | Promise<unknown>;
     rowKey?: string | ((record: T) => string);
     pagination?: any;
 }
@@ -716,13 +719,13 @@ export const DataTable = <T extends Record<string, any>>(props: DataTableProps<T
         dataSource: source,
         columns: columns as any,
         loading,
-        rowKey,
+        rowKey: rowKey as any,
         pagination,
-        onRow: onRowClick ? (record: T) => ({
-            onClick: () => onRowClick(record),
+        onRow: onRowClick ? ((record: any) => ({
+            onClick: () => onRowClick(record as T),
             style: { cursor: 'pointer' }
-        }) : undefined,
-    });
+        })) : undefined,
+    } as any);
 };
 
 // ==============================================

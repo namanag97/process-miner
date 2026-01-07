@@ -60,8 +60,10 @@ class TemporalConfig:
     retry_backoff_coefficient: float = 2.0
 
     # Feature flags
-    use_temporal: bool = field(default=False)  # Feature flag for migration
-    use_temporal_v2: bool = field(default=False)  # Use Temporal-native v2 architecture
+    use_temporal: bool = field(default=True)  # Enable Temporal by default
+    use_temporal_v2: bool = field(
+        default=True
+    )  # Use Temporal-native v2 architecture (enabled - no customers to migrate)
 
 
 @lru_cache

@@ -22,32 +22,33 @@ async def evaluate_model(
     user: CurrentUser,
     model_id: str,
     dataset_id: str = Query(..., description="Dataset to evaluate against"),
-    metrics: str | None = Query(None, description="Comma-separated metrics: fitness,precision,generalization,simplicity"),
+    metrics: str | None = Query(
+        None, description="Comma-separated metrics: fitness,precision,generalization,simplicity"
+    ),
 ):
     """Trigger quality evaluation for a process model.
-    
+
     Computes quality metrics:
     - **Fitness**: How well the model can replay the log (token-based replay)
     - **Precision**: How much behavior in the model is in the log (ETC precision)
     - **Generalization**: How well the model generalizes beyond the log
     - **Simplicity**: Structural simplicity (arc-to-node ratio)
-    
+
     Results are stored in the database and cached for future retrieval.
     """
     service = QualityService(db)
-    
+
     # Parse metrics list
     metrics_list = None
     if metrics:
         metrics_list = [m.strip() for m in metrics.split(",")]
-    
+
     try:
-        result = await service.evaluate_model(
+        return await service.evaluate_model(
             model_id=model_id,
             dataset_id=dataset_id,
             metrics=metrics_list,
         )
-        return result
     except ValueError as e:
         raise ResourceNotFoundError(str(e))
 
@@ -58,15 +59,15 @@ async def get_model_metrics(
     model_id: str,
 ):
     """Get stored quality metrics for a process model.
-    
+
     Returns previously computed metrics without recomputation.
     If no metrics have been computed, returns 404.
-    
+
     To trigger computation, use POST /models/{id}/evaluate.
     """
     service = QualityService(db)
     metrics = await service.get_metrics(model_id)
-    
+
     if not metrics:
         return JSONResponse(
             status_code=404,
@@ -75,5 +76,5 @@ async def get_model_metrics(
                 "model_id": model_id,
             },
         )
-    
+
     return metrics

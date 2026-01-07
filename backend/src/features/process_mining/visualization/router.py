@@ -252,11 +252,11 @@ async def get_model_svg(
             model_format=model_format.value,
             error=str(e),
             error_type=type(e).__name__,
-            exc_info=True
+            exc_info=True,
         )
         raise HTTPException(
             status_code=500,
-            detail=f"Model visualization failed for {model_id} (format: {model_format.value}): {str(e)}"
+            detail=f"Model visualization failed for {model_id} (format: {model_format.value}): {e!s}",
         )
 
     return Response(
@@ -298,11 +298,10 @@ async def get_dfg_svg(
             dataset_id=dataset_id,
             error=str(e),
             error_type=type(e).__name__,
-            exc_info=True
+            exc_info=True,
         )
         raise HTTPException(
-            status_code=500,
-            detail=f"DFG visualization failed for dataset {dataset_id}: {str(e)}"
+            status_code=500, detail=f"DFG visualization failed for dataset {dataset_id}: {e!s}"
         )
 
     return Response(
@@ -341,11 +340,11 @@ async def get_footprints(
         logger.error(
             "get_footprints_computation_failed",
             dataset_id=dataset_id,
-            error=footprints.get("error")
+            error=footprints.get("error"),
         )
         raise HTTPException(
             status_code=500,
-            detail=f"Footprint computation failed for dataset {dataset_id}: {footprints['error']}"
+            detail=f"Footprint computation failed for dataset {dataset_id}: {footprints['error']}",
         )
 
     return footprints

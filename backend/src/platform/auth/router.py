@@ -264,9 +264,7 @@ async def register(
     org_slug = base_slug
     suffix = 1
     while True:
-        existing_org = await db.execute(
-            select(Organization).filter(Organization.slug == org_slug)
-        )
+        existing_org = await db.execute(select(Organization).filter(Organization.slug == org_slug))
         if not existing_org.scalar_one_or_none():
             break
         org_slug = f"{base_slug[:45]}-{suffix}"
@@ -466,7 +464,9 @@ async def change_password(
     if not current_user.password_hash or not verify_password(
         request.current_password, current_user.password_hash
     ):
-        logger.warning("change_password_failed", user_id=current_user.id, reason="invalid_current_password")
+        logger.warning(
+            "change_password_failed", user_id=current_user.id, reason="invalid_current_password"
+        )
         raise AuthenticationError(
             message="Current password is incorrect. Please verify and try again.",
         )
@@ -494,9 +494,7 @@ async def forgot_password(
 
     Always returns success to prevent email enumeration.
     """
-    result = await db.execute(
-        select(User).filter(User.email == request.email.lower())
-    )
+    result = await db.execute(select(User).filter(User.email == request.email.lower()))
     user = result.scalar_one_or_none()
 
     if user:
@@ -658,4 +656,3 @@ async def get_current_user_legacy(
         workspaces=[_workspace_to_response(w) for w in workspaces],
         current_workspace_id=workspaces[0].id if workspaces else None,
     )
-

@@ -10,10 +10,10 @@ async def test_list_conformance_methods(auth_client: AsyncClient):
     response = await auth_client.get("/api/v1/conformance/methods")
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "methods" in data
     assert isinstance(data["methods"], list)
-    
+
     # Should include common methods
     method_ids = [m["id"] for m in data["methods"]]
     assert "token_replay" in method_ids
@@ -21,7 +21,9 @@ async def test_list_conformance_methods(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_check_conformance(auth_client: AsyncClient, seeded_dataset_ready, seeded_process_model):
+async def test_check_conformance(
+    auth_client: AsyncClient, seeded_dataset_ready, seeded_process_model
+):
     """Test running conformance check."""
     response = await auth_client.post(
         "/api/v1/conformance/check",
@@ -33,7 +35,7 @@ async def test_check_conformance(auth_client: AsyncClient, seeded_dataset_ready,
     )
     # May return 200 or 400 if model has no serialized data
     assert response.status_code in [200, 400]
-    
+
     if response.status_code == 200:
         data = response.json()
         assert "result_id" in data or "fitness" in data
@@ -45,6 +47,6 @@ async def test_list_conformance_results(auth_client: AsyncClient):
     response = await auth_client.get("/api/v1/conformance/results")
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "items" in data
     assert "total" in data

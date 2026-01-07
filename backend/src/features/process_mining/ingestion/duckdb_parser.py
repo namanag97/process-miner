@@ -77,7 +77,7 @@ class DuckDBParser:
         delimiter: str = ",",
     ) -> dict[str, Any]:
         """Parse CSV using DuckDB for vectorized performance.
-        
+
         WARNING: This method loads all data into memory. For large files (>100MB),
         use parse_csv_streaming() instead.
         """
@@ -191,24 +191,23 @@ class DuckDBParser:
         chunk_size: int = 50_000,
     ):
         """Parse CSV using DuckDB with memory-efficient streaming.
-        
+
         Yields Arrow RecordBatches instead of loading all data into memory.
         Use this for files larger than 100MB to avoid OOM errors.
-        
+
         Args:
             file_content: Raw CSV bytes
             case_id_col: Column name for case ID
-            activity_col: Column name for activity  
+            activity_col: Column name for activity
             timestamp_col: Column name for timestamp
             resource_col: Optional column name for resource
             delimiter: CSV delimiter character
             chunk_size: Number of rows per batch (default: 50,000)
-            
+
         Yields:
             dict with 'batch' (Arrow RecordBatch), 'batch_rows', and 'statistics' (first batch only)
         """
-        import pyarrow as pa
-        
+
         # Sanitize inputs
         case_id_col = _sanitize_column_name(case_id_col, "case_id_column")
         activity_col = _sanitize_column_name(activity_col, "activity_column")
@@ -218,7 +217,9 @@ class DuckDBParser:
         delimiter = _sanitize_delimiter(delimiter)
 
         duckdb_manager = self._get_manager()
-        logger.info("duckdb_parse_streaming_started", size_bytes=len(file_content), chunk_size=chunk_size)
+        logger.info(
+            "duckdb_parse_streaming_started", size_bytes=len(file_content), chunk_size=chunk_size
+        )
 
         temp_path = None
         conn = None
@@ -255,7 +256,7 @@ class DuckDBParser:
                     COUNT(DISTINCT resource) FILTER (WHERE resource IS NOT NULL) as total_resources
                 FROM events
             """).fetchone()
-            
+
             statistics = {
                 "total_cases": stats[0],
                 "total_events": stats[1],

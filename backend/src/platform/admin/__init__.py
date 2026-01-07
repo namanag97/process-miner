@@ -15,14 +15,13 @@ from src.platform.admin.schemas import (
 )
 
 __all__ = [
-    "router",
-    # Requests
-    "AdminUserUpdateRequest",
+    "AdminUserListResponse",
     # Responses
     "AdminUserResponse",
-    "AdminUserListResponse",
-    "ErrorLogResponse",
+    # Requests
+    "AdminUserUpdateRequest",
     "ErrorLogListResponse",
+    "ErrorLogResponse",
     "SystemStatsResponse",
+    "router",
 ]
-

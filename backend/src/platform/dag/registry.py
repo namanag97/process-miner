@@ -9,10 +9,11 @@ Components:
 - @dag_task: Decorator for registering task functions
 """
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import wraps
-from typing import Any, Callable, Awaitable
+from typing import Any
 
 import structlog
 
@@ -58,7 +59,9 @@ class TaskResult:
     duration_ms: float | None = None
 
     @classmethod
-    def ok(cls, data: dict[str, Any] | None = None, duration_ms: float | None = None) -> "TaskResult":
+    def ok(
+        cls, data: dict[str, Any] | None = None, duration_ms: float | None = None
+    ) -> "TaskResult":
         """Create a successful result."""
         return cls(success=True, data=data or {}, duration_ms=duration_ms)
 
@@ -104,6 +107,7 @@ class TaskRegistry:
         Returns:
             Decorator function
         """
+
         def decorator(func: TaskFunction) -> TaskFunction:
             if name in self._tasks:
                 logger.warning("task_registry_overwrite", task_name=name)

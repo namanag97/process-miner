@@ -41,7 +41,9 @@ class PredictorResponse(BaseModel):
     status: str = Field("ready", description="training, ready, deprecated, failed")
     storage_path: str | None = Field(None, description="Path to serialized model file")
     metrics: dict[str, Any] = {}
-    training_config: dict[str, Any] | None = Field(None, description="Hyperparameters and feature settings")
+    training_config: dict[str, Any] | None = Field(
+        None, description="Hyperparameters and feature settings"
+    )
     workflow_id: str | None = Field(None, description="Temporal workflow that trained this model")
     trained_at: datetime | None = None
     training_duration_seconds: int | None = None

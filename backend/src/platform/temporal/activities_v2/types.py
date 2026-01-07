@@ -5,8 +5,6 @@ Using dataclasses for Temporal serialization compatibility.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
-
 
 # =============================================================================
 # Ingestion Types
@@ -16,7 +14,7 @@ from datetime import datetime
 @dataclass
 class ChunkInfo:
     """Information about a file chunk for parallel processing."""
-    
+
     chunk_id: str
     start_offset: int
     end_offset: int
@@ -26,12 +24,12 @@ class ChunkInfo:
 @dataclass
 class ColumnMapping:
     """Column mapping for dataset ingestion."""
-    
+
     case_id: str
     activity: str
     timestamp: str
     resource: str | None = None
-    
+
     def to_dict(self) -> dict:
         return {
             "case_id": self.case_id,
@@ -44,7 +42,7 @@ class ColumnMapping:
 @dataclass
 class ValidationResult:
     """Result of file validation activity."""
-    
+
     is_valid: bool
     file_format: str | None = None
     file_size_bytes: int = 0
@@ -54,7 +52,7 @@ class ValidationResult:
 @dataclass
 class ColumnDetectionResult:
     """Result of column detection activity."""
-    
+
     columns: list[str] = field(default_factory=list)
     suggestions: dict = field(default_factory=dict)
     row_count: int = 0
@@ -64,7 +62,7 @@ class ColumnDetectionResult:
 @dataclass
 class ChunkProcessResult:
     """Result of processing a single chunk."""
-    
+
     chunk_id: str
     events_processed: int = 0
     cases_processed: int = 0
@@ -75,7 +73,7 @@ class ChunkProcessResult:
 @dataclass
 class IngestionResult:
     """Final result of ingestion workflow."""
-    
+
     total_cases: int = 0
     total_events: int = 0
     total_activities: int = 0
@@ -90,7 +88,7 @@ class IngestionResult:
 @dataclass
 class EventLogInfo:
     """Information about an event log."""
-    
+
     is_ready: bool
     total_cases: int = 0
     total_events: int = 0
@@ -100,7 +98,7 @@ class EventLogInfo:
 @dataclass
 class DiscoveryResult:
     """Result of process model discovery."""
-    
+
     model_data: bytes  # Serialized PNML or BPMN
     model_format: str = "pnml"
     fitness: float | None = None
@@ -110,7 +108,7 @@ class DiscoveryResult:
 @dataclass
 class ConformanceResult:
     """Result of conformance checking."""
-    
+
     fitness: float
     precision: float
     is_conformant: bool
@@ -122,7 +120,7 @@ class ConformanceResult:
 @dataclass
 class ModelMetrics:
     """Quality metrics for a process model."""
-    
+
     fitness: float | None = None
     precision: float | None = None
     generalization: float | None = None

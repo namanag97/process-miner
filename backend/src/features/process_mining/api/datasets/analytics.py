@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Query
+from pydantic import BaseModel
 from sqlalchemy import func, select, text
 
 from src.api.dependencies import CurrentUser, DBSession
@@ -41,9 +42,7 @@ async def get_statistics(
 ) -> StatisticsResponse:
     """Get aggregate statistics for dataset."""
     # Verify permission
-    _, dataset = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_READ
-    )
+    _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
 
     # Try to load from stored statistics
     if dataset.statistics_json:
@@ -84,15 +83,11 @@ async def list_cases(
 ) -> CaseListResponse:
     """List cases with pagination."""
     # Verify permission
-    _, dataset = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_READ
-    )
+    _, _dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
 
     # Count total cases
     count_query = (
-        select(func.count())
-        .select_from(ProcessCase)
-        .where(ProcessCase.dataset_id == dataset_id)
+        select(func.count()).select_from(ProcessCase).where(ProcessCase.dataset_id == dataset_id)
     )
     total = (await db.execute(count_query)).scalar() or 0
 
@@ -160,9 +155,7 @@ async def get_variants(
 ) -> list[VariantResponse]:
     """Get process variants with frequencies."""
     # Verify permission
-    _, dataset = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_READ
-    )
+    _, _dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
 
     # Group by variant_key
     query = (
@@ -226,9 +219,7 @@ async def get_activities(
 ) -> list[ActivityDetailResponse]:
     """Get activity statistics."""
     # Verify permission
-    _, dataset = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_READ
-    )
+    _, _dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
 
     # Group by activity
     query = (
@@ -266,9 +257,6 @@ async def get_activities(
 # =============================================================================
 # Events and Metadata (per API spec)
 # =============================================================================
-
-
-from pydantic import BaseModel
 
 
 class EventResponse(BaseModel):
@@ -329,9 +317,7 @@ async def list_events(
 ) -> EventListResponse:
     """Query events with pagination."""
     # Verify permission
-    _, dataset = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_READ
-    )
+    _, _dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
 
     # Build query
     query = (
@@ -408,9 +394,7 @@ async def get_metadata(
 ) -> MetadataResponse:
     """Get computed dataset metadata."""
     # Verify permission
-    _, dataset = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_READ
-    )
+    _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
 
     # Get metadata from dataset record
     activities = []

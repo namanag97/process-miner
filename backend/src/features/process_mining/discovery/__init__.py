@@ -20,29 +20,29 @@ from .algorithms import (
     get_available_miners,
 )
 from .analysis import ProcessAnalyzer, process_analyzer
-from .service import MiningService, mining_service
 from .router import router
+from .service import MiningService, mining_service
 
 __all__ = [
-    # Router
-    "router",
-    # Service
-    "MiningService",
-    "mining_service",
+    "AdvancedMiner",
     # Algorithms
     "AlphaMiner",
     "AlphaPlusMiner",
-    "AdvancedMiner",
-    "DeclarativeMiner",
     "DFGMiner",
+    "DeclarativeMiner",
     "HeuristicsMiner",
     "ILPMiner",
     "InductiveMiner",
-    "get_available_miners",
-    # Analysis
-    "ProcessAnalyzer",
-    "process_analyzer",
+    # Service
+    "MiningService",
     # Serialization
     "ModelSerializer",
+    # Analysis
+    "ProcessAnalyzer",
+    "get_available_miners",
+    "mining_service",
     "model_serializer",
+    "process_analyzer",
+    # Router
+    "router",
 ]

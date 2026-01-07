@@ -24,13 +24,13 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from src.api.main import app
-from src.shared.database import Base
 from src.platform.models import Organization, User, Workspace, WorkspaceMember
-
+from src.shared.database import Base
 
 # =============================================================================
 # Pytest Configuration
 # =============================================================================
+
 
 def pytest_configure(config):
     """Register custom markers."""
@@ -43,6 +43,7 @@ def pytest_configure(config):
 # =============================================================================
 # Event Loop (Session-scoped for all async tests)
 # =============================================================================
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -68,25 +69,23 @@ async def test_engine():
         poolclass=StaticPool,
         echo=False,
     )
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     yield engine
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-    
+
     await engine.dispose()
 
 
 @pytest_asyncio.fixture(scope="function")
 async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
     """Create a test database session with automatic rollback."""
-    async_session = sessionmaker(
-        test_engine, class_=AsyncSession, expire_on_commit=False
-    )
-    
+    async_session = sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+
     async with async_session() as session:
         yield session
         await session.rollback()
@@ -96,20 +95,21 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
 # HTTP Client Fixtures
 # =============================================================================
 
+
 @pytest_asyncio.fixture(scope="function")
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Create an async HTTP client for testing with DB override."""
-    from src.platform.infrastructure.database import get_session
     from src.platform.health.router import mark_startup_complete
-    
+    from src.platform.infrastructure.database import get_session
+
     # Mark startup complete so health probes pass
     mark_startup_complete()
-    
+
     async def override_get_db():
         yield db_session
-    
+
     app.dependency_overrides[get_session] = override_get_db
-    
+
     transport = ASGITransport(app=app)
     async with AsyncClient(
         transport=transport,
@@ -118,7 +118,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
         # based on the request type (JSON, multipart form, etc.)
     ) as ac:
         yield ac
-    
+
     app.dependency_overrides.clear()
 
 
@@ -135,6 +135,7 @@ async def auth_client(client: AsyncClient, seeded_user: User) -> AsyncClient:
 # =============================================================================
 # Seeded Data Fixtures
 # =============================================================================
+
 
 @pytest_asyncio.fixture(scope="function")
 async def seeded_org(db_session: AsyncSession) -> Organization:
@@ -182,7 +183,7 @@ async def seeded_workspace(
     )
     db_session.add(workspace)
     await db_session.flush()
-    
+
     membership = WorkspaceMember(
         workspace_id=workspace.id,
         user_id=seeded_user.id,
@@ -198,7 +199,7 @@ async def seeded_workspace(
 async def seeded_project(db_session: AsyncSession, seeded_workspace: Workspace) -> Any:
     """Create a test project."""
     from src.platform.models import Project
-    
+
     project = Project(
         id=str(uuid4()),
         workspace_id=seeded_workspace.id,
@@ -215,10 +216,9 @@ async def seeded_project(db_session: AsyncSession, seeded_workspace: Workspace) 
 async def seeded_dataset_ready(db_session: AsyncSession, seeded_project: Any) -> Any:
     """Create a test dataset in READY status with sample data."""
     import json
-    from src.features.process_mining.models import (
-        Dataset, DatasetStatus, ProcessCase, ProcessEvent
-    )
-    
+
+    from src.features.process_mining.models import Dataset, DatasetStatus, ProcessCase, ProcessEvent
+
     dataset = Dataset(
         id=str(uuid4()),
         project_id=seeded_project.id,
@@ -236,17 +236,17 @@ async def seeded_dataset_ready(db_session: AsyncSession, seeded_project: Any) ->
     )
     db_session.add(dataset)
     await db_session.flush()
-    
+
     activities = ["Start", "Process", "End"]
     for i in range(3):
         case = ProcessCase(
             id=str(uuid4()),
             dataset_id=dataset.id,
-            case_id=f"case_{i+1}",
+            case_id=f"case_{i + 1}",
         )
         db_session.add(case)
         await db_session.flush()
-        
+
         for j, activity in enumerate(activities):
             event = ProcessEvent(
                 id=str(uuid4()),
@@ -255,7 +255,7 @@ async def seeded_dataset_ready(db_session: AsyncSession, seeded_project: Any) ->
                 timestamp=datetime(2024, 1, 1, 10, j, 0, tzinfo=timezone.utc),
             )
             db_session.add(event)
-    
+
     await db_session.commit()
     await db_session.refresh(dataset)
     return dataset

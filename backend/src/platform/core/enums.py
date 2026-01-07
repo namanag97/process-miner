@@ -83,14 +83,14 @@ class EntityType(str, Enum):
 
 
 __all__ = [
-    # Platform enums
-    "WorkflowStatus",
-    "JobType",
-    "JobStatus",
+    "ConformanceMethod",
     "EntityType",
+    "JobStatus",
+    "JobType",
     # Re-exports (backward compat)
     "MinerType",
     "ModelFormat",
     "SourceFormat",
-    "ConformanceMethod",
+    # Platform enums
+    "WorkflowStatus",
 ]

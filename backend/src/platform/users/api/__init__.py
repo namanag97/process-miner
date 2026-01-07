@@ -11,6 +11,6 @@ from src.platform.users.api.workspaces import router as workspaces_router
 __all__ = [
     "auth_router",
     "organizations_router",
-    "workspaces_router",
     "projects_router",
+    "workspaces_router",
 ]

@@ -5,11 +5,11 @@ Components:
 - router.py: API router for conformance checking endpoints
 """
 
-from .service import ConformanceService, conformance_service
 from .router import router
+from .service import ConformanceService, conformance_service
 
 __all__ = [
-    "router",
     "ConformanceService",
     "conformance_service",
+    "router",
 ]

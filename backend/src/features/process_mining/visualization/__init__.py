@@ -9,7 +9,7 @@ from .router import router
 from .service import VisualizationService, visualization_service
 
 __all__ = [
-    "router",
     "VisualizationService",
+    "router",
     "visualization_service",
 ]

@@ -4,23 +4,15 @@ Tests activity failure handling, retry behavior, and workflow recovery scenarios
 These tests verify that Temporal provides the expected durability guarantees.
 """
 
-import asyncio
-from datetime import timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
-from temporalio import activity
-from temporalio.client import WorkflowFailureError
-from temporalio.common import RetryPolicy
-from temporalio.exceptions import ActivityError
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
 from src.platform.temporal.config import get_temporal_config
 from src.platform.temporal.workflows.analysis import ProcessDiscoveryWorkflow
-from src.platform.temporal.workflows.ingestion import DatasetIngestionWorkflow
-
 
 # =============================================================================
 # Activity Failure Simulation
@@ -55,8 +47,7 @@ class TestActivityRetryBehavior:
         temporal_env: WorkflowEnvironment,
     ):
         """Test that a failing activity is retried and eventually succeeds."""
-        config = get_temporal_config()
-        client = temporal_env.client
+        get_temporal_config()
 
         # Create a failing activity that succeeds on second attempt
         failing_activity = FailingActivity(failure_count=1)
@@ -80,7 +71,6 @@ class TestActivityRetryBehavior:
         """Test that workflow fails after retry exhaustion."""
         # This test verifies that after max_attempts, the workflow fails
         # Actual implementation depends on specific workflow configuration
-        pass
 
 
 # =============================================================================
@@ -99,7 +89,6 @@ class TestWorkflowTimeouts:
         """Test that activity timeout triggers retry behavior."""
         # Activity timeout should trigger a retry according to retry policy
         # Temporal handles this automatically
-        pass
 
     async def test_workflow_timeout(
         self,
@@ -107,7 +96,6 @@ class TestWorkflowTimeouts:
     ):
         """Test workflow-level timeout behavior."""
         # Workflow timeouts are configured at start time
-        pass
 
 
 # =============================================================================
@@ -233,7 +221,6 @@ class TestActivityHeartbeats:
         """Test that heartbeating activities remain alive."""
         # Activities with heartbeat_timeout will fail if heartbeat not sent
         # This test verifies the heartbeat mechanism works
-        pass
 
 
 # =============================================================================
@@ -306,7 +293,6 @@ class TestErrorHandling:
         """Test that activity errors are properly propagated to workflow result."""
         # Activity errors should be captured in workflow result
         # with appropriate error messages
-        pass
 
     async def test_non_retryable_error(
         self,
@@ -314,4 +300,3 @@ class TestErrorHandling:
     ):
         """Test handling of non-retryable errors."""
         # Some errors should not be retried (e.g., validation failures)
-        pass

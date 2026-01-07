@@ -60,7 +60,7 @@ export const useCreateProject = createMutationHook<Project, CreateProjectInput>(
     const result = await sdk.projects.create(input);
     return result;
   },
-  invalidateKeys: [queryKeys.projects.all()],
+  invalidateKeys: [queryKeys.projects.list()],
   onSuccessMessage: 'Project created successfully',
   onErrorMessage: 'Failed to create project',
 });
@@ -76,7 +76,7 @@ export const useUpdateProject = createMutationHook<
     const result = await sdk.projects.update(id, data);
     return result;
   },
-  invalidateKeys: [queryKeys.projects.all()],
+  invalidateKeys: [queryKeys.projects.list()],
   onSuccessMessage: 'Project updated',
   onErrorMessage: 'Failed to update project',
 });
@@ -88,7 +88,7 @@ export const useDeleteProject = createMutationHook<void, string>({
   mutationFn: async (sdk, id) => {
     await sdk.projects.delete(id);
   },
-  invalidateKeys: [queryKeys.projects.all()],
+  invalidateKeys: [queryKeys.projects.list()],
   onSuccessMessage: 'Project deleted',
   onErrorMessage: 'Failed to delete project',
 });
@@ -103,7 +103,7 @@ export const useRemoveFileFromProject = createMutationHook<
   mutationFn: async (sdk, { projectId, datasetId }) => {
     await sdk.projects.removeFile(projectId, datasetId);
   },
-  invalidateKeys: [queryKeys.projects.all()],
+  invalidateKeys: [queryKeys.projects.list()],
   onSuccessMessage: 'Data source removed',
   onErrorMessage: 'Failed to remove data source',
 });

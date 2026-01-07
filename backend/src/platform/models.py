@@ -2,7 +2,10 @@
 
 DEPRECATED: This module re-exports models from their new domain locations.
 New code should import directly from domain modules:
-- Admin models: from src.domains.admin.models import Organization, User, Workspace, Project
+- Admin models: from src.platform.users.organization import Organization
+- Admin models: from src.platform.users.models import User
+- Workspace models: from src.platform.workspaces.models import Workspace, WorkspaceMember
+- Project models: from src.platform.projects.models import Project
 - Platform infrastructure: AsyncJob, ErrorLog (remain here)
 
 These models are INDEPENDENT of Feature layer.
@@ -20,16 +23,12 @@ from src.platform.core.enums import JobStatus
 from src.shared.database import Base
 
 # =============================================================================
-# Admin Domain Models (Re-exported from platform.users)
+# Admin Domain Models (Re-exported for backward compatibility)
 # =============================================================================
-from src.platform.users import (  # noqa: E402
-    Organization,
-    Project,
-    User,
-    Workspace,
-    WorkspaceMember,
-)
-
+from src.platform.users.organization import Organization
+from src.platform.users.user import User
+from src.platform.users.workspace import Workspace, WorkspaceMember
+from src.platform.users.project import Project
 
 # =============================================================================
 # Async Jobs (Platform Infrastructure)

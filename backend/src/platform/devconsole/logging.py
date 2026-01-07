@@ -168,9 +168,7 @@ def log_api_response(
     # Determine importance
     if status >= 500:
         importance = 5
-    elif status >= 400:
-        importance = 4
-    elif duration_ms > 3000:
+    elif status >= 400 or duration_ms > 3000:
         importance = 4
     elif "user-action" in tags:
         importance = 3
@@ -257,7 +255,7 @@ def _emit_log(entry: DevLogEntry) -> None:
 
 def log_auth_event(event_type: str, **kwargs) -> None:
     """Log authentication event.
-    
+
     Args:
         event_type: Type of auth event (login, logout, etc)
         **kwargs: Additional details (user_id, success, reason)
@@ -266,13 +264,13 @@ def log_auth_event(event_type: str, **kwargs) -> None:
 
 
 __all__ = [
-    "log_info",
-    "log_error",
-    "log_api_request",
-    "log_api_response",
-    "get_system_metrics",
     "get_error_count",
     "get_slow_request_count",
-    "reset_metrics",
+    "get_system_metrics",
+    "log_api_request",
+    "log_api_response",
     "log_auth_event",
+    "log_error",
+    "log_info",
+    "reset_metrics",
 ]

@@ -13,16 +13,16 @@ from src.features.process_mining.models import (
     Dataset,
     ProcessModel,
 )
-from src.platform.dag.models import DAGDefinition, DAGRun
+from src.platform.dag.models import DAGDefinition
 from src.platform.models import AsyncJob, Project
 from src.shared.base_repository import BaseRepository
 
 
 class AnalysisRepository(BaseRepository[Analysis]):
     """Repository for Analysis aggregate."""
-    
+
     model_class = Analysis
-    
+
     async def get_by_dataset(self, dataset_id: str) -> list[Analysis]:
         """Get all analyses for a dataset."""
         stmt = (
@@ -32,7 +32,7 @@ class AnalysisRepository(BaseRepository[Analysis]):
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
-    
+
     async def get_latest_by_type(
         self,
         dataset_id: str,
@@ -52,9 +52,9 @@ class AnalysisRepository(BaseRepository[Analysis]):
 
 class ProcessModelRepository(BaseRepository[ProcessModel]):
     """Repository for ProcessModel aggregate."""
-    
+
     model_class = ProcessModel
-    
+
     async def get_by_dataset(self, dataset_id: str) -> list[ProcessModel]:
         """Get all process models for a dataset."""
         stmt = (
@@ -64,7 +64,7 @@ class ProcessModelRepository(BaseRepository[ProcessModel]):
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
-    
+
     async def get_by_algorithm(
         self,
         dataset_id: str,
@@ -84,25 +84,25 @@ class ProcessModelRepository(BaseRepository[ProcessModel]):
 
 class DAGDefinitionRepository(BaseRepository[DAGDefinition]):
     """Repository for DAGDefinition aggregate."""
-    
+
     model_class = DAGDefinition
-    
+
     async def get_active(self) -> list[DAGDefinition]:
         """Get all active DAG definitions."""
         stmt = (
             select(DAGDefinition)
-            .where(DAGDefinition.is_active == True)
+            .where(DAGDefinition.is_active)
             .order_by(DAGDefinition.created_at.desc())
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
-    
+
     async def get_by_name(self, name: str) -> DAGDefinition | None:
         """Get DAG definition by name."""
         stmt = (
             select(DAGDefinition)
             .where(DAGDefinition.name == name)
-            .where(DAGDefinition.is_active == True)
+            .where(DAGDefinition.is_active)
             .order_by(DAGDefinition.version.desc())
             .limit(1)
         )
@@ -112,9 +112,9 @@ class DAGDefinitionRepository(BaseRepository[DAGDefinition]):
 
 class ProjectRepository(BaseRepository[Project]):
     """Repository for Project aggregate."""
-    
+
     model_class = Project
-    
+
     async def get_by_workspace(
         self,
         workspace_id: str,
@@ -127,7 +127,7 @@ class ProjectRepository(BaseRepository[Project]):
             page_size=page_size,
             workspace_id=workspace_id,
         )
-    
+
     async def search_by_name(
         self,
         workspace_id: str,
@@ -146,9 +146,9 @@ class ProjectRepository(BaseRepository[Project]):
 
 class DatasetRepositoryV2(BaseRepository[Dataset]):
     """Enhanced Dataset repository using BaseRepository."""
-    
+
     model_class = Dataset
-    
+
     async def get_with_metadata(self, dataset_id: str) -> Dataset | None:
         """Get dataset with metadata eagerly loaded."""
         stmt = (
@@ -161,7 +161,7 @@ class DatasetRepositoryV2(BaseRepository[Dataset]):
         )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
-    
+
     async def get_by_project(
         self,
         project_id: str,
@@ -177,7 +177,7 @@ class DatasetRepositoryV2(BaseRepository[Dataset]):
             stmt = stmt.where(Dataset.status == status)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
-    
+
     async def get_ready_datasets(self, project_id: str) -> list[Dataset]:
         """Get only ready datasets for a project."""
         return await self.get_by_project(project_id, status="ready")
@@ -185,9 +185,9 @@ class DatasetRepositoryV2(BaseRepository[Dataset]):
 
 class JobRepository(BaseRepository[AsyncJob]):
     """Repository for AsyncJob aggregate."""
-    
+
     model_class = AsyncJob
-    
+
     async def get_by_entity(
         self,
         entity_type: str,
@@ -202,19 +202,16 @@ class JobRepository(BaseRepository[AsyncJob]):
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
-    
+
     async def get_running_jobs(self, job_type: str | None = None) -> list[AsyncJob]:
         """Get all running jobs, optionally filtered by type."""
-        stmt = (
-            select(AsyncJob)
-            .where(AsyncJob.status.in_(["pending", "running"]))
-        )
+        stmt = select(AsyncJob).where(AsyncJob.status.in_(["pending", "running"]))
         if job_type:
             stmt = stmt.where(AsyncJob.job_type == job_type)
         stmt = stmt.order_by(AsyncJob.created_at)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
-    
+
     async def get_by_task_id(self, task_id: str) -> AsyncJob | None:
         """Get job by Celery task ID."""
         stmt = select(AsyncJob).where(AsyncJob.task_id == task_id)
@@ -229,7 +226,7 @@ class JobRepository(BaseRepository[AsyncJob]):
 
 def get_repositories(session: AsyncSession) -> dict:
     """Get all repositories for a session.
-    
+
     Usage:
         repos = get_repositories(session)
         dataset = await repos["dataset"].get_by_id(id)

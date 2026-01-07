@@ -29,12 +29,12 @@ class OCEL2EventType(Base):
     __tablename__ = "ocel2_event_types"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    
+
     # BUG-083 & BUG-084 FIX: Add dataset_id for multi-tenancy
     dataset_id: Mapped[str | None] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"), nullable=True, index=True
     )
-    
+
     # BUG-083 FIX: Name unique per dataset, not globally
     name: Mapped[str] = mapped_column(String(255), nullable=False)
 
@@ -43,7 +43,7 @@ class OCEL2EventType(Base):
 
     # Relationships
     events: Mapped[list["OCEL2Event"]] = relationship(back_populates="event_type", lazy="selectin")
-    
+
     __table_args__ = (
         # BUG-083 FIX: Composite unique constraint (dataset_id, name) instead of global name
         {"sqlite_autoincrement": True},
@@ -56,12 +56,12 @@ class OCEL2ObjectType(Base):
     __tablename__ = "ocel2_object_types"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    
+
     # BUG-083 & BUG-084 FIX: Add dataset_id for multi-tenancy
     dataset_id: Mapped[str | None] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"), nullable=True, index=True
     )
-    
+
     # BUG-083 FIX: Name unique per dataset, not globally
     name: Mapped[str] = mapped_column(String(255), nullable=False)
 
@@ -72,7 +72,7 @@ class OCEL2ObjectType(Base):
     objects: Mapped[list["OCEL2Object"]] = relationship(
         back_populates="object_type", lazy="selectin"
     )
-    
+
     __table_args__ = (
         # BUG-083 FIX: Composite unique constraint (dataset_id, name) instead of global name
         {"sqlite_autoincrement": True},

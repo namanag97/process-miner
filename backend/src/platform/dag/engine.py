@@ -6,10 +6,8 @@ Core DAG execution logic including:
 - Dependency graph traversal
 """
 
-import json
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Sequence
 
 from src.platform.dag.models import (
     DAGDefinition,
@@ -127,9 +125,7 @@ class DAGEngine:
         graph = self.build_runtime_graph(dag_run, dag_definition)
 
         # Build step_name -> DAGRunStep mapping
-        step_by_name: dict[str, DAGRunStep] = {
-            step.step_name: step for step in dag_run.steps
-        }
+        step_by_name: dict[str, DAGRunStep] = {step.step_name: step for step in dag_run.steps}
 
         ready_steps: list[DAGRunStep] = []
 
@@ -140,8 +136,7 @@ class DAGEngine:
 
             # Check if all dependencies are completed
             all_deps_completed = all(
-                graph[dep_name].status == DAGStepStatus.COMPLETED
-                for dep_name in node.dependencies
+                graph[dep_name].status == DAGStepStatus.COMPLETED for dep_name in node.dependencies
             )
 
             if all_deps_completed:
@@ -169,9 +164,7 @@ class DAGEngine:
             List of DAGRunStep objects that should be skipped
         """
         graph = self.build_runtime_graph(dag_run, dag_definition)
-        step_by_name: dict[str, DAGRunStep] = {
-            step.step_name: step for step in dag_run.steps
-        }
+        step_by_name: dict[str, DAGRunStep] = {step.step_name: step for step in dag_run.steps}
 
         skip_steps: list[DAGRunStep] = []
 

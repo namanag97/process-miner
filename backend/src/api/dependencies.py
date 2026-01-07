@@ -8,15 +8,16 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.platform.devconsole import log_auth_event
-from src.platform.infrastructure.database import get_session
 from src.platform.core.config import get_settings
 from src.platform.core.exceptions import AuthenticationError
 from src.platform.core.logging_config import get_logger
+from src.platform.devconsole import log_auth_event
+from src.platform.infrastructure.database import get_session
 
 if TYPE_CHECKING:
     from src.platform.models import User
     from src.platform.workspaces.authorization import AuthorizationService
+    from src.shared.container import Container
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -252,10 +253,10 @@ async def get_container(
     user: "User | None" = Depends(get_current_user_optional),
 ) -> "Container":
     """Get request-scoped service container.
-    
+
     The container lazily instantiates services on first access,
     and all services share the same database session.
-    
+
     Usage:
         @router.get("/example")
         async def example(container: Container = Depends(get_container)):
@@ -263,11 +264,10 @@ async def get_container(
             await container.analytics.compute(...)
     """
     from src.shared.container import Container
-    
+
     user_id = user.id if user else None
     return Container(db, user_id)
 
 
 # Type alias for dependency injection
 ServiceContainer = Annotated["Container", Depends(get_container)]
-

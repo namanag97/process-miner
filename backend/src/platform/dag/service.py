@@ -6,11 +6,9 @@ Business logic layer for DAG orchestration including:
 - Orchestrating step execution
 """
 
-import json
-import structlog
-from datetime import datetime
 from typing import Any
 
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.platform.dag.engine import dag_engine
@@ -327,7 +325,11 @@ class DAGService:
 
         if dag_engine.is_run_finished(dag_run):
             final_status = dag_engine.compute_final_status(dag_run)
-            status_enum = DAGRunStatus(final_status) if final_status in [s.value for s in DAGRunStatus] else DAGRunStatus.PARTIAL
+            status_enum = (
+                DAGRunStatus(final_status)
+                if final_status in [s.value for s in DAGRunStatus]
+                else DAGRunStatus.PARTIAL
+            )
 
             await self._repo.complete_run(run_id, status_enum)
             logger.info(
@@ -348,15 +350,17 @@ class DAGService:
 
         step_summaries = []
         for step in dag_run.steps:
-            step_summaries.append({
-                "id": step.id,
-                "name": step.step_name,
-                "task_name": step.task_name,
-                "status": step.status,
-                "started_at": step.started_at.isoformat() if step.started_at else None,
-                "completed_at": step.completed_at.isoformat() if step.completed_at else None,
-                "error_message": step.error_message,
-            })
+            step_summaries.append(
+                {
+                    "id": step.id,
+                    "name": step.step_name,
+                    "task_name": step.task_name,
+                    "status": step.status,
+                    "started_at": step.started_at.isoformat() if step.started_at else None,
+                    "completed_at": step.completed_at.isoformat() if step.completed_at else None,
+                    "error_message": step.error_message,
+                }
+            )
 
         return {
             "id": dag_run.id,

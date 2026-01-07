@@ -123,7 +123,9 @@ async def create_project(
     await db.commit()
     await db.refresh(project)
 
-    logger.info("project_created", project_id=project.id, workspace_id=workspace_id, user_id=user.id)
+    logger.info(
+        "project_created", project_id=project.id, workspace_id=workspace_id, user_id=user.id
+    )
 
     return _project_to_response(project)
 
@@ -182,7 +184,9 @@ async def list_projects(
     if workspace_id:
         count_query = count_query.filter(Project.workspace_id == workspace_id)
     if sanitized_search:
-        count_query = count_query.filter(func.lower(Project.name).contains(sanitized_search.lower()))
+        count_query = count_query.filter(
+            func.lower(Project.name).contains(sanitized_search.lower())
+        )
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
@@ -332,7 +336,10 @@ async def add_file_to_project(
     Requires PROJECT_UPDATE permission on the project
     and DATASET_UPDATE permission on the dataset.
     """
-    from src.platform.workspaces.authorization import require_dataset_permission, require_project_permission
+    from src.platform.workspaces.authorization import (
+        require_dataset_permission,
+        require_project_permission,
+    )
 
     # Validate UUID formats
     validate_uuid(project_id, "project_id")
@@ -359,7 +366,9 @@ async def add_file_to_project(
 
     await db.commit()
 
-    logger.info("dataset_added_to_project", dataset_id=dataset_id, project_id=project_id, user_id=user.id)
+    logger.info(
+        "dataset_added_to_project", dataset_id=dataset_id, project_id=project_id, user_id=user.id
+    )
 
     return await get_project(db, user, project_id)
 
@@ -379,7 +388,10 @@ async def remove_file_from_project(
 
     Requires PROJECT_UPDATE permission in the workspace.
     """
-    from src.platform.workspaces.authorization import require_dataset_permission, require_project_permission
+    from src.platform.workspaces.authorization import (
+        require_dataset_permission,
+        require_project_permission,
+    )
 
     # Validate UUID formats
     validate_uuid(project_id, "project_id")
@@ -405,7 +417,12 @@ async def remove_file_from_project(
 
     await db.commit()
 
-    logger.info("dataset_removed_from_project", dataset_id=dataset_id, project_id=project_id, user_id=user.id)
+    logger.info(
+        "dataset_removed_from_project",
+        dataset_id=dataset_id,
+        project_id=project_id,
+        user_id=user.id,
+    )
 
 
 # =============================================================================

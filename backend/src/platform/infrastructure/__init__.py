@@ -1,6 +1,5 @@
-"""Infrastructure components - Async tasks and caching."""
+"""Infrastructure components - Caching and object storage."""
 
 from src.platform.infrastructure.cache import cache_service
-from src.platform.infrastructure.tasks import celery_app
 
-__all__ = ["cache_service", "celery_app"]
+__all__ = ["cache_service"]

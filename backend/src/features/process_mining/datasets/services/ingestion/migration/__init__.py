@@ -4,7 +4,10 @@ This module provides utilities to migrate legacy pickle-serialized process model
 to standard formats (PNML, JSON graph structure).
 """
 
-from src.features.process_mining.services.ingestion.migration.pickle_migration import MigrationReport, PickleMigrationService
+from src.features.process_mining.services.ingestion.migration.pickle_migration import (
+    MigrationReport,
+    PickleMigrationService,
+)
 
 __all__ = [
     "MigrationReport",

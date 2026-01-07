@@ -351,9 +351,10 @@ class AnalyticsService:
                     # BUG-086 FIX: Handle timezone-aware timestamps properly
                     try:
                         from datetime import timezone
+
                         normalized_ts = []
                         for ts in timestamps:
-                            if hasattr(ts, 'tzinfo') and ts.tzinfo is not None:
+                            if hasattr(ts, "tzinfo") and ts.tzinfo is not None:
                                 normalized_ts.append(ts.astimezone(timezone.utc))
                             else:
                                 normalized_ts.append(ts)
@@ -491,5 +492,6 @@ class AnalyticsService:
         duration = (time.perf_counter() - start) * 1000
         logger.info("performance_dashboard_computed", duration_ms=round(duration, 2))
         return result
+
 
 analytics_service = AnalyticsService()

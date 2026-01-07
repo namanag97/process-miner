@@ -1,12 +1,11 @@
 """Unit tests for DAG Task Registry."""
 
 import pytest
-from unittest.mock import AsyncMock
 
 from src.platform.dag.registry import (
     DAGContext,
-    TaskResult,
     TaskRegistry,
+    TaskResult,
     dag_task,
     task_registry,
 )

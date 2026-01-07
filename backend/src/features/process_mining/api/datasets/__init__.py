@@ -2,7 +2,7 @@
 
 4-Phase Upload Architecture:
 1. Upload (upload.py) - Direct/presigned file upload
-2. Validate & Detect (background job)  
+2. Validate & Detect (background job)
 3. Map (mapping.py) - Column detection and mapping
 4. Ingest (ingest.py) - Trigger ingestion job
 

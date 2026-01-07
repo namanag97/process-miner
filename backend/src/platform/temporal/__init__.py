@@ -38,14 +38,14 @@ from src.platform.temporal.compat import (
 from src.platform.temporal.config import TemporalConfig, get_temporal_config
 
 __all__ = [
+    "TemporalConfig",
+    "cancel_workflow",
+    # Compat layer
+    "dispatch_workflow",
     # Client
     "get_temporal_client",
     # Config
     "get_temporal_config",
-    "TemporalConfig",
-    # Compat layer
-    "dispatch_workflow",
     "get_workflow_status",
-    "cancel_workflow",
     "is_temporal_enabled",
 ]

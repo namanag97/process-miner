@@ -6,24 +6,25 @@ Use these instead of manually constructing model instances in tests.
 
 Usage:
     from tests.factories import create_dataset, create_user
-    
+
     dataset = create_dataset(name="My Test", status="ready")
     user = create_user(email="custom@test.com")
 """
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
-
 
 # =============================================================================
 # Organization Factory
 # =============================================================================
 
+
 @dataclass
 class OrganizationData:
     """Test data for Organization model."""
+
     id: str = field(default_factory=lambda: str(uuid4()))
     name: str = "Test Organization"
     slug: str = "test-org"
@@ -40,9 +41,11 @@ def create_organization(**overrides) -> dict[str, Any]:
 # User Factory
 # =============================================================================
 
+
 @dataclass
 class UserData:
     """Test data for User model."""
+
     id: str = field(default_factory=lambda: str(uuid4()))
     org_id: str = field(default_factory=lambda: str(uuid4()))
     email: str = "test@example.com"
@@ -60,9 +63,11 @@ def create_user(**overrides) -> dict[str, Any]:
 # Workspace Factory
 # =============================================================================
 
+
 @dataclass
 class WorkspaceData:
     """Test data for Workspace model."""
+
     id: str = field(default_factory=lambda: str(uuid4()))
     org_id: str = field(default_factory=lambda: str(uuid4()))
     name: str = "Test Workspace"
@@ -79,9 +84,11 @@ def create_workspace(**overrides) -> dict[str, Any]:
 # Project Factory
 # =============================================================================
 
+
 @dataclass
 class ProjectData:
     """Test data for Project model."""
+
     id: str = field(default_factory=lambda: str(uuid4()))
     workspace_id: str = field(default_factory=lambda: str(uuid4()))
     name: str = "Test Project"
@@ -98,9 +105,11 @@ def create_project(**overrides) -> dict[str, Any]:
 # Dataset Factory
 # =============================================================================
 
+
 @dataclass
 class DatasetData:
     """Test data for Dataset model."""
+
     id: str = field(default_factory=lambda: str(uuid4()))
     project_id: str = field(default_factory=lambda: str(uuid4()))
     name: str = "Test Dataset"
@@ -125,9 +134,11 @@ def create_dataset(**overrides) -> dict[str, Any]:
 # Process Model Factory
 # =============================================================================
 
+
 @dataclass
 class ProcessModelData:
     """Test data for ProcessModel."""
+
     id: str = field(default_factory=lambda: str(uuid4()))
     dataset_id: str = field(default_factory=lambda: str(uuid4()))
     name: str = "Test Model"
@@ -145,18 +156,19 @@ def create_process_model(**overrides) -> dict[str, Any]:
 # Event Log Factories
 # =============================================================================
 
+
 def create_event_log_csv(
     num_cases: int = 3,
     activities: list[str] | None = None,
     resources: list[str] | None = None,
 ) -> str:
     """Generate a sample event log CSV string.
-    
+
     Args:
         num_cases: Number of cases to generate
         activities: List of activities (default: Start, Process, End)
         resources: List of resources (default: Alice, Bob, Charlie)
-    
+
     Returns:
         CSV content as string
     """
@@ -164,17 +176,14 @@ def create_event_log_csv(
         activities = ["Start", "Process", "End"]
     if resources is None:
         resources = ["Alice", "Bob", "Charlie"]
-    
+
     lines = ["case_id,activity,timestamp,resource"]
     base_time = datetime(2024, 1, 1, 9, 0, 0, tzinfo=timezone.utc)
-    
+
     for case_num in range(1, num_cases + 1):
         for i, activity in enumerate(activities):
-            ts = base_time.replace(
-                hour=9 + (case_num - 1),
-                minute=i * 15
-            )
+            ts = base_time.replace(hour=9 + (case_num - 1), minute=i * 15)
             resource = resources[i % len(resources)]
             lines.append(f"{case_num},{activity},{ts.strftime('%Y-%m-%d %H:%M:%S')},{resource}")
-    
+
     return "\n".join(lines)

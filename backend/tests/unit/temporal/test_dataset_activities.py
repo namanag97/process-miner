@@ -22,7 +22,9 @@ class TestValidateFileActivity:
         from src.platform.temporal.activities.dataset import validate_file_activity
 
         mock_storage = MagicMock()
-        mock_storage.stream_file.return_value = iter([b"case_id,activity,timestamp\n1,A,2024-01-01"])
+        mock_storage.stream_file.return_value = iter(
+            [b"case_id,activity,timestamp\n1,A,2024-01-01"]
+        )
         mock_storage.get_file_size.return_value = 1000
 
         with patch(
@@ -180,22 +182,26 @@ class TestParseToParquetActivity:
     @pytest.mark.asyncio
     async def test_parse_success(self):
         """Test successful CSV parsing."""
-        from src.platform.temporal.activities.dataset import parse_to_parquet_activity
-
         import pyarrow as pa
 
+        from src.platform.temporal.activities.dataset import parse_to_parquet_activity
+
         # Create mock Arrow tables
-        cases_table = pa.table({
-            "case_id": ["1", "2"],
-            "variant": ["A->B", "A->C"],
-            "start_time": [None, None],
-            "end_time": [None, None],
-        })
-        events_table = pa.table({
-            "case_id": ["1", "1", "2"],
-            "activity": ["A", "B", "A"],
-            "timestamp": [None, None, None],
-        })
+        cases_table = pa.table(
+            {
+                "case_id": ["1", "2"],
+                "variant": ["A->B", "A->C"],
+                "start_time": [None, None],
+                "end_time": [None, None],
+            }
+        )
+        events_table = pa.table(
+            {
+                "case_id": ["1", "1", "2"],
+                "activity": ["A", "B", "A"],
+                "timestamp": [None, None, None],
+            }
+        )
 
         mock_duck_result = {
             "statistics": {
@@ -283,7 +289,7 @@ class TestBulkCopyToDbActivity:
             )
 
             # This will raise because of mock issues, but we're just testing structure
-            with pytest.raises(Exception):
+            with pytest.raises(RuntimeError):
                 await bulk_copy_to_db_activity(input_data)
 
 

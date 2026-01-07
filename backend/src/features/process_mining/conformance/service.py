@@ -9,9 +9,9 @@ from typing import Any
 import pm4py
 from pm4py.objects.petri_net.obj import Marking, PetriNet
 
+from src.features.process_mining.discovery.service import mining_service
 from src.features.process_mining.enums import ConformanceMethod, ModelFormat
 from src.features.process_mining.models import Dataset, ProcessModel
-from src.features.process_mining.discovery.service import mining_service
 from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)

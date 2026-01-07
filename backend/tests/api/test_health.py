@@ -37,13 +37,13 @@ async def test_detailed_health(client: AsyncClient):
     response = await client.get("/health/detailed")
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "status" in data
     assert "version" in data
     assert "uptime_seconds" in data
     assert "components" in data
     assert isinstance(data["components"], list)
-    
+
     # Should have at least database component
     component_names = [c["name"] for c in data["components"]]
     assert "database" in component_names

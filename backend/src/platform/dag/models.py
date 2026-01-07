@@ -19,7 +19,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.shared.database import Base
 
 if TYPE_CHECKING:
-    from src.platform.models import AsyncJob
+    pass
 
 
 class DAGRunStatus(str, Enum):
@@ -59,9 +59,7 @@ class DAGDefinition(Base):
 
     __tablename__ = "dag_definitions"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
@@ -96,9 +94,7 @@ class DAGDefinitionStep(Base):
 
     __tablename__ = "dag_definition_steps"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     dag_definition_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("dag_definitions.id", ondelete="CASCADE"),
@@ -138,9 +134,7 @@ class DAGDefinitionEdge(Base):
 
     __tablename__ = "dag_definition_edges"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     dag_definition_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("dag_definitions.id", ondelete="CASCADE"),
@@ -183,9 +177,7 @@ class DAGRun(Base):
 
     __tablename__ = "dag_runs"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     dag_definition_id: Mapped[str | None] = mapped_column(
         String(36),
         ForeignKey("dag_definitions.id", ondelete="SET NULL"),
@@ -221,9 +213,7 @@ class DAGRunStep(Base):
 
     __tablename__ = "dag_run_steps"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     dag_run_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("dag_runs.id", ondelete="CASCADE"),

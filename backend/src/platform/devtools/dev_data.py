@@ -32,6 +32,7 @@ async def list_tables() -> list[str]:
     _check_debug()
 
     async with get_session_context() as session:
+
         def get_tables(sync_session):
             # Use the bind (engine/connection) for inspection, not the session itself
             inspector = inspect(sync_session.bind)
@@ -49,30 +50,32 @@ async def get_records(
 ) -> dict[str, Any]:
     """Get records from a table with pagination."""
     _check_debug()
-    
+
     # Validate table name to prevent SQL injection
     if not table.replace("_", "").isalnum():
         raise HTTPException(status_code=400, detail="Invalid table name")
-    
+
     async with get_session_context() as session:
         # Get total count
         count_result = await session.execute(text(f"SELECT COUNT(*) FROM {table}"))
         total = count_result.scalar()
-        
+
         # Get records (order by id desc if exists, otherwise no order)
         try:
-            result = await session.execute(text(
-                f"SELECT * FROM {table} ORDER BY id DESC LIMIT :limit OFFSET :offset"
-            ), {"limit": limit, "offset": offset})
+            result = await session.execute(
+                text(f"SELECT * FROM {table} ORDER BY id DESC LIMIT :limit OFFSET :offset"),
+                {"limit": limit, "offset": offset},
+            )
         except Exception:
             # Fallback if no 'id' column
-            result = await session.execute(text(
-                f"SELECT * FROM {table} LIMIT :limit OFFSET :offset"
-            ), {"limit": limit, "offset": offset})
-        
+            result = await session.execute(
+                text(f"SELECT * FROM {table} LIMIT :limit OFFSET :offset"),
+                {"limit": limit, "offset": offset},
+            )
+
         columns = list(result.keys())
-        rows = [dict(zip(columns, row)) for row in result.fetchall()]
-        
+        rows = [dict(zip(columns, row, strict=False)) for row in result.fetchall()]
+
         return {
             "table": table,
             "total": total,
@@ -87,18 +90,18 @@ async def get_records(
 async def get_record(table: str, record_id: str) -> dict[str, Any]:
     """Get a single record by ID."""
     _check_debug()
-    
+
     if not table.replace("_", "").isalnum():
         raise HTTPException(status_code=400, detail="Invalid table name")
-    
+
     async with get_session_context() as session:
-        result = await session.execute(text(
-            f"SELECT * FROM {table} WHERE id = :id"
-        ), {"id": record_id})
-        
+        result = await session.execute(
+            text(f"SELECT * FROM {table} WHERE id = :id"), {"id": record_id}
+        )
+
         row = result.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Record not found")
-        
+
         columns = list(result.keys())
-        return dict(zip(columns, row))
+        return dict(zip(columns, row, strict=False))

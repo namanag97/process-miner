@@ -5,7 +5,6 @@ in the database, store them in the local filesystem and keep a reference.
 """
 
 import hashlib
-import os
 from pathlib import Path
 
 from src.platform.core.config import get_settings
@@ -27,10 +26,10 @@ class LocalOCELStorage:
 
     def _get_file_path(self, file_key: str) -> Path:
         """Get full path for a file key.
-        
+
         Args:
             file_key: Unique identifier for the file
-            
+
         Returns:
             Full path to file
         """
@@ -41,11 +40,11 @@ class LocalOCELStorage:
 
     def generate_key(self, content: bytes, dataset_id: str) -> str:
         """Generate a unique storage key for content.
-        
+
         Args:
             content: File content
             dataset_id: Dataset ID for additional uniqueness
-            
+
         Returns:
             Unique storage key
         """
@@ -57,11 +56,11 @@ class LocalOCELStorage:
 
     def store(self, content: bytes, dataset_id: str) -> str:
         """Store OCEL data and return storage key.
-        
+
         Args:
             content: OCEL file content
             dataset_id: Associated dataset ID
-            
+
         Returns:
             Storage key that can be used to retrieve the data
         """
@@ -84,18 +83,18 @@ class LocalOCELStorage:
 
     def retrieve(self, file_key: str) -> bytes:
         """Retrieve OCEL data by storage key.
-        
+
         Args:
             file_key: Storage key from store()
-            
+
         Returns:
             OCEL file content
-            
+
         Raises:
             FileNotFoundError: If file doesn't exist
         """
         file_path = self._get_file_path(file_key)
-        
+
         if not file_path.exists():
             logger.error("ocel_data_not_found", key=file_key, path=str(file_path))
             raise FileNotFoundError(f"OCEL data not found for key: {file_key}")
@@ -106,10 +105,10 @@ class LocalOCELStorage:
 
     def delete(self, file_key: str) -> bool:
         """Delete OCEL data by storage key.
-        
+
         Args:
             file_key: Storage key from store()
-            
+
         Returns:
             True if deleted, False if didn't exist
         """
@@ -119,15 +118,15 @@ class LocalOCELStorage:
             file_path.unlink()
             logger.info("ocel_data_deleted", key=file_key)
             return True
-        
+
         return False
 
-    def exists(self,file_key: str) -> bool:
+    def exists(self, file_key: str) -> bool:
         """Check if OCEL data exists.
-        
+
         Args:
             file_key: Storage key from store()
-            
+
         Returns:
             True if exists
         """

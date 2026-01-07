@@ -13,10 +13,10 @@ from src.platform.jobs.schemas import (
 )
 
 __all__ = [
-    "router",
+    "JobCancelResponse",
     # Responses
     "JobListResponse",
-    "JobCancelResponse",
     "JobLogEntry",
     "JobLogsResponse",
+    "router",
 ]

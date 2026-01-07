@@ -613,7 +613,9 @@ class OCPMService:
         except Exception as e:
             return {"error": str(e)}
 
-    async def persist_ocel_2_0(self, session: AsyncSession, ocel, source_dataset_id: str | None = None):
+    async def persist_ocel_2_0(
+        self, session: AsyncSession, ocel, source_dataset_id: str | None = None
+    ):
         """Persist OCEL 2.0 data into the relational OCEL2 tables.
 
         This enables deep object-centric queries without re-parsing the blob.
@@ -622,7 +624,7 @@ class OCPMService:
         # Refactored to use safe upsert with retry loop
         from sqlalchemy import select as sa_select
         from sqlalchemy.exc import IntegrityError
-        
+
         event_types = {}
         activities = self.get_activities(ocel)
         for act in activities:
@@ -631,14 +633,13 @@ class OCPMService:
                 # Try fetch
                 result = await session.execute(
                     sa_select(OCEL2EventType).where(
-                        OCEL2EventType.dataset_id == source_dataset_id,
-                        OCEL2EventType.name == act
+                        OCEL2EventType.dataset_id == source_dataset_id, OCEL2EventType.name == act
                     )
                 )
                 et = result.scalar_one_or_none()
                 if et:
                     break
-                
+
                 # Try create
                 try:
                     async with session.begin_nested():
@@ -648,9 +649,9 @@ class OCPMService:
                     break
                 except IntegrityError:
                     continue
-            
+
             if not et:
-                 raise IntegrityError(f"Could not create event type {act}", params=None, orig=None)
+                raise IntegrityError(f"Could not create event type {act}", params=None, orig=None)
 
             event_types[act] = et
 
@@ -663,14 +664,13 @@ class OCPMService:
                 # Try fetch
                 result = await session.execute(
                     sa_select(OCEL2ObjectType).where(
-                        OCEL2ObjectType.dataset_id == source_dataset_id,
-                        OCEL2ObjectType.name == ot
+                        OCEL2ObjectType.dataset_id == source_dataset_id, OCEL2ObjectType.name == ot
                     )
                 )
                 obj_type = result.scalar_one_or_none()
                 if obj_type:
                     break
-                
+
                 # Try create
                 try:
                     async with session.begin_nested():
@@ -680,9 +680,9 @@ class OCPMService:
                     break
                 except IntegrityError:
                     continue
-            
+
             if not obj_type:
-                 raise IntegrityError(f"Could not create object type {ot}", params=None, orig=None)
+                raise IntegrityError(f"Could not create object type {ot}", params=None, orig=None)
 
             object_types[ot] = obj_type
 
@@ -695,18 +695,18 @@ class OCPMService:
             for oid in obj_ids:
                 # BUG-080 FIX: Extract attributes from ocel.objects DataFrame
                 obj_attrs = {}
-                if hasattr(ocel, 'objects') and ocel.objects is not None:
+                if hasattr(ocel, "objects") and ocel.objects is not None:
                     try:
                         # Find object row in DataFrame
-                        obj_row = ocel.objects[ocel.objects['ocel:oid'] == oid]
+                        obj_row = ocel.objects[ocel.objects["ocel:oid"] == oid]
                         if not obj_row.empty:
                             # Extract non-standard columns as attributes
                             for col in obj_row.columns:
-                                if not col.startswith('ocel:'):
+                                if not col.startswith("ocel:"):
                                     obj_attrs[col] = str(obj_row[col].iloc[0])
                     except Exception:
                         pass  # Best effort
-                
+
                 obj = OCEL2Object(
                     object_type_id=object_types[ot].id,
                     object_id=oid,
@@ -722,12 +722,16 @@ class OCPMService:
         for _, row in events_df.iterrows():
             activity = row["ocel:activity"]
             timestamp = row["ocel:timestamp"]
-            event_id = row["ocel:eid"]
+            row["ocel:eid"]
 
             # BUG-080 FIX: Extract event attributes from non-standard columns
             event_attrs = {}
             for col in events_df.columns:
-                if not col.startswith('ocel:') and col not in ['ocel:activity', 'ocel:timestamp', 'ocel:eid']:
+                if not col.startswith("ocel:") and col not in [
+                    "ocel:activity",
+                    "ocel:timestamp",
+                    "ocel:eid",
+                ]:
                     try:
                         event_attrs[col] = str(row[col])
                     except Exception:
@@ -753,13 +757,17 @@ class OCPMService:
                         for r_oid in related_val:
                             if r_oid in objects:
                                 rel = E2ORelation(
-                                    event=event, object=objects[r_oid], qualifier=object_type_name or "involved"
+                                    event=event,
+                                    object=objects[r_oid],
+                                    qualifier=object_type_name or "involved",
                                 )
                                 session.add(rel)
                     elif related_val and isinstance(related_val, str):
                         if related_val in objects:
                             rel = E2ORelation(
-                                event=event, object=objects[related_val], qualifier=object_type_name or "involved"
+                                event=event,
+                                object=objects[related_val],
+                                qualifier=object_type_name or "involved",
                             )
                             session.add(rel)
 

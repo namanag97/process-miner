@@ -90,9 +90,7 @@ async def list_all_users(
     query = select(User)
 
     if search:
-        query = query.where(
-            User.email.ilike(f"%{search}%") | User.name.ilike(f"%{search}%")
-        )
+        query = query.where(User.email.ilike(f"%{search}%") | User.name.ilike(f"%{search}%"))
     if org_id:
         query = query.where(User.org_id == org_id)
 
@@ -119,7 +117,7 @@ async def list_all_users(
         AdminUserResponse(
             id=u.id,
             email=u.email,
-            name=u.name,
+            name=u.name or "",
             role=u.role or "member",
             org_id=u.org_id,
             org_name=org_names.get(u.org_id) if u.org_id else None,
@@ -146,7 +144,7 @@ async def get_user_details(
     target_user = result.scalar_one_or_none()
 
     if not target_user:
-        raise NotFoundError(f"User {user_id} not found")
+        raise NotFoundError("User", user_id)
 
     # Get org name
     org_name = None
@@ -159,7 +157,7 @@ async def get_user_details(
     return AdminUserResponse(
         id=target_user.id,
         email=target_user.email,
-        name=target_user.name,
+        name=target_user.name or "",
         role=target_user.role or "member",
         org_id=target_user.org_id,
         org_name=org_name,
@@ -183,7 +181,7 @@ async def update_user(
     target_user = result.scalar_one_or_none()
 
     if not target_user:
-        raise NotFoundError(f"User {user_id} not found")
+        raise NotFoundError("User", user_id)
 
     if request.name:
         target_user.name = request.name
@@ -206,7 +204,7 @@ async def update_user(
     return AdminUserResponse(
         id=target_user.id,
         email=target_user.email,
-        name=target_user.name,
+        name=target_user.name or "",
         role=target_user.role or "member",
         org_id=target_user.org_id,
         org_name=org_name,
@@ -232,7 +230,7 @@ async def disable_user(
     target_user = result.scalar_one_or_none()
 
     if not target_user:
-        raise NotFoundError(f"User {user_id} not found")
+        raise NotFoundError("User", user_id)
 
     # For now, just log - would set is_active=False in production
     logger.warning("admin_user_disabled", admin_user=user.id, target_user=user_id)
@@ -278,7 +276,7 @@ async def get_error_details(
     await _require_superuser(user)
 
     # Placeholder - would query error_logs table
-    raise NotFoundError(f"Error {error_id} not found")
+    raise NotFoundError("Error", error_id)
 
 
 @router.put("/errors/{error_id}/resolve")
@@ -321,21 +319,15 @@ async def get_system_stats(
     user_count = (await db.execute(select(func.count()).select_from(User))).scalar() or 0
 
     # Count organizations
-    org_count = (
-        await db.execute(select(func.count()).select_from(Organization))
-    ).scalar() or 0
+    org_count = (await db.execute(select(func.count()).select_from(Organization))).scalar() or 0
 
     # Count workspaces
-    ws_count = (
-        await db.execute(select(func.count()).select_from(Workspace))
-    ).scalar() or 0
+    ws_count = (await db.execute(select(func.count()).select_from(Workspace))).scalar() or 0
 
     # Count datasets
     from src.features.process_mining.models import Dataset
 
-    dataset_count = (
-        await db.execute(select(func.count()).select_from(Dataset))
-    ).scalar() or 0
+    dataset_count = (await db.execute(select(func.count()).select_from(Dataset))).scalar() or 0
 
     # Count today's jobs
     from src.platform.models import AsyncJob
@@ -343,9 +335,7 @@ async def get_system_stats(
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     jobs_today = (
         await db.execute(
-            select(func.count())
-            .select_from(AsyncJob)
-            .where(AsyncJob.created_at >= today_start)
+            select(func.count()).select_from(AsyncJob).where(AsyncJob.created_at >= today_start)
         )
     ).scalar() or 0
 
@@ -353,9 +343,7 @@ async def get_system_stats(
     yesterday = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     active_24h = (
         await db.execute(
-            select(func.count())
-            .select_from(User)
-            .where(User.last_login_at >= yesterday)
+            select(func.count()).select_from(User).where(User.last_login_at >= yesterday)
         )
     ).scalar() or 0
 

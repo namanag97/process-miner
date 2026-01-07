@@ -12,7 +12,7 @@ async def test_get_dfg(auth_client: AsyncClient, seeded_dataset_ready):
     )
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "nodes" in data
     assert "edges" in data
     assert isinstance(data["nodes"], list)
@@ -28,7 +28,7 @@ async def test_get_dfg_with_performance(auth_client: AsyncClient, seeded_dataset
     )
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "nodes" in data
     assert "edges" in data
 
@@ -41,7 +41,7 @@ async def test_get_petri_net(auth_client: AsyncClient, seeded_process_model):
     )
     # May return 200 or 400 if model has no serialized data
     assert response.status_code in [200, 400]
-    
+
     if response.status_code == 200:
         data = response.json()
         assert "places" in data or "transitions" in data
@@ -55,7 +55,7 @@ async def test_get_explorer_data(auth_client: AsyncClient, seeded_dataset_ready)
     )
     assert response.status_code == 200
     data = response.json()
-    
+
     # Should have comprehensive process data
     assert "dfg" in data
     assert isinstance(data["dfg"], dict)

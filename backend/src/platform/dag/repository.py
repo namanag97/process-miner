@@ -4,11 +4,11 @@ Database CRUD operations for DAG entities using SQLAlchemy async sessions.
 """
 
 import json
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Sequence
 from uuid import uuid4
 
-from sqlalchemy import select, and_
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -71,8 +71,12 @@ class DAGRepository:
                 dag_definition_id=dag_def.id,
                 name=step_data["name"],
                 task_name=step_data["task_name"],
-                default_params_json=json.dumps(step_data.get("default_params")) if step_data.get("default_params") else None,
-                retry_policy_json=json.dumps(step_data.get("retry_policy")) if step_data.get("retry_policy") else None,
+                default_params_json=json.dumps(step_data.get("default_params"))
+                if step_data.get("default_params")
+                else None,
+                retry_policy_json=json.dumps(step_data.get("retry_policy"))
+                if step_data.get("retry_policy")
+                else None,
                 timeout_seconds=step_data.get("timeout_seconds", 3600),
                 position=position,
                 created_at=datetime.utcnow(),
@@ -97,7 +101,9 @@ class DAGRepository:
                 dag_definition_id=dag_def.id,
                 from_step_id=step_name_to_id[from_step_name],
                 to_step_id=step_name_to_id[to_step_name],
-                condition_json=json.dumps(edge_data.get("condition")) if edge_data.get("condition") else None,
+                condition_json=json.dumps(edge_data.get("condition"))
+                if edge_data.get("condition")
+                else None,
             )
             self._session.add(edge)
 
@@ -129,7 +135,7 @@ class DAGRepository:
             .where(
                 and_(
                     DAGDefinition.name == name,
-                    DAGDefinition.is_active == True,
+                    DAGDefinition.is_active,
                 )
             )
             .order_by(DAGDefinition.version.desc())
@@ -141,7 +147,7 @@ class DAGRepository:
         """List all DAG definitions."""
         query = select(DAGDefinition)
         if active_only:
-            query = query.where(DAGDefinition.is_active == True)
+            query = query.where(DAGDefinition.is_active)
         query = query.order_by(DAGDefinition.name, DAGDefinition.version.desc())
 
         result = await self._session.execute(query)
@@ -226,9 +232,7 @@ class DAGRepository:
     async def get_run(self, run_id: str) -> DAGRun | None:
         """Get a DAG run by ID with all steps."""
         result = await self._session.execute(
-            select(DAGRun)
-            .options(selectinload(DAGRun.steps))
-            .where(DAGRun.id == run_id)
+            select(DAGRun).options(selectinload(DAGRun.steps)).where(DAGRun.id == run_id)
         )
         return result.scalar_one_or_none()
 
@@ -266,7 +270,9 @@ class DAGRepository:
         await self._session.flush()
         return True
 
-    async def complete_run(self, run_id: str, status: DAGRunStatus = DAGRunStatus.COMPLETED) -> bool:
+    async def complete_run(
+        self, run_id: str, status: DAGRunStatus = DAGRunStatus.COMPLETED
+    ) -> bool:
         """Mark a DAG run as completed/failed/cancelled."""
         dag_run = await self.get_run(run_id)
         if not dag_run:
@@ -295,9 +301,7 @@ class DAGRepository:
 
     async def get_run_step(self, step_id: str) -> DAGRunStep | None:
         """Get a DAG run step by ID."""
-        result = await self._session.execute(
-            select(DAGRunStep).where(DAGRunStep.id == step_id)
-        )
+        result = await self._session.execute(select(DAGRunStep).where(DAGRunStep.id == step_id))
         return result.scalar_one_or_none()
 
     async def get_run_step_by_name(self, run_id: str, step_name: str) -> DAGRunStep | None:

@@ -7,7 +7,6 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-
 # =============================================================================
 # Member Management Schemas
 # =============================================================================
@@ -44,8 +43,8 @@ class UpdateMemberRoleRequest(BaseModel):
 
 
 __all__ = [
-    "WorkspaceMemberResponseInline",
-    "WorkspaceMemberListResponse",
     "AddMemberRequest",
     "UpdateMemberRoleRequest",
+    "WorkspaceMemberListResponse",
+    "WorkspaceMemberResponseInline",
 ]

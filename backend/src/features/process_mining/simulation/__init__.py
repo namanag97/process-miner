@@ -9,7 +9,7 @@ from .router import router
 from .service import SimulationService, simulation_service
 
 __all__ = [
-    "router",
     "SimulationService",
+    "router",
     "simulation_service",
 ]

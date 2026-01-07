@@ -8,7 +8,7 @@ These workflows implement the correct Temporal patterns:
 
 Usage:
     from src.platform.temporal.workflows_v2 import DatasetIngestionWorkflowV2
-    
+
     # Start with deterministic ID
     workflow_id = f"ingest-dataset-{dataset_id}"
     handle = await client.start_workflow(
@@ -20,18 +20,18 @@ Usage:
     )
 """
 
+from src.platform.temporal.workflows_v2.analysis import (
+    ConformanceCheckWorkflowV2,
+    ProcessDiscoveryWorkflowV2,
+)
 from src.platform.temporal.workflows_v2.ingestion import (
     DatasetIngestionWorkflowV2,
     DatasetValidationWorkflowV2,
 )
-from src.platform.temporal.workflows_v2.analysis import (
-    ProcessDiscoveryWorkflowV2,
-    ConformanceCheckWorkflowV2,
-)
 
 __all__ = [
+    "ConformanceCheckWorkflowV2",
     "DatasetIngestionWorkflowV2",
     "DatasetValidationWorkflowV2",
     "ProcessDiscoveryWorkflowV2",
-    "ConformanceCheckWorkflowV2",
 ]

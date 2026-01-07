@@ -6,13 +6,15 @@ from pathlib import Path
 from pydantic_settings import BaseSettings
 
 # Security: Known insecure default secrets that must not be used in production
-INSECURE_SECRETS = frozenset({
-    "dev-secret-change-in-production",
-    "change_me",
-    "secret",
-    "changeme",
-    "",
-})
+INSECURE_SECRETS = frozenset(
+    {
+        "dev-secret-change-in-production",
+        "change_me",
+        "secret",
+        "changeme",
+        "",
+    }
+)
 
 
 class Settings(BaseSettings):
@@ -122,4 +124,3 @@ def get_settings() -> Settings:
     settings.ensure_directories()
     settings.validate_production_settings()
     return settings
-

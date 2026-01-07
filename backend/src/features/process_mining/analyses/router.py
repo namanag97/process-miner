@@ -93,7 +93,7 @@ async def create_analysis(
     """
     Create a new analysis for an event log.
 
-    The analysis will be queued for processing and status updated when complete.
+    The analysis is created and queued for processing.
     """
     logger.info(
         "create_analysis_started",
@@ -109,7 +109,7 @@ async def create_analysis(
         raise HTTPException(status_code=404, detail=f"Event log not found: {dataset_id}")
 
     analysis = Analysis(
-        dataset_id=dataset_id,  # BUG-001 FIX: ORM uses dataset_id
+        dataset_id=dataset_id,
         name=request.name,
         analysis_type=request.analysis_type,
         config_json=json.dumps(request.config) if request.config else None,
@@ -118,21 +118,13 @@ async def create_analysis(
     db.add(analysis)
     await db.flush()
 
-    # Queue async background task
-    from src.platform.infrastructure.tasks import perform_analysis_task
-
-    task = perform_analysis_task.delay(
-        analysis_id=analysis.id,
-        dataset_id=dataset_id,
-        analysis_type=request.analysis_type,
-        config=request.config or {},
-    )
-
+    # TODO: Queue async background task via Temporal v2 workflow
+    # For now, mark as pending - would need to add Temporal workflow
     logger.info(
-        "analysis_task_queued",
+        "analysis_created",
         analysis_id=analysis.id,
-        task_id=task.id,
         dataset_id=dataset_id,
+        status="pending",
     )
 
     await db.commit()

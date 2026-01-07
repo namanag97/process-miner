@@ -10,7 +10,6 @@ from temporalio.common import RetryPolicy
 
 with workflow.unsafe.imports_passed_through():
     from src.platform.temporal.activities.types import (
-        ComputeMetricsInput,
         LoadEventLogInput,
     )
 

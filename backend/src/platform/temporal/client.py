@@ -4,7 +4,6 @@ Provides async client for connecting to Temporal server.
 Manages connection lifecycle and provides singleton access.
 """
 
-
 from temporalio.client import Client
 
 from src.platform.core.logging_config import get_logger

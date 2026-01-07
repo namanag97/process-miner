@@ -10,15 +10,15 @@ Inherits from parent conftest.py:
 """
 
 import pathlib
-from typing import Dict
+
 import pytest
 
 
 @pytest.fixture
-def test_context() -> Dict:
+def test_context() -> dict:
     """
     Shared context for tracking state across test functions.
-    
+
     Use this to pass data between test steps in a journey.
     """
     return {

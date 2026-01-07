@@ -35,7 +35,6 @@ class IngestionService:
     Handles CSV, XES file parsing and event log creation.
     """
 
-
     async def ingest_csv(
         self,
         file_content: bytes,
@@ -579,4 +578,3 @@ class IngestionService:
 
 # DEPRECATED: Singleton pattern removed. Use Container.ingestion instead.
 ingestion_service = IngestionService()
-

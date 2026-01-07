@@ -5,17 +5,22 @@ OCEL 2.0 support for multi-object process mining.
 
 import asyncio
 import json
-import os
-import tempfile
 import time
 
-import aiofiles
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
 from src.api.dependencies import CurrentUser, DBSession
-from src.features.process_mining.models import Dataset, DatasetStatus, OCELLog, OCELObjectType, OCPetriNet
+from src.features.process_mining.models import (
+    Dataset,
+    DatasetStatus,
+    OCELLog,
+    OCELObjectType,
+    OCPetriNet,
+)
+from src.features.process_mining.ocpm.service import ocpm_service
+from src.features.process_mining.ocpm.storage import ocel_storage  # BUG-077 FIX
 from src.features.process_mining.schemas import (
     DiscoverOCPNRequest,
     OCDFGResponse,
@@ -25,8 +30,6 @@ from src.features.process_mining.schemas import (
     OCELStatisticsResponse,
     OCPetriNetResponse,
 )
-from src.features.process_mining.ocpm.service import ocpm_service
-from src.features.process_mining.ocpm.storage import ocel_storage  # BUG-077 FIX
 from src.platform.core.logging_config import get_logger
 from src.platform.models import AsyncJob
 
@@ -53,7 +56,13 @@ async def upload_ocel(
 ):
     """Upload an OCEL file (JSON, SQLite, or XML format)."""
     filename = file.filename or "unknown.jsonocel"
-    source_format = "sqlite" if filename.endswith(".sqlite") else "xmlocel" if filename.endswith(".xmlocel") else "jsonocel"
+    source_format = (
+        "sqlite"
+        if filename.endswith(".sqlite")
+        else "xmlocel"
+        if filename.endswith(".xmlocel")
+        else "jsonocel"
+    )
 
     logger.info("ocel_upload_started", filename=filename, source_format=source_format)
     start_time = time.perf_counter()
@@ -65,22 +74,22 @@ async def upload_ocel(
         while chunk := await file.read(CHUNK_SIZE):
             total_size += len(chunk)
             if total_size > MAX_FILE_SIZE_MB * 1024 * 1024:
-                raise HTTPException(status_code=400, detail=f"File too large (>{MAX_FILE_SIZE_MB}MB)")
+                raise HTTPException(
+                    status_code=400, detail=f"File too large (>{MAX_FILE_SIZE_MB}MB)"
+                )
             content_chunks.append(chunk)
-        
+
         content = b"".join(content_chunks)
 
         # BUG-075 FIX: Run blocking PM4Py operations in thread pool
-        ocel = await asyncio.to_thread(
-            ocpm_service.read_ocel_from_bytes, content, source_format
-        )
+        ocel = await asyncio.to_thread(ocpm_service.read_ocel_from_bytes, content, source_format)
         stats = await asyncio.to_thread(ocpm_service.get_ocel_statistics, ocel)
 
         log_name = name or filename.rsplit(".", 1)[0]
-        
+
         # BUG-077 FIX: Store OCEL data in local filesystem instead of database
         storage_key = ocel_storage.store(content, log_name)
-        
+
         log_model = OCELLog(
             name=log_name,
             source_file=filename,
@@ -88,14 +97,20 @@ async def upload_ocel(
             total_events=stats["total_events"],
             total_objects=stats["total_objects"],
             total_object_types=stats["total_object_types"],
-            metadata_json=json.dumps({"activities": stats["activities"], "objects_per_type": stats["objects_per_type"]}),
+            metadata_json=json.dumps(
+                {"activities": stats["activities"], "objects_per_type": stats["objects_per_type"]}
+            ),
             ocel_storage_key=storage_key,  # BUG-077 FIX: Store reference instead of blob
         )
         db.add(log_model)
         await db.flush()
 
         for ot_name in stats["object_types"]:
-            ot_model = OCELObjectType(dataset_id=log_model.id, name=ot_name, object_count=stats["objects_per_type"].get(ot_name, 0))
+            ot_model = OCELObjectType(
+                dataset_id=log_model.id,
+                name=ot_name,
+                object_count=stats["objects_per_type"].get(ot_name, 0),
+            )
             db.add(ot_model)
 
         # BUG-081 & BUG-082 FIX: Handle async persistence properly
@@ -105,27 +120,41 @@ async def upload_ocel(
         else:
             # Async: Create background job for persistence
             from src.platform.core.enums import EntityType, JobStatus, JobType
-            
+
             job = AsyncJob(
-                job_type=JobType.OCEL_PERSIST.value if hasattr(JobType, 'OCEL_PERSIST') else "ocel_persist",
+                job_type=JobType.OCEL_PERSIST.value
+                if hasattr(JobType, "OCEL_PERSIST")
+                else "ocel_persist",
                 status=JobStatus.QUEUED.value,
                 entity_type=EntityType.DATASET.value,
                 entity_id=log_model.id,
-                parameters_json=json.dumps({"ocel_log_id": log_model.id})
+                parameters_json=json.dumps({"ocel_log_id": log_model.id}),
             )
             db.add(job)
-            logger.info("ocel_persistence_job_created", job_type=job.job_type, dataset_id=log_model.id)
+            logger.info(
+                "ocel_persistence_job_created", job_type=job.job_type, dataset_id=log_model.id
+            )
 
         await db.commit()
         await db.refresh(log_model)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
-        logger.info("ocel_upload_completed", dataset_id=log_model.id, duration_ms=round(duration_ms, 2))
+        logger.info(
+            "ocel_upload_completed", dataset_id=log_model.id, duration_ms=round(duration_ms, 2)
+        )
 
         return OCELLogResponse(
-            id=log_model.id, name=log_model.name, source_file=log_model.source_file, source_format=log_model.source_format,
-            total_events=log_model.total_events, total_objects=log_model.total_objects, total_object_types=log_model.total_object_types,
-            object_types=stats["object_types"], activities=stats["activities"], created_at=log_model.created_at)
+            id=log_model.id,
+            name=log_model.name,
+            source_file=log_model.source_file,
+            source_format=log_model.source_format,
+            total_events=log_model.total_events,
+            total_objects=log_model.total_objects,
+            total_object_types=log_model.total_object_types,
+            object_types=stats["object_types"],
+            activities=stats["activities"],
+            created_at=log_model.created_at,
+        )
     except Exception as e:
         logger.error("ocel_upload_failed", filename=filename, error=str(e), exc_info=True)
         raise HTTPException(status_code=400, detail=f"Failed to parse OCEL file: {e!s}")
@@ -175,8 +204,16 @@ async def get_object_types(dataset_id: str, db: DBSession, user: CurrentUser):
         log_result = await db.execute(select(OCELLog).where(OCELLog.id == dataset_id))
         if not log_result.scalar_one_or_none():
             raise HTTPException(status_code=404, detail="OCEL log not found")
-    return [OCELObjectTypeResponse(name=ot.name, object_count=ot.object_count,
-            attributes=list(json.loads(ot.attributes_schema_json).keys()) if ot.attributes_schema_json else []) for ot in object_types]
+    return [
+        OCELObjectTypeResponse(
+            name=ot.name,
+            object_count=ot.object_count,
+            attributes=list(json.loads(ot.attributes_schema_json).keys())
+            if ot.attributes_schema_json
+            else [],
+        )
+        for ot in object_types
+    ]
 
 
 @router.get("/datasets/{dataset_id}/statistics", response_model=OCELStatisticsResponse)
@@ -188,10 +225,15 @@ async def get_ocel_statistics(dataset_id: str, db: DBSession, user: CurrentUser)
         raise HTTPException(status_code=404, detail="OCEL log not found")
     metadata = json.loads(log.metadata_json) if log.metadata_json else {}
     return OCELStatisticsResponse(
-        dataset_id=log.id, total_events=log.total_events, total_objects=log.total_objects,
-        total_object_types=log.total_object_types, total_activities=len(metadata.get("activities", [])),
+        dataset_id=log.id,
+        total_events=log.total_events,
+        total_objects=log.total_objects,
+        total_object_types=log.total_object_types,
+        total_activities=len(metadata.get("activities", [])),
         object_types=list(metadata.get("objects_per_type", {}).keys()),
-        activities=metadata.get("activities", []), objects_per_type=metadata.get("objects_per_type", {}))
+        activities=metadata.get("activities", []),
+        objects_per_type=metadata.get("objects_per_type", {}),
+    )
 
 
 # =============================================================================
@@ -200,7 +242,9 @@ async def get_ocel_statistics(dataset_id: str, db: DBSession, user: CurrentUser)
 
 
 @router.post("/discover")
-async def discover_oc_petri_net(request: DiscoverOCPNRequest, db: DBSession, user: CurrentUser, async_mode: bool = True):
+async def discover_oc_petri_net(
+    request: DiscoverOCPNRequest, db: DBSession, user: CurrentUser, async_mode: bool = True
+):
     """Discover Object-Centric Petri Net from an OCEL log."""
     result = await db.execute(select(OCELLog).where(OCELLog.id == request.dataset_id))
     log = result.scalar_one_or_none()
@@ -213,9 +257,17 @@ async def discover_oc_petri_net(request: DiscoverOCPNRequest, db: DBSession, use
 
     if async_mode:
         import uuid
+
         job_id = str(uuid.uuid4())
-        async_job = AsyncJob(id=job_id, task_id=job_id, job_type="ocpn_discovery", status="pending",
-                            parameters_json=json.dumps({"dataset_id": request.dataset_id, "model_name": model_name}))
+        async_job = AsyncJob(
+            id=job_id,
+            task_id=job_id,
+            job_type="ocpn_discovery",
+            status="pending",
+            parameters_json=json.dumps(
+                {"dataset_id": request.dataset_id, "model_name": model_name}
+            ),
+        )
         db.add(async_job)
         await db.commit()
         return {"job_id": job_id, "status": "pending", "message": "OC-PN discovery started."}
@@ -232,16 +284,28 @@ async def discover_oc_petri_net(request: DiscoverOCPNRequest, db: DBSession, use
         metadata = json.loads(log.metadata_json) if log.metadata_json else {}
         object_types = list(metadata.get("objects_per_type", {}).keys())
 
-        oc_pn_model = OCPetriNet(dataset_id=log.id, name=model_name, object_types_json=json.dumps(object_types), serialized_model=serialized_pn)
+        oc_pn_model = OCPetriNet(
+            dataset_id=log.id,
+            name=model_name,
+            object_types_json=json.dumps(object_types),
+            serialized_model=serialized_pn,
+        )
         db.add(oc_pn_model)
         await db.commit()
         await db.refresh(oc_pn_model)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
-        logger.info("oc_pn_discovery_completed", model_id=oc_pn_model.id, duration_ms=round(duration_ms, 2))
+        logger.info(
+            "oc_pn_discovery_completed", model_id=oc_pn_model.id, duration_ms=round(duration_ms, 2)
+        )
 
-        return OCPetriNetResponse(id=oc_pn_model.id, dataset_id=oc_pn_model.dataset_id, name=oc_pn_model.name,
-                                  object_types=object_types, created_at=oc_pn_model.created_at)
+        return OCPetriNetResponse(
+            id=oc_pn_model.id,
+            dataset_id=oc_pn_model.dataset_id,
+            name=oc_pn_model.name,
+            object_types=object_types,
+            created_at=oc_pn_model.created_at,
+        )
     except Exception as e:
         logger.error("oc_pn_discovery_failed", error=str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"OC-PN discovery failed: {e!s}")
@@ -285,8 +349,13 @@ async def get_object_relationships(dataset_id: str, db: DBSession, user: Current
         raise HTTPException(status_code=404, detail="OCEL log not found")
     metadata = json.loads(log.metadata_json) if log.metadata_json else {}
     objects_per_type = metadata.get("objects_per_type", {})
-    return {"dataset_id": log.id, "object_types": list(objects_per_type.keys()),
-            "objects_per_type": objects_per_type, "total_objects": log.total_objects, "total_events": log.total_events}
+    return {
+        "dataset_id": log.id,
+        "object_types": list(objects_per_type.keys()),
+        "objects_per_type": objects_per_type,
+        "total_objects": log.total_objects,
+        "total_events": log.total_events,
+    }
 
 
 @router.get("/datasets/{dataset_id}/oc-dfg", response_model=OCDFGResponse)
@@ -306,11 +375,21 @@ async def get_oc_dfg(dataset_id: str, db: DBSession, user: CurrentUser):
         ocel = ocpm_service.read_ocel_from_bytes(ocel_data, log.source_format)
         ocdfg_data = ocpm_service.get_ocdfg_graph_data(ocel)
         if ocdfg_data.get("error"):
-            raise HTTPException(status_code=500, detail=f"OC-DFG computation failed: {ocdfg_data['error']}")
+            raise HTTPException(
+                status_code=500, detail=f"OC-DFG computation failed: {ocdfg_data['error']}"
+            )
         duration_ms = (time.perf_counter() - start_time) * 1000
-        logger.info("oc_dfg_computation_completed", dataset_id=log.id, duration_ms=round(duration_ms, 2))
-        return OCDFGResponse(dataset_id=log.id, object_types=ocdfg_data["object_types"], activities=ocdfg_data["activities"],
-                            graphs_by_type=ocdfg_data["graphs_by_type"], total_events=log.total_events, total_objects=log.total_objects)
+        logger.info(
+            "oc_dfg_computation_completed", dataset_id=log.id, duration_ms=round(duration_ms, 2)
+        )
+        return OCDFGResponse(
+            dataset_id=log.id,
+            object_types=ocdfg_data["object_types"],
+            activities=ocdfg_data["activities"],
+            graphs_by_type=ocdfg_data["graphs_by_type"],
+            total_events=log.total_events,
+            total_objects=log.total_objects,
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -323,7 +402,11 @@ async def list_supported_formats():
     """List supported OCEL file formats."""
     return [
         {"extension": ".jsonocel", "name": "JSON OCEL", "description": "OCEL 2.0 JSON format"},
-        {"extension": ".sqlite", "name": "SQLite OCEL", "description": "OCEL 2.0 SQLite database format"},
+        {
+            "extension": ".sqlite",
+            "name": "SQLite OCEL",
+            "description": "OCEL 2.0 SQLite database format",
+        },
         {"extension": ".xmlocel", "name": "XML OCEL", "description": "OCEL 2.0 XML format"},
     ]
 
@@ -349,21 +432,42 @@ async def flatten_ocel_to_dataset(
     metadata = json.loads(log.metadata_json) if log.metadata_json else {}
     available_types = list(metadata.get("objects_per_type", {}).keys())
     if object_type not in available_types:
-        raise HTTPException(status_code=400, detail=f"Object type '{object_type}' not found. Available: {', '.join(available_types)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Object type '{object_type}' not found. Available: {', '.join(available_types)}",
+        )
 
     dataset_name = name or f"{log.name}_flattened_{object_type}"
-    dataset = Dataset(name=dataset_name, source_format="ocel_flattened", status=DatasetStatus.PENDING.value)
+    dataset = Dataset(
+        name=dataset_name, source_format="ocel_flattened", status=DatasetStatus.PENDING.value
+    )
     db.add(dataset)
     await db.flush()
 
-    job = AsyncJob(job_type=JobType.FLATTEN.value, status=JobStatus.QUEUED.value, entity_type=EntityType.DATASET.value,
-                  entity_id=dataset.id, parameters_json=json.dumps({"ocel_dataset_id": dataset_id, "object_type": object_type, "dataset_id": dataset.id}))
+    job = AsyncJob(
+        job_type=JobType.FLATTEN.value,
+        status=JobStatus.QUEUED.value,
+        entity_type=EntityType.DATASET.value,
+        entity_id=dataset.id,
+        parameters_json=json.dumps(
+            {"ocel_dataset_id": dataset_id, "object_type": object_type, "dataset_id": dataset.id}
+        ),
+    )
     db.add(job)
     await db.flush()
 
     dataset.ingestion_job_id = job.id
     await db.commit()
 
-    logger.info("ocel_flatten_queued", job_id=job.id, dataset_id=dataset.id, object_type=object_type)
-    return JSONResponse(status_code=202, content={"job_id": job.id, "dataset_id": dataset.id, "status": "queued",
-                                                  "message": f"Flattening OCEL on '{object_type}'. Use /api/v1/jobs/{job.id} to track progress."})
+    logger.info(
+        "ocel_flatten_queued", job_id=job.id, dataset_id=dataset.id, object_type=object_type
+    )
+    return JSONResponse(
+        status_code=202,
+        content={
+            "job_id": job.id,
+            "dataset_id": dataset.id,
+            "status": "queued",
+            "message": f"Flattening OCEL on '{object_type}'. Use /api/v1/jobs/{job.id} to track progress.",
+        },
+    )

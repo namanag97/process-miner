@@ -10,7 +10,9 @@ import structlog
 from pm4py.objects.log.obj import EventLog
 
 from src.features.process_mining.services.mining import MiningService
-from src.features.process_mining.services.serializers.graph_serializer import GraphStructureSerializer
+from src.features.process_mining.services.serializers.graph_serializer import (
+    GraphStructureSerializer,
+)
 
 logger = structlog.get_logger(__name__)
 

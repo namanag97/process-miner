@@ -22,6 +22,10 @@ from src.features.process_mining.schemas import (
     ColumnTypeInfo,
     MappingUpdateRequest,
 )
+from src.features.process_mining.schemas.datasets import (
+    MappingResponse,
+    PreviewResponse,
+)
 from src.platform.core.exceptions import ValidationError
 from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
@@ -62,9 +66,7 @@ async def get_columns(
 ) -> ColumnDetectionResponse:
     """Get detected columns with suggestions."""
     # Verify permission
-    _, dataset = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_READ
-    )
+    _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
 
     # Get columns
     result = await db.execute(
@@ -153,9 +155,7 @@ async def submit_mapping(
 ) -> dict:
     """Submit and validate column mapping."""
     # Verify permission
-    _, dataset = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_UPDATE
-    )
+    _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_UPDATE)
 
     # Check status
     valid_statuses = [DatasetStatus.AWAITING_MAPPING.value, DatasetStatus.ERROR.value]
@@ -220,16 +220,18 @@ async def submit_mapping(
     # Update dataset status
     dataset.status = DatasetStatus.MAPPED.value
     dataset.error_message = None
-    
+
     # Also store in legacy mapping_json for backward compatibility
-    dataset.mapping_json = json.dumps({
-        "case_id_column": request.case_id_column,
-        "activity_column": request.activity_column,
-        "timestamp_column": request.timestamp_column,
-        "resource_column": request.resource_column,
-        "timestamp_format": request.timestamp_format,
-        "additional_columns": request.additional_columns,
-    })
+    dataset.mapping_json = json.dumps(
+        {
+            "case_id_column": request.case_id_column,
+            "activity_column": request.activity_column,
+            "timestamp_column": request.timestamp_column,
+            "resource_column": request.resource_column,
+            "timestamp_format": request.timestamp_format,
+            "additional_columns": request.additional_columns,
+        }
+    )
 
     await db.commit()
 
@@ -253,13 +255,6 @@ async def submit_mapping(
 # =============================================================================
 
 
-from src.features.process_mining.schemas.datasets import (
-    MappingResponse,
-    MappingUpdateRequest,
-    PreviewResponse,
-)
-
-
 @router.get(
     "/{dataset_id}/mapping",
     response_model=MappingResponse,
@@ -279,9 +274,7 @@ async def get_mapping(
     from src.platform.core.exceptions import NotFoundError
 
     # Verify permission
-    _, dataset = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_READ
-    )
+    _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
 
     # Get mapping
     result = await db.execute(
@@ -304,7 +297,7 @@ async def get_mapping(
                 )
             except Exception:
                 pass
-        raise NotFoundError("No mapping found for this dataset")
+        raise NotFoundError("Mapping", dataset_id)
 
     return MappingResponse(
         dataset_id=dataset_id,
@@ -338,9 +331,7 @@ async def update_mapping(
 ) -> MappingResponse:
     """Update existing column mapping."""
     # Verify permission
-    _, dataset = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_UPDATE
-    )
+    _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_UPDATE)
 
     # Get column names to validate mapping
     result = await db.execute(
@@ -395,13 +386,15 @@ async def update_mapping(
         dataset.status = DatasetStatus.MAPPED.value
 
     # Update legacy mapping_json
-    dataset.mapping_json = json.dumps({
-        "case_id_column": request.case_id_column,
-        "activity_column": request.activity_column,
-        "timestamp_column": request.timestamp_column,
-        "resource_column": request.resource_column,
-        "timestamp_format": request.timestamp_format,
-    })
+    dataset.mapping_json = json.dumps(
+        {
+            "case_id_column": request.case_id_column,
+            "activity_column": request.activity_column,
+            "timestamp_column": request.timestamp_column,
+            "resource_column": request.resource_column,
+            "timestamp_format": request.timestamp_format,
+        }
+    )
 
     await db.commit()
 
@@ -442,15 +435,14 @@ async def preview_mapped_data(
     limit: int = Query(10, ge=1, le=100, description="Number of sample rows"),
 ) -> PreviewResponse:
     """Preview mapped data before ingestion."""
-    from src.platform.core.exceptions import NotFoundError
-    from src.platform.infrastructure.object_storage import get_storage_client
     import csv
     import io
 
+    from src.platform.core.exceptions import NotFoundError
+    from src.platform.infrastructure.object_storage import get_storage_client
+
     # Verify permission
-    _, dataset = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_READ
-    )
+    _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
 
     # Get mapping
     mapping_result = await db.execute(
@@ -459,7 +451,7 @@ async def preview_mapped_data(
     mapping = mapping_result.scalar_one_or_none()
 
     if not mapping and not dataset.mapping_json:
-        raise NotFoundError("No mapping found. Submit mapping first.")
+        raise NotFoundError("Mapping", dataset_id)
 
     # Get mapping data
     if mapping:
@@ -503,10 +495,10 @@ async def preview_mapped_data(
                             event["resource"] = row.get(resource_col, "")
                         sample_events.append(event)
                     except Exception as e:
-                        parse_errors.append(f"Row {i+1}: {str(e)}")
+                        parse_errors.append(f"Row {i + 1}: {e!s}")
         except Exception as e:
             logger.warning("preview_failed", dataset_id=dataset_id, error=str(e))
-            parse_errors.append(f"Failed to read file: {str(e)}")
+            parse_errors.append(f"Failed to read file: {e!s}")
 
     return PreviewResponse(
         dataset_id=dataset_id,

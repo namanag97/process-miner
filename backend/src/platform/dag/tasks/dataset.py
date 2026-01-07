@@ -4,13 +4,10 @@ Pure business logic functions extracted from Celery tasks for DAG execution.
 Each function is registered with TaskRegistry and can be orchestrated by DAGExecutor.
 """
 
-import json
 import time
 from typing import Any
 
 import structlog
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.platform.dag.registry import DAGContext, TaskResult, dag_task
 
@@ -244,8 +241,8 @@ async def ingest_dataset(ctx: DAGContext, params: dict[str, Any]) -> TaskResult:
 
         if not file_content:
             # Load from storage if not in context
+
             from src.platform.infrastructure.object_storage import get_storage_client
-            from sqlalchemy import select
 
             storage_key = params.get("storage_key")
             if storage_key:

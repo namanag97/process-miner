@@ -15,15 +15,15 @@ to maintain clean architecture (core layer should not depend on infrastructure).
 import logging
 import sys
 import time
+from collections.abc import Callable
 from contextlib import contextmanager
 from functools import wraps
-from typing import Any, Callable, ParamSpec, TypeVar
+from typing import Any, ParamSpec, TypeVar
 
 import structlog
 from structlog.types import Processor
 
 from src.platform.core.config import get_settings
-
 
 # Type hints for decorator
 P = ParamSpec("P")
@@ -148,6 +148,7 @@ def log_operation(
         async def create_dataset(project_id: str, ...):
             ...
     """
+
     def decorator(func: Callable[P, R]) -> Callable[P, R]:
         logger = get_logger(func.__module__)
 
@@ -227,6 +228,7 @@ def log_operation(
 
         # Return appropriate wrapper based on function type
         import asyncio
+
         if asyncio.iscoroutinefunction(func):
             return async_wrapper  # type: ignore
         return sync_wrapper  # type: ignore
@@ -310,6 +312,7 @@ def log_api_error(
 
     # Use warning for expected errors (NotFound, Validation), error for unexpected
     from src.platform.core.exceptions import AppException
+
     if isinstance(error, AppException) and error.status_code < 500:
         logger.warning(f"⚠️ {operation}_failed", **context)
     else:
@@ -350,4 +353,3 @@ def log_business_metric(
         metric_unit=unit,
         **(tags or {}),
     )
-

@@ -82,10 +82,10 @@ class OCPetriNet(Base):
         ForeignKey("ocel_logs.id", ondelete="CASCADE"), nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    
+
     # List of object types included in this model
     object_types_json: Mapped[str | None] = mapped_column(Text, nullable=True)
-    
+
     # Serialized PM4Py OC-PN object
     serialized_model: Mapped[bytes | None] = deferred(mapped_column(LargeBinary, nullable=True))
 

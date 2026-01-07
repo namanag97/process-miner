@@ -118,8 +118,8 @@ async def get_workspace(
                 "error": "Workspace not found",
                 "error_code": "WS_NOT_FOUND",
                 "workspace_id": workspace_id,
-                "suggestion": "Check that the workspace ID is correct and the workspace exists"
-            }
+                "suggestion": "Check that the workspace ID is correct and the workspace exists",
+            },
         )
 
     # Get projects for this workspace
@@ -204,8 +204,8 @@ async def create_workspace(
                 "error": "Failed to create workspace",
                 "error_code": "WS_CREATE_FAILED",
                 "reason": str(e),
-                "suggestion": "Check database connectivity and ensure the organization exists"
-            }
+                "suggestion": "Check database connectivity and ensure the organization exists",
+            },
         )
 
 
@@ -218,7 +218,11 @@ async def update_workspace(
     """
     Update a workspace.
     """
-    logger.info("updating_workspace", workspace_id=workspace_id, updates=request.model_dump(exclude_unset=True))
+    logger.info(
+        "updating_workspace",
+        workspace_id=workspace_id,
+        updates=request.model_dump(exclude_unset=True),
+    )
 
     result = await db.execute(select(Workspace).filter(Workspace.id == workspace_id))
     workspace = result.scalar_one_or_none()
@@ -237,8 +241,8 @@ async def update_workspace(
                 "error": "Workspace not found",
                 "error_code": "WS_NOT_FOUND",
                 "workspace_id": workspace_id,
-                "suggestion": "Verify the workspace ID exists before updating"
-            }
+                "suggestion": "Verify the workspace ID exists before updating",
+            },
         )
 
     if request.name is not None:
@@ -266,7 +270,9 @@ async def update_workspace(
 
         return _workspace_to_response(workspace)
     except Exception as e:
-        logger.error("workspace_update_failed", workspace_id=workspace_id, error=str(e), exc_info=True)
+        logger.error(
+            "workspace_update_failed", workspace_id=workspace_id, error=str(e), exc_info=True
+        )
         log_error(
             "Workspace",
             "Failed to update workspace",
@@ -281,8 +287,8 @@ async def update_workspace(
                 "error_code": "WS_UPDATE_FAILED",
                 "workspace_id": workspace_id,
                 "reason": str(e),
-                "suggestion": "Check database connectivity and retry"
-            }
+                "suggestion": "Check database connectivity and retry",
+            },
         )
 
 
@@ -315,15 +321,17 @@ async def delete_workspace(
                 "error": "Workspace not found",
                 "error_code": "WS_NOT_FOUND",
                 "workspace_id": workspace_id,
-                "suggestion": "Verify the workspace ID before attempting deletion"
-            }
+                "suggestion": "Verify the workspace ID before attempting deletion",
+            },
         )
 
     # BUG-036 FIX: Delete projects instead of orphaning
     from sqlalchemy import delete
 
     # Get project count for logging
-    projects_result = await db.execute(select(func.count()).select_from(Project).where(Project.workspace_id == workspace_id))
+    projects_result = await db.execute(
+        select(func.count()).select_from(Project).where(Project.workspace_id == workspace_id)
+    )
     project_count = projects_result.scalar() or 0
 
     try:
@@ -345,7 +353,9 @@ async def delete_workspace(
             projects_deleted=project_count,
         )
     except Exception as e:
-        logger.error("workspace_deletion_failed", workspace_id=workspace_id, error=str(e), exc_info=True)
+        logger.error(
+            "workspace_deletion_failed", workspace_id=workspace_id, error=str(e), exc_info=True
+        )
         log_error(
             "Workspace",
             "Failed to delete workspace",
@@ -360,8 +370,8 @@ async def delete_workspace(
                 "error_code": "WS_DELETE_FAILED",
                 "workspace_id": workspace_id,
                 "reason": str(e),
-                "suggestion": "Check database connectivity and ensure no foreign key constraints are blocking deletion"
-            }
+                "suggestion": "Check database connectivity and ensure no foreign key constraints are blocking deletion",
+            },
         )
 
 

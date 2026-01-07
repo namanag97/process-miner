@@ -4,8 +4,7 @@ Tests core DAG execution logic including topological sort,
 ready-step detection, and cycle validation.
 """
 
-import pytest
-from src.platform.dag.engine import DAGEngine, DAGNode, DAGStepStatus
+from src.platform.dag.engine import DAGEngine
 
 
 class TestDAGEngineValidation:
@@ -47,7 +46,7 @@ class TestDAGEngineValidation:
             {"from_step": "parallel_b", "to_step": "end"},
         ]
 
-        is_valid, error = self.engine.validate_dag(steps, edges)
+        is_valid, _error = self.engine.validate_dag(steps, edges)
         assert is_valid
 
     def test_validate_duplicate_step_names_fails(self):
@@ -106,18 +105,28 @@ class TestDAGEngineTopologicalSort:
 
     def test_topological_sort_linear(self):
         """Linear DAG should sort correctly."""
-        from src.platform.dag.models import DAGDefinition, DAGDefinitionStep, DAGDefinitionEdge
+        from src.platform.dag.models import DAGDefinition, DAGDefinitionEdge, DAGDefinitionStep
 
         # Create mock definition
         dag_def = DAGDefinition(id="test-1", name="test")
         dag_def.steps = [
-            DAGDefinitionStep(id="s1", name="first", task_name="t1", position=0, dag_definition_id="test-1"),
-            DAGDefinitionStep(id="s2", name="second", task_name="t2", position=1, dag_definition_id="test-1"),
-            DAGDefinitionStep(id="s3", name="third", task_name="t3", position=2, dag_definition_id="test-1"),
+            DAGDefinitionStep(
+                id="s1", name="first", task_name="t1", position=0, dag_definition_id="test-1"
+            ),
+            DAGDefinitionStep(
+                id="s2", name="second", task_name="t2", position=1, dag_definition_id="test-1"
+            ),
+            DAGDefinitionStep(
+                id="s3", name="third", task_name="t3", position=2, dag_definition_id="test-1"
+            ),
         ]
         dag_def.edges = [
-            DAGDefinitionEdge(id="e1", dag_definition_id="test-1", from_step_id="s1", to_step_id="s2"),
-            DAGDefinitionEdge(id="e2", dag_definition_id="test-1", from_step_id="s2", to_step_id="s3"),
+            DAGDefinitionEdge(
+                id="e1", dag_definition_id="test-1", from_step_id="s1", to_step_id="s2"
+            ),
+            DAGDefinitionEdge(
+                id="e2", dag_definition_id="test-1", from_step_id="s2", to_step_id="s3"
+            ),
         ]
 
         result = self.engine.topological_sort(dag_def)
@@ -126,20 +135,36 @@ class TestDAGEngineTopologicalSort:
 
     def test_topological_sort_diamond(self):
         """Diamond DAG (A -> B,C -> D) should sort with B,C before D."""
-        from src.platform.dag.models import DAGDefinition, DAGDefinitionStep, DAGDefinitionEdge
+        from src.platform.dag.models import DAGDefinition, DAGDefinitionEdge, DAGDefinitionStep
 
         dag_def = DAGDefinition(id="test-2", name="test")
         dag_def.steps = [
-            DAGDefinitionStep(id="s1", name="start", task_name="t1", position=0, dag_definition_id="test-2"),
-            DAGDefinitionStep(id="s2", name="branch_a", task_name="t2", position=1, dag_definition_id="test-2"),
-            DAGDefinitionStep(id="s3", name="branch_b", task_name="t3", position=2, dag_definition_id="test-2"),
-            DAGDefinitionStep(id="s4", name="join", task_name="t4", position=3, dag_definition_id="test-2"),
+            DAGDefinitionStep(
+                id="s1", name="start", task_name="t1", position=0, dag_definition_id="test-2"
+            ),
+            DAGDefinitionStep(
+                id="s2", name="branch_a", task_name="t2", position=1, dag_definition_id="test-2"
+            ),
+            DAGDefinitionStep(
+                id="s3", name="branch_b", task_name="t3", position=2, dag_definition_id="test-2"
+            ),
+            DAGDefinitionStep(
+                id="s4", name="join", task_name="t4", position=3, dag_definition_id="test-2"
+            ),
         ]
         dag_def.edges = [
-            DAGDefinitionEdge(id="e1", dag_definition_id="test-2", from_step_id="s1", to_step_id="s2"),
-            DAGDefinitionEdge(id="e2", dag_definition_id="test-2", from_step_id="s1", to_step_id="s3"),
-            DAGDefinitionEdge(id="e3", dag_definition_id="test-2", from_step_id="s2", to_step_id="s4"),
-            DAGDefinitionEdge(id="e4", dag_definition_id="test-2", from_step_id="s3", to_step_id="s4"),
+            DAGDefinitionEdge(
+                id="e1", dag_definition_id="test-2", from_step_id="s1", to_step_id="s2"
+            ),
+            DAGDefinitionEdge(
+                id="e2", dag_definition_id="test-2", from_step_id="s1", to_step_id="s3"
+            ),
+            DAGDefinitionEdge(
+                id="e3", dag_definition_id="test-2", from_step_id="s2", to_step_id="s4"
+            ),
+            DAGDefinitionEdge(
+                id="e4", dag_definition_id="test-2", from_step_id="s3", to_step_id="s4"
+            ),
         ]
 
         result = self.engine.topological_sort(dag_def)
@@ -161,28 +186,60 @@ class TestDAGEngineReadySteps:
     def test_get_ready_steps_initial(self):
         """Initially, only steps with no dependencies should be ready."""
         from src.platform.dag.models import (
-            DAGDefinition, DAGDefinitionStep, DAGDefinitionEdge,
-            DAGRun, DAGRunStep, DAGStepStatus
+            DAGDefinition,
+            DAGDefinitionEdge,
+            DAGDefinitionStep,
+            DAGRun,
+            DAGRunStep,
+            DAGStepStatus,
         )
 
         # Definition with start -> middle -> end
         dag_def = DAGDefinition(id="d1", name="test")
         dag_def.steps = [
-            DAGDefinitionStep(id="ds1", name="start", task_name="t1", position=0, dag_definition_id="d1"),
-            DAGDefinitionStep(id="ds2", name="middle", task_name="t2", position=1, dag_definition_id="d1"),
-            DAGDefinitionStep(id="ds3", name="end", task_name="t3", position=2, dag_definition_id="d1"),
+            DAGDefinitionStep(
+                id="ds1", name="start", task_name="t1", position=0, dag_definition_id="d1"
+            ),
+            DAGDefinitionStep(
+                id="ds2", name="middle", task_name="t2", position=1, dag_definition_id="d1"
+            ),
+            DAGDefinitionStep(
+                id="ds3", name="end", task_name="t3", position=2, dag_definition_id="d1"
+            ),
         ]
         dag_def.edges = [
-            DAGDefinitionEdge(id="e1", dag_definition_id="d1", from_step_id="ds1", to_step_id="ds2"),
-            DAGDefinitionEdge(id="e2", dag_definition_id="d1", from_step_id="ds2", to_step_id="ds3"),
+            DAGDefinitionEdge(
+                id="e1", dag_definition_id="d1", from_step_id="ds1", to_step_id="ds2"
+            ),
+            DAGDefinitionEdge(
+                id="e2", dag_definition_id="d1", from_step_id="ds2", to_step_id="ds3"
+            ),
         ]
 
         # Run with all pending
         dag_run = DAGRun(id="r1", dag_definition_id="d1")
         dag_run.steps = [
-            DAGRunStep(id="rs1", dag_run_id="r1", step_name="start", task_name="t1", status=DAGStepStatus.PENDING.value),
-            DAGRunStep(id="rs2", dag_run_id="r1", step_name="middle", task_name="t2", status=DAGStepStatus.PENDING.value),
-            DAGRunStep(id="rs3", dag_run_id="r1", step_name="end", task_name="t3", status=DAGStepStatus.PENDING.value),
+            DAGRunStep(
+                id="rs1",
+                dag_run_id="r1",
+                step_name="start",
+                task_name="t1",
+                status=DAGStepStatus.PENDING.value,
+            ),
+            DAGRunStep(
+                id="rs2",
+                dag_run_id="r1",
+                step_name="middle",
+                task_name="t2",
+                status=DAGStepStatus.PENDING.value,
+            ),
+            DAGRunStep(
+                id="rs3",
+                dag_run_id="r1",
+                step_name="end",
+                task_name="t3",
+                status=DAGStepStatus.PENDING.value,
+            ),
         ]
 
         ready = self.engine.get_ready_steps(dag_run, dag_def)
@@ -193,23 +250,45 @@ class TestDAGEngineReadySteps:
     def test_get_ready_steps_after_completion(self):
         """After start completes, middle should be ready."""
         from src.platform.dag.models import (
-            DAGDefinition, DAGDefinitionStep, DAGDefinitionEdge,
-            DAGRun, DAGRunStep, DAGStepStatus
+            DAGDefinition,
+            DAGDefinitionEdge,
+            DAGDefinitionStep,
+            DAGRun,
+            DAGRunStep,
+            DAGStepStatus,
         )
 
         dag_def = DAGDefinition(id="d1", name="test")
         dag_def.steps = [
-            DAGDefinitionStep(id="ds1", name="start", task_name="t1", position=0, dag_definition_id="d1"),
-            DAGDefinitionStep(id="ds2", name="middle", task_name="t2", position=1, dag_definition_id="d1"),
+            DAGDefinitionStep(
+                id="ds1", name="start", task_name="t1", position=0, dag_definition_id="d1"
+            ),
+            DAGDefinitionStep(
+                id="ds2", name="middle", task_name="t2", position=1, dag_definition_id="d1"
+            ),
         ]
         dag_def.edges = [
-            DAGDefinitionEdge(id="e1", dag_definition_id="d1", from_step_id="ds1", to_step_id="ds2"),
+            DAGDefinitionEdge(
+                id="e1", dag_definition_id="d1", from_step_id="ds1", to_step_id="ds2"
+            ),
         ]
 
         dag_run = DAGRun(id="r1", dag_definition_id="d1")
         dag_run.steps = [
-            DAGRunStep(id="rs1", dag_run_id="r1", step_name="start", task_name="t1", status=DAGStepStatus.COMPLETED.value),
-            DAGRunStep(id="rs2", dag_run_id="r1", step_name="middle", task_name="t2", status=DAGStepStatus.PENDING.value),
+            DAGRunStep(
+                id="rs1",
+                dag_run_id="r1",
+                step_name="start",
+                task_name="t1",
+                status=DAGStepStatus.COMPLETED.value,
+            ),
+            DAGRunStep(
+                id="rs2",
+                dag_run_id="r1",
+                step_name="middle",
+                task_name="t2",
+                status=DAGStepStatus.PENDING.value,
+            ),
         ]
 
         ready = self.engine.get_ready_steps(dag_run, dag_def)
@@ -220,26 +299,58 @@ class TestDAGEngineReadySteps:
     def test_get_ready_steps_parallel(self):
         """Multiple parallel steps should all be ready."""
         from src.platform.dag.models import (
-            DAGDefinition, DAGDefinitionStep, DAGDefinitionEdge,
-            DAGRun, DAGRunStep, DAGStepStatus
+            DAGDefinition,
+            DAGDefinitionEdge,
+            DAGDefinitionStep,
+            DAGRun,
+            DAGRunStep,
+            DAGStepStatus,
         )
 
         dag_def = DAGDefinition(id="d1", name="test")
         dag_def.steps = [
-            DAGDefinitionStep(id="ds1", name="start", task_name="t1", position=0, dag_definition_id="d1"),
-            DAGDefinitionStep(id="ds2", name="parallel_a", task_name="t2", position=1, dag_definition_id="d1"),
-            DAGDefinitionStep(id="ds3", name="parallel_b", task_name="t3", position=2, dag_definition_id="d1"),
+            DAGDefinitionStep(
+                id="ds1", name="start", task_name="t1", position=0, dag_definition_id="d1"
+            ),
+            DAGDefinitionStep(
+                id="ds2", name="parallel_a", task_name="t2", position=1, dag_definition_id="d1"
+            ),
+            DAGDefinitionStep(
+                id="ds3", name="parallel_b", task_name="t3", position=2, dag_definition_id="d1"
+            ),
         ]
         dag_def.edges = [
-            DAGDefinitionEdge(id="e1", dag_definition_id="d1", from_step_id="ds1", to_step_id="ds2"),
-            DAGDefinitionEdge(id="e2", dag_definition_id="d1", from_step_id="ds1", to_step_id="ds3"),
+            DAGDefinitionEdge(
+                id="e1", dag_definition_id="d1", from_step_id="ds1", to_step_id="ds2"
+            ),
+            DAGDefinitionEdge(
+                id="e2", dag_definition_id="d1", from_step_id="ds1", to_step_id="ds3"
+            ),
         ]
 
         dag_run = DAGRun(id="r1", dag_definition_id="d1")
         dag_run.steps = [
-            DAGRunStep(id="rs1", dag_run_id="r1", step_name="start", task_name="t1", status=DAGStepStatus.COMPLETED.value),
-            DAGRunStep(id="rs2", dag_run_id="r1", step_name="parallel_a", task_name="t2", status=DAGStepStatus.PENDING.value),
-            DAGRunStep(id="rs3", dag_run_id="r1", step_name="parallel_b", task_name="t3", status=DAGStepStatus.PENDING.value),
+            DAGRunStep(
+                id="rs1",
+                dag_run_id="r1",
+                step_name="start",
+                task_name="t1",
+                status=DAGStepStatus.COMPLETED.value,
+            ),
+            DAGRunStep(
+                id="rs2",
+                dag_run_id="r1",
+                step_name="parallel_a",
+                task_name="t2",
+                status=DAGStepStatus.PENDING.value,
+            ),
+            DAGRunStep(
+                id="rs3",
+                dag_run_id="r1",
+                step_name="parallel_b",
+                task_name="t3",
+                status=DAGStepStatus.PENDING.value,
+            ),
         ]
 
         ready = self.engine.get_ready_steps(dag_run, dag_def)
@@ -258,23 +369,45 @@ class TestDAGEngineStepsToSkip:
     def test_steps_to_skip_on_failure(self):
         """Downstream steps should be skipped if upstream fails."""
         from src.platform.dag.models import (
-            DAGDefinition, DAGDefinitionStep, DAGDefinitionEdge,
-            DAGRun, DAGRunStep, DAGStepStatus
+            DAGDefinition,
+            DAGDefinitionEdge,
+            DAGDefinitionStep,
+            DAGRun,
+            DAGRunStep,
+            DAGStepStatus,
         )
 
         dag_def = DAGDefinition(id="d1", name="test")
         dag_def.steps = [
-            DAGDefinitionStep(id="ds1", name="start", task_name="t1", position=0, dag_definition_id="d1"),
-            DAGDefinitionStep(id="ds2", name="end", task_name="t2", position=1, dag_definition_id="d1"),
+            DAGDefinitionStep(
+                id="ds1", name="start", task_name="t1", position=0, dag_definition_id="d1"
+            ),
+            DAGDefinitionStep(
+                id="ds2", name="end", task_name="t2", position=1, dag_definition_id="d1"
+            ),
         ]
         dag_def.edges = [
-            DAGDefinitionEdge(id="e1", dag_definition_id="d1", from_step_id="ds1", to_step_id="ds2"),
+            DAGDefinitionEdge(
+                id="e1", dag_definition_id="d1", from_step_id="ds1", to_step_id="ds2"
+            ),
         ]
 
         dag_run = DAGRun(id="r1", dag_definition_id="d1")
         dag_run.steps = [
-            DAGRunStep(id="rs1", dag_run_id="r1", step_name="start", task_name="t1", status=DAGStepStatus.FAILED.value),
-            DAGRunStep(id="rs2", dag_run_id="r1", step_name="end", task_name="t2", status=DAGStepStatus.PENDING.value),
+            DAGRunStep(
+                id="rs1",
+                dag_run_id="r1",
+                step_name="start",
+                task_name="t1",
+                status=DAGStepStatus.FAILED.value,
+            ),
+            DAGRunStep(
+                id="rs2",
+                dag_run_id="r1",
+                step_name="end",
+                task_name="t2",
+                status=DAGStepStatus.PENDING.value,
+            ),
         ]
 
         to_skip = self.engine.get_steps_to_skip(dag_run, dag_def)
@@ -295,8 +428,20 @@ class TestDAGEngineRunCompletion:
 
         dag_run = DAGRun(id="r1")
         dag_run.steps = [
-            DAGRunStep(id="rs1", dag_run_id="r1", step_name="a", task_name="t1", status=DAGStepStatus.COMPLETED.value),
-            DAGRunStep(id="rs2", dag_run_id="r1", step_name="b", task_name="t2", status=DAGStepStatus.COMPLETED.value),
+            DAGRunStep(
+                id="rs1",
+                dag_run_id="r1",
+                step_name="a",
+                task_name="t1",
+                status=DAGStepStatus.COMPLETED.value,
+            ),
+            DAGRunStep(
+                id="rs2",
+                dag_run_id="r1",
+                step_name="b",
+                task_name="t2",
+                status=DAGStepStatus.COMPLETED.value,
+            ),
         ]
 
         assert self.engine.is_run_finished(dag_run) is True
@@ -307,8 +452,20 @@ class TestDAGEngineRunCompletion:
 
         dag_run = DAGRun(id="r1")
         dag_run.steps = [
-            DAGRunStep(id="rs1", dag_run_id="r1", step_name="a", task_name="t1", status=DAGStepStatus.COMPLETED.value),
-            DAGRunStep(id="rs2", dag_run_id="r1", step_name="b", task_name="t2", status=DAGStepStatus.PENDING.value),
+            DAGRunStep(
+                id="rs1",
+                dag_run_id="r1",
+                step_name="a",
+                task_name="t1",
+                status=DAGStepStatus.COMPLETED.value,
+            ),
+            DAGRunStep(
+                id="rs2",
+                dag_run_id="r1",
+                step_name="b",
+                task_name="t2",
+                status=DAGStepStatus.PENDING.value,
+            ),
         ]
 
         assert self.engine.is_run_finished(dag_run) is False
@@ -319,8 +476,20 @@ class TestDAGEngineRunCompletion:
 
         dag_run = DAGRun(id="r1")
         dag_run.steps = [
-            DAGRunStep(id="rs1", dag_run_id="r1", step_name="a", task_name="t1", status=DAGStepStatus.COMPLETED.value),
-            DAGRunStep(id="rs2", dag_run_id="r1", step_name="b", task_name="t2", status=DAGStepStatus.COMPLETED.value),
+            DAGRunStep(
+                id="rs1",
+                dag_run_id="r1",
+                step_name="a",
+                task_name="t1",
+                status=DAGStepStatus.COMPLETED.value,
+            ),
+            DAGRunStep(
+                id="rs2",
+                dag_run_id="r1",
+                step_name="b",
+                task_name="t2",
+                status=DAGStepStatus.COMPLETED.value,
+            ),
         ]
 
         assert self.engine.compute_final_status(dag_run) == DAGStepStatus.COMPLETED.value
@@ -331,8 +500,20 @@ class TestDAGEngineRunCompletion:
 
         dag_run = DAGRun(id="r1")
         dag_run.steps = [
-            DAGRunStep(id="rs1", dag_run_id="r1", step_name="a", task_name="t1", status=DAGStepStatus.FAILED.value),
-            DAGRunStep(id="rs2", dag_run_id="r1", step_name="b", task_name="t2", status=DAGStepStatus.SKIPPED.value),
+            DAGRunStep(
+                id="rs1",
+                dag_run_id="r1",
+                step_name="a",
+                task_name="t1",
+                status=DAGStepStatus.FAILED.value,
+            ),
+            DAGRunStep(
+                id="rs2",
+                dag_run_id="r1",
+                step_name="b",
+                task_name="t2",
+                status=DAGStepStatus.SKIPPED.value,
+            ),
         ]
 
         assert self.engine.compute_final_status(dag_run) == DAGStepStatus.FAILED.value
@@ -343,8 +524,20 @@ class TestDAGEngineRunCompletion:
 
         dag_run = DAGRun(id="r1")
         dag_run.steps = [
-            DAGRunStep(id="rs1", dag_run_id="r1", step_name="a", task_name="t1", status=DAGStepStatus.COMPLETED.value),
-            DAGRunStep(id="rs2", dag_run_id="r1", step_name="b", task_name="t2", status=DAGStepStatus.FAILED.value),
+            DAGRunStep(
+                id="rs1",
+                dag_run_id="r1",
+                step_name="a",
+                task_name="t1",
+                status=DAGStepStatus.COMPLETED.value,
+            ),
+            DAGRunStep(
+                id="rs2",
+                dag_run_id="r1",
+                step_name="b",
+                task_name="t2",
+                status=DAGStepStatus.FAILED.value,
+            ),
         ]
 
         assert self.engine.compute_final_status(dag_run) == "partial"

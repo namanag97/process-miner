@@ -12,7 +12,7 @@ Usage:
             payload={"mapping": mapping_dict},
         )
     )
-    
+
     # Rebuild state from events
     events = await event_store.get_events(dataset_id)
     state = reduce(apply_event, events, DatasetState())
@@ -23,13 +23,11 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import DateTime, String, Text
+from sqlalchemy import DateTime, String, Text, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import select
 
 from src.shared.database import Base
-
 
 # =============================================================================
 # Event Store Model
@@ -38,26 +36,26 @@ from src.shared.database import Base
 
 class DomainEvent(Base):
     """Immutable domain event for audit trail."""
-    
+
     __tablename__ = "domain_events"
-    
+
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    
+
     # Aggregate identification
     aggregate_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     aggregate_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
-    
+
     # Event details
     event_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     event_version: Mapped[int] = mapped_column(default=1)
-    
+
     # Payload
     payload_json: Mapped[str] = mapped_column(Text, nullable=False)
-    
+
     # Metadata
     user_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     correlation_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
-    
+
     # Timestamp
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow, index=True
@@ -72,7 +70,7 @@ class DomainEvent(Base):
 @dataclass
 class EventEnvelope:
     """Event envelope for publishing."""
-    
+
     aggregate_type: str
     aggregate_id: str
     event_type: str
@@ -108,14 +106,14 @@ MODEL_EXPORTED = "model.exported"
 
 class EventStore:
     """Append-only event store for domain events."""
-    
+
     def __init__(self, session: AsyncSession):
         self._session = session
-    
+
     async def append(self, event: EventEnvelope) -> DomainEvent:
         """Append an event to the store."""
         import json
-        
+
         db_event = DomainEvent(
             aggregate_type=event.aggregate_type,
             aggregate_id=event.aggregate_id,
@@ -125,11 +123,11 @@ class EventStore:
             correlation_id=event.correlation_id,
             occurred_at=event.occurred_at,
         )
-        
+
         self._session.add(db_event)
         await self._session.flush()
         return db_event
-    
+
     async def append_many(self, events: list[EventEnvelope]) -> list[DomainEvent]:
         """Append multiple events atomically."""
         db_events = []
@@ -137,7 +135,7 @@ class EventStore:
             db_event = await self.append(event)
             db_events.append(db_event)
         return db_events
-    
+
     async def get_events(
         self,
         aggregate_type: str,
@@ -151,13 +149,13 @@ class EventStore:
             .where(DomainEvent.aggregate_id == aggregate_id)
             .order_by(DomainEvent.occurred_at)
         )
-        
+
         if after:
             stmt = stmt.where(DomainEvent.occurred_at > after)
-        
+
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
-    
+
     async def get_events_by_type(
         self,
         event_type: str,
@@ -172,7 +170,7 @@ class EventStore:
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
-    
+
     async def get_events_for_user(
         self,
         user_id: str,

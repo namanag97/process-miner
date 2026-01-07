@@ -3,13 +3,10 @@
 Pure business logic functions for process mining analysis tasks.
 """
 
-import json
 import time
 from typing import Any
 
 import structlog
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.platform.dag.registry import DAGContext, TaskResult, dag_task
 
@@ -33,7 +30,7 @@ async def discover_model(ctx: DAGContext, params: dict[str, Any]) -> TaskResult:
     start = time.perf_counter()
     dataset_id = ctx.dataset_id or params.get("dataset_id")
     miner_type = params.get("miner_type", "inductive")
-    model_name = params.get("model_name")
+    params.get("model_name")
 
     if not dataset_id:
         return TaskResult.fail("dataset_id is required")
@@ -56,9 +53,7 @@ async def discover_model(ctx: DAGContext, params: dict[str, Any]) -> TaskResult:
             return TaskResult.fail(f"Invalid miner type: {miner_type}")
 
         # Discover model (mining_service loads the dataset internally)
-        model_data, model_format = mining_service.discover_from_dataset_id(
-            dataset_id, miner_enum
-        )
+        model_data, model_format = mining_service.discover_from_dataset_id(dataset_id, miner_enum)
 
         # Serialize model
         serialized = mining_service.serialize_model(model_data)
@@ -72,7 +67,7 @@ async def discover_model(ctx: DAGContext, params: dict[str, Any]) -> TaskResult:
                 if model_format.value == "petri_net":
                     net, im, fm = model_data
                 else:
-                    net, im, fm = mining_service.tree_to_petri_net(model_data)
+                    _net, _im, _fm = mining_service.tree_to_petri_net(model_data)
 
                 # These are expensive operations - skip in DAG context for now
                 # fitness_result = mining_service.evaluate_fitness(dataset_id, net, im, fm)

@@ -21,15 +21,12 @@ from src.shared.schemas import PaginatedResponse
 # =============================================================================
 
 
-
 class ColumnMapping(ColumnMappingBase):
     """CSV column mapping for ingestion (alias for ColumnMappingBase)."""
-    pass
 
 
 class IngestRequest(ColumnMappingBase):
     """Request to trigger background ingestion with column mapping (alias for ColumnMappingBase)."""
-    pass
 
 
 class PresignedUploadRequest(BaseModel):
@@ -44,23 +41,18 @@ class PresignedUploadRequest(BaseModel):
         min_length=1,
         max_length=255,
         description="Original filename",
-        examples=["purchasing_logs_2024.csv"]
+        examples=["purchasing_logs_2024.csv"],
     )
     content_type: str = Field(
         default="text/csv",
         description="MIME type (text/csv, application/xml)",
-        examples=["text/csv"]
+        examples=["text/csv"],
     )
     file_size_bytes: int | None = Field(
-        None,
-        ge=1,
-        description="Expected file size in bytes (for validation)",
-        examples=[15728640]
+        None, ge=1, description="Expected file size in bytes (for validation)", examples=[15728640]
     )
     project_id: str | None = Field(
-        None,
-        description="Optional project association",
-        examples=["proj_123456789"]
+        None, description="Optional project association", examples=["proj_123456789"]
     )
 
     model_config = ConfigDict(
@@ -69,7 +61,7 @@ class PresignedUploadRequest(BaseModel):
                 "filename": "process_log.csv",
                 "content_type": "text/csv",
                 "file_size_bytes": 1024000,
-                "project_id": "proj_abc123"
+                "project_id": "proj_abc123",
             }
         }
     )
@@ -83,22 +75,10 @@ class PresignedUploadResponse(BaseModel):
     2. Poll /datasets/{dataset_id} for validation status
     """
 
-    upload_url: str = Field(
-        ...,
-        description="Presigned PUT URL for direct S3 upload"
-    )
-    storage_key: str = Field(
-        ...,
-        description="S3 object key for tracking"
-    )
-    dataset_id: str = Field(
-        ...,
-        description="Dataset ID for status polling"
-    )
-    expires_in: int = Field(
-        ...,
-        description="URL expiration in seconds"
-    )
+    upload_url: str = Field(..., description="Presigned PUT URL for direct S3 upload")
+    storage_key: str = Field(..., description="S3 object key for tracking")
+    dataset_id: str = Field(..., description="Dataset ID for status polling")
+    expires_in: int = Field(..., description="URL expiration in seconds")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -106,7 +86,7 @@ class PresignedUploadResponse(BaseModel):
                 "upload_url": "https://s3.amazonaws.com/bucket/key?sig=...",
                 "storage_key": "datasets/123/file.csv",
                 "dataset_id": "ds_123456789",
-                "expires_in": 3600
+                "expires_in": 3600,
             }
         }
     )
@@ -125,7 +105,6 @@ class DatasetUploadRequest(BaseModel):
 # =============================================================================
 # Datasets
 # =============================================================================
-
 
 
 class DatasetResponse(IDMixin, CreatedAtMixin, BaseModel):
@@ -155,10 +134,22 @@ class DatasetResponse(IDMixin, CreatedAtMixin, BaseModel):
             data = {
                 k: getattr(data, k)
                 for k in [
-                    "id", "name", "source_format", "total_events", "total_cases",
-                    "total_activities", "activities_json", "created_at", "source_file",
-                    "status", "validation_job_id", "ingestion_job_id", "file_size_bytes",
-                    "statistics", "updated_at", "error_message",
+                    "id",
+                    "name",
+                    "source_format",
+                    "total_events",
+                    "total_cases",
+                    "total_activities",
+                    "activities_json",
+                    "created_at",
+                    "source_file",
+                    "status",
+                    "validation_job_id",
+                    "ingestion_job_id",
+                    "file_size_bytes",
+                    "statistics",
+                    "updated_at",
+                    "error_message",
                 ]
                 if hasattr(data, k)
             }
@@ -186,9 +177,9 @@ class DatasetResponse(IDMixin, CreatedAtMixin, BaseModel):
                 "created_at": "2023-10-27T10:00:00Z",
                 "source_file": "o2c_logs.csv",
                 "status": "ready",
-                "file_size_bytes": 2048500
+                "file_size_bytes": 2048500,
             }
-        }
+        },
     )
 
 
@@ -200,10 +191,6 @@ class DatasetListResponse(PaginatedResponse):
 
 class DatasetDetailResponse(DatasetResponse):
     """Detailed dataset response (alias for DatasetResponse)."""
-    pass
-
-
-
 
 
 # =============================================================================
@@ -301,12 +288,10 @@ class ColumnDetectionResponse(BaseModel):
     status: str = Field(..., description="Dataset status")
     columns: list["ColumnTypeInfo"]
     suggestions: dict[str, dict[str, Any]] = Field(
-        default_factory=dict,
-        description="Suggested mappings: {role: {column, confidence}}"
+        default_factory=dict, description="Suggested mappings: {role: {column, confidence}}"
     )
     requires_user_input: bool = Field(
-        False,
-        description="True if auto-mapping confidence is below threshold"
+        False, description="True if auto-mapping confidence is below threshold"
     )
 
 
@@ -363,6 +348,7 @@ class ParseConfigRequest(BaseModel):
     thousand_separator: str = ","
     sheet_name: str | None = None  # For Excel files
     encoding: str = "utf-8"
+
 
 # =============================================================================
 # Filtering
@@ -565,5 +551,3 @@ class PreviewResponse(BaseModel):
     sample_events: list[dict]
     total_rows: int
     parse_errors: list[str] = []
-
-

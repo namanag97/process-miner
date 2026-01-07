@@ -21,18 +21,18 @@ def safe_json_loads(
     context: str = "",
 ) -> Any | T:
     """Parse JSON with proper error logging.
-    
+
     Args:
         data: JSON string to parse
         default: Default value to return on failure
         context: Description for logging (e.g., "dataset.statistics_json")
-    
+
     Returns:
         Parsed JSON or default value on failure
     """
     if data is None:
         return default
-        
+
     try:
         return json.loads(data)
     except json.JSONDecodeError as e:
@@ -54,11 +54,11 @@ def safe_json_loads(
 
 def wrap_pm4py_exception(e: Exception, operation: str) -> PM4PyError:
     """Convert PM4Py exceptions to typed app exceptions.
-    
+
     Args:
         e: The original exception
         operation: Description of the PM4Py operation that failed
-    
+
     Returns:
         PM4PyError with proper context
     """
@@ -76,10 +76,10 @@ def log_and_suppress(
     **extra_context: Any,
 ) -> None:
     """Log an exception that will be suppressed.
-    
+
     Use this instead of bare `except Exception: pass` to ensure
     errors are at least logged for debugging.
-    
+
     Args:
         e: The exception to log
         operation: Description of what operation failed

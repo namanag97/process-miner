@@ -19,7 +19,6 @@ from typing import Any, Protocol, runtime_checkable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
 # =============================================================================
 # Data Ingestion Protocols
 # =============================================================================
@@ -28,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 @runtime_checkable
 class Ingestable(Protocol):
     """Protocol for services that can ingest data files."""
-    
+
     async def ingest_file(
         self,
         session: AsyncSession,
@@ -47,7 +46,7 @@ class Ingestable(Protocol):
 @runtime_checkable
 class ColumnDetectable(Protocol):
     """Protocol for services that can detect column types."""
-    
+
     def detect_columns(
         self,
         file_content: bytes,
@@ -65,7 +64,7 @@ class ColumnDetectable(Protocol):
 @runtime_checkable
 class Exportable(Protocol):
     """Protocol for services that can export data."""
-    
+
     async def export(
         self,
         session: AsyncSession,
@@ -84,7 +83,7 @@ class Exportable(Protocol):
 @runtime_checkable
 class Analyzable(Protocol):
     """Protocol for services that can analyze datasets."""
-    
+
     async def analyze(
         self,
         session: AsyncSession,
@@ -98,7 +97,7 @@ class Analyzable(Protocol):
 @runtime_checkable
 class Discoverable(Protocol):
     """Protocol for process discovery services."""
-    
+
     async def discover_model(
         self,
         session: AsyncSession,
@@ -113,7 +112,7 @@ class Discoverable(Protocol):
 @runtime_checkable
 class ConformanceCheckable(Protocol):
     """Protocol for conformance checking services."""
-    
+
     async def check_conformance(
         self,
         session: AsyncSession,
@@ -133,7 +132,7 @@ class ConformanceCheckable(Protocol):
 @runtime_checkable
 class Filterable(Protocol):
     """Protocol for services that can filter event logs."""
-    
+
     async def apply_filter(
         self,
         session: AsyncSession,
@@ -152,7 +151,7 @@ class Filterable(Protocol):
 @runtime_checkable
 class Predictable(Protocol):
     """Protocol for predictive analytics services."""
-    
+
     async def predict(
         self,
         session: AsyncSession,
@@ -172,15 +171,15 @@ class Predictable(Protocol):
 @runtime_checkable
 class FileStorable(Protocol):
     """Protocol for file storage services."""
-    
+
     async def store(self, key: str, content: bytes) -> str:
         """Store file and return storage path."""
         ...
-    
+
     async def retrieve(self, key: str) -> bytes:
         """Retrieve file content by key."""
         ...
-    
+
     async def delete(self, key: str) -> bool:
         """Delete file by key."""
         ...
@@ -189,7 +188,7 @@ class FileStorable(Protocol):
 @runtime_checkable
 class PresignedUrlGenerator(Protocol):
     """Protocol for presigned URL generation."""
-    
+
     async def generate_upload_url(
         self,
         key: str,
@@ -198,7 +197,7 @@ class PresignedUrlGenerator(Protocol):
     ) -> str:
         """Generate presigned upload URL."""
         ...
-    
+
     async def generate_download_url(
         self,
         key: str,
@@ -216,7 +215,7 @@ class PresignedUrlGenerator(Protocol):
 @runtime_checkable
 class JobTrackable(Protocol):
     """Protocol for job tracking services."""
-    
+
     async def create_job(
         self,
         session: AsyncSession,
@@ -227,7 +226,7 @@ class JobTrackable(Protocol):
     ) -> Any:
         """Create and track an async job."""
         ...
-    
+
     async def update_progress(
         self,
         session: AsyncSession,
@@ -237,7 +236,7 @@ class JobTrackable(Protocol):
     ) -> None:
         """Update job progress."""
         ...
-    
+
     async def complete_job(
         self,
         session: AsyncSession,
@@ -246,7 +245,7 @@ class JobTrackable(Protocol):
     ) -> None:
         """Mark job as completed."""
         ...
-    
+
     async def fail_job(
         self,
         session: AsyncSession,
@@ -265,19 +264,19 @@ class JobTrackable(Protocol):
 @runtime_checkable
 class Repository(Protocol):
     """Generic repository protocol."""
-    
+
     async def get_by_id(self, id: str) -> Any | None:
         """Get entity by ID."""
         ...
-    
+
     async def save(self, entity: Any) -> Any:
         """Save (create or update) entity."""
         ...
-    
+
     async def delete(self, id: str) -> bool:
         """Delete entity by ID."""
         ...
-    
+
     async def exists(self, id: str) -> bool:
         """Check if entity exists."""
         ...
@@ -286,7 +285,7 @@ class Repository(Protocol):
 @runtime_checkable
 class PaginatedRepository(Protocol):
     """Repository with pagination support."""
-    
+
     async def list_paginated(
         self,
         page: int = 1,

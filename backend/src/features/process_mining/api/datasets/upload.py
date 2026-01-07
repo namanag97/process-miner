@@ -53,10 +53,10 @@ ALLOWED_MIMETYPES = {
 
 def validate_file_extension(filename: str) -> None:
     """Validate file extension.
-    
+
     Args:
         filename: The filename to validate
-        
+
     Raises:
         InvalidFileError: If file extension is invalid
     """
@@ -80,10 +80,10 @@ def validate_file_extension(filename: str) -> None:
 
 def validate_file_upload(file: UploadFile) -> None:
     """Validate file extension and content type.
-    
+
     Args:
         file: The uploaded file to validate
-        
+
     Raises:
         InvalidFileError: If validation fails
     """
@@ -103,11 +103,11 @@ def validate_file_upload(file: UploadFile) -> None:
 
 async def validate_file_signature(content: bytes, filename: str) -> None:
     """Validate file content signature to prevent spoofing.
-    
+
     Args:
         content: First bytes of the file
         filename: The filename with extension
-        
+
     Raises:
         InvalidFileError: If signature doesn't match extension
     """
@@ -164,7 +164,7 @@ async def create_presigned_upload(
     current_user: CurrentUser,
 ) -> PresignedUploadResponse:
     """Generate presigned URL for direct client-to-S3 upload.
-    
+
     Creates a dataset record and returns a presigned S3 URL for direct upload.
     After uploading, call POST /datasets/{id}/uploaded to trigger validation.
     """
@@ -274,9 +274,7 @@ async def confirm_upload_complete(
     )
 
     if dataset.status != DatasetStatus.PENDING.value:
-        raise ValidationError(
-            f"Dataset must be in PENDING state. Current: {dataset.status}"
-        )
+        raise ValidationError(f"Dataset must be in PENDING state. Current: {dataset.status}")
 
     if not dataset.storage_key:
         raise ValidationError("Dataset missing storage_key. Cannot validate.")
@@ -285,21 +283,40 @@ async def confirm_upload_complete(
     dataset.status = DatasetStatus.UPLOADED.value
     await db.commit()
 
-    # Queue validation job
-    from src.platform.infrastructure.tasks import validate_uploaded_file_task
+    # Queue validation workflow via Temporal v2
+    from temporalio.common import WorkflowIDReusePolicy
 
-    task = validate_uploaded_file_task.delay(dataset_id, dataset.storage_key)
+    from src.platform.temporal.client import get_temporal_client
+    from src.platform.temporal.config import get_temporal_config
+    from src.platform.temporal.workflows_v2.ingestion import DatasetValidationWorkflowV2
+
+    config = get_temporal_config()
+    workflow_id = f"validate-dataset-{dataset_id}"
+
+    try:
+        client = await get_temporal_client()
+        await client.start_workflow(
+            DatasetValidationWorkflowV2.run,
+            args=[dataset_id, dataset.storage_key],
+            id=workflow_id,
+            task_queue=config.QUEUE_INGESTION,
+            id_reuse_policy=WorkflowIDReusePolicy.ALLOW_DUPLICATE_FAILED_ONLY,
+        )
+    except Exception as e:
+        logger.error("validation_workflow_start_failed", error=str(e), dataset_id=dataset_id)
+        # Fall back to manual validation
 
     logger.info(
         "upload_confirmed_validation_queued",
         dataset_id=dataset_id,
-        task_id=task.id,
+        workflow_id=workflow_id,
     )
 
     return {
         "status": "validation_queued",
         "dataset_id": dataset_id,
-        "job_id": task.id,
+        "workflow_id": workflow_id,
+        "poll_endpoint": f"/api/v1/operations/{workflow_id}",
     }
 
 
@@ -338,13 +355,12 @@ async def upload_dataset(
     project_id: str | None = Form(None, description="Project ID to assign dataset to"),
 ) -> DatasetResponse:
     """Upload and store an event log file.
-    
+
     Validates, stores, and queues the file for processing.
     Use presigned upload for files larger than 50MB.
     """
     from src.platform.core.permissions import Permission
     from src.platform.infrastructure.object_storage import get_storage_client
-    from src.platform.infrastructure.tasks import validate_uploaded_file_task
     from src.platform.workspaces.authorization import require_project_permission
 
     # Validate file type
@@ -398,6 +414,7 @@ async def upload_dataset(
 
         storage_client = get_storage_client()
         import io
+
         storage_client.upload_fileobj(
             bucket_type="raw",
             key=storage_key,
@@ -428,20 +445,39 @@ async def upload_dataset(
             storage_path=storage_key,
             size_bytes=total_size,
             mime_type=file.content_type,
-            checksum=None
+            checksum=None,
         )
         db.add(uploaded_file_record)
 
         await db.commit()
 
-        # Queue validation job
-        task = validate_uploaded_file_task.delay(dataset_id, storage_key)
+        # Queue validation workflow via Temporal v2
+        from temporalio.common import WorkflowIDReusePolicy
+
+        from src.platform.temporal.client import get_temporal_client
+        from src.platform.temporal.config import get_temporal_config
+        from src.platform.temporal.workflows_v2.ingestion import DatasetValidationWorkflowV2
+
+        config = get_temporal_config()
+        workflow_id = f"validate-dataset-{dataset_id}"
+
+        try:
+            client = await get_temporal_client()
+            await client.start_workflow(
+                DatasetValidationWorkflowV2.run,
+                args=[dataset_id, storage_key],
+                id=workflow_id,
+                task_queue=config.QUEUE_INGESTION,
+                id_reuse_policy=WorkflowIDReusePolicy.ALLOW_DUPLICATE_FAILED_ONLY,
+            )
+        except Exception as e:
+            logger.warning("validation_workflow_start_failed", error=str(e))
 
         logger.info(
             "direct_upload_complete",
             dataset_id=dataset_id,
             storage_key=storage_key,
-            task_id=task.id,
+            workflow_id=workflow_id,
         )
 
         return DatasetResponse(
@@ -464,7 +500,7 @@ async def upload_dataset(
         raise
     except Exception as e:
         logger.exception("direct_upload_failed_exception", error=str(e))
-        raise ProcessingError(f"Upload failed: {str(e)}")
+        raise ProcessingError(f"Upload failed: {e!s}")
     finally:
         if temp_file_path and os.path.exists(temp_file_path):
             try:

@@ -53,10 +53,10 @@ ALLOWED_MIMETYPES = {
 
 def validate_file_extension(filename: str) -> None:
     """Validate file extension.
-    
+
     Args:
         filename: The filename to validate
-        
+
     Raises:
         InvalidFileError: If file extension is invalid
     """
@@ -80,10 +80,10 @@ def validate_file_extension(filename: str) -> None:
 
 def validate_file_upload(file: UploadFile) -> None:
     """Validate file extension and content type.
-    
+
     Args:
         file: The uploaded file to validate
-        
+
     Raises:
         InvalidFileError: If validation fails
     """
@@ -103,11 +103,11 @@ def validate_file_upload(file: UploadFile) -> None:
 
 async def validate_file_signature(content: bytes, filename: str) -> None:
     """Validate file content signature to prevent spoofing.
-    
+
     Args:
         content: First bytes of the file
         filename: The filename with extension
-        
+
     Raises:
         InvalidFileError: If signature doesn't match extension
     """
@@ -164,7 +164,7 @@ async def create_presigned_upload(
     current_user: CurrentUser,
 ) -> PresignedUploadResponse:
     """Generate presigned URL for direct client-to-S3 upload.
-    
+
     Creates a dataset record and returns a presigned S3 URL for direct upload.
     After uploading, call POST /datasets/{id}/uploaded to trigger validation.
     """
@@ -274,9 +274,7 @@ async def confirm_upload_complete(
     )
 
     if dataset.status != DatasetStatus.PENDING.value:
-        raise ValidationError(
-            f"Dataset must be in PENDING state. Current: {dataset.status}"
-        )
+        raise ValidationError(f"Dataset must be in PENDING state. Current: {dataset.status}")
 
     if not dataset.storage_key:
         raise ValidationError("Dataset missing storage_key. Cannot validate.")
@@ -346,7 +344,7 @@ async def upload_dataset(
     project_id: str | None = Form(None, description="Project ID to assign dataset to"),
 ) -> DatasetResponse:
     """Upload and store an event log file.
-    
+
     Validates, stores, and queues the file for processing.
     Use presigned upload for files larger than 50MB.
     """
@@ -406,6 +404,7 @@ async def upload_dataset(
 
         storage_client = get_storage_client()
         import io
+
         storage_client.upload_fileobj(
             bucket_type="raw",
             key=storage_key,
@@ -436,7 +435,7 @@ async def upload_dataset(
             storage_path=storage_key,
             size_bytes=total_size,
             mime_type=file.content_type,
-            checksum=None
+            checksum=None,
         )
         db.add(uploaded_file_record)
 
@@ -480,7 +479,7 @@ async def upload_dataset(
         raise
     except Exception as e:
         logger.exception("direct_upload_failed_exception", error=str(e))
-        raise ProcessingError(f"Upload failed: {str(e)}")
+        raise ProcessingError(f"Upload failed: {e!s}")
     finally:
         if temp_file_path and os.path.exists(temp_file_path):
             try:

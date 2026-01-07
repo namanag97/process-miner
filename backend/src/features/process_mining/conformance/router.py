@@ -49,7 +49,12 @@ from sqlalchemy import func, select
 
 from src.api.dependencies import DBSession, ServiceContainer
 from src.features.process_mining.enums import ConformanceMethod, ModelFormat
-from src.features.process_mining.models import ConformanceResult, Dataset, DatasetStatus, ProcessModel
+from src.features.process_mining.models import (
+    ConformanceResult,
+    Dataset,
+    DatasetStatus,
+    ProcessModel,
+)
 from src.features.process_mining.schemas import (
     AlignmentDiagnosticsResponse,
     ConformanceCheckRequest,
@@ -135,10 +140,12 @@ async def check_conformance(
             fitness=result["fitness"],
             precision=result.get("precision"),
             method=result["method"],
-            diagnostics_json=json.dumps({
-                "fitting_traces": result["fitting_traces"],
-                "total_traces": result["total_traces"],
-            }),
+            diagnostics_json=json.dumps(
+                {
+                    "fitting_traces": result["fitting_traces"],
+                    "total_traces": result["total_traces"],
+                }
+            ),
         )
         db.add(conformance_record)
         await db.commit()
@@ -197,19 +204,21 @@ async def list_conformance_results(
     items = []
     for r in results:
         diagnostics = json.loads(r.diagnostics_json) if r.diagnostics_json else {}
-        items.append(ConformanceResponse(
-            id=r.id,
-            dataset_id=r.dataset_id,
-            model_id=r.model_id,
-            fitness=r.fitness,
-            precision=r.precision,
-            method=r.method,
-            algorithm_used=r.method,
-            is_conformant=r.fitness >= 0.8,
-            fitting_traces=diagnostics.get("fitting_traces", 0),
-            total_traces=diagnostics.get("total_traces", 0),
-            created_at=r.created_at,
-        ))
+        items.append(
+            ConformanceResponse(
+                id=r.id,
+                dataset_id=r.dataset_id,
+                model_id=r.model_id,
+                fitness=r.fitness,
+                precision=r.precision,
+                method=r.method,
+                algorithm_used=r.method,
+                is_conformant=r.fitness >= 0.8,
+                fitting_traces=diagnostics.get("fitting_traces", 0),
+                total_traces=diagnostics.get("total_traces", 0),
+                created_at=r.created_at,
+            )
+        )
 
     return ConformanceListResponse(
         items=items,
@@ -349,8 +358,18 @@ async def get_alignment_diagnostics(
 async def list_conformance_methods():
     """List available conformance checking methods."""
     return [
-        {"id": ConformanceMethod.TOKEN_REPLAY.value, "name": "Token Replay", "description": "Fast token-based replay", "is_default": True},
-        {"id": ConformanceMethod.ALIGNMENT.value, "name": "Alignment", "description": "More accurate alignment-based (slower)", "is_default": False},
+        {
+            "id": ConformanceMethod.TOKEN_REPLAY.value,
+            "name": "Token Replay",
+            "description": "Fast token-based replay",
+            "is_default": True,
+        },
+        {
+            "id": ConformanceMethod.ALIGNMENT.value,
+            "name": "Alignment",
+            "description": "More accurate alignment-based (slower)",
+            "is_default": False,
+        },
     ]
 
 
@@ -398,6 +417,7 @@ async def import_reference_model(
 ):
     """Import a reference model from PNML or BPMN format."""
     from uuid import uuid4
+
     from src.features.process_mining.services.model_importer import model_importer
     from src.platform.models import Project
 
@@ -410,7 +430,7 @@ async def import_reference_model(
 
     try:
         model_format = model_importer.validate_model_format(model_content)
-        
+
         if model_format == ModelFormat.PETRI_NET:
             net, im, fm = model_importer.import_pnml(model_content)
         elif model_format == ModelFormat.BPMN:
@@ -427,11 +447,13 @@ async def import_reference_model(
             name=model_name,
             model_format=ModelFormat.PETRI_NET.value,
             serialized_model=serialized_model,
-            metadata_json=json.dumps({
-                "imported_from": model_format.value,
-                "places_count": len(net.places),
-                "transitions_count": len(net.transitions),
-            }),
+            metadata_json=json.dumps(
+                {
+                    "imported_from": model_format.value,
+                    "places_count": len(net.places),
+                    "transitions_count": len(net.transitions),
+                }
+            ),
         )
 
         db.add(process_model)
@@ -465,7 +487,9 @@ async def get_root_cause_analysis(
     model_id: str,
     db: DBSession,
     container: ServiceContainer,
-    attributes: str = Query("resource", description="Comma-separated list of attributes to analyze"),
+    attributes: str = Query(
+        "resource", description="Comma-separated list of attributes to analyze"
+    ),
 ):
     """Get comprehensive root cause analysis for conformance deviations."""
     from src.features.process_mining.services.root_cause import root_cause_analyzer
@@ -478,7 +502,9 @@ async def get_root_cause_analysis(
 
     try:
         attribute_list = [a.strip() for a in attributes.split(",") if a.strip()]
-        analysis = root_cause_analyzer.get_comprehensive_root_cause_analysis(event_log, model, attribute_list)
+        analysis = root_cause_analyzer.get_comprehensive_root_cause_analysis(
+            event_log, model, attribute_list
+        )
 
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info("root_cause_analysis_completed", duration_ms=round(duration_ms, 2))
@@ -540,4 +566,6 @@ async def get_attribute_correlation(
     try:
         return root_cause_analyzer.analyze_attribute_correlation(event_log, model, attribute)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to analyze attribute correlation: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to analyze attribute correlation: {e!s}"
+        ) from e

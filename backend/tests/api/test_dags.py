@@ -15,11 +15,11 @@ async def test_list_templates(auth_client: AsyncClient):
     """Test listing predefined DAG templates."""
     response = await auth_client.get("/api/v1/dags/templates")
     assert response.status_code == 200
-    
+
     data = response.json()
     assert isinstance(data, list)
     assert len(data) >= 5  # Should have at least 5 predefined templates
-    
+
     # Check template structure
     template = data[0]
     assert "name" in template
@@ -34,7 +34,7 @@ async def test_list_templates_includes_data_ingestion(auth_client: AsyncClient):
     """Test that data_ingestion template is present."""
     response = await auth_client.get("/api/v1/dags/templates")
     assert response.status_code == 200
-    
+
     data = response.json()
     template_names = [t["name"] for t in data]
     assert "data_ingestion" in template_names
@@ -50,14 +50,12 @@ async def test_create_definition(auth_client: AsyncClient):
             {"name": "step_a", "task_name": "validate_file", "default_params": {}},
             {"name": "step_b", "task_name": "detect_columns", "default_params": {}},
         ],
-        "edges": [
-            {"from_step": "step_a", "to_step": "step_b"}
-        ]
+        "edges": [{"from_step": "step_a", "to_step": "step_b"}],
     }
-    
+
     response = await auth_client.post("/api/v1/dags/definitions", json=payload)
     assert response.status_code == 201
-    
+
     data = response.json()
     assert data["name"] == "Test Custom DAG"
     assert data["is_active"] is True
@@ -79,9 +77,9 @@ async def test_create_definition_invalid_cycle(auth_client: AsyncClient):
             {"from_step": "step_a", "to_step": "step_b"},
             {"from_step": "step_b", "to_step": "step_c"},
             {"from_step": "step_c", "to_step": "step_a"},  # Creates cycle
-        ]
+        ],
     }
-    
+
     response = await auth_client.post("/api/v1/dags/definitions", json=payload)
     assert response.status_code == 400
     assert "cycle" in response.json().get("detail", "").lower()
@@ -90,12 +88,8 @@ async def test_create_definition_invalid_cycle(auth_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_create_definition_empty_steps_fails(auth_client: AsyncClient):
     """Test that DAG with no steps is rejected."""
-    payload = {
-        "name": "Empty DAG",
-        "steps": [],
-        "edges": []
-    }
-    
+    payload = {"name": "Empty DAG", "steps": [], "edges": []}
+
     response = await auth_client.post("/api/v1/dags/definitions", json=payload)
     # Should fail validation - Pydantic min_length=1
     assert response.status_code == 422
@@ -108,14 +102,14 @@ async def test_list_definitions(auth_client: AsyncClient):
     payload = {
         "name": "List Test DAG",
         "steps": [{"name": "step_a", "task_name": "validate_file"}],
-        "edges": []
+        "edges": [],
     }
     await auth_client.post("/api/v1/dags/definitions", json=payload)
-    
+
     # List definitions
     response = await auth_client.get("/api/v1/dags/definitions")
     assert response.status_code == 200
-    
+
     data = response.json()
     assert "items" in data
     assert "total" in data
@@ -129,15 +123,15 @@ async def test_get_definition(auth_client: AsyncClient):
     payload = {
         "name": "Get Test DAG",
         "steps": [{"name": "step_a", "task_name": "validate_file"}],
-        "edges": []
+        "edges": [],
     }
     create_response = await auth_client.post("/api/v1/dags/definitions", json=payload)
     definition_id = create_response.json()["id"]
-    
+
     # Get by ID
     response = await auth_client.get(f"/api/v1/dags/definitions/{definition_id}")
     assert response.status_code == 200
-    
+
     data = response.json()
     assert data["id"] == definition_id
     assert data["name"] == "Get Test DAG"
@@ -157,21 +151,21 @@ async def test_trigger_run(auth_client: AsyncClient):
     payload = {
         "name": "Run Test DAG",
         "steps": [{"name": "step_a", "task_name": "validate_file"}],
-        "edges": []
+        "edges": [],
     }
     create_response = await auth_client.post("/api/v1/dags/definitions", json=payload)
     definition_id = create_response.json()["id"]
-    
+
     # Trigger a run
     run_payload = {
         "definition_id": definition_id,
         "context": {"dataset_id": "test-dataset"},
-        "step_params": {}
+        "step_params": {},
     }
-    
+
     response = await auth_client.post("/api/v1/dags/runs", json=run_payload)
     assert response.status_code == 202
-    
+
     data = response.json()
     assert "id" in data
     assert data["status"] == "pending"
@@ -184,12 +178,12 @@ async def test_trigger_run_by_template_name(auth_client: AsyncClient):
     run_payload = {
         "definition_name": "discovery_only",
         "context": {"dataset_id": "test-dataset"},
-        "step_params": {}
+        "step_params": {},
     }
-    
+
     response = await auth_client.post("/api/v1/dags/runs", json=run_payload)
     assert response.status_code == 202
-    
+
     data = response.json()
     assert "id" in data
     assert data["status"] == "pending"
@@ -199,16 +193,13 @@ async def test_trigger_run_by_template_name(auth_client: AsyncClient):
 async def test_list_runs(auth_client: AsyncClient):
     """Test listing DAG runs."""
     # Trigger a run first
-    run_payload = {
-        "definition_name": "discovery_only",
-        "context": {}
-    }
+    run_payload = {"definition_name": "discovery_only", "context": {}}
     await auth_client.post("/api/v1/dags/runs", json=run_payload)
-    
+
     # List runs
     response = await auth_client.get("/api/v1/dags/runs")
     assert response.status_code == 200
-    
+
     data = response.json()
     assert "items" in data
     assert "total" in data
@@ -223,11 +214,11 @@ async def test_get_run_status(auth_client: AsyncClient):
     run_payload = {"definition_name": "discovery_only", "context": {}}
     create_response = await auth_client.post("/api/v1/dags/runs", json=run_payload)
     run_id = create_response.json()["id"]
-    
+
     # Get run status
     response = await auth_client.get(f"/api/v1/dags/runs/{run_id}")
     assert response.status_code == 200
-    
+
     data = response.json()
     assert data["id"] == run_id
     assert "status" in data
@@ -249,11 +240,11 @@ async def test_cancel_run(auth_client: AsyncClient):
     run_payload = {"definition_name": "data_ingestion", "context": {}}
     create_response = await auth_client.post("/api/v1/dags/runs", json=run_payload)
     run_id = create_response.json()["id"]
-    
+
     # Cancel the run
     response = await auth_client.post(f"/api/v1/dags/runs/{run_id}/cancel")
     assert response.status_code == 200
-    
+
     data = response.json()
     assert data["status"] == "cancelled"
     assert data["run_id"] == run_id

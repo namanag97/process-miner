@@ -4,10 +4,23 @@ All process mining models consolidated in one location.
 """
 
 # Enums
-from src.features.process_mining.models.enums import (
-    AnalysisStatus,
-    AnalysisType,
-    DatasetStatus,
+# Algorithm Registry
+from src.features.process_mining.models.algorithm_registry import (
+    Algorithm,
+    AlgorithmParameter,
+)
+
+# Analysis models
+from src.features.process_mining.models.analysis_models import (
+    Analysis,
+    AnalyticsCache,
+    ConformanceResult,
+)
+
+# Cache Models
+from src.features.process_mining.models.cache_models import (
+    DFGCache,
+    VariantCache,
 )
 
 # Dataset models
@@ -17,54 +30,14 @@ from src.features.process_mining.models.dataset import (
     DatasetColumnMapping,
     DatasetMetadata,
 )
-
-# Uploaded file
-from src.features.process_mining.models.uploaded_file import UploadedFile
+from src.features.process_mining.models.enums import (
+    AnalysisStatus,
+    AnalysisType,
+    DatasetStatus,
+)
 
 # Event models
 from src.features.process_mining.models.events_models import ProcessCase, ProcessEvent
-
-# Variant models
-from src.features.process_mining.models.variants import ProcessVariant
-
-# Analysis models
-from src.features.process_mining.models.analysis_models import (
-    Analysis,
-    AnalyticsCache,
-    ConformanceResult,
-)
-
-# Process model
-from src.features.process_mining.models.process_model_models import (
-    GraphCache,
-    ProcessModel,
-    ProcessModelMetrics,
-)
-
-# Predictions
-from src.features.process_mining.models.prediction import (
-    Prediction,
-    PredictionModel,
-    Recommendation,
-)
-
-# Organizational Mining
-from src.features.process_mining.models.organizational import (
-    ActivityMapping,
-    HierarchicalProcessModel,
-    SocialNetwork,
-)
-
-# OCEL 2.0 models
-from src.features.process_mining.models.ocel2 import (
-    E2ORelation,
-    O2ORelation,
-    ObjectAttributeChange,
-    OCEL2Event,
-    OCEL2EventType,
-    OCEL2Object,
-    OCEL2ObjectType,
-)
 
 # Lookup tables for normalized values
 from src.features.process_mining.models.lookup_tables import (
@@ -81,70 +54,96 @@ from src.features.process_mining.models.ocel import (
     OCPetriNet,
 )
 
-# Algorithm Registry
-from src.features.process_mining.models.algorithm_registry import (
-    Algorithm,
-    AlgorithmParameter,
+# OCEL 2.0 models
+from src.features.process_mining.models.ocel2 import (
+    E2ORelation,
+    O2ORelation,
+    ObjectAttributeChange,
+    OCEL2Event,
+    OCEL2EventType,
+    OCEL2Object,
+    OCEL2ObjectType,
 )
 
-# Cache Models
-from src.features.process_mining.models.cache_models import (
-    DFGCache,
-    VariantCache,
+# Organizational Mining
+from src.features.process_mining.models.organizational import (
+    ActivityMapping,
+    HierarchicalProcessModel,
+    SocialNetwork,
 )
+
+# Predictions
+from src.features.process_mining.models.prediction import (
+    Prediction,
+    PredictionModel,
+    Recommendation,
+)
+
+# Process model
+from src.features.process_mining.models.process_model_models import (
+    GraphCache,
+    ProcessModel,
+    ProcessModelMetrics,
+)
+
+# Uploaded file
+from src.features.process_mining.models.uploaded_file import UploadedFile
+
+# Variant models
+from src.features.process_mining.models.variants import ProcessVariant
 
 __all__ = [
-    # Enums
-    "DatasetStatus",
-    "AnalysisType",
+    # Lookup Tables
+    "Activity",
+    # Models - Organizational
+    "ActivityMapping",
+    # Algorithm Registry
+    "Algorithm",
+    "AlgorithmParameter",
+    # Models - Analysis
+    "Analysis",
     "AnalysisStatus",
+    "AnalysisType",
+    "AnalyticsCache",
+    "ConformanceResult",
+    # Cache Models
+    "DFGCache",
     # Models - Dataset
     "Dataset",
     "DatasetColumn",
     "DatasetColumnMapping",
     "DatasetMetadata",
-    "UploadedFile",
-    # Models - Events
-    "ProcessCase",
-    "ProcessEvent",
-    "ProcessVariant",
-    # Models - Process Model
-    "ProcessModel",
-    "ProcessModelMetrics",
+    # Enums
+    "DatasetStatus",
+    "E2ORelation",
     "GraphCache",
-    # Models - Analysis
-    "Analysis",
-    "ConformanceResult",
-    "AnalyticsCache",
-    # Models - Organizational
-    "ActivityMapping",
-    "SocialNetwork",
     "HierarchicalProcessModel",
-    # Models - Prediction
-    "PredictionModel",
-    "Prediction",
-    "Recommendation",
+    "O2ORelation",
     # OCEL 2.0
     "OCEL2Event",
     "OCEL2EventType",
     "OCEL2Object",
     "OCEL2ObjectType",
-    "E2ORelation",
-    "O2ORelation",
-    "ObjectAttributeChange",
-    # Lookup Tables
-    "Activity",
-    "Resource",
-    "get_or_create_activity",
-    "get_or_create_resource",
     # OCEL Models (Service Layer)
     "OCELLog",
     "OCELObjectType",
     "OCPetriNet",
-    # Algorithm Registry
-    "Algorithm",
-    "AlgorithmParameter",
-    # Cache Models
-    "DFGCache",
+    "ObjectAttributeChange",
+    "Prediction",
+    # Models - Prediction
+    "PredictionModel",
+    # Models - Events
+    "ProcessCase",
+    "ProcessEvent",
+    # Models - Process Model
+    "ProcessModel",
+    "ProcessModelMetrics",
+    "ProcessVariant",
+    "Recommendation",
+    "Resource",
+    "SocialNetwork",
+    "UploadedFile",
     "VariantCache",
+    "get_or_create_activity",
+    "get_or_create_resource",
 ]

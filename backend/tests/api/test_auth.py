@@ -12,7 +12,7 @@ async def test_get_current_user_dev_mode(auth_client: AsyncClient, seeded_user):
     response = await auth_client.get("/api/v1/auth/me")
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "user" in data
     assert "email" in data["user"]
     assert "name" in data["user"]
@@ -23,8 +23,9 @@ async def test_register_user(client: AsyncClient):
     """Test user registration creates user, org, and workspace."""
     # Use a unique email to avoid conflicts
     import uuid
+
     unique_email = f"newuser_{uuid.uuid4().hex[:8]}@example.com"
-    
+
     response = await client.post(
         "/api/v1/auth/register",
         json={
@@ -34,13 +35,13 @@ async def test_register_user(client: AsyncClient):
             "organization_name": "New Org",
         },
     )
-    
+
     if response.status_code == 400 and "already registered" in response.text:
         pytest.skip("Email already registered in database")
-    
+
     assert response.status_code in [200, 201], f"Registration failed: {response.text}"
     data = response.json()
-    
+
     assert "access_token" in data
     assert "refresh_token" in data
     assert "user" in data
@@ -59,14 +60,14 @@ async def test_login_with_registered_user(client: AsyncClient, seeded_user):
             "password": "anypassword",  # Ignored in dev mode
         },
     )
-    
+
     # May fail if auth is enabled and password doesn't match
     if response.status_code == 401:
         pytest.skip("Auth is enabled - seeded user has no valid password")
-    
+
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "access_token" in data
     assert "refresh_token" in data
     assert "user" in data
@@ -80,12 +81,12 @@ async def test_refresh_token(client: AsyncClient, seeded_user):
         "/api/v1/auth/login",
         json={"email": seeded_user.email, "password": "password"},
     )
-    
+
     if login_response.status_code != 200:
         pytest.skip("Login failed - cannot test refresh token")
-    
+
     refresh_token = login_response.json()["refresh_token"]
-    
+
     # Use refresh token to get new access token
     response = await client.post(
         "/api/v1/auth/refresh",
@@ -93,7 +94,7 @@ async def test_refresh_token(client: AsyncClient, seeded_user):
     )
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "access_token" in data
     assert "refresh_token" in data
 

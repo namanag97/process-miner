@@ -17,19 +17,18 @@ warnings.warn(
 )
 
 # Re-export from canonical location for backwards compatibility
-from src.features.process_mining.ingestion.duckdb_parser import (
+from src.features.process_mining.ingestion.duckdb_parser import (  # noqa: E402
     DuckDBParser,
-    duckdb_parser,
+    _get_duckdb,
     _sanitize_column_name,
     _sanitize_delimiter,
-    _get_duckdb,
+    duckdb_parser,
 )
 
 __all__ = [
     "DuckDBParser",
-    "duckdb_parser",
+    "_get_duckdb",
     "_sanitize_column_name",
     "_sanitize_delimiter",
-    "_get_duckdb",
+    "duckdb_parser",
 ]
-

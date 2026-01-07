@@ -51,6 +51,14 @@ from src.platform.schemas import (
     WorkspaceUpdateRequest,
 )
 from src.platform.workspaces.authorization import AuthorizationService
+from src.platform.workspaces.schemas import (
+    AddMemberRequest,
+    UpdateMemberRoleRequest,
+    WorkspaceMemberListResponse,
+)
+from src.platform.workspaces.schemas import (
+    WorkspaceMemberResponseInline as WorkspaceMemberResponse,
+)
 
 logger = get_logger(__name__)
 
@@ -67,7 +75,7 @@ def _workspace_to_response(workspace: Workspace) -> WorkspaceResponse:
     return WorkspaceResponse(
         id=workspace.id,
         org_id=workspace.org_id,
-        name=workspace.name,
+        name=workspace.name or "",
         description=workspace.description,
         created_at=workspace.created_at,
         updated_at=workspace.updated_at,
@@ -124,9 +132,7 @@ async def list_workspaces(
 
     # Paginate results
     query = (
-        query.order_by(Workspace.created_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
+        query.order_by(Workspace.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
     )
     result = await db.execute(query)
     workspaces = result.scalars().all()
@@ -176,7 +182,7 @@ async def get_workspace(
     return WorkspaceDetailResponse(
         id=workspace.id,
         org_id=workspace.org_id,
-        name=workspace.name,
+        name=workspace.name or "",
         description=workspace.description,
         created_at=workspace.created_at,
         updated_at=workspace.updated_at,
@@ -215,7 +221,7 @@ async def create_workspace(
     # Create workspace
     workspace = Workspace(
         org_id=org_id,
-        name=request.name,
+        name=request.name or "",
         description=request.description,
         created_at=datetime.now(timezone.utc),
     )
@@ -431,14 +437,6 @@ async def remove_project_from_workspace(
 # =============================================================================
 
 
-from src.platform.workspaces.schemas import (
-    AddMemberRequest,
-    UpdateMemberRoleRequest,
-    WorkspaceMemberListResponse,
-    WorkspaceMemberResponseInline as WorkspaceMemberResponse,
-)
-
-
 @router.get("/{workspace_id}/members", response_model=WorkspaceMemberListResponse)
 async def list_workspace_members(
     db: DBSession,
@@ -466,7 +464,7 @@ async def list_workspace_members(
         WorkspaceMemberResponse(
             user_id=member.user_id,
             email=u.email,
-            name=u.name,
+            name=u.name or "",
             role=member.role,
             joined_at=member.joined_at,
         )
@@ -541,7 +539,7 @@ async def add_workspace_member(
     return WorkspaceMemberResponse(
         user_id=target_user.id,
         email=target_user.email,
-        name=target_user.name,
+        name=target_user.name or "",
         role=request.role,
         joined_at=member.joined_at,
     )

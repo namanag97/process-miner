@@ -10,12 +10,11 @@ from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from src.shared.base_schemas import BaseEntityResponse, BaseSchema, BaseTaskResponse
-
 from src.api.dependencies import CurrentUser, DBSession
 from src.platform.core.logging_config import get_logger
 from src.platform.dag.service import DAGService
-from src.platform.dag.templates import TEMPLATES, get_template, list_templates
+from src.platform.dag.templates import get_template, list_templates
+from src.shared.base_schemas import BaseSchema, BaseTaskResponse
 
 logger = get_logger(__name__)
 
@@ -57,18 +56,14 @@ class CreateDefinitionRequest(BaseModel):
     name: str = Field(..., description="Human-readable DAG name")
     description: str | None = Field(None, description="Optional description")
     steps: list[StepConfig] = Field(..., min_length=1, description="List of steps")
-    edges: list[EdgeConfig] = Field(
-        default_factory=list, description="Dependencies between steps"
-    )
+    edges: list[EdgeConfig] = Field(default_factory=list, description="Dependencies between steps")
 
 
 class TriggerRunRequest(BaseModel):
     """Request to trigger a DAG run."""
 
     definition_id: str | None = Field(None, description="DAG definition ID")
-    definition_name: str | None = Field(
-        None, description="DAG definition name (alternative to ID)"
-    )
+    definition_name: str | None = Field(None, description="DAG definition name (alternative to ID)")
     context: dict[str, Any] = Field(
         default_factory=dict, description="Shared context for all steps"
     )
@@ -97,7 +92,7 @@ class EdgeResponse(BaseModel):
 
 class DefinitionResponse(BaseSchema):
     """DAG definition response.
-    
+
     Uses BaseSchema for ORM compatibility. Note: Does not extend
     BaseEntityResponse since we only need created_at, not updated_at.
     """
@@ -121,7 +116,7 @@ class DefinitionListResponse(BaseModel):
 
 class RunStepResponse(BaseSchema):
     """Step status within a run.
-    
+
     Similar to BaseTaskResponse but without created_at/updated_at since
     step timing is tracked via started_at/completed_at relative to the run.
     """
@@ -137,7 +132,7 @@ class RunStepResponse(BaseSchema):
 
 class RunResponse(BaseTaskResponse):
     """DAG run response.
-    
+
     Extends BaseTaskResponse which provides:
     - id, created_at, updated_at (from BaseEntityResponse)
     - status, started_at, completed_at, error_message (from BaseTaskResponse)
@@ -317,9 +312,7 @@ async def trigger_run(
                 if not dag_def:
                     return JSONResponse(
                         status_code=404,
-                        content={
-                            "detail": f"Definition not found: {request.definition_name}"
-                        },
+                        content={"detail": f"Definition not found: {request.definition_name}"},
                     )
                 definition_id = dag_def.id
         elif request.definition_id:
@@ -327,9 +320,7 @@ async def trigger_run(
         else:
             return JSONResponse(
                 status_code=400,
-                content={
-                    "detail": "Either definition_id or definition_name is required"
-                },
+                content={"detail": "Either definition_id or definition_name is required"},
             )
 
         dag_run = await service.trigger_run(
@@ -438,11 +429,10 @@ async def cancel_run(
     if success:
         logger.info("dag_run_cancelled_via_api", run_id=run_id, user_id=user.id)
         return {"status": "cancelled", "run_id": run_id}
-    else:
-        return JSONResponse(
-            status_code=400,
-            content={"detail": "Failed to cancel run"},
-        )
+    return JSONResponse(
+        status_code=400,
+        content={"detail": "Failed to cancel run"},
+    )
 
 
 # =============================================================================
@@ -521,4 +511,3 @@ def _run_to_response(dag_run) -> RunResponse:
         error_message=dag_run.error_message,
         steps=steps,
     )
-

@@ -9,6 +9,6 @@ from .router import router
 from .service import business_use_cases
 
 __all__ = [
-    "router",
     "business_use_cases",
+    "router",
 ]

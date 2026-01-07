@@ -9,7 +9,6 @@ Executes DAG steps using the TaskRegistry, handling:
 
 import json
 import time
-from datetime import datetime
 from typing import Any
 
 import structlog
@@ -190,12 +189,14 @@ class DAGExecutor:
 
             for step in ready_steps:
                 result = await self.execute_step(step.id)
-                all_results.append({
-                    "step_id": step.id,
-                    "step_name": step.step_name,
-                    "success": result.success,
-                    "error": result.error,
-                })
+                all_results.append(
+                    {
+                        "step_id": step.id,
+                        "step_name": step.step_name,
+                        "success": result.success,
+                        "error": result.error,
+                    }
+                )
 
         # Get final status
         dag_run = await self._repo.get_run(run_id)
@@ -241,40 +242,5 @@ class DAGExecutor:
         )
 
 
-# Celery task for async step execution
-def create_celery_step_task():
-    """Create a Celery task for async DAG step execution.
-
-    This allows steps to be executed asynchronously via Celery workers.
-    """
-    try:
-        from src.platform.infrastructure.tasks.base import AsyncTask, celery_app, AsyncSessionLocal
-
-        @celery_app.task(
-            bind=True,
-            base=AsyncTask,
-            name="execute_dag_step",
-            autoretry_for=(),
-            retry_kwargs={"max_retries": 3},
-        )
-        async def execute_dag_step_task(self, step_id: str) -> dict[str, Any]:
-            """Celery task for executing a DAG step."""
-            async with AsyncSessionLocal() as session:
-                executor = DAGExecutor(session)
-                result = await executor.execute_step(step_id)
-                await session.commit()
-                return {
-                    "success": result.success,
-                    "data": result.data,
-                    "error": result.error,
-                }
-
-        return execute_dag_step_task
-
-    except ImportError:
-        logger.warning("celery_not_available", msg="Celery task not created")
-        return None
-
-
-# Try to create the Celery task at module load
-execute_dag_step_task = create_celery_step_task()
+# Note: DAG step execution could be done via Temporal in the future
+# For now, use synchronous execution via run_to_completion()

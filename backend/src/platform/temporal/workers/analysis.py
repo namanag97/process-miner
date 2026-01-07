@@ -47,7 +47,6 @@ async def run_analysis_worker() -> None:
         max_cached_workflows=config.max_cached_workflows,
     )
 
-    print(f"Starting analysis worker on queue: {config.QUEUE_ANALYSIS}")
     await worker.run()
 
 

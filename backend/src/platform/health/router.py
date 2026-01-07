@@ -340,5 +340,3 @@ async def health_check() -> HealthStatus:
     Use /health/detailed for component-level status.
     """
     return HealthStatus(status="healthy")
-
-

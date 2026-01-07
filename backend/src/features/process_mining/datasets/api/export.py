@@ -63,9 +63,7 @@ async def export_dataset(
     from src.platform.core.enums import JobStatus
 
     # Verify permission
-    _, dataset = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_READ
-    )
+    _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
 
     # Check dataset is ready for export
     if dataset.status != DatasetStatus.READY.value:
@@ -128,13 +126,11 @@ async def download_original_file(
     from src.platform.infrastructure.object_storage import get_storage_client
 
     # Verify permission
-    _, dataset = await require_dataset_permission(
-        db, dataset_id, user, Permission.DATASET_READ
-    )
+    _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
 
     # Check storage key exists
     if not dataset.storage_key:
-        raise NotFoundError("Original file not available for this dataset")
+        raise NotFoundError("File", dataset_id)
 
     # Generate presigned download URL
     try:

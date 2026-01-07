@@ -4,7 +4,6 @@ import pytest
 
 from src.platform.dag.engine import dag_engine
 from src.platform.dag.templates import (
-    TEMPLATES,
     get_template,
     get_template_edges,
     get_template_steps,

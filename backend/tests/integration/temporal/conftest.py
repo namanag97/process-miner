@@ -4,10 +4,8 @@ Provides shared fixtures for Temporal workflow integration tests using
 the Temporal SDK's WorkflowEnvironment for testing.
 """
 
-import asyncio
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -16,18 +14,18 @@ from temporalio.client import Client
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
+from src.platform.temporal.activities.analysis import (
+    check_conformance_activity,
+    compute_metrics_activity,
+    load_event_log_activity,
+    mine_model_activity,
+)
 from src.platform.temporal.activities.dataset import (
     bulk_copy_to_db_activity,
     compute_statistics_activity,
     detect_columns_activity,
     parse_to_parquet_activity,
     validate_file_activity,
-)
-from src.platform.temporal.activities.analysis import (
-    check_conformance_activity,
-    compute_metrics_activity,
-    load_event_log_activity,
-    mine_model_activity,
 )
 from src.platform.temporal.config import get_temporal_config
 from src.platform.temporal.workflows.analysis import (
@@ -38,7 +36,6 @@ from src.platform.temporal.workflows.ingestion import (
     DatasetIngestionWorkflow,
     DatasetValidationWorkflow,
 )
-
 
 # =============================================================================
 # Test Data Fixtures
@@ -131,12 +128,15 @@ def mock_session_factory(mock_db_session):
     mock_factory = MagicMock()
     mock_factory.return_value = mock_db_session
 
-    with patch(
-        "src.platform.temporal.activities.dataset.AsyncSessionLocal",
-        mock_factory,
-    ), patch(
-        "src.platform.temporal.activities.analysis.AsyncSessionLocal",
-        mock_factory,
+    with (
+        patch(
+            "src.platform.temporal.activities.dataset.AsyncSessionLocal",
+            mock_factory,
+        ),
+        patch(
+            "src.platform.temporal.activities.analysis.AsyncSessionLocal",
+            mock_factory,
+        ),
     ):
         yield mock_factory
 
@@ -222,28 +222,31 @@ async def all_workers(
     """Create all workers for full E2E tests."""
     config = get_temporal_config()
 
-    async with Worker(
-        temporal_env.client,
-        task_queue=config.QUEUE_INGESTION,
-        workflows=[DatasetIngestionWorkflow, DatasetValidationWorkflow],
-        activities=[
-            validate_file_activity,
-            detect_columns_activity,
-            parse_to_parquet_activity,
-            bulk_copy_to_db_activity,
-            compute_statistics_activity,
-        ],
-    ) as ingestion_worker, Worker(
-        temporal_env.client,
-        task_queue=config.QUEUE_ANALYSIS,
-        workflows=[ProcessDiscoveryWorkflow, ConformanceCheckWorkflow],
-        activities=[
-            load_event_log_activity,
-            mine_model_activity,
-            compute_metrics_activity,
-            check_conformance_activity,
-        ],
-    ) as analysis_worker:
+    async with (
+        Worker(
+            temporal_env.client,
+            task_queue=config.QUEUE_INGESTION,
+            workflows=[DatasetIngestionWorkflow, DatasetValidationWorkflow],
+            activities=[
+                validate_file_activity,
+                detect_columns_activity,
+                parse_to_parquet_activity,
+                bulk_copy_to_db_activity,
+                compute_statistics_activity,
+            ],
+        ) as ingestion_worker,
+        Worker(
+            temporal_env.client,
+            task_queue=config.QUEUE_ANALYSIS,
+            workflows=[ProcessDiscoveryWorkflow, ConformanceCheckWorkflow],
+            activities=[
+                load_event_log_activity,
+                mine_model_activity,
+                compute_metrics_activity,
+                check_conformance_activity,
+            ],
+        ) as analysis_worker,
+    ):
         yield {
             "ingestion": ingestion_worker,
             "analysis": analysis_worker,

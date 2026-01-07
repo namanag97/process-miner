@@ -15,19 +15,18 @@ Predictions enable proactive process management:
 POST /api/v1/predictions/datasets/{dataset_id}/train
 {"target_type": "next_activity", "algorithm": "decision_tree"}
 ```
-→ Returns job_id (training runs async by default)
+→ Returns predictor info (sync training)
 
 ### Test Flow
 1. **Train Model**: `POST /api/v1/predictions/datasets/{id}/train`
-2. **Check Job**: `GET /api/v1/predictions/jobs/{job_id}` until completed
-3. **List Predictors**: `GET /api/v1/predictions/datasets/{id}/predictors`
-4. **Get Predictor**: `GET /api/v1/predictions/predictors/{predictor_id}`
-5. **Predict**:
+2. **List Predictors**: `GET /api/v1/predictions/datasets/{id}/predictors`
+3. **Get Predictor**: `GET /api/v1/predictions/predictors/{predictor_id}`
+4. **Predict**:
    ```
    POST /api/v1/predictions/predictors/{id}/predict
    {"case_prefix": ["Activity A", "Activity B"]}
    ```
-6. **Batch Predict**: `POST /api/v1/predictions/predictors/{id}/predict-batch`
+5. **Batch Predict**: `POST /api/v1/predictions/predictors/{id}/predict-batch`
 
 ### Target Types
 `next_activity`, `remaining_time`
@@ -58,8 +57,6 @@ from src.features.process_mining.schemas import (
     TrainPredictorRequest,
 )
 from src.platform.core.logging_config import get_logger
-from src.platform.infrastructure.tasks import get_task_status, train_prediction_model_task
-from src.platform.models import AsyncJob
 
 logger = get_logger(__name__)
 
@@ -75,7 +72,7 @@ async def _get_pm4py_log(dataset_id: str, db: DBSession, container: ServiceConta
         logger.error("predictions_dataset_not_found", dataset_id=dataset_id)
         raise HTTPException(
             status_code=404,
-            detail=f"Dataset not found: {dataset_id}. Verify the dataset ID exists."
+            detail=f"Dataset not found: {dataset_id}. Verify the dataset ID exists.",
         )
 
     try:
@@ -87,11 +84,10 @@ async def _get_pm4py_log(dataset_id: str, db: DBSession, container: ServiceConta
             dataset_id=dataset_id,
             error=str(e),
             error_type=type(e).__name__,
-            exc_info=True
+            exc_info=True,
         )
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to convert dataset {dataset_id} to PM4Py log: {str(e)}"
+            status_code=500, detail=f"Failed to convert dataset {dataset_id} to PM4Py log: {e!s}"
         )
 
 
@@ -100,26 +96,24 @@ async def train_predictor(
     request: TrainPredictorRequest,
     db: DBSession,
     container: ServiceContainer,
-    async_mode: bool = True,
-    user_id: str | None = None,  # BUG-046: Optional user_id for job ownership
+    async_mode: bool = False,  # Sync by default (Celery removed)
+    user_id: str | None = None,
 ) -> dict[str, Any]:
     """Train a prediction model for an event log.
 
     Args:
         dataset_id: Event log ID
         request: Training request with target_type and algorithm
-        async_mode: If True, train asynchronously via Celery (default)
+        async_mode: Not currently supported (Temporal workflow TODO)
 
     Returns:
-        - If async_mode=True: {"job_id": "...", "status": "pending"}
-        - If async_mode=False: PredictorResponse with trained model
+        PredictorResponse with trained model
     """
     logger.info(
         "training_predictor",
         dataset_id=dataset_id,
         target=request.target_type,
         algorithm=request.algorithm,
-        async_mode=async_mode,
     )
 
     # Verify log exists
@@ -130,38 +124,12 @@ async def train_predictor(
         raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
 
     if async_mode:
-        # Train asynchronously via Celery
-        task = train_prediction_model_task.delay(
-            dataset_id=dataset_id,
-            target_type=request.target_type,
-            algorithm=request.algorithm,
+        # TODO: Implement Temporal v2 workflow for async training
+        raise HTTPException(
+            status_code=501, detail="Async training not yet implemented. Use async_mode=false."
         )
 
-        # Create async job record with user ownership (BUG-046 FIX)
-        async_job = AsyncJob(
-            task_id=task.id,
-            job_type="train_prediction",
-            status="pending",
-            user_id=user_id,  # BUG-046: Track job owner for security
-            parameters_json=json.dumps(
-                {
-                    "dataset_id": dataset_id,
-                    "target_type": request.target_type,
-                    "algorithm": request.algorithm,
-                }
-            ),
-        )
-        db.add(async_job)
-        await db.commit()
-
-        logger.info("async_training_started", job_id=task.id, dataset_id=dataset_id)
-
-        return {
-            "job_id": task.id,
-            "status": "pending",
-            "message": "Training started asynchronously. Use /jobs/{job_id} to check status.",
-        }
-    # Train synchronously (original behavior)
+    # Train synchronously
     pm4py_log = container.filtering.to_pm4py_log(event_log)
 
     if request.target_type == "next_activity":
@@ -207,45 +175,29 @@ async def train_predictor(
 async def get_job_status(
     job_id: str,
     db: DBSession,
-    user_id: str | None = None,  # BUG-046: Optional user_id for ownership validation
+    user_id: str | None = None,
 ) -> dict[str, Any]:
     """Get status of an async training job.
 
+    Note: Async training now uses Temporal. Use /operations/{workflow_id} endpoint.
+
     Args:
-        job_id: Celery task ID
-        user_id: Optional user ID for ownership validation (BUG-046)
+        job_id: Workflow ID
 
     Returns:
-        Job status with progress information
+        Redirect message to operations endpoint
     """
     logger.info("getting_job_status", job_id=job_id, user_id=user_id)
 
-    # Get task status from Celery
-    task_status = get_task_status(job_id)
-
-    # BUG-046 FIX: Filter by user_id if provided for security
-    query = select(AsyncJob).where(AsyncJob.task_id == job_id)
-    if user_id:
-        query = query.where(AsyncJob.user_id == user_id)
-    result = await db.execute(query)
-    job = result.scalar_one_or_none()
-
-    # BUG-046: Return 404 if job not found (either doesn't exist or user doesn't own it)
-    if not job and user_id:
-        raise HTTPException(status_code=404, detail=f"Job {job_id} not found or access denied")
-
-    if job:
-        task_status["job_type"] = job.job_type
-        task_status["created_at"] = job.created_at.isoformat() if job.created_at else None
-        task_status["started_at"] = job.started_at.isoformat() if job.started_at else None
-        task_status["completed_at"] = job.completed_at.isoformat() if job.completed_at else None
-
-    return task_status
+    # Redirect to unified operations endpoint
+    return {
+        "message": "Use /api/v1/operations/{workflow_id} for job status",
+        "workflow_id": job_id,
+        "redirect_url": f"/api/v1/operations/{job_id}",
+    }
 
 
-async def list_predictors(
-    dataset_id: str, db: DBSession
-) -> PredictorListResponse:
+async def list_predictors(dataset_id: str, db: DBSession) -> PredictorListResponse:
     """List all predictors for an event log."""
     logger.info("listing_predictors", dataset_id=dataset_id)
 

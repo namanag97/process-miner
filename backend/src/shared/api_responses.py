@@ -7,7 +7,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-
 # =============================================================================
 # Standard Error Response Schema
 # =============================================================================
@@ -34,7 +33,9 @@ class ErrorDetail(BaseModel):
     detail: str = Field(
         ...,
         description="Human-readable error message",
-        json_schema_extra={"example": "The project you requested could not be found. Please verify the ID is correct."},
+        json_schema_extra={
+            "example": "The project you requested could not be found. Please verify the ID is correct."
+        },
     )
     error_code: str = Field(
         ...,

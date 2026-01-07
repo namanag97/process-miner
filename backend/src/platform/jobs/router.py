@@ -100,8 +100,12 @@ async def list_jobs(
     db: DBSession,
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
-    job_type: str | None = Query(None, description="Filter by job type (e.g., ingestion, discovery)"),
-    status: str | None = Query(None, description="Filter by status (e.g., pending, running, completed, failed)"),
+    job_type: str | None = Query(
+        None, description="Filter by job type (e.g., ingestion, discovery)"
+    ),
+    status: str | None = Query(
+        None, description="Filter by status (e.g., pending, running, completed, failed)"
+    ),
     entity_id: str | None = Query(None, description="Filter by entity ID"),
     user_id: str | None = Query(None, description="Filter by user ID"),
 ) -> JobListResponse:
@@ -181,9 +185,6 @@ async def get_job_status(
     return JobStatusResponse.model_validate(job)
 
 
-
-
-
 @router.delete("/{job_id}", response_model=JobCancelResponse)
 async def cancel_job(
     db: DBSession,
@@ -224,7 +225,7 @@ async def cancel_job(
             message="Job cancelled before execution",
         )
 
-    elif job.status == JobStatus.RUNNING.value:
+    if job.status == JobStatus.RUNNING.value:
         # Job is running - request cancellation
         # In production, would also revoke Celery task:
         # celery_app.control.revoke(job.task_id, terminate=True)
@@ -237,23 +238,22 @@ async def cancel_job(
             message="Cancellation requested for running job",
         )
 
-    else:
-        # Job is already terminal (completed/failed/cancelled) - delete it
-        await db.delete(job)
-        await db.commit()
-        logger.info("job_deleted", job_id=job_id, original_status=original_status)
-        return JobCancelResponse(
-            id=job_id,
-            status="deleted",
-            message=f"Deleted job with status '{original_status}'",
-        )
+    # Job is already terminal (completed/failed/cancelled) - delete it
+    await db.delete(job)
+    await db.commit()
+    logger.info("job_deleted", job_id=job_id, original_status=original_status)
+    return JobCancelResponse(
+        id=job_id,
+        status="deleted",
+        message=f"Deleted job with status '{original_status}'",
+    )
 
 
 @router.get("/{job_id}/stream")
 async def stream_job_progress(
     db: DBSession,
     job_id: str = Path(..., description="Job ID (UUID format)"),
-    request: Request = None,
+    request: Request | None = None,
 ):
     """
     SSE stream for real-time job progress updates.
@@ -367,9 +367,6 @@ async def stream_job_progress(
 # =============================================================================
 # Job Logs Endpoint (per API spec)
 # =============================================================================
-
-
-
 
 
 @router.get("/{job_id}/logs", response_model=JobLogsResponse)

@@ -35,6 +35,9 @@ class IngestionService:
     Handles CSV, XES file parsing and event log creation.
     """
 
+    def __init__(self, session: Any = None):
+        """Initialize with optional database session."""
+        self.session = session
 
     async def ingest_csv(
         self,
@@ -579,4 +582,3 @@ class IngestionService:
 
 # DEPRECATED: Singleton pattern removed. Use Container.ingestion instead.
 ingestion_service = IngestionService()
-

@@ -17,7 +17,6 @@ from src.platform.temporal.workflows.analysis import (
     ProcessDiscoveryWorkflow,
 )
 
-
 # =============================================================================
 # Mock Fixtures for Analysis Tests
 # =============================================================================
@@ -76,12 +75,8 @@ class TestProcessDiscoveryWorkflow:
         workflow_id = f"test-discovery-{dataset_id}"
 
         # Mock the load_event_log to return is_loaded=True
-        with patch(
-            "src.platform.temporal.activities.analysis.AsyncSessionLocal"
-        ) as mock_session:
-            mock_session.return_value.__aenter__ = AsyncMock(
-                return_value=MagicMock()
-            )
+        with patch("src.platform.temporal.activities.analysis.AsyncSessionLocal") as mock_session:
+            mock_session.return_value.__aenter__ = AsyncMock(return_value=MagicMock())
             mock_session.return_value.__aexit__ = AsyncMock()
 
             handle = await client.start_workflow(

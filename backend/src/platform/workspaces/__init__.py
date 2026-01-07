@@ -13,11 +13,11 @@ from src.platform.workspaces.schemas import (
 )
 
 __all__ = [
-    "router",
     # Requests
     "AddMemberRequest",
     "UpdateMemberRoleRequest",
+    "WorkspaceMemberListResponse",
     # Responses
     "WorkspaceMemberResponseInline",
-    "WorkspaceMemberListResponse",
+    "router",
 ]

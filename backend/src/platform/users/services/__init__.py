@@ -17,8 +17,8 @@ __all__ = [
     "AuthorizationService",
     "filter_by_org",
     "filter_by_workspace_membership",
-    "require_dataset_permission",
-    "require_project_permission",
     "require_analysis_permission",
+    "require_dataset_permission",
     "require_model_permission",
+    "require_project_permission",
 ]

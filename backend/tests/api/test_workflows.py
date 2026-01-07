@@ -10,7 +10,7 @@ async def test_list_workflow_templates(auth_client: AsyncClient):
     response = await auth_client.get("/api/v1/workflows/templates")
     assert response.status_code == 200
     data = response.json()
-    
+
     assert isinstance(data, list)
 
 
@@ -32,7 +32,7 @@ async def test_create_workflow(auth_client: AsyncClient):
     )
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "id" in data
     assert data["name"] == "Test Workflow"
 
@@ -43,5 +43,5 @@ async def test_list_workflows(auth_client: AsyncClient):
     response = await auth_client.get("/api/v1/workflows")
     assert response.status_code == 200
     data = response.json()
-    
+
     assert isinstance(data, list)

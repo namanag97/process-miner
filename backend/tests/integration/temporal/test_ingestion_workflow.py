@@ -4,7 +4,6 @@ Tests the complete DatasetIngestionWorkflow using Temporal's test environment.
 """
 
 import pytest
-from temporalio.client import Client, WorkflowHandle
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
@@ -15,7 +14,6 @@ from src.platform.temporal.workflows.ingestion import (
 )
 
 from .conftest import TestDataset
-
 
 # =============================================================================
 # DatasetIngestionWorkflow Tests
@@ -209,8 +207,7 @@ class TestDatasetValidationWorkflow:
         if result["status"] == "awaiting_mapping":
             columns = result.get("columns", [])
             # Our sample CSV has: case_id, activity, timestamp, resource
-            expected_columns = {"case_id", "activity", "timestamp", "resource"}
-            actual_columns = {col["name"] if isinstance(col, dict) else col for col in columns}
+            {col["name"] if isinstance(col, dict) else col for col in columns}
 
             # At least some columns should be detected
             assert len(columns) > 0 or "error" not in result

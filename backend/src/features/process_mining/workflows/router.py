@@ -33,7 +33,7 @@ router = APIRouter(prefix="/workflows", tags=["Workflows"])
 @router.get("/templates", response_model=list[WorkflowTemplate])
 async def list_templates() -> list[WorkflowTemplate]:
     """List predefined workflow templates.
-    
+
     Note: Consider using DAG templates via GET /api/v1/dags/templates instead.
     """
     # Return basic templates that map to DAG templates
@@ -67,7 +67,7 @@ async def list_templates() -> list[WorkflowTemplate]:
 @router.get("", response_model=list[WorkflowResponse])
 async def list_workflows() -> list[WorkflowResponse]:
     """List all workflows.
-    
+
     Note: Workflows have been migrated to DAGs. Use GET /api/v1/dags instead.
     """
     logger.warning("legacy_workflow_list_called", msg="Use /api/v1/dags instead")
@@ -79,7 +79,7 @@ async def create_workflow(
     request: WorkflowCreateRequest,
 ) -> WorkflowResponse:
     """Create a new workflow.
-    
+
     Note: Consider using POST /api/v1/dags instead for new workflows.
     """
     raise HTTPException(
@@ -91,7 +91,7 @@ async def create_workflow(
 @router.get("/{workflow_id}", response_model=WorkflowResponse)
 async def get_workflow(workflow_id: str) -> WorkflowResponse:
     """Get workflow by ID.
-    
+
     Note: Use GET /api/v1/dags/{id} instead.
     """
     raise HTTPException(
@@ -103,7 +103,7 @@ async def get_workflow(workflow_id: str) -> WorkflowResponse:
 @router.delete("/{workflow_id}")
 async def delete_workflow(workflow_id: str) -> dict:
     """Delete a workflow.
-    
+
     Note: Use DELETE /api/v1/dags/{id} instead.
     """
     raise HTTPException(
@@ -123,7 +123,7 @@ async def run_workflow(
     request: WorkflowRunRequest,
 ) -> WorkflowRunResponse:
     """Execute a workflow.
-    
+
     Note: Use POST /api/v1/dags/{id}/trigger instead.
     """
     raise HTTPException(
@@ -135,7 +135,7 @@ async def run_workflow(
 @router.get("/{workflow_id}/runs", response_model=list[WorkflowRunResponse])
 async def list_workflow_runs(workflow_id: str) -> list[WorkflowRunResponse]:
     """List runs for a workflow.
-    
+
     Note: Use GET /api/v1/dags/runs instead.
     """
     logger.warning("legacy_workflow_runs_called", msg="Use /api/v1/dags/runs instead")
@@ -145,7 +145,7 @@ async def list_workflow_runs(workflow_id: str) -> list[WorkflowRunResponse]:
 @router.get("/runs/{run_id}", response_model=WorkflowRunResponse)
 async def get_workflow_run(run_id: str) -> WorkflowRunResponse:
     """Get a specific workflow run.
-    
+
     Note: Use GET /api/v1/dags/runs/{id} instead.
     """
     raise HTTPException(

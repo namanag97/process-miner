@@ -9,7 +9,7 @@ from .router import router
 from .service import OCPMService, ocpm_service
 
 __all__ = [
-    "router",
     "OCPMService",
     "ocpm_service",
+    "router",
 ]

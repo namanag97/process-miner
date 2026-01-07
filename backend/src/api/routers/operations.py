@@ -7,9 +7,6 @@ All status queries go through Temporal. The database is updated BY activities,
 not queried for status.
 """
 
-from datetime import datetime
-from typing import Optional
-
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
@@ -30,15 +27,17 @@ class OperationStatus(BaseModel):
     """Operation status response from Temporal."""
 
     workflow_id: str = Field(..., description="Temporal workflow ID")
-    status: str = Field(..., description="PENDING, RUNNING, COMPLETED, FAILED, CANCELLED, TIMED_OUT")
+    status: str = Field(
+        ..., description="PENDING, RUNNING, COMPLETED, FAILED, CANCELLED, TIMED_OUT"
+    )
     progress: int = Field(0, ge=0, le=100, description="Progress percentage 0-100")
-    current_step: Optional[str] = Field(None, description="Current activity/step name")
-    started_at: Optional[str] = Field(None, description="ISO timestamp when started")
-    completed_at: Optional[str] = Field(None, description="ISO timestamp when completed")
-    error_message: Optional[str] = Field(None, description="Error message if failed")
-    entity_type: Optional[str] = Field(None, description="Entity type (dataset, model, etc)")
-    entity_id: Optional[str] = Field(None, description="Entity ID")
-    operation_type: Optional[str] = Field(None, description="Operation type (ingest, discover, etc)")
+    current_step: str | None = Field(None, description="Current activity/step name")
+    started_at: str | None = Field(None, description="ISO timestamp when started")
+    completed_at: str | None = Field(None, description="ISO timestamp when completed")
+    error_message: str | None = Field(None, description="Error message if failed")
+    entity_type: str | None = Field(None, description="Entity type (dataset, model, etc)")
+    entity_id: str | None = Field(None, description="Entity ID")
+    operation_type: str | None = Field(None, description="Operation type (ingest, discover, etc)")
 
 
 class OperationListResponse(BaseModel):
@@ -136,9 +135,9 @@ async def get_operation_status(workflow_id: str) -> OperationStatus:
 @router.get("", response_model=OperationListResponse)
 async def list_operations(
     user: CurrentUser,
-    entity_type: Optional[str] = Query(None, description="Filter by entity type (dataset, model)"),
-    entity_id: Optional[str] = Query(None, description="Filter by entity ID"),
-    status: Optional[str] = Query(None, description="Filter by status (RUNNING, COMPLETED, FAILED)"),
+    entity_type: str | None = Query(None, description="Filter by entity type (dataset, model)"),
+    entity_id: str | None = Query(None, description="Filter by entity ID"),
+    status: str | None = Query(None, description="Filter by status (RUNNING, COMPLETED, FAILED)"),
     limit: int = Query(20, le=100),
     offset: int = Query(0, ge=0),
 ) -> OperationListResponse:
@@ -177,15 +176,13 @@ async def list_operations(
 
         try:
             # List workflows from Temporal
-            workflows = []
+            workflows: list[dict] = []
             async for workflow in client.list_workflows(query=query):
                 if len(workflows) >= offset + limit:
                     break
 
                 if len(workflows) >= offset:
-                    entity_type_parsed, entity_id_parsed, op_type = _parse_workflow_id(
-                        workflow.id
-                    )
+                    entity_type_parsed, entity_id_parsed, op_type = _parse_workflow_id(workflow.id)
 
                     # Apply entity_type filter if specified
                     if entity_type and entity_type_parsed != entity_type:
@@ -194,11 +191,15 @@ async def list_operations(
                     workflows.append(
                         OperationStatus(
                             workflow_id=workflow.id,
-                            status=workflow.status.name if workflow.status else "UNKNOWN",
+                            status=workflow.status.name if run.status else "UNKNOWN" if workflow.status else "UNKNOWN",
                             progress=0,  # Would need query for each
                             current_step=None,
-                            started_at=workflow.start_time.isoformat() if workflow.start_time else None,
-                            completed_at=workflow.close_time.isoformat() if workflow.close_time else None,
+                            started_at=workflow.start_time.isoformat()
+                            if workflow.start_time
+                            else None,
+                            completed_at=workflow.close_time.isoformat()
+                            if workflow.close_time
+                            else None,
                             error_message=None,
                             entity_type=entity_type_parsed,
                             entity_id=entity_id_parsed,
@@ -274,10 +275,10 @@ async def get_operation_result(workflow_id: str):
 
         # Get workflow status first
         desc = await handle.describe()
-        if desc.status.name != "COMPLETED":
+        if desc.status.name if run.status else "UNKNOWN" != "COMPLETED":
             raise HTTPException(
                 status_code=400,
-                detail=f"Operation not completed. Status: {desc.status.name}",
+                detail=f"Operation not completed. Status: {desc.status.name if run.status else "UNKNOWN"}",
             )
 
         # Get result
@@ -297,7 +298,7 @@ async def get_operation_result(workflow_id: str):
 # =============================================================================
 
 
-def _parse_workflow_id(workflow_id: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
+def _parse_workflow_id(workflow_id: str) -> tuple[str | None, str | None, str | None]:
     """Parse entity info from workflow ID.
 
     Workflow ID Patterns:
@@ -320,7 +321,7 @@ def _parse_workflow_id(workflow_id: str) -> tuple[Optional[str], Optional[str], 
         # Format: {operation}-dataset-{uuid}
         if len(parts) >= 3 and parts[1] == "dataset":
             return "dataset", "-".join(parts[2:]), operation
-        elif len(parts) >= 2:
+        if len(parts) >= 2:
             return "dataset", "-".join(parts[1:]), operation
 
     elif operation == "discover":
