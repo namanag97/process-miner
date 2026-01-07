@@ -84,8 +84,12 @@ describe('useExplorerFilters', () => {
         value: {},
       };
 
+      // Add filters in separate act blocks to ensure state updates between calls
       act(() => {
         result.current.addFilter(filter1);
+      });
+
+      act(() => {
         result.current.addFilter(filter2);
       });
 

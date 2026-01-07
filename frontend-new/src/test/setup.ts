@@ -8,24 +8,23 @@
  */
 
 import '@testing-library/jest-dom';
-import { server } from './mocks/server';
 
-// Establish API mocking before all tests
+// MSW server setup is disabled due to jsdom compatibility issues with MSW v2
+// MSW v2 requires native fetch globals (Node 18+) which aren't available in jsdom.
+// For tests that need API mocking, use jest.mock() or axios-mock-adapter instead.
+// TODO: Re-enable MSW when using jest-environment-node or upgrading to Node 20+
+
+// Cleanup placeholder for MSW (no-op when disabled)
 beforeAll(() => {
-  server.listen({
-    onUnhandledRequest: 'warn',
-  });
+  // MSW server would start here
 });
 
-// Reset any request handlers that are declared as a part of tests
-// (i.e. for testing one-time error scenarios)
 afterEach(() => {
-  server.resetHandlers();
+  // MSW handlers would reset here
 });
 
-// Clean up after all tests are done
 afterAll(() => {
-  server.close();
+  // MSW server would close here
 });
 
 // Suppress console errors/warnings in tests unless explicitly needed
