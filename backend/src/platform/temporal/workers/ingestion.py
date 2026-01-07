@@ -9,7 +9,6 @@ from temporalio.client import Client
 from temporalio.worker import Worker
 
 from src.platform.temporal.activities.dataset import (
-    bulk_copy_to_db_activity,
     compute_statistics_activity,
     detect_columns_activity,
     parse_to_parquet_activity,
@@ -42,7 +41,6 @@ async def run_ingestion_worker() -> None:
             validate_file_activity,
             detect_columns_activity,
             parse_to_parquet_activity,
-            bulk_copy_to_db_activity,
             compute_statistics_activity,
         ],
         max_concurrent_activities=config.max_concurrent_activities,

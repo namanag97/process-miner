@@ -1,0 +1,7012 @@
+{
+  "ActivityDetailResponse": {
+    "properties": {
+      "activity": {
+        "type": "string",
+        "title": "Activity"
+      },
+      "frequency": {
+        "type": "integer",
+        "title": "Frequency"
+      },
+      "frequency_percent": {
+        "type": "number",
+        "title": "Frequency Percent"
+      },
+      "avg_duration_seconds": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Avg Duration Seconds"
+      },
+      "min_duration_seconds": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Min Duration Seconds"
+      },
+      "max_duration_seconds": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Max Duration Seconds"
+      },
+      "is_start_activity": {
+        "type": "boolean",
+        "title": "Is Start Activity",
+        "default": false
+      },
+      "is_end_activity": {
+        "type": "boolean",
+        "title": "Is End Activity",
+        "default": false
+      },
+      "position_avg": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Position Avg"
+      },
+      "resources": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Resources",
+        "default": []
+      }
+    },
+    "type": "object",
+    "required": [
+      "activity",
+      "frequency",
+      "frequency_percent"
+    ],
+    "title": "ActivityDetailResponse",
+    "description": "Detailed activity statistics for process explorer."
+  },
+  "AddMemberRequest": {
+    "properties": {
+      "user_id": {
+        "type": "string",
+        "title": "User Id",
+        "description": "User ID to add"
+      },
+      "role": {
+        "type": "string",
+        "pattern": "^(owner|admin|editor|analyst|viewer)$",
+        "title": "Role",
+        "default": "viewer"
+      }
+    },
+    "type": "object",
+    "required": [
+      "user_id"
+    ],
+    "title": "AddMemberRequest",
+    "description": "Add member request."
+  },
+  "AlignmentDiagnosticsResponse": {
+    "properties": {
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "model_id": {
+        "type": "string",
+        "title": "Model Id"
+      },
+      "total_cases": {
+        "type": "integer",
+        "title": "Total Cases"
+      },
+      "fitting_cases": {
+        "type": "integer",
+        "title": "Fitting Cases"
+      },
+      "average_fitness": {
+        "type": "number",
+        "title": "Average Fitness"
+      },
+      "case_alignments": {
+        "items": {
+          "$ref": "#/components/schemas/CaseAlignmentResponse"
+        },
+        "type": "array",
+        "title": "Case Alignments"
+      }
+    },
+    "type": "object",
+    "required": [
+      "dataset_id",
+      "model_id",
+      "total_cases",
+      "fitting_cases",
+      "average_fitness",
+      "case_alignments"
+    ],
+    "title": "AlignmentDiagnosticsResponse",
+    "description": "Response for alignment diagnostics endpoint."
+  },
+  "AlignmentMove": {
+    "properties": {
+      "log_move": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Log Move"
+      },
+      "model_move": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Model Move"
+      },
+      "move_type": {
+        "type": "string",
+        "title": "Move Type"
+      }
+    },
+    "type": "object",
+    "required": [
+      "move_type"
+    ],
+    "title": "AlignmentMove",
+    "description": "Single move in an alignment sequence."
+  },
+  "AnalysisCreateRequest": {
+    "properties": {
+      "name": {
+        "type": "string",
+        "maxLength": 255,
+        "minLength": 1,
+        "title": "Name"
+      },
+      "analysis_type": {
+        "type": "string",
+        "title": "Analysis Type",
+        "description": "Type: discovery, conformance, variants, bottleneck"
+      },
+      "config": {
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Config",
+        "description": "Analysis configuration"
+      }
+    },
+    "type": "object",
+    "required": [
+      "name",
+      "analysis_type"
+    ],
+    "title": "AnalysisCreateRequest",
+    "description": "Request to create a new analysis."
+  },
+  "AnalysisDetailResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "created_by": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Created By"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "analysis_type": {
+        "type": "string",
+        "title": "Analysis Type"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status"
+      },
+      "config": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Config"
+      },
+      "result_summary": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Result Summary"
+      },
+      "result_full_path": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Result Full Path"
+      },
+      "model_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Model Id"
+      },
+      "workflow_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Workflow Id"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At"
+      },
+      "completed_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Completed At"
+      },
+      "error_message": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Error Message"
+      },
+      "dfg": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/DFGResponse"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "variants": {
+        "anyOf": [
+          {
+            "items": {
+              "$ref": "#/components/schemas/VariantResponse"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Variants"
+      },
+      "statistics": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/StatisticsResponse"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "dataset_id",
+      "name",
+      "analysis_type",
+      "status",
+      "created_at"
+    ],
+    "title": "AnalysisDetailResponse",
+    "description": "Detailed analysis with full results."
+  },
+  "AnalysisListResponse": {
+    "properties": {
+      "total": {
+        "type": "integer",
+        "title": "Total"
+      },
+      "page": {
+        "type": "integer",
+        "title": "Page"
+      },
+      "page_size": {
+        "type": "integer",
+        "title": "Page Size"
+      },
+      "pages": {
+        "type": "integer",
+        "title": "Pages"
+      },
+      "items": {
+        "items": {
+          "$ref": "#/components/schemas/AnalysisResponse"
+        },
+        "type": "array",
+        "title": "Items"
+      }
+    },
+    "type": "object",
+    "required": [
+      "total",
+      "page",
+      "page_size",
+      "pages",
+      "items"
+    ],
+    "title": "AnalysisListResponse",
+    "description": "Paginated analysis list."
+  },
+  "AnalysisResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "created_by": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Created By"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "analysis_type": {
+        "type": "string",
+        "title": "Analysis Type"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status"
+      },
+      "config": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Config"
+      },
+      "result_summary": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Result Summary"
+      },
+      "result_full_path": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Result Full Path"
+      },
+      "model_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Model Id"
+      },
+      "workflow_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Workflow Id"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At"
+      },
+      "completed_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Completed At"
+      },
+      "error_message": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Error Message"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "dataset_id",
+      "name",
+      "analysis_type",
+      "status",
+      "created_at"
+    ],
+    "title": "AnalysisResponse",
+    "description": "Analysis response."
+  },
+  "BillingResponse": {
+    "properties": {
+      "plan": {
+        "type": "string",
+        "title": "Plan"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status",
+        "default": "active"
+      },
+      "message": {
+        "type": "string",
+        "title": "Message",
+        "default": "Billing integration not implemented"
+      }
+    },
+    "type": "object",
+    "required": [
+      "plan"
+    ],
+    "title": "BillingResponse",
+    "description": "Billing info response (placeholder)."
+  },
+  "Body_flatten_ocel_to_dataset_api_v1_ocpm_datasets__dataset_id__flatten_post": {
+    "properties": {
+      "object_type": {
+        "type": "string",
+        "title": "Object Type",
+        "description": "Object type to flatten on"
+      },
+      "name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Name",
+        "description": "Name for the created dataset"
+      }
+    },
+    "type": "object",
+    "required": [
+      "object_type"
+    ],
+    "title": "Body_flatten_ocel_to_dataset_api_v1_ocpm_datasets__dataset_id__flatten_post"
+  },
+  "Body_upload_dataset_api_v1_datasets__post": {
+    "properties": {
+      "file": {
+        "type": "string",
+        "format": "binary",
+        "title": "File"
+      },
+      "name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Name"
+      },
+      "project_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Project Id",
+        "description": "Project ID to assign dataset to"
+      }
+    },
+    "type": "object",
+    "required": [
+      "file"
+    ],
+    "title": "Body_upload_dataset_api_v1_datasets__post"
+  },
+  "Body_upload_ocel_api_v1_ocpm_upload_post": {
+    "properties": {
+      "file": {
+        "type": "string",
+        "format": "binary",
+        "title": "File"
+      },
+      "name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Name"
+      }
+    },
+    "type": "object",
+    "required": [
+      "file"
+    ],
+    "title": "Body_upload_ocel_api_v1_ocpm_upload_post"
+  },
+  "BottleneckListResponse": {
+    "properties": {
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "bottlenecks": {
+        "items": {
+          "$ref": "#/components/schemas/BottleneckResponse"
+        },
+        "type": "array",
+        "title": "Bottlenecks"
+      },
+      "total_bottlenecks": {
+        "type": "integer",
+        "title": "Total Bottlenecks"
+      }
+    },
+    "type": "object",
+    "required": [
+      "dataset_id",
+      "bottlenecks",
+      "total_bottlenecks"
+    ],
+    "title": "BottleneckListResponse",
+    "description": "List of detected bottlenecks."
+  },
+  "BottleneckResponse": {
+    "properties": {
+      "activity": {
+        "type": "string",
+        "title": "Activity"
+      },
+      "avg_waiting_time_seconds": {
+        "type": "number",
+        "title": "Avg Waiting Time Seconds"
+      },
+      "avg_service_time_seconds": {
+        "type": "number",
+        "title": "Avg Service Time Seconds"
+      },
+      "frequency": {
+        "type": "integer",
+        "title": "Frequency"
+      },
+      "is_bottleneck": {
+        "type": "boolean",
+        "title": "Is Bottleneck"
+      },
+      "severity": {
+        "type": "string",
+        "title": "Severity"
+      },
+      "preceding_activities": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Preceding Activities",
+        "default": []
+      },
+      "following_activities": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Following Activities",
+        "default": []
+      },
+      "bottleneck_impact_score": {
+        "type": "number",
+        "title": "Bottleneck Impact Score",
+        "default": 0.0
+      }
+    },
+    "type": "object",
+    "required": [
+      "activity",
+      "avg_waiting_time_seconds",
+      "avg_service_time_seconds",
+      "frequency",
+      "is_bottleneck",
+      "severity"
+    ],
+    "title": "BottleneckResponse",
+    "description": "Bottleneck detection result."
+  },
+  "CancelResponse": {
+    "properties": {
+      "workflow_id": {
+        "type": "string",
+        "title": "Workflow Id"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status"
+      }
+    },
+    "type": "object",
+    "required": [
+      "workflow_id",
+      "status"
+    ],
+    "title": "CancelResponse",
+    "description": "Response for cancel operation."
+  },
+  "CaseAlignmentResponse": {
+    "properties": {
+      "case_id": {
+        "type": "string",
+        "title": "Case Id"
+      },
+      "fitness": {
+        "type": "number",
+        "title": "Fitness"
+      },
+      "cost": {
+        "type": "integer",
+        "title": "Cost",
+        "default": 0
+      },
+      "alignment": {
+        "items": {
+          "$ref": "#/components/schemas/AlignmentMove"
+        },
+        "type": "array",
+        "title": "Alignment"
+      },
+      "is_fit": {
+        "type": "boolean",
+        "title": "Is Fit",
+        "default": true
+      }
+    },
+    "type": "object",
+    "required": [
+      "case_id",
+      "fitness",
+      "alignment"
+    ],
+    "title": "CaseAlignmentResponse",
+    "description": "Alignment result for a single case."
+  },
+  "ChangePasswordRequest": {
+    "properties": {
+      "current_password": {
+        "type": "string",
+        "minLength": 1,
+        "title": "Current Password"
+      },
+      "new_password": {
+        "type": "string",
+        "maxLength": 128,
+        "minLength": 8,
+        "title": "New Password"
+      }
+    },
+    "type": "object",
+    "required": [
+      "current_password",
+      "new_password"
+    ],
+    "title": "ChangePasswordRequest",
+    "description": "Change password request."
+  },
+  "ColumnDetectionResponse": {
+    "properties": {
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status",
+        "description": "Dataset status"
+      },
+      "columns": {
+        "items": {
+          "$ref": "#/components/schemas/ColumnTypeInfo"
+        },
+        "type": "array",
+        "title": "Columns"
+      },
+      "suggestions": {
+        "additionalProperties": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "type": "object",
+        "title": "Suggestions",
+        "description": "Suggested mappings: {role: {column, confidence}}"
+      },
+      "requires_user_input": {
+        "type": "boolean",
+        "title": "Requires User Input",
+        "description": "True if auto-mapping confidence is below threshold",
+        "default": false
+      }
+    },
+    "type": "object",
+    "required": [
+      "dataset_id",
+      "status",
+      "columns"
+    ],
+    "title": "ColumnDetectionResponse",
+    "description": "Column detection result for the mapping UI."
+  },
+  "ColumnTypeInfo": {
+    "properties": {
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "dtype": {
+        "type": "string",
+        "title": "Dtype",
+        "description": "Detected type: STRING, INTEGER, DATETIME, FLOAT"
+      },
+      "position": {
+        "type": "integer",
+        "title": "Position",
+        "default": 0
+      },
+      "sample_values": {
+        "items": {},
+        "type": "array",
+        "title": "Sample Values",
+        "default": []
+      },
+      "null_percentage": {
+        "type": "number",
+        "title": "Null Percentage",
+        "default": 0.0
+      },
+      "unique_count": {
+        "type": "integer",
+        "title": "Unique Count",
+        "default": 0
+      },
+      "suggested_role": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Suggested Role",
+        "description": "case_id, activity, timestamp, resource"
+      },
+      "confidence": {
+        "anyOf": [
+          {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Confidence",
+        "description": "Confidence score"
+      }
+    },
+    "type": "object",
+    "required": [
+      "name",
+      "dtype"
+    ],
+    "title": "ColumnTypeInfo",
+    "description": "Column type information with suggestion data."
+  },
+  "ComponentHealth": {
+    "properties": {
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status"
+      },
+      "latency_ms": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Latency Ms"
+      },
+      "message": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Message"
+      },
+      "details": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Details"
+      }
+    },
+    "type": "object",
+    "required": [
+      "name",
+      "status"
+    ],
+    "title": "ComponentHealth",
+    "description": "Health status for a single component."
+  },
+  "ConformanceCheckRequest": {
+    "properties": {
+      "dataset_id": {
+        "type": "string",
+        "maxLength": 36,
+        "minLength": 36,
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+        "title": "Dataset Id",
+        "description": "Dataset UUID for conformance check",
+        "examples": [
+          "123e4567-e89b-12d3-a456-426614174000"
+        ]
+      },
+      "model_id": {
+        "type": "string",
+        "maxLength": 36,
+        "minLength": 36,
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+        "title": "Model Id",
+        "description": "Process model UUID for conformance check",
+        "examples": [
+          "123e4567-e89b-12d3-a456-426614174000"
+        ]
+      },
+      "method": {
+        "$ref": "#/components/schemas/ConformanceMethod",
+        "default": "token_replay"
+      }
+    },
+    "type": "object",
+    "required": [
+      "dataset_id",
+      "model_id"
+    ],
+    "title": "ConformanceCheckRequest",
+    "description": "Request for conformance checking."
+  },
+  "ConformanceListResponse": {
+    "properties": {
+      "total": {
+        "type": "integer",
+        "title": "Total"
+      },
+      "page": {
+        "type": "integer",
+        "title": "Page"
+      },
+      "page_size": {
+        "type": "integer",
+        "title": "Page Size"
+      },
+      "pages": {
+        "type": "integer",
+        "title": "Pages"
+      },
+      "items": {
+        "items": {
+          "$ref": "#/components/schemas/ConformanceResponse"
+        },
+        "type": "array",
+        "title": "Items"
+      }
+    },
+    "type": "object",
+    "required": [
+      "total",
+      "page",
+      "page_size",
+      "pages",
+      "items"
+    ],
+    "title": "ConformanceListResponse",
+    "description": "Paginated conformance results list."
+  },
+  "ConformanceMethod": {
+    "type": "string",
+    "enum": [
+      "token_replay",
+      "alignment",
+      "declare",
+      "log_skeleton",
+      "temporal_profile",
+      "footprints"
+    ],
+    "title": "ConformanceMethod",
+    "description": "Conformance checking methods."
+  },
+  "ConformanceResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "model_id": {
+        "type": "string",
+        "title": "Model Id"
+      },
+      "fitness": {
+        "type": "number",
+        "title": "Fitness"
+      },
+      "precision": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Precision"
+      },
+      "generalization": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Generalization"
+      },
+      "simplicity": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Simplicity"
+      },
+      "method": {
+        "type": "string",
+        "title": "Method"
+      },
+      "algorithm_used": {
+        "type": "string",
+        "title": "Algorithm Used"
+      },
+      "fallback_reason": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Fallback Reason"
+      },
+      "is_conformant": {
+        "type": "boolean",
+        "title": "Is Conformant"
+      },
+      "fitting_traces": {
+        "type": "integer",
+        "title": "Fitting Traces"
+      },
+      "total_traces": {
+        "type": "integer",
+        "title": "Total Traces"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "dataset_id",
+      "model_id",
+      "fitness",
+      "precision",
+      "method",
+      "algorithm_used",
+      "is_conformant",
+      "fitting_traces",
+      "total_traces",
+      "created_at"
+    ],
+    "title": "ConformanceResponse",
+    "description": "Conformance check result."
+  },
+  "CreateDefinitionRequest": {
+    "properties": {
+      "name": {
+        "type": "string",
+        "title": "Name",
+        "description": "Human-readable DAG name"
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "Optional description"
+      },
+      "steps": {
+        "items": {
+          "$ref": "#/components/schemas/StepConfig"
+        },
+        "type": "array",
+        "minItems": 1,
+        "title": "Steps",
+        "description": "List of steps"
+      },
+      "edges": {
+        "items": {
+          "$ref": "#/components/schemas/EdgeConfig"
+        },
+        "type": "array",
+        "title": "Edges",
+        "description": "Dependencies between steps"
+      }
+    },
+    "type": "object",
+    "required": [
+      "name",
+      "steps"
+    ],
+    "title": "CreateDefinitionRequest",
+    "description": "Request to create a DAG definition."
+  },
+  "CurrentUserResponse": {
+    "properties": {
+      "user": {
+        "$ref": "#/components/schemas/UserResponse"
+      },
+      "organization": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/src__platform__users__schemas__schemas__OrganizationResponse"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "workspaces": {
+        "items": {
+          "$ref": "#/components/schemas/WorkspaceResponse"
+        },
+        "type": "array",
+        "title": "Workspaces",
+        "default": []
+      },
+      "current_workspace_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Current Workspace Id"
+      }
+    },
+    "type": "object",
+    "required": [
+      "user"
+    ],
+    "title": "CurrentUserResponse",
+    "description": "Current user context response (for auth/me endpoint)."
+  },
+  "CycleTimeResponse": {
+    "properties": {
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "min_seconds": {
+        "type": "number",
+        "title": "Min Seconds"
+      },
+      "max_seconds": {
+        "type": "number",
+        "title": "Max Seconds"
+      },
+      "avg_seconds": {
+        "type": "number",
+        "title": "Avg Seconds"
+      },
+      "median_seconds": {
+        "type": "number",
+        "title": "Median Seconds"
+      },
+      "percentile_25_seconds": {
+        "type": "number",
+        "title": "Percentile 25 Seconds"
+      },
+      "percentile_75_seconds": {
+        "type": "number",
+        "title": "Percentile 75 Seconds"
+      },
+      "percentile_95_seconds": {
+        "type": "number",
+        "title": "Percentile 95 Seconds"
+      }
+    },
+    "type": "object",
+    "required": [
+      "dataset_id",
+      "min_seconds",
+      "max_seconds",
+      "avg_seconds",
+      "median_seconds",
+      "percentile_25_seconds",
+      "percentile_75_seconds",
+      "percentile_95_seconds"
+    ],
+    "title": "CycleTimeResponse",
+    "description": "Cycle time statistics."
+  },
+  "DFGEdge": {
+    "properties": {
+      "source": {
+        "type": "string",
+        "title": "Source"
+      },
+      "target": {
+        "type": "string",
+        "title": "Target"
+      },
+      "frequency": {
+        "type": "integer",
+        "title": "Frequency"
+      },
+      "probability": {
+        "type": "number",
+        "title": "Probability"
+      },
+      "avg_duration_seconds": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Avg Duration Seconds"
+      },
+      "min_duration_seconds": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Min Duration Seconds"
+      },
+      "max_duration_seconds": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Max Duration Seconds"
+      }
+    },
+    "type": "object",
+    "required": [
+      "source",
+      "target",
+      "frequency",
+      "probability"
+    ],
+    "title": "DFGEdge",
+    "description": "DFG edge for visualization."
+  },
+  "DFGNode": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "frequency": {
+        "type": "integer",
+        "title": "Frequency"
+      },
+      "is_start": {
+        "type": "boolean",
+        "title": "Is Start",
+        "default": false
+      },
+      "is_end": {
+        "type": "boolean",
+        "title": "Is End",
+        "default": false
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "frequency"
+    ],
+    "title": "DFGNode",
+    "description": "DFG node for visualization."
+  },
+  "DFGResponse": {
+    "properties": {
+      "nodes": {
+        "items": {
+          "$ref": "#/components/schemas/DFGNode"
+        },
+        "type": "array",
+        "title": "Nodes"
+      },
+      "edges": {
+        "items": {
+          "$ref": "#/components/schemas/DFGEdge"
+        },
+        "type": "array",
+        "title": "Edges"
+      },
+      "start_activities": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "type": "object",
+        "title": "Start Activities"
+      },
+      "end_activities": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "type": "object",
+        "title": "End Activities"
+      },
+      "total_frequency": {
+        "type": "integer",
+        "title": "Total Frequency"
+      }
+    },
+    "type": "object",
+    "required": [
+      "nodes",
+      "edges",
+      "start_activities",
+      "end_activities",
+      "total_frequency"
+    ],
+    "title": "DFGResponse",
+    "description": "DFG graph data for React visualization."
+  },
+  "DatasetDetailResponse": {
+    "properties": {
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At",
+        "description": "Creation timestamp"
+      },
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "description": "Unique identifier"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "source_format": {
+        "type": "string",
+        "title": "Source Format"
+      },
+      "total_events": {
+        "type": "integer",
+        "title": "Total Events"
+      },
+      "total_cases": {
+        "type": "integer",
+        "title": "Total Cases"
+      },
+      "total_activities": {
+        "type": "integer",
+        "title": "Total Activities"
+      },
+      "activities": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Activities",
+        "default": []
+      },
+      "source_file": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Source File"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status",
+        "default": "ready"
+      },
+      "validation_job_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Validation Job Id"
+      },
+      "ingestion_job_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Ingestion Job Id"
+      },
+      "file_size_bytes": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "File Size Bytes"
+      },
+      "statistics": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Statistics"
+      },
+      "updated_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Updated At"
+      },
+      "error_message": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Error Message"
+      }
+    },
+    "type": "object",
+    "required": [
+      "created_at",
+      "id",
+      "name",
+      "source_format",
+      "total_events",
+      "total_cases",
+      "total_activities"
+    ],
+    "title": "DatasetDetailResponse",
+    "description": "Detailed dataset response (alias for DatasetResponse).",
+    "example": {
+      "activities": [
+        "Receive Order",
+        "Check Credit",
+        "Ship Goods",
+        "Send Invoice"
+      ],
+      "created_at": "2023-10-27T10:00:00Z",
+      "file_size_bytes": 2048500,
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "name": "OrderToCash_2023",
+      "source_file": "o2c_logs.csv",
+      "source_format": "CSV",
+      "status": "ready",
+      "total_activities": 8,
+      "total_cases": 1250,
+      "total_events": 15420
+    }
+  },
+  "DatasetListResponse": {
+    "properties": {
+      "total": {
+        "type": "integer",
+        "title": "Total"
+      },
+      "page": {
+        "type": "integer",
+        "title": "Page"
+      },
+      "page_size": {
+        "type": "integer",
+        "title": "Page Size"
+      },
+      "pages": {
+        "type": "integer",
+        "title": "Pages"
+      },
+      "items": {
+        "items": {
+          "$ref": "#/components/schemas/DatasetResponse"
+        },
+        "type": "array",
+        "title": "Items"
+      }
+    },
+    "type": "object",
+    "required": [
+      "total",
+      "page",
+      "page_size",
+      "pages",
+      "items"
+    ],
+    "title": "DatasetListResponse",
+    "description": "Paginated dataset list."
+  },
+  "DatasetResponse": {
+    "properties": {
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At",
+        "description": "Creation timestamp"
+      },
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "description": "Unique identifier"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "source_format": {
+        "type": "string",
+        "title": "Source Format"
+      },
+      "total_events": {
+        "type": "integer",
+        "title": "Total Events"
+      },
+      "total_cases": {
+        "type": "integer",
+        "title": "Total Cases"
+      },
+      "total_activities": {
+        "type": "integer",
+        "title": "Total Activities"
+      },
+      "activities": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Activities",
+        "default": []
+      },
+      "source_file": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Source File"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status",
+        "default": "ready"
+      },
+      "validation_job_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Validation Job Id"
+      },
+      "ingestion_job_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Ingestion Job Id"
+      },
+      "file_size_bytes": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "File Size Bytes"
+      },
+      "statistics": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Statistics"
+      },
+      "updated_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Updated At"
+      },
+      "error_message": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Error Message"
+      }
+    },
+    "type": "object",
+    "required": [
+      "created_at",
+      "id",
+      "name",
+      "source_format",
+      "total_events",
+      "total_cases",
+      "total_activities"
+    ],
+    "title": "DatasetResponse",
+    "description": "Dataset response with optional detail fields.",
+    "example": {
+      "activities": [
+        "Receive Order",
+        "Check Credit",
+        "Ship Goods",
+        "Send Invoice"
+      ],
+      "created_at": "2023-10-27T10:00:00Z",
+      "file_size_bytes": 2048500,
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "name": "OrderToCash_2023",
+      "source_file": "o2c_logs.csv",
+      "source_format": "CSV",
+      "status": "ready",
+      "total_activities": 8,
+      "total_cases": 1250,
+      "total_events": 15420
+    }
+  },
+  "DefinitionListResponse": {
+    "properties": {
+      "items": {
+        "items": {
+          "$ref": "#/components/schemas/DefinitionResponse"
+        },
+        "type": "array",
+        "title": "Items"
+      },
+      "total": {
+        "type": "integer",
+        "title": "Total"
+      }
+    },
+    "type": "object",
+    "required": [
+      "items",
+      "total"
+    ],
+    "title": "DefinitionListResponse",
+    "description": "Paginated list of definitions."
+  },
+  "DefinitionResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description"
+      },
+      "version": {
+        "type": "integer",
+        "title": "Version"
+      },
+      "is_active": {
+        "type": "boolean",
+        "title": "Is Active"
+      },
+      "steps": {
+        "items": {
+          "$ref": "#/components/schemas/StepResponse"
+        },
+        "type": "array",
+        "title": "Steps"
+      },
+      "edges": {
+        "items": {
+          "$ref": "#/components/schemas/EdgeResponse"
+        },
+        "type": "array",
+        "title": "Edges"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "version",
+      "is_active",
+      "steps",
+      "edges",
+      "created_at"
+    ],
+    "title": "DefinitionResponse",
+    "description": "DAG definition response.\n\nUses BaseSchema for ORM compatibility. Note: Does not extend\nBaseEntityResponse since we only need created_at, not updated_at."
+  },
+  "DetailedHealthResponse": {
+    "properties": {
+      "status": {
+        "type": "string",
+        "title": "Status"
+      },
+      "version": {
+        "type": "string",
+        "title": "Version"
+      },
+      "uptime_seconds": {
+        "type": "number",
+        "title": "Uptime Seconds"
+      },
+      "timestamp": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Timestamp"
+      },
+      "components": {
+        "items": {
+          "$ref": "#/components/schemas/ComponentHealth"
+        },
+        "type": "array",
+        "title": "Components"
+      }
+    },
+    "type": "object",
+    "required": [
+      "status",
+      "version",
+      "uptime_seconds",
+      "timestamp",
+      "components"
+    ],
+    "title": "DetailedHealthResponse",
+    "description": "Detailed health response with component breakdown."
+  },
+  "DeviationDetail": {
+    "properties": {
+      "case_id": {
+        "type": "string",
+        "title": "Case Id"
+      },
+      "activity": {
+        "type": "string",
+        "title": "Activity"
+      },
+      "violation_type": {
+        "type": "string",
+        "title": "Violation Type"
+      },
+      "expected_after": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Expected After"
+      },
+      "frequency": {
+        "type": "integer",
+        "title": "Frequency",
+        "default": 1
+      },
+      "impact": {
+        "type": "string",
+        "title": "Impact",
+        "default": "medium"
+      }
+    },
+    "type": "object",
+    "required": [
+      "case_id",
+      "activity",
+      "violation_type"
+    ],
+    "title": "DeviationDetail",
+    "description": "Structured deviation for conformance diagnostics."
+  },
+  "DeviationResponse": {
+    "properties": {
+      "case_id": {
+        "type": "string",
+        "title": "Case Id"
+      },
+      "activity": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Activity"
+      },
+      "deviation_type": {
+        "type": "string",
+        "title": "Deviation Type"
+      },
+      "details": {
+        "type": "string",
+        "title": "Details"
+      }
+    },
+    "type": "object",
+    "required": [
+      "case_id",
+      "activity",
+      "deviation_type",
+      "details"
+    ],
+    "title": "DeviationResponse",
+    "description": "Conformance deviation detail."
+  },
+  "DiagnosticsResponse": {
+    "properties": {
+      "fitness": {
+        "type": "number",
+        "title": "Fitness"
+      },
+      "precision": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Precision"
+      },
+      "generalization": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Generalization"
+      },
+      "simplicity": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Simplicity"
+      },
+      "f_score": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "F Score"
+      },
+      "total_traces": {
+        "type": "integer",
+        "title": "Total Traces"
+      },
+      "fitting_traces": {
+        "type": "integer",
+        "title": "Fitting Traces"
+      },
+      "non_fitting_traces": {
+        "type": "integer",
+        "title": "Non Fitting Traces"
+      },
+      "fitness_ratio": {
+        "type": "number",
+        "title": "Fitness Ratio"
+      },
+      "average_alignment_cost": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Average Alignment Cost"
+      },
+      "deviations": {
+        "anyOf": [
+          {
+            "items": {
+              "$ref": "#/components/schemas/DeviationDetail"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Deviations"
+      }
+    },
+    "type": "object",
+    "required": [
+      "fitness",
+      "precision",
+      "total_traces",
+      "fitting_traces",
+      "non_fitting_traces",
+      "fitness_ratio"
+    ],
+    "title": "DiagnosticsResponse",
+    "description": "Detailed conformance diagnostics."
+  },
+  "DiscoverOCPNRequest": {
+    "properties": {
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "model_name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Model Name"
+      }
+    },
+    "type": "object",
+    "required": [
+      "dataset_id"
+    ],
+    "title": "DiscoverOCPNRequest",
+    "description": "Request to discover Object-Centric Petri Net."
+  },
+  "DiscoverRequest": {
+    "properties": {
+      "dataset_id": {
+        "type": "string",
+        "maxLength": 36,
+        "minLength": 36,
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+        "title": "Dataset Id",
+        "description": "Dataset UUID to mine",
+        "examples": [
+          "123e4567-e89b-12d3-a456-426614174000"
+        ]
+      },
+      "miner_type": {
+        "$ref": "#/components/schemas/MinerType",
+        "default": "inductive"
+      },
+      "model_name": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Model Name",
+        "description": "Optional name for the discovered model"
+      }
+    },
+    "type": "object",
+    "required": [
+      "dataset_id"
+    ],
+    "title": "DiscoverRequest",
+    "description": "Request to discover a process model."
+  },
+  "DownloadResponse": {
+    "properties": {
+      "download_url": {
+        "type": "string",
+        "title": "Download Url"
+      },
+      "filename": {
+        "type": "string",
+        "title": "Filename"
+      },
+      "expires_in": {
+        "type": "integer",
+        "title": "Expires In",
+        "default": 3600
+      }
+    },
+    "type": "object",
+    "required": [
+      "download_url",
+      "filename"
+    ],
+    "title": "DownloadResponse",
+    "description": "Download URL response."
+  },
+  "EdgeConfig": {
+    "properties": {
+      "from_step": {
+        "type": "string",
+        "title": "From Step",
+        "description": "Source step name"
+      },
+      "to_step": {
+        "type": "string",
+        "title": "To Step",
+        "description": "Target step name"
+      },
+      "condition": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Condition",
+        "description": "Optional condition for edge execution"
+      }
+    },
+    "type": "object",
+    "required": [
+      "from_step",
+      "to_step"
+    ],
+    "title": "EdgeConfig",
+    "description": "Edge configuration for DAG definition."
+  },
+  "EdgeResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "from_step_id": {
+        "type": "string",
+        "title": "From Step Id"
+      },
+      "to_step_id": {
+        "type": "string",
+        "title": "To Step Id"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "from_step_id",
+      "to_step_id"
+    ],
+    "title": "EdgeResponse",
+    "description": "DAG edge in a definition."
+  },
+  "FilterConfig": {
+    "properties": {
+      "type": {
+        "type": "string",
+        "title": "Type",
+        "description": "Filter type: time_range, variants_top_k, etc."
+      },
+      "params": {
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Params",
+        "description": "Filter parameters"
+      }
+    },
+    "type": "object",
+    "required": [
+      "type"
+    ],
+    "title": "FilterConfig",
+    "description": "Single filter configuration."
+  },
+  "FilterOptionsResponse": {
+    "properties": {
+      "activities": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Activities"
+      },
+      "resources": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Resources"
+      },
+      "start_activities": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "type": "object",
+        "title": "Start Activities"
+      },
+      "end_activities": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "type": "object",
+        "title": "End Activities"
+      },
+      "total_variants": {
+        "type": "integer",
+        "title": "Total Variants"
+      },
+      "time_range": {
+        "additionalProperties": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type": "object",
+        "title": "Time Range"
+      },
+      "case_size_range": {
+        "additionalProperties": {
+          "type": "number"
+        },
+        "type": "object",
+        "title": "Case Size Range"
+      }
+    },
+    "type": "object",
+    "required": [
+      "activities",
+      "resources",
+      "start_activities",
+      "end_activities",
+      "total_variants",
+      "time_range",
+      "case_size_range"
+    ],
+    "title": "FilterOptionsResponse",
+    "description": "Available filter options based on log contents."
+  },
+  "FilterPreviewRequest": {
+    "properties": {
+      "filters": {
+        "items": {
+          "$ref": "#/components/schemas/FilterConfig"
+        },
+        "type": "array",
+        "title": "Filters",
+        "description": "List of filters to apply"
+      }
+    },
+    "type": "object",
+    "required": [
+      "filters"
+    ],
+    "title": "FilterPreviewRequest",
+    "description": "Request to preview filter impact without saving."
+  },
+  "FilterPreviewResponse": {
+    "properties": {
+      "would_retain_cases": {
+        "type": "integer",
+        "title": "Would Retain Cases"
+      },
+      "would_retain_events": {
+        "type": "integer",
+        "title": "Would Retain Events"
+      },
+      "statistics": {
+        "$ref": "#/components/schemas/FilterStatistics"
+      },
+      "filters_applied": {
+        "items": {
+          "$ref": "#/components/schemas/FilterConfig"
+        },
+        "type": "array",
+        "title": "Filters Applied"
+      }
+    },
+    "type": "object",
+    "required": [
+      "would_retain_cases",
+      "would_retain_events",
+      "statistics",
+      "filters_applied"
+    ],
+    "title": "FilterPreviewResponse",
+    "description": "Response for filter preview."
+  },
+  "FilterRequest": {
+    "properties": {
+      "name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Name",
+        "description": "Name for the filtered log"
+      },
+      "filters": {
+        "items": {
+          "$ref": "#/components/schemas/FilterConfig"
+        },
+        "type": "array",
+        "title": "Filters",
+        "description": "List of filters to apply"
+      },
+      "save_result": {
+        "type": "boolean",
+        "title": "Save Result",
+        "description": "Whether to save the filtered log",
+        "default": true
+      }
+    },
+    "type": "object",
+    "required": [
+      "filters"
+    ],
+    "title": "FilterRequest",
+    "description": "Request to apply filters to an event log."
+  },
+  "FilterStatistics": {
+    "properties": {
+      "original_cases": {
+        "type": "integer",
+        "title": "Original Cases"
+      },
+      "filtered_cases": {
+        "type": "integer",
+        "title": "Filtered Cases"
+      },
+      "cases_removed": {
+        "type": "integer",
+        "title": "Cases Removed"
+      },
+      "cases_retained_pct": {
+        "type": "number",
+        "title": "Cases Retained Pct"
+      },
+      "original_events": {
+        "type": "integer",
+        "title": "Original Events"
+      },
+      "filtered_events": {
+        "type": "integer",
+        "title": "Filtered Events"
+      },
+      "events_removed": {
+        "type": "integer",
+        "title": "Events Removed"
+      },
+      "events_retained_pct": {
+        "type": "number",
+        "title": "Events Retained Pct"
+      },
+      "original_activities": {
+        "type": "integer",
+        "title": "Original Activities"
+      },
+      "filtered_activities": {
+        "type": "integer",
+        "title": "Filtered Activities"
+      },
+      "activities_removed": {
+        "type": "integer",
+        "title": "Activities Removed"
+      }
+    },
+    "type": "object",
+    "required": [
+      "original_cases",
+      "filtered_cases",
+      "cases_removed",
+      "cases_retained_pct",
+      "original_events",
+      "filtered_events",
+      "events_removed",
+      "events_retained_pct",
+      "original_activities",
+      "filtered_activities",
+      "activities_removed"
+    ],
+    "title": "FilterStatistics",
+    "description": "Statistics comparing original and filtered logs."
+  },
+  "FilterTemplateListResponse": {
+    "properties": {
+      "templates": {
+        "items": {
+          "$ref": "#/components/schemas/FilterTemplateResponse"
+        },
+        "type": "array",
+        "title": "Templates"
+      }
+    },
+    "type": "object",
+    "required": [
+      "templates"
+    ],
+    "title": "FilterTemplateListResponse",
+    "description": "List of available filter templates."
+  },
+  "FilterTemplateResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "description": {
+        "type": "string",
+        "title": "Description"
+      },
+      "filters": {
+        "items": {
+          "$ref": "#/components/schemas/FilterConfig"
+        },
+        "type": "array",
+        "title": "Filters"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "description",
+      "filters"
+    ],
+    "title": "FilterTemplateResponse",
+    "description": "Pre-built filter template."
+  },
+  "FilteredLogListResponse": {
+    "properties": {
+      "source_dataset_id": {
+        "type": "string",
+        "title": "Source Dataset Id"
+      },
+      "source_dataset_name": {
+        "type": "string",
+        "title": "Source Dataset Name"
+      },
+      "filtered_logs": {
+        "items": {
+          "$ref": "#/components/schemas/FilteredLogResponse"
+        },
+        "type": "array",
+        "title": "Filtered Logs"
+      },
+      "total": {
+        "type": "integer",
+        "title": "Total"
+      }
+    },
+    "type": "object",
+    "required": [
+      "source_dataset_id",
+      "source_dataset_name",
+      "filtered_logs",
+      "total"
+    ],
+    "title": "FilteredLogListResponse",
+    "description": "List of filtered logs derived from a source log."
+  },
+  "FilteredLogResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "source_dataset_id": {
+        "type": "string",
+        "title": "Source Dataset Id",
+        "default": ""
+      },
+      "is_filtered": {
+        "type": "boolean",
+        "title": "Is Filtered",
+        "default": true
+      },
+      "filter_config": {
+        "items": {
+          "$ref": "#/components/schemas/FilterConfig"
+        },
+        "type": "array",
+        "title": "Filter Config",
+        "default": []
+      },
+      "total_events": {
+        "type": "integer",
+        "title": "Total Events"
+      },
+      "total_cases": {
+        "type": "integer",
+        "title": "Total Cases"
+      },
+      "total_activities": {
+        "type": "integer",
+        "title": "Total Activities"
+      },
+      "statistics": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/FilterStatistics"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "total_events",
+      "total_cases",
+      "total_activities",
+      "created_at"
+    ],
+    "title": "FilteredLogResponse",
+    "description": "Response for a filtered log."
+  },
+  "ForgotPasswordRequest": {
+    "properties": {
+      "email": {
+        "type": "string",
+        "format": "email",
+        "title": "Email"
+      }
+    },
+    "type": "object",
+    "required": [
+      "email"
+    ],
+    "title": "ForgotPasswordRequest",
+    "description": "Forgot password request."
+  },
+  "HTTPValidationError": {
+    "properties": {
+      "detail": {
+        "items": {
+          "$ref": "#/components/schemas/ValidationError"
+        },
+        "type": "array",
+        "title": "Detail"
+      }
+    },
+    "type": "object",
+    "title": "HTTPValidationError"
+  },
+  "HealthStatus": {
+    "properties": {
+      "status": {
+        "type": "string",
+        "title": "Status",
+        "examples": [
+          "healthy",
+          "degraded",
+          "unhealthy"
+        ]
+      },
+      "timestamp": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Timestamp"
+      }
+    },
+    "type": "object",
+    "required": [
+      "status"
+    ],
+    "title": "HealthStatus",
+    "description": "Basic health status response."
+  },
+  "InviteMemberRequest": {
+    "properties": {
+      "email": {
+        "type": "string",
+        "title": "Email",
+        "description": "Email of user to invite"
+      },
+      "role": {
+        "type": "string",
+        "pattern": "^(owner|admin|member)$",
+        "title": "Role",
+        "default": "member"
+      }
+    },
+    "type": "object",
+    "required": [
+      "email"
+    ],
+    "title": "InviteMemberRequest",
+    "description": "Invite member request."
+  },
+  "JobCancelResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status"
+      },
+      "message": {
+        "type": "string",
+        "title": "Message"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "status",
+      "message"
+    ],
+    "title": "JobCancelResponse",
+    "description": "Response after cancelling or deleting a job."
+  },
+  "JobListResponse": {
+    "properties": {
+      "total": {
+        "type": "integer",
+        "title": "Total"
+      },
+      "page": {
+        "type": "integer",
+        "title": "Page"
+      },
+      "page_size": {
+        "type": "integer",
+        "title": "Page Size"
+      },
+      "pages": {
+        "type": "integer",
+        "title": "Pages"
+      },
+      "items": {
+        "items": {
+          "$ref": "#/components/schemas/JobStatusResponse"
+        },
+        "type": "array",
+        "title": "Items"
+      }
+    },
+    "type": "object",
+    "required": [
+      "total",
+      "page",
+      "page_size",
+      "pages",
+      "items"
+    ],
+    "title": "JobListResponse",
+    "description": "Paginated job list."
+  },
+  "JobLogEntry": {
+    "properties": {
+      "timestamp": {
+        "type": "string",
+        "title": "Timestamp"
+      },
+      "level": {
+        "type": "string",
+        "title": "Level"
+      },
+      "message": {
+        "type": "string",
+        "title": "Message"
+      },
+      "details": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Details"
+      }
+    },
+    "type": "object",
+    "required": [
+      "timestamp",
+      "level",
+      "message"
+    ],
+    "title": "JobLogEntry",
+    "description": "Job log entry."
+  },
+  "JobLogsResponse": {
+    "properties": {
+      "job_id": {
+        "type": "string",
+        "title": "Job Id"
+      },
+      "logs": {
+        "items": {
+          "$ref": "#/components/schemas/JobLogEntry"
+        },
+        "type": "array",
+        "title": "Logs"
+      },
+      "total": {
+        "type": "integer",
+        "title": "Total"
+      }
+    },
+    "type": "object",
+    "required": [
+      "job_id",
+      "logs",
+      "total"
+    ],
+    "title": "JobLogsResponse",
+    "description": "Job logs response."
+  },
+  "JobStatusResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "job_type": {
+        "type": "string",
+        "title": "Job Type"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status"
+      },
+      "progress": {
+        "type": "integer",
+        "title": "Progress"
+      },
+      "stage": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Stage"
+      },
+      "result": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Result"
+      },
+      "error": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Error"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "job_type",
+      "status",
+      "progress",
+      "created_at"
+    ],
+    "title": "JobStatusResponse",
+    "description": "Async job status."
+  },
+  "LogEntry": {
+    "properties": {
+      "type": {
+        "type": "string",
+        "title": "Type"
+      },
+      "source": {
+        "type": "string",
+        "title": "Source"
+      },
+      "message": {
+        "title": "Message"
+      },
+      "timestamp": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Timestamp"
+      }
+    },
+    "type": "object",
+    "required": [
+      "type",
+      "source",
+      "message"
+    ],
+    "title": "LogEntry",
+    "description": "Frontend log entry."
+  },
+  "LoginRequest": {
+    "properties": {
+      "email": {
+        "type": "string",
+        "format": "email",
+        "title": "Email"
+      },
+      "password": {
+        "type": "string",
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Password"
+      }
+    },
+    "type": "object",
+    "required": [
+      "email",
+      "password"
+    ],
+    "title": "LoginRequest",
+    "description": "Login request with email and password."
+  },
+  "MappingResponse": {
+    "properties": {
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "case_id_column": {
+        "type": "string",
+        "title": "Case Id Column"
+      },
+      "activity_column": {
+        "type": "string",
+        "title": "Activity Column"
+      },
+      "timestamp_column": {
+        "type": "string",
+        "title": "Timestamp Column"
+      },
+      "resource_column": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Resource Column"
+      },
+      "timestamp_format": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Timestamp Format"
+      },
+      "additional_columns": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Additional Columns",
+        "default": []
+      },
+      "auto_mapped": {
+        "type": "boolean",
+        "title": "Auto Mapped",
+        "default": false
+      },
+      "created_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Created At"
+      },
+      "updated_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Updated At"
+      }
+    },
+    "type": "object",
+    "required": [
+      "dataset_id",
+      "case_id_column",
+      "activity_column",
+      "timestamp_column"
+    ],
+    "title": "MappingResponse",
+    "description": "Current mapping response."
+  },
+  "MappingUpdateRequest": {
+    "properties": {
+      "case_id_column": {
+        "type": "string",
+        "title": "Case Id Column",
+        "description": "Column for case ID"
+      },
+      "activity_column": {
+        "type": "string",
+        "title": "Activity Column",
+        "description": "Column for activity"
+      },
+      "timestamp_column": {
+        "type": "string",
+        "title": "Timestamp Column",
+        "description": "Column for timestamp"
+      },
+      "resource_column": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Resource Column",
+        "description": "Column for resource"
+      },
+      "timestamp_format": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Timestamp Format",
+        "description": "Timestamp format"
+      },
+      "additional_columns": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Additional Columns"
+      }
+    },
+    "type": "object",
+    "required": [
+      "case_id_column",
+      "activity_column",
+      "timestamp_column"
+    ],
+    "title": "MappingUpdateRequest",
+    "description": "Update mapping request."
+  },
+  "MemberListResponse": {
+    "properties": {
+      "items": {
+        "items": {
+          "$ref": "#/components/schemas/MemberResponse"
+        },
+        "type": "array",
+        "title": "Items"
+      },
+      "total": {
+        "type": "integer",
+        "title": "Total"
+      }
+    },
+    "type": "object",
+    "required": [
+      "items",
+      "total"
+    ],
+    "title": "MemberListResponse",
+    "description": "Paginated member list."
+  },
+  "MemberResponse": {
+    "properties": {
+      "user_id": {
+        "type": "string",
+        "title": "User Id"
+      },
+      "email": {
+        "type": "string",
+        "title": "Email"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "role": {
+        "type": "string",
+        "title": "Role"
+      },
+      "joined_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Joined At"
+      }
+    },
+    "type": "object",
+    "required": [
+      "user_id",
+      "email",
+      "name",
+      "role"
+    ],
+    "title": "MemberResponse",
+    "description": "Organization member response."
+  },
+  "MinerInfo": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "description": {
+        "type": "string",
+        "title": "Description"
+      },
+      "output_format": {
+        "type": "string",
+        "title": "Output Format"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "description",
+      "output_format"
+    ],
+    "title": "MinerInfo",
+    "description": "Mining algorithm information."
+  },
+  "MinerType": {
+    "type": "string",
+    "enum": [
+      "alpha",
+      "alpha_plus",
+      "inductive",
+      "inductive_infrequent",
+      "heuristics",
+      "dfg",
+      "performance_dfg",
+      "ilp",
+      "powl",
+      "bpmn_inductive",
+      "declare",
+      "log_skeleton",
+      "temporal_profile",
+      "prefix_tree",
+      "transition_system",
+      "batches",
+      "correlation"
+    ],
+    "title": "MinerType",
+    "description": "Process mining algorithm types."
+  },
+  "ModelListResponse": {
+    "properties": {
+      "total": {
+        "type": "integer",
+        "title": "Total"
+      },
+      "page": {
+        "type": "integer",
+        "title": "Page"
+      },
+      "page_size": {
+        "type": "integer",
+        "title": "Page Size"
+      },
+      "pages": {
+        "type": "integer",
+        "title": "Pages"
+      },
+      "items": {
+        "items": {
+          "$ref": "#/components/schemas/ModelResponse"
+        },
+        "type": "array",
+        "title": "Items"
+      }
+    },
+    "type": "object",
+    "required": [
+      "total",
+      "page",
+      "page_size",
+      "pages",
+      "items"
+    ],
+    "title": "ModelListResponse",
+    "description": "Paginated model list."
+  },
+  "ModelResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "miner_type": {
+        "type": "string",
+        "title": "Miner Type"
+      },
+      "model_format": {
+        "type": "string",
+        "title": "Model Format"
+      },
+      "dataset_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Dataset Id"
+      },
+      "fitness": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Fitness"
+      },
+      "precision": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Precision"
+      },
+      "metrics_status": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Metrics Status",
+        "description": "Status of quality metrics: 'success', 'failed', or 'not_applicable'"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "miner_type",
+      "model_format",
+      "dataset_id",
+      "fitness",
+      "precision",
+      "created_at"
+    ],
+    "title": "ModelResponse",
+    "description": "Process model response."
+  },
+  "NetworkEdge": {
+    "properties": {
+      "source": {
+        "type": "string",
+        "title": "Source"
+      },
+      "target": {
+        "type": "string",
+        "title": "Target"
+      },
+      "weight": {
+        "type": "number",
+        "title": "Weight"
+      },
+      "label": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Label"
+      }
+    },
+    "type": "object",
+    "required": [
+      "source",
+      "target",
+      "weight"
+    ],
+    "title": "NetworkEdge",
+    "description": "Edge in a social network graph."
+  },
+  "NetworkNode": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "label": {
+        "type": "string",
+        "title": "Label"
+      },
+      "type": {
+        "type": "string",
+        "title": "Type",
+        "default": "resource"
+      },
+      "weight": {
+        "type": "number",
+        "title": "Weight",
+        "default": 1.0
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "label"
+    ],
+    "title": "NetworkNode",
+    "description": "Node in a social network graph."
+  },
+  "OCDFGEdge": {
+    "properties": {
+      "source": {
+        "type": "string",
+        "title": "Source"
+      },
+      "target": {
+        "type": "string",
+        "title": "Target"
+      },
+      "object_type": {
+        "type": "string",
+        "title": "Object Type"
+      },
+      "frequency": {
+        "type": "integer",
+        "title": "Frequency"
+      }
+    },
+    "type": "object",
+    "required": [
+      "source",
+      "target",
+      "object_type",
+      "frequency"
+    ],
+    "title": "OCDFGEdge",
+    "description": "Object-Centric DFG edge."
+  },
+  "OCDFGNode": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "object_type": {
+        "type": "string",
+        "title": "Object Type"
+      },
+      "frequency": {
+        "type": "integer",
+        "title": "Frequency",
+        "default": 0
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "object_type"
+    ],
+    "title": "OCDFGNode",
+    "description": "Object-Centric DFG node."
+  },
+  "OCDFGResponse": {
+    "properties": {
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "object_types": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Object Types"
+      },
+      "activities": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Activities"
+      },
+      "graphs_by_type": {
+        "additionalProperties": {
+          "$ref": "#/components/schemas/OCDFGTypeGraph"
+        },
+        "type": "object",
+        "title": "Graphs By Type"
+      },
+      "total_events": {
+        "type": "integer",
+        "title": "Total Events",
+        "default": 0
+      },
+      "total_objects": {
+        "type": "integer",
+        "title": "Total Objects",
+        "default": 0
+      }
+    },
+    "type": "object",
+    "required": [
+      "dataset_id",
+      "object_types",
+      "activities",
+      "graphs_by_type"
+    ],
+    "title": "OCDFGResponse",
+    "description": "Object-Centric DFG response."
+  },
+  "OCDFGTypeGraph": {
+    "properties": {
+      "object_type": {
+        "type": "string",
+        "title": "Object Type"
+      },
+      "nodes": {
+        "items": {
+          "$ref": "#/components/schemas/OCDFGNode"
+        },
+        "type": "array",
+        "title": "Nodes"
+      },
+      "edges": {
+        "items": {
+          "$ref": "#/components/schemas/OCDFGEdge"
+        },
+        "type": "array",
+        "title": "Edges"
+      },
+      "start_activities": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Start Activities",
+        "default": []
+      },
+      "end_activities": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "End Activities",
+        "default": []
+      }
+    },
+    "type": "object",
+    "required": [
+      "object_type",
+      "nodes",
+      "edges"
+    ],
+    "title": "OCDFGTypeGraph",
+    "description": "OC-DFG graph for a single object type."
+  },
+  "OCELLogListResponse": {
+    "properties": {
+      "logs": {
+        "items": {
+          "$ref": "#/components/schemas/OCELLogResponse"
+        },
+        "type": "array",
+        "title": "Logs"
+      },
+      "total": {
+        "type": "integer",
+        "title": "Total"
+      }
+    },
+    "type": "object",
+    "required": [
+      "logs",
+      "total"
+    ],
+    "title": "OCELLogListResponse",
+    "description": "List of OCEL logs."
+  },
+  "OCELLogResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "source_file": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Source File"
+      },
+      "source_format": {
+        "type": "string",
+        "title": "Source Format"
+      },
+      "total_events": {
+        "type": "integer",
+        "title": "Total Events"
+      },
+      "total_objects": {
+        "type": "integer",
+        "title": "Total Objects"
+      },
+      "total_object_types": {
+        "type": "integer",
+        "title": "Total Object Types"
+      },
+      "object_types": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Object Types",
+        "default": []
+      },
+      "activities": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Activities",
+        "default": []
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "source_file",
+      "source_format",
+      "total_events",
+      "total_objects",
+      "total_object_types",
+      "created_at"
+    ],
+    "title": "OCELLogResponse",
+    "description": "OCEL log response."
+  },
+  "OCELObjectTypeResponse": {
+    "properties": {
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "object_count": {
+        "type": "integer",
+        "title": "Object Count"
+      },
+      "attributes": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Attributes",
+        "default": []
+      }
+    },
+    "type": "object",
+    "required": [
+      "name",
+      "object_count"
+    ],
+    "title": "OCELObjectTypeResponse",
+    "description": "Object type in an OCEL."
+  },
+  "OCELStatisticsResponse": {
+    "properties": {
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "total_events": {
+        "type": "integer",
+        "title": "Total Events"
+      },
+      "total_objects": {
+        "type": "integer",
+        "title": "Total Objects"
+      },
+      "total_object_types": {
+        "type": "integer",
+        "title": "Total Object Types"
+      },
+      "total_activities": {
+        "type": "integer",
+        "title": "Total Activities"
+      },
+      "object_types": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Object Types"
+      },
+      "activities": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Activities"
+      },
+      "objects_per_type": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "type": "object",
+        "title": "Objects Per Type"
+      }
+    },
+    "type": "object",
+    "required": [
+      "dataset_id",
+      "total_events",
+      "total_objects",
+      "total_object_types",
+      "total_activities",
+      "object_types",
+      "activities",
+      "objects_per_type"
+    ],
+    "title": "OCELStatisticsResponse",
+    "description": "OCEL statistics response."
+  },
+  "OCPetriNetResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id",
+        "default": ""
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "object_types": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Object Types",
+        "default": []
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "created_at"
+    ],
+    "title": "OCPetriNetResponse",
+    "description": "Object-Centric Petri Net response."
+  },
+  "OperationListResponse": {
+    "properties": {
+      "items": {
+        "items": {
+          "$ref": "#/components/schemas/OperationStatus"
+        },
+        "type": "array",
+        "title": "Items"
+      },
+      "total": {
+        "type": "integer",
+        "title": "Total"
+      }
+    },
+    "type": "object",
+    "required": [
+      "items",
+      "total"
+    ],
+    "title": "OperationListResponse",
+    "description": "List of operations."
+  },
+  "OperationStatus": {
+    "properties": {
+      "workflow_id": {
+        "type": "string",
+        "title": "Workflow Id",
+        "description": "Temporal workflow ID"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status",
+        "description": "PENDING, RUNNING, COMPLETED, FAILED, CANCELLED, TIMED_OUT"
+      },
+      "progress": {
+        "type": "integer",
+        "maximum": 100.0,
+        "minimum": 0.0,
+        "title": "Progress",
+        "description": "Progress percentage 0-100",
+        "default": 0
+      },
+      "current_step": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Current Step",
+        "description": "Current activity/step name"
+      },
+      "started_at": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Started At",
+        "description": "ISO timestamp when started"
+      },
+      "completed_at": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Completed At",
+        "description": "ISO timestamp when completed"
+      },
+      "error_message": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Error Message",
+        "description": "Error message if failed"
+      },
+      "entity_type": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Entity Type",
+        "description": "Entity type (dataset, model, etc)"
+      },
+      "entity_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Entity Id",
+        "description": "Entity ID"
+      },
+      "operation_type": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Operation Type",
+        "description": "Operation type (ingest, discover, etc)"
+      }
+    },
+    "type": "object",
+    "required": [
+      "workflow_id",
+      "status"
+    ],
+    "title": "OperationStatus",
+    "description": "Operation status response from Temporal."
+  },
+  "OrganizationCreateRequest": {
+    "properties": {
+      "name": {
+        "type": "string",
+        "maxLength": 255,
+        "minLength": 1,
+        "title": "Name"
+      },
+      "slug": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[a-z0-9-]+$"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Slug"
+      }
+    },
+    "type": "object",
+    "required": [
+      "name"
+    ],
+    "title": "OrganizationCreateRequest",
+    "description": "Create organization request."
+  },
+  "OrganizationListResponse": {
+    "properties": {
+      "items": {
+        "items": {
+          "$ref": "#/components/schemas/OrganizationResponse"
+        },
+        "type": "array",
+        "title": "Items"
+      },
+      "total": {
+        "type": "integer",
+        "title": "Total"
+      },
+      "page": {
+        "type": "integer",
+        "title": "Page"
+      },
+      "page_size": {
+        "type": "integer",
+        "title": "Page Size"
+      }
+    },
+    "type": "object",
+    "required": [
+      "items",
+      "total",
+      "page",
+      "page_size"
+    ],
+    "title": "OrganizationListResponse",
+    "description": "Paginated organization list."
+  },
+  "OrganizationResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "slug": {
+        "type": "string",
+        "title": "Slug"
+      },
+      "plan": {
+        "type": "string",
+        "title": "Plan"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At"
+      },
+      "updated_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Updated At"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "slug",
+      "plan",
+      "created_at"
+    ],
+    "title": "OrganizationResponse",
+    "description": "Organization response."
+  },
+  "OrganizationUpdateRequest": {
+    "properties": {
+      "name": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Name"
+      }
+    },
+    "type": "object",
+    "title": "OrganizationUpdateRequest",
+    "description": "Update organization request."
+  },
+  "PatternResponse": {
+    "properties": {
+      "pattern": {
+        "type": "string",
+        "title": "Pattern"
+      },
+      "frequency": {
+        "type": "integer",
+        "title": "Frequency"
+      },
+      "support": {
+        "type": "number",
+        "title": "Support"
+      }
+    },
+    "type": "object",
+    "required": [
+      "pattern",
+      "frequency",
+      "support"
+    ],
+    "title": "PatternResponse",
+    "description": "Frequent pattern/subsequence."
+  },
+  "PerformanceDashboardResponse": {
+    "properties": {
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "cycle_time": {
+        "$ref": "#/components/schemas/CycleTimeResponse"
+      },
+      "throughput": {
+        "$ref": "#/components/schemas/ThroughputResponse"
+      },
+      "top_bottlenecks": {
+        "items": {
+          "$ref": "#/components/schemas/BottleneckResponse"
+        },
+        "type": "array",
+        "title": "Top Bottlenecks"
+      },
+      "rework_summary": {
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Rework Summary"
+      }
+    },
+    "type": "object",
+    "required": [
+      "dataset_id",
+      "cycle_time",
+      "throughput",
+      "top_bottlenecks",
+      "rework_summary"
+    ],
+    "title": "PerformanceDashboardResponse",
+    "description": "Performance summary dashboard."
+  },
+  "PetriNetArc": {
+    "properties": {
+      "source": {
+        "type": "string",
+        "title": "Source"
+      },
+      "target": {
+        "type": "string",
+        "title": "Target"
+      },
+      "weight": {
+        "type": "integer",
+        "title": "Weight",
+        "default": 1
+      }
+    },
+    "type": "object",
+    "required": [
+      "source",
+      "target"
+    ],
+    "title": "PetriNetArc",
+    "description": "Petri net arc."
+  },
+  "PetriNetPlace": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "tokens": {
+        "type": "integer",
+        "title": "Tokens",
+        "default": 0
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name"
+    ],
+    "title": "PetriNetPlace",
+    "description": "Petri net place."
+  },
+  "PetriNetResponse": {
+    "properties": {
+      "places": {
+        "items": {
+          "$ref": "#/components/schemas/PetriNetPlace"
+        },
+        "type": "array",
+        "title": "Places"
+      },
+      "transitions": {
+        "items": {
+          "$ref": "#/components/schemas/PetriNetTransition"
+        },
+        "type": "array",
+        "title": "Transitions"
+      },
+      "arcs": {
+        "items": {
+          "$ref": "#/components/schemas/PetriNetArc"
+        },
+        "type": "array",
+        "title": "Arcs"
+      },
+      "initial_marking": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Initial Marking"
+      },
+      "final_marking": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Final Marking"
+      }
+    },
+    "type": "object",
+    "required": [
+      "places",
+      "transitions",
+      "arcs",
+      "initial_marking",
+      "final_marking"
+    ],
+    "title": "PetriNetResponse",
+    "description": "Petri net structure for visualization."
+  },
+  "PetriNetTransition": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "label": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Label"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "label"
+    ],
+    "title": "PetriNetTransition",
+    "description": "Petri net transition."
+  },
+  "PlayOutRequest": {
+    "properties": {
+      "num_traces": {
+        "type": "integer",
+        "maximum": 10000.0,
+        "minimum": 1.0,
+        "title": "Num Traces",
+        "default": 100
+      }
+    },
+    "type": "object",
+    "title": "PlayOutRequest",
+    "description": "Request to generate synthetic log from model."
+  },
+  "PlayOutResponse": {
+    "properties": {
+      "model_id": {
+        "type": "string",
+        "title": "Model Id"
+      },
+      "generated_dataset_id": {
+        "type": "string",
+        "title": "Generated Dataset Id"
+      },
+      "traces_generated": {
+        "type": "integer",
+        "title": "Traces Generated"
+      },
+      "events_generated": {
+        "type": "integer",
+        "title": "Events Generated"
+      }
+    },
+    "type": "object",
+    "required": [
+      "model_id",
+      "generated_dataset_id",
+      "traces_generated",
+      "events_generated"
+    ],
+    "title": "PlayOutResponse",
+    "description": "Play-out result."
+  },
+  "PresignedUploadRequest": {
+    "properties": {
+      "filename": {
+        "type": "string",
+        "maxLength": 255,
+        "minLength": 1,
+        "title": "Filename",
+        "description": "Original filename",
+        "examples": [
+          "purchasing_logs_2024.csv"
+        ]
+      },
+      "content_type": {
+        "type": "string",
+        "title": "Content Type",
+        "description": "MIME type (text/csv, application/xml)",
+        "default": "text/csv",
+        "examples": [
+          "text/csv"
+        ]
+      },
+      "file_size_bytes": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": 1.0
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "File Size Bytes",
+        "description": "Expected file size in bytes (for validation)",
+        "examples": [
+          15728640
+        ]
+      },
+      "project_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Project Id",
+        "description": "Optional project association",
+        "examples": [
+          "proj_123456789"
+        ]
+      }
+    },
+    "type": "object",
+    "required": [
+      "filename"
+    ],
+    "title": "PresignedUploadRequest",
+    "description": "Request for presigned upload URL generation.\n\nClient requests a presigned URL, then uploads directly to S3/MinIO.\nBackend receives upload notification via webhook or polling.",
+    "example": {
+      "content_type": "text/csv",
+      "file_size_bytes": 1024000,
+      "filename": "process_log.csv",
+      "project_id": "proj_abc123"
+    }
+  },
+  "PresignedUploadResponse": {
+    "properties": {
+      "upload_url": {
+        "type": "string",
+        "title": "Upload Url",
+        "description": "Presigned PUT URL for direct S3 upload"
+      },
+      "storage_key": {
+        "type": "string",
+        "title": "Storage Key",
+        "description": "S3 object key for tracking"
+      },
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id",
+        "description": "Dataset ID for status polling"
+      },
+      "expires_in": {
+        "type": "integer",
+        "title": "Expires In",
+        "description": "URL expiration in seconds"
+      }
+    },
+    "type": "object",
+    "required": [
+      "upload_url",
+      "storage_key",
+      "dataset_id",
+      "expires_in"
+    ],
+    "title": "PresignedUploadResponse",
+    "description": "Response containing presigned upload URL and tracking info.\n\nClient should:\n1. PUT file to upload_url with Content-Type header\n2. Poll /datasets/{dataset_id} for validation status",
+    "example": {
+      "dataset_id": "ds_123456789",
+      "expires_in": 3600,
+      "storage_key": "datasets/123/file.csv",
+      "upload_url": "https://s3.amazonaws.com/bucket/key?sig=..."
+    }
+  },
+  "PreviewResponse": {
+    "properties": {
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "sample_events": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "type": "array",
+        "title": "Sample Events"
+      },
+      "total_rows": {
+        "type": "integer",
+        "title": "Total Rows"
+      },
+      "parse_errors": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Parse Errors",
+        "default": []
+      }
+    },
+    "type": "object",
+    "required": [
+      "dataset_id",
+      "sample_events",
+      "total_rows"
+    ],
+    "title": "PreviewResponse",
+    "description": "Preview response with sample mapped data."
+  },
+  "ProcessExplorerDataResponse": {
+    "properties": {
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "dfg": {
+        "$ref": "#/components/schemas/DFGResponse"
+      },
+      "variants": {
+        "items": {
+          "$ref": "#/components/schemas/VariantResponse"
+        },
+        "type": "array",
+        "title": "Variants"
+      },
+      "activities": {
+        "items": {
+          "$ref": "#/components/schemas/ActivityDetailResponse"
+        },
+        "type": "array",
+        "title": "Activities"
+      },
+      "statistics": {
+        "$ref": "#/components/schemas/StatisticsResponse"
+      }
+    },
+    "type": "object",
+    "required": [
+      "dataset_id",
+      "dfg",
+      "variants",
+      "activities",
+      "statistics"
+    ],
+    "title": "ProcessExplorerDataResponse",
+    "description": "Unified response for Process Explorer frontend component.\n\nCombines DFG, variants, activities, and statistics in a single request."
+  },
+  "ProjectCreateRequest": {
+    "properties": {
+      "name": {
+        "type": "string",
+        "maxLength": 255,
+        "minLength": 1,
+        "title": "Name"
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 2000
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description"
+      },
+      "tags": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Tags"
+      }
+    },
+    "type": "object",
+    "required": [
+      "name"
+    ],
+    "title": "ProjectCreateRequest",
+    "description": "Request to create a project."
+  },
+  "ProjectDetailResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description"
+      },
+      "tags": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Tags",
+        "default": []
+      },
+      "total_files": {
+        "type": "integer",
+        "title": "Total Files"
+      },
+      "total_analyses": {
+        "type": "integer",
+        "title": "Total Analyses"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At"
+      },
+      "updated_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Updated At"
+      },
+      "datasets": {
+        "items": {
+          "$ref": "#/components/schemas/DatasetResponse"
+        },
+        "type": "array",
+        "title": "Datasets",
+        "default": []
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "description",
+      "total_files",
+      "total_analyses",
+      "created_at",
+      "updated_at"
+    ],
+    "title": "ProjectDetailResponse",
+    "description": "Detailed project response with datasets."
+  },
+  "ProjectListResponse": {
+    "properties": {
+      "total": {
+        "type": "integer",
+        "title": "Total"
+      },
+      "page": {
+        "type": "integer",
+        "title": "Page"
+      },
+      "page_size": {
+        "type": "integer",
+        "title": "Page Size"
+      },
+      "pages": {
+        "type": "integer",
+        "title": "Pages"
+      },
+      "items": {
+        "items": {
+          "$ref": "#/components/schemas/ProjectResponse"
+        },
+        "type": "array",
+        "title": "Items"
+      }
+    },
+    "type": "object",
+    "required": [
+      "total",
+      "page",
+      "page_size",
+      "pages",
+      "items"
+    ],
+    "title": "ProjectListResponse",
+    "description": "Paginated project list."
+  },
+  "ProjectResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description"
+      },
+      "tags": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Tags",
+        "default": []
+      },
+      "total_files": {
+        "type": "integer",
+        "title": "Total Files"
+      },
+      "total_analyses": {
+        "type": "integer",
+        "title": "Total Analyses"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At"
+      },
+      "updated_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Updated At"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "description",
+      "total_files",
+      "total_analyses",
+      "created_at",
+      "updated_at"
+    ],
+    "title": "ProjectResponse",
+    "description": "Project response."
+  },
+  "ProjectUpdateRequest": {
+    "properties": {
+      "name": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Name"
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description"
+      },
+      "tags": {
+        "anyOf": [
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Tags"
+      }
+    },
+    "type": "object",
+    "title": "ProjectUpdateRequest",
+    "description": "Request to update a project."
+  },
+  "QualityMetricsResponse": {
+    "properties": {
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "model_id": {
+        "type": "string",
+        "title": "Model Id"
+      },
+      "fitness": {
+        "type": "number",
+        "title": "Fitness"
+      },
+      "precision": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Precision"
+      },
+      "generalization": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Generalization"
+      },
+      "simplicity": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Simplicity"
+      },
+      "f_score": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "F Score"
+      }
+    },
+    "type": "object",
+    "required": [
+      "dataset_id",
+      "model_id",
+      "fitness"
+    ],
+    "title": "QualityMetricsResponse",
+    "description": "Full quality metrics for a process model.\n\nContains all 4 quality dimensions from PM4py:\n- Fitness: How well the log fits the model\n- Precision: How much the model allows for behavior not in the log\n- Generalization: How well the model generalizes beyond observed behavior\n- Simplicity: How simple/understandable the model is"
+  },
+  "RefreshRequest": {
+    "properties": {
+      "refresh_token": {
+        "type": "string",
+        "minLength": 1,
+        "title": "Refresh Token"
+      }
+    },
+    "type": "object",
+    "required": [
+      "refresh_token"
+    ],
+    "title": "RefreshRequest",
+    "description": "Refresh token request."
+  },
+  "RegisterRequest": {
+    "properties": {
+      "email": {
+        "type": "string",
+        "format": "email",
+        "title": "Email"
+      },
+      "password": {
+        "type": "string",
+        "maxLength": 128,
+        "minLength": 8,
+        "title": "Password",
+        "description": "Password (8-128 chars, must include uppercase, lowercase, and digit)"
+      },
+      "name": {
+        "type": "string",
+        "maxLength": 255,
+        "minLength": 1,
+        "title": "Name",
+        "description": "User's display name"
+      },
+      "organization_name": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Organization Name",
+        "description": "Organization name (auto-generated if not provided)"
+      }
+    },
+    "type": "object",
+    "required": [
+      "email",
+      "password",
+      "name"
+    ],
+    "title": "RegisterRequest",
+    "description": "Registration request for new SaaS users.\n\nPassword Requirements:\n- Minimum 8 characters\n- At least one uppercase letter\n- At least one lowercase letter\n- At least one digit"
+  },
+  "ResetPasswordRequest": {
+    "properties": {
+      "token": {
+        "type": "string",
+        "minLength": 1,
+        "title": "Token"
+      },
+      "new_password": {
+        "type": "string",
+        "maxLength": 128,
+        "minLength": 8,
+        "title": "New Password"
+      }
+    },
+    "type": "object",
+    "required": [
+      "token",
+      "new_password"
+    ],
+    "title": "ResetPasswordRequest",
+    "description": "Reset password request."
+  },
+  "ResourceProfileResponse": {
+    "properties": {
+      "resource": {
+        "type": "string",
+        "title": "Resource"
+      },
+      "total_events": {
+        "type": "integer",
+        "title": "Total Events"
+      },
+      "activities": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "type": "object",
+        "title": "Activities"
+      },
+      "avg_processing_time_seconds": {
+        "type": "number",
+        "title": "Avg Processing Time Seconds"
+      },
+      "first_activity": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "First Activity"
+      },
+      "last_activity": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Last Activity"
+      }
+    },
+    "type": "object",
+    "required": [
+      "resource",
+      "total_events",
+      "activities",
+      "avg_processing_time_seconds",
+      "first_activity",
+      "last_activity"
+    ],
+    "title": "ResourceProfileResponse",
+    "description": "Resource profile details."
+  },
+  "ResourceRoleResponse": {
+    "properties": {
+      "role_id": {
+        "type": "string",
+        "title": "Role Id"
+      },
+      "resources": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Resources"
+      },
+      "activities": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Activities"
+      }
+    },
+    "type": "object",
+    "required": [
+      "role_id",
+      "resources",
+      "activities"
+    ],
+    "title": "ResourceRoleResponse",
+    "description": "Discovered organizational role."
+  },
+  "ResourceWorkloadResponse": {
+    "properties": {
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "workload": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "type": "object",
+        "title": "Workload"
+      },
+      "avg_events_per_resource": {
+        "type": "number",
+        "title": "Avg Events Per Resource"
+      }
+    },
+    "type": "object",
+    "required": [
+      "dataset_id",
+      "workload",
+      "avg_events_per_resource"
+    ],
+    "title": "ResourceWorkloadResponse",
+    "description": "Resource workload distribution."
+  },
+  "ReworkChain": {
+    "properties": {
+      "activity": {
+        "type": "string",
+        "title": "Activity"
+      },
+      "chain_length": {
+        "type": "integer",
+        "title": "Chain Length"
+      },
+      "frequency": {
+        "type": "integer",
+        "title": "Frequency"
+      },
+      "avg_chain_duration_seconds": {
+        "type": "number",
+        "title": "Avg Chain Duration Seconds",
+        "default": 0.0
+      },
+      "example_case_ids": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Example Case Ids",
+        "default": []
+      }
+    },
+    "type": "object",
+    "required": [
+      "activity",
+      "chain_length",
+      "frequency"
+    ],
+    "title": "ReworkChain",
+    "description": "A chain of rework activities showing patterns of repeated work."
+  },
+  "ReworkChainListResponse": {
+    "properties": {
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "chains": {
+        "items": {
+          "$ref": "#/components/schemas/ReworkChain"
+        },
+        "type": "array",
+        "title": "Chains"
+      },
+      "total_chains": {
+        "type": "integer",
+        "title": "Total Chains"
+      },
+      "most_problematic_activity": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Most Problematic Activity"
+      },
+      "cases_with_chains": {
+        "type": "integer",
+        "title": "Cases With Chains",
+        "default": 0
+      },
+      "chains_percentage": {
+        "type": "number",
+        "title": "Chains Percentage",
+        "default": 0.0
+      }
+    },
+    "type": "object",
+    "required": [
+      "dataset_id",
+      "chains",
+      "total_chains"
+    ],
+    "title": "ReworkChainListResponse",
+    "description": "Response for rework chain analysis."
+  },
+  "ReworkListResponse": {
+    "properties": {
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "rework_activities": {
+        "items": {
+          "$ref": "#/components/schemas/ReworkResponse"
+        },
+        "type": "array",
+        "title": "Rework Activities"
+      },
+      "total_rework_cases": {
+        "type": "integer",
+        "title": "Total Rework Cases"
+      },
+      "rework_percentage": {
+        "type": "number",
+        "title": "Rework Percentage"
+      }
+    },
+    "type": "object",
+    "required": [
+      "dataset_id",
+      "rework_activities",
+      "total_rework_cases",
+      "rework_percentage"
+    ],
+    "title": "ReworkListResponse",
+    "description": "Rework analysis results."
+  },
+  "ReworkResponse": {
+    "properties": {
+      "activity": {
+        "type": "string",
+        "title": "Activity"
+      },
+      "rework_count": {
+        "type": "integer",
+        "title": "Rework Count"
+      },
+      "cases_with_rework": {
+        "type": "integer",
+        "title": "Cases With Rework"
+      },
+      "rework_percentage": {
+        "type": "number",
+        "title": "Rework Percentage"
+      }
+    },
+    "type": "object",
+    "required": [
+      "activity",
+      "rework_count",
+      "cases_with_rework",
+      "rework_percentage"
+    ],
+    "title": "ReworkResponse",
+    "description": "Rework analysis result."
+  },
+  "RunListResponse": {
+    "properties": {
+      "items": {
+        "items": {
+          "$ref": "#/components/schemas/RunResponse"
+        },
+        "type": "array",
+        "title": "Items"
+      },
+      "total": {
+        "type": "integer",
+        "title": "Total"
+      },
+      "page": {
+        "type": "integer",
+        "title": "Page"
+      },
+      "page_size": {
+        "type": "integer",
+        "title": "Page Size"
+      }
+    },
+    "type": "object",
+    "required": [
+      "items",
+      "total",
+      "page",
+      "page_size"
+    ],
+    "title": "RunListResponse",
+    "description": "Paginated list of runs."
+  },
+  "RunResponse": {
+    "properties": {
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At",
+        "description": "Creation timestamp"
+      },
+      "updated_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Updated At",
+        "description": "Last update timestamp"
+      },
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "description": "Unique identifier"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status",
+        "description": "Current status (pending/running/completed/failed)"
+      },
+      "started_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Started At",
+        "description": "Execution start time"
+      },
+      "completed_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Completed At",
+        "description": "Execution end time"
+      },
+      "error_message": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Error Message",
+        "description": "Error details if failed"
+      },
+      "definition_id": {
+        "type": "string",
+        "title": "Definition Id",
+        "description": "ID of the DAG definition"
+      },
+      "trigger_type": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Trigger Type",
+        "description": "How the run was triggered"
+      },
+      "steps": {
+        "items": {
+          "$ref": "#/components/schemas/RunStepResponse"
+        },
+        "type": "array",
+        "title": "Steps",
+        "description": "Step statuses"
+      }
+    },
+    "type": "object",
+    "required": [
+      "created_at",
+      "id",
+      "status",
+      "definition_id"
+    ],
+    "title": "RunResponse",
+    "description": "DAG run response.\n\nExtends BaseTaskResponse which provides:\n- id, created_at, updated_at (from BaseEntityResponse)\n- status, started_at, completed_at, error_message (from BaseTaskResponse)"
+  },
+  "RunStepResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "task_name": {
+        "type": "string",
+        "title": "Task Name"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status",
+        "description": "Step status (pending/running/completed/failed)"
+      },
+      "started_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Started At",
+        "description": "Step start time"
+      },
+      "completed_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Completed At",
+        "description": "Step completion time"
+      },
+      "error_message": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Error Message",
+        "description": "Error details if failed"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "task_name",
+      "status"
+    ],
+    "title": "RunStepResponse",
+    "description": "Step status within a run.\n\nSimilar to BaseTaskResponse but without created_at/updated_at since\nstep timing is tracked via started_at/completed_at relative to the run."
+  },
+  "ServiceTimeResponse": {
+    "properties": {
+      "activity": {
+        "type": "string",
+        "title": "Activity"
+      },
+      "min_seconds": {
+        "type": "number",
+        "title": "Min Seconds"
+      },
+      "max_seconds": {
+        "type": "number",
+        "title": "Max Seconds"
+      },
+      "avg_seconds": {
+        "type": "number",
+        "title": "Avg Seconds"
+      },
+      "median_seconds": {
+        "type": "number",
+        "title": "Median Seconds"
+      },
+      "std_dev_seconds": {
+        "type": "number",
+        "title": "Std Dev Seconds"
+      }
+    },
+    "type": "object",
+    "required": [
+      "activity",
+      "min_seconds",
+      "max_seconds",
+      "avg_seconds",
+      "median_seconds",
+      "std_dev_seconds"
+    ],
+    "title": "ServiceTimeResponse",
+    "description": "Service time per activity."
+  },
+  "SimulationRequest": {
+    "properties": {
+      "modifications": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "type": "array",
+        "title": "Modifications",
+        "description": "Modifications to simulate"
+      }
+    },
+    "type": "object",
+    "required": [
+      "modifications"
+    ],
+    "title": "SimulationRequest",
+    "description": "What-if simulation request."
+  },
+  "SimulationResponse": {
+    "properties": {
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "scenario": {
+        "type": "string",
+        "title": "Scenario"
+      },
+      "original_metrics": {
+        "additionalProperties": {
+          "type": "number"
+        },
+        "type": "object",
+        "title": "Original Metrics"
+      },
+      "simulated_metrics": {
+        "additionalProperties": {
+          "type": "number"
+        },
+        "type": "object",
+        "title": "Simulated Metrics"
+      },
+      "impact": {
+        "additionalProperties": {
+          "type": "number"
+        },
+        "type": "object",
+        "title": "Impact"
+      }
+    },
+    "type": "object",
+    "required": [
+      "dataset_id",
+      "scenario",
+      "original_metrics",
+      "simulated_metrics",
+      "impact"
+    ],
+    "title": "SimulationResponse",
+    "description": "Simulation result."
+  },
+  "SocialNetworkResponse": {
+    "properties": {
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "network_type": {
+        "type": "string",
+        "title": "Network Type"
+      },
+      "nodes": {
+        "items": {
+          "$ref": "#/components/schemas/NetworkNode"
+        },
+        "type": "array",
+        "title": "Nodes"
+      },
+      "edges": {
+        "items": {
+          "$ref": "#/components/schemas/NetworkEdge"
+        },
+        "type": "array",
+        "title": "Edges"
+      },
+      "metrics": {
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Metrics"
+      }
+    },
+    "type": "object",
+    "required": [
+      "dataset_id",
+      "network_type",
+      "nodes",
+      "edges",
+      "metrics"
+    ],
+    "title": "SocialNetworkResponse",
+    "description": "Social network response."
+  },
+  "StatisticsResponse": {
+    "properties": {
+      "total_events": {
+        "type": "integer",
+        "title": "Total Events"
+      },
+      "total_cases": {
+        "type": "integer",
+        "title": "Total Cases"
+      },
+      "total_activities": {
+        "type": "integer",
+        "title": "Total Activities"
+      },
+      "total_variants": {
+        "type": "integer",
+        "title": "Total Variants"
+      },
+      "activities": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Activities"
+      },
+      "start_activities": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "type": "object",
+        "title": "Start Activities"
+      },
+      "end_activities": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "type": "object",
+        "title": "End Activities"
+      },
+      "avg_case_duration_seconds": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Avg Case Duration Seconds"
+      },
+      "min_case_duration_seconds": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Min Case Duration Seconds"
+      },
+      "max_case_duration_seconds": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Max Case Duration Seconds"
+      },
+      "date_range": {
+        "anyOf": [
+          {
+            "additionalProperties": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Date Range"
+      }
+    },
+    "type": "object",
+    "required": [
+      "total_events",
+      "total_cases",
+      "total_activities",
+      "total_variants",
+      "activities",
+      "start_activities",
+      "end_activities",
+      "avg_case_duration_seconds",
+      "min_case_duration_seconds",
+      "max_case_duration_seconds",
+      "date_range"
+    ],
+    "title": "StatisticsResponse",
+    "description": "Process statistics response."
+  },
+  "StepConfig": {
+    "properties": {
+      "name": {
+        "type": "string",
+        "title": "Name",
+        "description": "Unique step name within the DAG"
+      },
+      "task_name": {
+        "type": "string",
+        "title": "Task Name",
+        "description": "Registered task function name"
+      },
+      "default_params": {
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Default Params",
+        "description": "Default parameters for the task"
+      },
+      "retry_policy": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Retry Policy",
+        "description": "Retry configuration (max_retries, backoff)"
+      },
+      "timeout_seconds": {
+        "type": "integer",
+        "title": "Timeout Seconds",
+        "description": "Task timeout in seconds",
+        "default": 3600
+      }
+    },
+    "type": "object",
+    "required": [
+      "name",
+      "task_name"
+    ],
+    "title": "StepConfig",
+    "description": "Step configuration for DAG definition."
+  },
+  "StepResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "task_name": {
+        "type": "string",
+        "title": "Task Name"
+      },
+      "default_params": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Default Params"
+      },
+      "position": {
+        "type": "integer",
+        "title": "Position"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "task_name",
+      "position"
+    ],
+    "title": "StepResponse",
+    "description": "DAG step in a definition."
+  },
+  "TemplateInfo": {
+    "properties": {
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "display_name": {
+        "type": "string",
+        "title": "Display Name"
+      },
+      "description": {
+        "type": "string",
+        "title": "Description"
+      },
+      "step_count": {
+        "type": "integer",
+        "title": "Step Count"
+      },
+      "edge_count": {
+        "type": "integer",
+        "title": "Edge Count"
+      }
+    },
+    "type": "object",
+    "required": [
+      "name",
+      "display_name",
+      "description",
+      "step_count",
+      "edge_count"
+    ],
+    "title": "TemplateInfo",
+    "description": "Predefined template info."
+  },
+  "ThroughputResponse": {
+    "properties": {
+      "dataset_id": {
+        "type": "string",
+        "title": "Dataset Id"
+      },
+      "total_cases": {
+        "type": "integer",
+        "title": "Total Cases"
+      },
+      "completed_cases": {
+        "type": "integer",
+        "title": "Completed Cases"
+      },
+      "cases_per_day": {
+        "type": "number",
+        "title": "Cases Per Day"
+      },
+      "cases_per_week": {
+        "type": "number",
+        "title": "Cases Per Week"
+      },
+      "cases_per_month": {
+        "type": "number",
+        "title": "Cases Per Month"
+      },
+      "time_range_days": {
+        "type": "number",
+        "title": "Time Range Days"
+      }
+    },
+    "type": "object",
+    "required": [
+      "dataset_id",
+      "total_cases",
+      "completed_cases",
+      "cases_per_day",
+      "cases_per_week",
+      "cases_per_month",
+      "time_range_days"
+    ],
+    "title": "ThroughputResponse",
+    "description": "Throughput metrics."
+  },
+  "TokenPair": {
+    "properties": {
+      "access_token": {
+        "type": "string",
+        "title": "Access Token"
+      },
+      "refresh_token": {
+        "type": "string",
+        "title": "Refresh Token"
+      },
+      "token_type": {
+        "type": "string",
+        "title": "Token Type",
+        "default": "bearer"
+      },
+      "expires_in": {
+        "type": "integer",
+        "title": "Expires In"
+      }
+    },
+    "type": "object",
+    "required": [
+      "access_token",
+      "refresh_token",
+      "expires_in"
+    ],
+    "title": "TokenPair",
+    "description": "Access and refresh token pair."
+  },
+  "TokenResponse": {
+    "properties": {
+      "access_token": {
+        "type": "string",
+        "title": "Access Token"
+      },
+      "refresh_token": {
+        "type": "string",
+        "title": "Refresh Token"
+      },
+      "token_type": {
+        "type": "string",
+        "title": "Token Type",
+        "default": "bearer"
+      },
+      "expires_in": {
+        "type": "integer",
+        "title": "Expires In"
+      },
+      "user": {
+        "$ref": "#/components/schemas/UserResponse"
+      }
+    },
+    "type": "object",
+    "required": [
+      "access_token",
+      "refresh_token",
+      "expires_in",
+      "user"
+    ],
+    "title": "TokenResponse",
+    "description": "Token response after login/register."
+  },
+  "TriggerRunRequest": {
+    "properties": {
+      "definition_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Definition Id",
+        "description": "DAG definition ID"
+      },
+      "definition_name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Definition Name",
+        "description": "DAG definition name (alternative to ID)"
+      },
+      "context": {
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Context",
+        "description": "Shared context for all steps"
+      },
+      "step_params": {
+        "additionalProperties": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "type": "object",
+        "title": "Step Params",
+        "description": "Per-step parameter overrides"
+      }
+    },
+    "type": "object",
+    "title": "TriggerRunRequest",
+    "description": "Request to trigger a DAG run."
+  },
+  "UpdateMemberRoleRequest": {
+    "properties": {
+      "role": {
+        "type": "string",
+        "pattern": "^(owner|admin|editor|analyst|viewer)$",
+        "title": "Role"
+      }
+    },
+    "type": "object",
+    "required": [
+      "role"
+    ],
+    "title": "UpdateMemberRoleRequest",
+    "description": "Update member role request."
+  },
+  "UpdateRoleRequest": {
+    "properties": {
+      "role": {
+        "type": "string",
+        "pattern": "^(owner|admin|member)$",
+        "title": "Role"
+      }
+    },
+    "type": "object",
+    "required": [
+      "role"
+    ],
+    "title": "UpdateRoleRequest",
+    "description": "Update member role request."
+  },
+  "UsageResponse": {
+    "properties": {
+      "workspace_count": {
+        "type": "integer",
+        "title": "Workspace Count"
+      },
+      "user_count": {
+        "type": "integer",
+        "title": "User Count"
+      },
+      "dataset_count": {
+        "type": "integer",
+        "title": "Dataset Count"
+      },
+      "storage_bytes": {
+        "type": "integer",
+        "title": "Storage Bytes",
+        "default": 0
+      }
+    },
+    "type": "object",
+    "required": [
+      "workspace_count",
+      "user_count",
+      "dataset_count"
+    ],
+    "title": "UsageResponse",
+    "description": "Usage stats response."
+  },
+  "UserResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "email": {
+        "type": "string",
+        "title": "Email"
+      },
+      "name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Name"
+      },
+      "role": {
+        "type": "string",
+        "title": "Role"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At"
+      },
+      "last_login_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Last Login At"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "email",
+      "name",
+      "role",
+      "created_at",
+      "last_login_at"
+    ],
+    "title": "UserResponse",
+    "description": "User response."
+  },
+  "ValidationError": {
+    "properties": {
+      "loc": {
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "type": "array",
+        "title": "Location"
+      },
+      "msg": {
+        "type": "string",
+        "title": "Message"
+      },
+      "type": {
+        "type": "string",
+        "title": "Error Type"
+      }
+    },
+    "type": "object",
+    "required": [
+      "loc",
+      "msg",
+      "type"
+    ],
+    "title": "ValidationError"
+  },
+  "VariantResponse": {
+    "properties": {
+      "variant_key": {
+        "type": "string",
+        "title": "Variant Key"
+      },
+      "activity_trace": {
+        "type": "string",
+        "title": "Activity Trace"
+      },
+      "activities": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Activities"
+      },
+      "case_count": {
+        "type": "integer",
+        "title": "Case Count"
+      },
+      "frequency_percent": {
+        "type": "number",
+        "title": "Frequency Percent"
+      },
+      "avg_duration_seconds": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Avg Duration Seconds"
+      },
+      "complexity_score": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Complexity Score"
+      },
+      "rework_count": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Rework Count"
+      },
+      "unique_activity_count": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Unique Activity Count"
+      }
+    },
+    "type": "object",
+    "required": [
+      "variant_key",
+      "activity_trace",
+      "activities",
+      "case_count",
+      "frequency_percent"
+    ],
+    "title": "VariantResponse",
+    "description": "Process variant response with both trace string and parsed activities array."
+  },
+  "WorkflowCreateRequest": {
+    "properties": {
+      "name": {
+        "type": "string",
+        "maxLength": 255,
+        "minLength": 1,
+        "title": "Name",
+        "description": "Workflow name"
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 1000
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "Description"
+      },
+      "template_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Template Id",
+        "description": "Template to use"
+      },
+      "steps": {
+        "items": {
+          "$ref": "#/components/schemas/WorkflowStep"
+        },
+        "type": "array",
+        "title": "Steps",
+        "description": "Custom steps"
+      },
+      "dataset_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Dataset Id",
+        "description": "Associated dataset"
+      }
+    },
+    "type": "object",
+    "required": [
+      "name"
+    ],
+    "title": "WorkflowCreateRequest",
+    "description": "Request to create a new workflow."
+  },
+  "WorkflowListResponse": {
+    "properties": {
+      "total": {
+        "type": "integer",
+        "title": "Total"
+      },
+      "page": {
+        "type": "integer",
+        "title": "Page"
+      },
+      "page_size": {
+        "type": "integer",
+        "title": "Page Size"
+      },
+      "pages": {
+        "type": "integer",
+        "title": "Pages"
+      },
+      "items": {
+        "items": {
+          "$ref": "#/components/schemas/WorkflowResponse"
+        },
+        "type": "array",
+        "title": "Items"
+      }
+    },
+    "type": "object",
+    "required": [
+      "total",
+      "page",
+      "page_size",
+      "pages",
+      "items"
+    ],
+    "title": "WorkflowListResponse",
+    "description": "Paginated workflow list."
+  },
+  "WorkflowResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "temporal_workflow_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Temporal Workflow Id",
+        "description": "Temporal's workflow ID"
+      },
+      "temporal_run_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Temporal Run Id",
+        "description": "Temporal's run ID"
+      },
+      "workflow_type": {
+        "type": "string",
+        "title": "Workflow Type",
+        "description": "ingestion, discovery, conformance, prediction, export"
+      },
+      "entity_type": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Entity Type",
+        "description": "dataset, model, analysis"
+      },
+      "entity_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Entity Id"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status",
+        "description": "pending, running, completed, failed, cancelled, timed_out"
+      },
+      "progress_percent": {
+        "type": "integer",
+        "maximum": 100.0,
+        "minimum": 0.0,
+        "title": "Progress Percent",
+        "default": 0
+      },
+      "current_step": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Current Step",
+        "description": "Human-readable current step"
+      },
+      "error_code": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Error Code"
+      },
+      "error_message": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Error Message"
+      },
+      "retry_count": {
+        "type": "integer",
+        "title": "Retry Count",
+        "default": 0
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At"
+      },
+      "started_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Started At"
+      },
+      "completed_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Completed At"
+      },
+      "tasks": {
+        "items": {
+          "$ref": "#/components/schemas/WorkflowTaskResponse"
+        },
+        "type": "array",
+        "title": "Tasks",
+        "description": "Task-level progress"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "workflow_type",
+      "status",
+      "created_at"
+    ],
+    "title": "WorkflowResponse",
+    "description": "Workflow execution tracking response."
+  },
+  "WorkflowRunRequest": {
+    "properties": {
+      "parameters": {
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Parameters",
+        "description": "Runtime parameters"
+      }
+    },
+    "type": "object",
+    "title": "WorkflowRunRequest",
+    "description": "Request to run a workflow."
+  },
+  "WorkflowRunResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "description": "Run ID"
+      },
+      "workflow_id": {
+        "type": "string",
+        "title": "Workflow Id",
+        "description": "Workflow ID"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status",
+        "description": "Run status"
+      },
+      "started_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Started At",
+        "description": "Start time"
+      },
+      "completed_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Completed At",
+        "description": "Completion time"
+      },
+      "result": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Result",
+        "description": "Run result"
+      },
+      "error": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Error",
+        "description": "Error message if failed"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "workflow_id",
+      "status"
+    ],
+    "title": "WorkflowRunResponse",
+    "description": "Response for a workflow run."
+  },
+  "WorkflowStep": {
+    "properties": {
+      "name": {
+        "type": "string",
+        "title": "Name",
+        "description": "Step name"
+      },
+      "task_type": {
+        "type": "string",
+        "title": "Task Type",
+        "description": "Type of task to execute"
+      },
+      "config": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Config",
+        "description": "Step configuration"
+      },
+      "depends_on": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "title": "Depends On",
+        "description": "Dependencies"
+      }
+    },
+    "type": "object",
+    "required": [
+      "name",
+      "task_type"
+    ],
+    "title": "WorkflowStep",
+    "description": "A step in a workflow."
+  },
+  "WorkflowTaskResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "task_name": {
+        "type": "string",
+        "title": "Task Name",
+        "description": "Task name, e.g. 'validate_file', 'ingest_events'"
+      },
+      "task_order": {
+        "type": "integer",
+        "title": "Task Order",
+        "description": "Execution order within workflow"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status",
+        "description": "pending, running, completed, failed, skipped"
+      },
+      "progress_percent": {
+        "type": "integer",
+        "maximum": 100.0,
+        "minimum": 0.0,
+        "title": "Progress Percent",
+        "default": 0
+      },
+      "started_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Started At"
+      },
+      "completed_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Completed At"
+      },
+      "duration_ms": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Duration Ms",
+        "description": "Task duration in milliseconds"
+      },
+      "error_message": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Error Message"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "task_name",
+      "task_order",
+      "status"
+    ],
+    "title": "WorkflowTaskResponse",
+    "description": "Individual task within a workflow execution."
+  },
+  "WorkflowTemplate": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "description": "Template ID"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name",
+        "description": "Template name"
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "Template description"
+      },
+      "steps": {
+        "items": {
+          "$ref": "#/components/schemas/WorkflowStep"
+        },
+        "type": "array",
+        "title": "Steps",
+        "description": "Workflow steps"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name"
+    ],
+    "title": "WorkflowTemplate",
+    "description": "Predefined workflow template."
+  },
+  "WorkspaceCreateRequest": {
+    "properties": {
+      "name": {
+        "type": "string",
+        "maxLength": 255,
+        "minLength": 1,
+        "title": "Name"
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 2000
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description"
+      }
+    },
+    "type": "object",
+    "required": [
+      "name"
+    ],
+    "title": "WorkspaceCreateRequest",
+    "description": "Request to create a workspace."
+  },
+  "WorkspaceDetailResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "org_id": {
+        "type": "string",
+        "title": "Org Id"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At"
+      },
+      "updated_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Updated At"
+      },
+      "projects": {
+        "items": {
+          "$ref": "#/components/schemas/ProjectResponse"
+        },
+        "type": "array",
+        "title": "Projects",
+        "default": []
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "org_id",
+      "name",
+      "description",
+      "created_at",
+      "updated_at"
+    ],
+    "title": "WorkspaceDetailResponse",
+    "description": "Workspace detail with projects."
+  },
+  "WorkspaceListResponse": {
+    "properties": {
+      "total": {
+        "type": "integer",
+        "title": "Total"
+      },
+      "page": {
+        "type": "integer",
+        "title": "Page"
+      },
+      "page_size": {
+        "type": "integer",
+        "title": "Page Size"
+      },
+      "pages": {
+        "type": "integer",
+        "title": "Pages"
+      },
+      "items": {
+        "items": {
+          "$ref": "#/components/schemas/WorkspaceResponse"
+        },
+        "type": "array",
+        "title": "Items"
+      }
+    },
+    "type": "object",
+    "required": [
+      "total",
+      "page",
+      "page_size",
+      "pages",
+      "items"
+    ],
+    "title": "WorkspaceListResponse",
+    "description": "Paginated workspace list."
+  },
+  "WorkspaceMemberListResponse": {
+    "properties": {
+      "items": {
+        "items": {
+          "$ref": "#/components/schemas/WorkspaceMemberResponseInline"
+        },
+        "type": "array",
+        "title": "Items"
+      },
+      "total": {
+        "type": "integer",
+        "title": "Total"
+      }
+    },
+    "type": "object",
+    "required": [
+      "items",
+      "total"
+    ],
+    "title": "WorkspaceMemberListResponse",
+    "description": "Workspace member list response."
+  },
+  "WorkspaceMemberResponseInline": {
+    "properties": {
+      "user_id": {
+        "type": "string",
+        "title": "User Id"
+      },
+      "email": {
+        "type": "string",
+        "title": "Email"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "role": {
+        "type": "string",
+        "title": "Role"
+      },
+      "joined_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Joined At"
+      }
+    },
+    "type": "object",
+    "required": [
+      "user_id",
+      "email",
+      "name",
+      "role"
+    ],
+    "title": "WorkspaceMemberResponseInline",
+    "description": "Workspace member response."
+  },
+  "WorkspaceResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "org_id": {
+        "type": "string",
+        "title": "Org Id"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At"
+      },
+      "updated_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Updated At"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "org_id",
+      "name",
+      "description",
+      "created_at",
+      "updated_at"
+    ],
+    "title": "WorkspaceResponse",
+    "description": "Workspace response."
+  },
+  "WorkspaceUpdateRequest": {
+    "properties": {
+      "name": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Name"
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description"
+      }
+    },
+    "type": "object",
+    "title": "WorkspaceUpdateRequest",
+    "description": "Request to update a workspace."
+  },
+  "src__features__process_mining__schemas__workflows__WorkflowResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id",
+        "description": "Workflow ID"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name",
+        "description": "Workflow name"
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Description",
+        "description": "Description"
+      },
+      "status": {
+        "type": "string",
+        "title": "Status",
+        "description": "Workflow status",
+        "default": "draft"
+      },
+      "steps": {
+        "items": {
+          "$ref": "#/components/schemas/WorkflowStep"
+        },
+        "type": "array",
+        "title": "Steps",
+        "description": "Workflow steps"
+      },
+      "dataset_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Dataset Id",
+        "description": "Associated dataset"
+      },
+      "created_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Created At",
+        "description": "Creation time"
+      },
+      "updated_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Updated At",
+        "description": "Last update time"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name"
+    ],
+    "title": "WorkflowResponse",
+    "description": "Workflow response."
+  },
+  "src__platform__users__schemas__schemas__OrganizationResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "title": "Id"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "slug": {
+        "type": "string",
+        "title": "Slug"
+      },
+      "plan": {
+        "type": "string",
+        "title": "Plan"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At"
+      },
+      "updated_at": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Updated At"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "slug",
+      "plan",
+      "created_at",
+      "updated_at"
+    ],
+    "title": "OrganizationResponse",
+    "description": "Organization response."
+  }
+}

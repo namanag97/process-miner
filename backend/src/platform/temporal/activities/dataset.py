@@ -12,8 +12,6 @@ import structlog
 from temporalio import activity
 
 from src.platform.temporal.activities.types import (
-    BulkCopyInput,
-    BulkCopyOutput,
     ComputeStatsInput,
     ComputeStatsOutput,
     DetectColumnsInput,
@@ -379,115 +377,6 @@ async def parse_to_parquet_activity(input: ParseToParquetInput) -> ParseToParque
         raise
 
 
-# =============================================================================
-# Bulk Copy to DB Activity
-# =============================================================================
-
-
-@activity.defn
-async def bulk_copy_to_db_activity(input: BulkCopyInput) -> BulkCopyOutput:
-    """Bulk insert cases and events to PostgreSQL.
-
-    Processes data in batches to avoid memory exhaustion and long transactions.
-
-    Args:
-        input: BulkCopyInput with cases and events data
-
-    Returns:
-        BulkCopyOutput with insert counts
-    """
-    logger.info(
-        "bulk_copy_to_db_activity_started",
-        dataset_id=input.dataset_id,
-        cases_count=len(input.cases_data),
-        events_count=len(input.events_data),
-    )
-    start = time.perf_counter()
-
-    try:
-        from src.features.process_mining.models import ProcessCase, ProcessEvent
-
-        async with async_session_maker() as db:
-            # Insert cases in batches
-            case_id_map: dict[str, str] = {}
-            cases_inserted = 0
-
-            for i in range(0, len(input.cases_data), input.batch_size):
-                batch = input.cases_data[i : i + input.batch_size]
-                batch_cases = []
-
-                for case_dict in batch:
-                    case = ProcessCase(
-                        dataset_id=input.dataset_id,
-                        case_id=str(case_dict["case_id"]),
-                        variant_key=case_dict.get("variant"),
-                        start_time=case_dict.get("start_time"),
-                        end_time=case_dict.get("end_time"),
-                    )
-                    batch_cases.append(case)
-
-                db.add_all(batch_cases)
-                await db.flush()
-
-                for c in batch_cases:
-                    case_id_map[c.case_id] = c.id
-
-                cases_inserted += len(batch_cases)
-                db.expunge_all()
-
-            # Insert events in batches
-            events_inserted = 0
-            event_batch_size = input.batch_size * 2  # Events are smaller
-
-            for i in range(0, len(input.events_data), event_batch_size):
-                batch = input.events_data[i : i + event_batch_size]
-                batch_events = []
-
-                for event_dict in batch:
-                    case_ref_id = case_id_map.get(str(event_dict["case_id"]))
-                    if case_ref_id:
-                        event = ProcessEvent(
-                            case_ref_id=case_ref_id,
-                            activity=str(event_dict["activity"]),
-                            timestamp=event_dict["timestamp"],
-                            resource=str(event_dict.get("resource"))
-                            if event_dict.get("resource")
-                            else None,
-                        )
-                        batch_events.append(event)
-
-                if batch_events:
-                    db.add_all(batch_events)
-                    await db.flush()
-                    events_inserted += len(batch_events)
-                    db.expunge_all()
-
-            await db.commit()
-
-        duration = (time.perf_counter() - start) * 1000
-
-        logger.info(
-            "bulk_copy_to_db_activity_completed",
-            dataset_id=input.dataset_id,
-            cases_inserted=cases_inserted,
-            events_inserted=events_inserted,
-            duration_ms=round(duration, 2),
-        )
-
-        return BulkCopyOutput(
-            dataset_id=input.dataset_id,
-            cases_inserted=cases_inserted,
-            events_inserted=events_inserted,
-            duration_ms=duration,
-        )
-
-    except Exception as e:
-        logger.error(
-            "bulk_copy_to_db_activity_failed",
-            dataset_id=input.dataset_id,
-            error=str(e),
-        )
-        raise
 
 
 # =============================================================================

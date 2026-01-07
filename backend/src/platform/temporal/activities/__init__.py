@@ -6,7 +6,6 @@ Dataset Activities:
     - validate_file_activity: Magic byte verification
     - detect_columns_activity: Column parsing and AI suggestions
     - parse_to_parquet_activity: DuckDB CSV parsing with heartbeat
-    - bulk_copy_to_db_activity: Batch insert to PostgreSQL
     - compute_statistics_activity: Metadata computation
 
 Analysis Activities:
@@ -23,15 +22,12 @@ from src.platform.temporal.activities.analysis import (
     mine_model_activity,
 )
 from src.platform.temporal.activities.dataset import (
-    bulk_copy_to_db_activity,
     compute_statistics_activity,
     detect_columns_activity,
     parse_to_parquet_activity,
     validate_file_activity,
 )
 from src.platform.temporal.activities.types import (
-    BulkCopyInput,
-    BulkCopyOutput,
     CheckConformanceInput,
     CheckConformanceOutput,
     ComputeMetricsInput,
@@ -55,7 +51,6 @@ DATASET_ACTIVITIES = [
     validate_file_activity,
     detect_columns_activity,
     parse_to_parquet_activity,
-    bulk_copy_to_db_activity,
     compute_statistics_activity,
 ]
 
@@ -74,8 +69,6 @@ __all__ = [
     "ALL_ACTIVITIES",
     "ANALYSIS_ACTIVITIES",
     "DATASET_ACTIVITIES",
-    "BulkCopyInput",
-    "BulkCopyOutput",
     "CheckConformanceInput",
     "CheckConformanceOutput",
     "ComputeMetricsInput",
@@ -92,7 +85,6 @@ __all__ = [
     "ParseToParquetOutput",
     "ValidateFileInput",
     "ValidateFileOutput",
-    "bulk_copy_to_db_activity",
     "check_conformance_activity",
     "compute_metrics_activity",
     "compute_statistics_activity",
