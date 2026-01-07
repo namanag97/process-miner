@@ -9,6 +9,7 @@ Provides reusable validation functions for API endpoints:
 import re
 
 from fastapi import HTTPException
+from src.platform.core.exceptions import BadRequestError
 
 # UUID v4 pattern (case-insensitive)
 UUID_PATTERN = re.compile(
@@ -38,13 +39,9 @@ def validate_uuid(value: str, field_name: str = "id") -> str:
         return value
 
     if not value or not UUID_PATTERN.match(value):
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "code": "INVALID_UUID",
-                "message": f"Invalid {field_name} format. Expected UUID (e.g., '550e8400-e29b-41d4-a716-446655440000').",
-                "field": field_name,
-            },
+        raise BadRequestError(
+            message=f"Invalid {field_name} format. Expected UUID (e.g., '550e8400-e29b-41d4-a716-446655440000').",
+            details={"field": field_name, "code": "INVALID_UUID"},
         )
     return value.lower()
 
@@ -127,24 +124,10 @@ def validate_pagination(page: int, page_size: int) -> tuple[int, int]:
         HTTPException: 400 if invalid parameters
     """
     if page < 1:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "code": "INVALID_PAGINATION",
-                "message": "Page number must be at least 1",
-                "field": "page",
-            },
-        )
+        raise BadRequestError(message="Operation failed")
 
     if page_size < 1 or page_size > 100:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "code": "INVALID_PAGINATION",
-                "message": "Page size must be between 1 and 100",
-                "field": "page_size",
-            },
-        )
+        raise BadRequestError(message="Operation failed")
 
     return page, page_size
 

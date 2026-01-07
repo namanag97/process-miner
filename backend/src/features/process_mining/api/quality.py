@@ -6,7 +6,7 @@ API endpoints for computing and retrieving process model quality metrics.
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
-from src.api.dependencies import CurrentUser
+from src.api.dependencies import CurrentUser, ReadDBSession
 from src.features.process_mining.services.quality_service import QualityService
 from src.platform.core.exceptions import ResourceNotFoundError
 from src.platform.core.logging_config import get_logger

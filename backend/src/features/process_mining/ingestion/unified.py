@@ -235,5 +235,6 @@ class UnifiedIngestionService:
         return standardized
 
 
-# DEPRECATED: Singleton pattern removed. Use Container.ingestion instead.
+# DEPRECATED: Singleton pattern - only use for stateless methods like detect_columns.
+# For methods requiring session, create service with session via Container.
 unified_ingestion_service = UnifiedIngestionService()

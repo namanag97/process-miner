@@ -66,10 +66,14 @@ class Container:
 
     @cached_property
     def ingestion(self) -> "IngestionService":
-        """Data ingestion service for CSV/XES parsing."""
+        """Data ingestion service for CSV/XES parsing.
+        
+        Note: Session is passed for DB operations like store_only().
+        Stateless methods like detect_columns() don't require session.
+        """
         from src.features.process_mining.ingestion.service import IngestionService
 
-        return IngestionService()
+        return IngestionService(session=self._session)
 
     @cached_property
     def discovery(self) -> "MiningService":

@@ -48,7 +48,7 @@ from src.platform.admin.schemas import (
 )
 from src.platform.core.exceptions import AuthorizationError, NotFoundError
 from src.platform.core.logging_config import get_logger
-from src.platform.models import Organization, User, Workspace
+from src.platform.users import Organization, User, Workspace
 
 logger = get_logger(__name__)
 

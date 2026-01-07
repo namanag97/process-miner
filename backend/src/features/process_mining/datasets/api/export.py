@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Query
 
-from src.api.dependencies import CurrentUser
+from src.api.dependencies import CurrentUser, ReadDBSession, WriteDBSession
 from src.features.process_mining.models import DatasetStatus
 from src.features.process_mining.schemas.analyses import JobStatusResponse
 from src.features.process_mining.schemas.datasets import DownloadResponse

@@ -26,6 +26,7 @@ from fastapi import HTTPException, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.platform.core.logging_config import get_logger
+from src.platform.core.exceptions import BadRequestError
 
 logger = get_logger(__name__)
 
@@ -179,19 +180,15 @@ def rate_limit(
                     retry_after=retry_after,
                 )
 
-                raise HTTPException(
-                    status_code=429,
-                    detail={
-                        "type": "https://api.processmining.io/errors/ERR_510",
-                        "title": "Rate Limit Exceeded",
-                        "status": 429,
-                        "detail": error_message,
+                # Rate limit with proper exception
+                raise BadRequestError(
+                    message=f"{error_message}. Try again in {retry_after} seconds.",
+                    details={
                         "error_code": "ERR_510",
                         "limit": requests,
                         "window_seconds": window,
                         "retry_after": retry_after,
                     },
-                    headers={"Retry-After": str(retry_after)},
                 )
 
             return await func(*args, **kwargs)

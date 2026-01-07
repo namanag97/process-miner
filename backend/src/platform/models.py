@@ -26,6 +26,21 @@ from src.shared.database import Base
 # Admin Domain Models (Re-exported for backward compatibility)
 # =============================================================================
 
+from src.platform.users.models import User
+from src.platform.users.organization import Organization
+from src.platform.workspaces.models import Workspace, WorkspaceMember
+from src.platform.projects.models import Project
+
+__all__ = [
+    "AsyncJob",
+    "ErrorLog",
+    "User",
+    "Organization",
+    "Project",
+    "Workspace",
+    "WorkspaceMember",
+]
+
 # =============================================================================
 # Async Jobs (Platform Infrastructure)
 # =============================================================================

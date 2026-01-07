@@ -43,7 +43,7 @@ from typing import Any
 from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 
-from src.api.dependencies import CurrentUser
+from src.api.dependencies import CurrentUser, ReadDBSession
 from src.features.process_mining.models import Dataset
 from src.features.process_mining.schemas.datasets import (
     DatasetDetailResponse,

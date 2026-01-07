@@ -70,6 +70,30 @@ class AppException(Exception):
 
 
 # =============================================================================
+# Bad Request Errors (400)
+# =============================================================================
+
+
+class BadRequestError(AppException):
+    """Bad request - malformed or invalid request."""
+
+    def __init__(
+        self,
+        message: str,
+        error_code: ErrorCode = ErrorCode.BAD_REQUEST,
+        details: dict | None = None,
+        **kwargs,
+    ):
+        super().__init__(
+            message=message,
+            error_code=error_code,
+            status_code=400,
+            details=details,
+            **kwargs,
+        )
+
+
+# =============================================================================
 # Validation Errors (422)
 # =============================================================================
 

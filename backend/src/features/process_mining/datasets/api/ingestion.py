@@ -126,6 +126,23 @@ async def trigger_ingestion(
                 id_reuse_policy=WorkflowIDReusePolicy.ALLOW_DUPLICATE_FAILED_ONLY,
             )
             workflow_run_id = handle.result_run_id
+    except Exception as e:
+        # Handle Temporal client errors - update dataset to ERROR state
+        from src.platform.core.exceptions import ServiceUnavailableError
+
+        logger.error(
+            "temporal_workflow_start_failed",
+            dataset_id=dataset_id,
+            workflow_id=workflow_id,
+            error=str(e),
+        )
+        dataset.status = DatasetStatus.ERROR.value
+        dataset.error_message = f"Failed to start ingestion workflow: {str(e)}"
+        await db.commit()
+        raise ServiceUnavailableError(
+            service="Temporal",
+            message="Failed to start ingestion workflow. Please try again later.",
+        )
 
     dataset.status = DatasetStatus.INGESTING.value
     dataset.error_message = None
@@ -222,13 +239,31 @@ async def trigger_reingest(
 
     client = await get_temporal_client()
 
-    handle = await client.start_workflow(
-        DatasetIngestionWorkflowV2.run,
-        args=[dataset_id, dataset.storage_key, mapping_dict],
-        id=workflow_id,
-        task_queue=config.QUEUE_INGESTION,
-        id_reuse_policy=WorkflowIDReusePolicy.ALLOW_DUPLICATE_FAILED_ONLY,
-    )
+    try:
+        handle = await client.start_workflow(
+            DatasetIngestionWorkflowV2.run,
+            args=[dataset_id, dataset.storage_key, mapping_dict],
+            id=workflow_id,
+            task_queue=config.QUEUE_INGESTION,
+            id_reuse_policy=WorkflowIDReusePolicy.ALLOW_DUPLICATE_FAILED_ONLY,
+        )
+    except Exception as e:
+        # Handle Temporal client errors - update dataset to ERROR state
+        from src.platform.core.exceptions import ServiceUnavailableError
+
+        logger.error(
+            "temporal_reingest_start_failed",
+            dataset_id=dataset_id,
+            workflow_id=workflow_id,
+            error=str(e),
+        )
+        dataset.status = DatasetStatus.ERROR.value
+        dataset.error_message = f"Failed to start re-ingestion workflow: {str(e)}"
+        await db.commit()
+        raise ServiceUnavailableError(
+            service="Temporal",
+            message="Failed to start re-ingestion workflow. Please try again later.",
+        )
 
     dataset.status = DatasetStatus.INGESTING.value
     dataset.error_message = None

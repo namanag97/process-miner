@@ -30,7 +30,7 @@ Organizational mining analyzes how people work together:
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 
-from src.api.dependencies import CurrentUser, ServiceContainer
+from src.api.dependencies import CurrentUser, ReadDBSession, ServiceContainer
 from src.features.process_mining.models import Dataset
 from src.features.process_mining.schemas import (
     NetworkEdge,
@@ -43,6 +43,7 @@ from src.features.process_mining.schemas import (
 from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
 from src.platform.workspaces.authorization import require_dataset_permission
+from src.platform.core.exceptions import NotFoundError
 
 logger = get_logger(__name__)
 
@@ -55,7 +56,7 @@ async def _get_pm4py_log(dataset_id: str, db: ReadDBSession, container: ServiceC
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
     if not event_log:
-        raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+        raise NotFoundError(resource='Dataset', resource_id=dataset_id)
     return container.filtering.to_pm4py_log(event_log)
 
 

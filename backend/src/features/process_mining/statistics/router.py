@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy import func, select, text
 
-from src.api.dependencies import CurrentUser
+from src.api.dependencies import CurrentUser, ReadDBSession
 from src.features.process_mining.models import ProcessCase, ProcessEvent
 from src.features.process_mining.schemas import (
     ActivityDetailResponse,

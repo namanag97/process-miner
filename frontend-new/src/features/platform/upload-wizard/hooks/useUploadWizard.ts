@@ -14,8 +14,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { message } from 'antd';
-import { instrumentedFetch } from '@lumina/design-system';
-import { env } from '../../../../config/env';
+import { sdk } from '@/api/sdk';
 import { devLog } from '../../../../shared/ui/DevConsole';
 import type {
     WizardStep,
@@ -32,176 +31,93 @@ interface PresignedUploadResponse {
     expires_in: number;
 }
 
-const API_BASE = env.API_BASE_URL;
-
-// API helpers (using instrumentedFetch for DevConsole logging)
+// API helpers using SDK
 async function fetchPreview(datasetId: string, rows = 10): Promise<DataPreview> {
     console.log('[API:fetchPreview] Request started', { datasetId, rows });
     devLog.info('API:fetchPreview', 'Fetching dataset preview', { datasetId, rows });
-    const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/${datasetId}/preview?rows=${rows}`);
-    if (!res.ok) {
-        console.error('[API:fetchPreview] Request failed', { status: res.status });
-        devLog.error('API:fetchPreview', 'Failed to fetch preview', { status: res.status });
-        throw new Error('Failed to fetch preview');
+    try {
+        const data = await sdk.datasets.getPreview(datasetId, rows);
+        console.log('[API:fetchPreview] Success', { columns: data.columns?.length, rows: data.rows?.length });
+        devLog.action('API:fetchPreview', 'Preview fetched', { columns: data.columns?.length });
+        return data;
+    } catch (error) {
+        console.error('[API:fetchPreview] Request failed', error);
+        devLog.error('API:fetchPreview', 'Failed to fetch preview', { error });
+        throw error;
     }
-    const data = await res.json();
-    console.log('[API:fetchPreview] Success', { columns: data.columns?.length, rows: data.rows?.length });
-    devLog.action('API:fetchPreview', 'Preview fetched', { columns: data.columns?.length });
-    return data;
 }
 
 async function fetchSheets(datasetId: string): Promise<SheetsResponse> {
     console.log('[API:fetchSheets] Request started', { datasetId });
     devLog.info('API:fetchSheets', 'Fetching dataset sheets', { datasetId });
-    const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/${datasetId}/sheets`);
-    if (!res.ok) {
-        console.error('[API:fetchSheets] Request failed', { status: res.status });
-        devLog.error('API:fetchSheets', 'Failed to fetch sheets', { status: res.status });
-        throw new Error('Failed to fetch sheets');
+    try {
+        const data = await sdk.datasets.getSheets(datasetId);
+        console.log('[API:fetchSheets] Success', { sheets: data.sheets?.length });
+        devLog.action('API:fetchSheets', 'Sheets fetched', { sheetCount: data.sheets?.length });
+        return data;
+    } catch (error) {
+        console.error('[API:fetchSheets] Request failed', error);
+        devLog.error('API:fetchSheets', 'Failed to fetch sheets', { error });
+        throw error;
     }
-    const data = await res.json();
-    console.log('[API:fetchSheets] Success', { sheets: data.sheets?.length });
-    devLog.action('API:fetchSheets', 'Sheets fetched', { sheetCount: data.sheets?.length });
-    return data;
 }
 
-async function startIngestion(datasetId: string, mapping: ColumnMapping): Promise<{ id: string }> {
-    console.log('[API:startIngestion] Request started', {
-        datasetId,
-        mapping,
-        url: `${API_BASE}/api/v1/datasets/${datasetId}/ingest`
-    });
-    devLog.info('API:startIngestion', 'Starting dataset ingestion', { datasetId, mapping });
-
+async function startIngestion(datasetId: string, _mapping: ColumnMapping): Promise<{ id: string }> {
+    console.log('[API:startIngestion] Request started', { datasetId });
+    devLog.info('API:startIngestion', 'Starting dataset ingestion', { datasetId });
     try {
-        const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/${datasetId}/ingest`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(mapping),
-        });
-
-        console.log('[API:startIngestion] Response received', {
-            status: res.status,
-            statusText: res.statusText,
-            ok: res.ok
-        });
-
-        if (!res.ok) {
-            const errorData = await res.json().catch(() => ({ detail: 'Failed to start analysis' }));
-            console.error('[API:startIngestion] Request failed', errorData);
-            devLog.error('API:startIngestion', `Ingestion failed: ${errorData.detail}`, errorData);
-            throw new Error(errorData.detail || 'Failed to start analysis');
-        }
-
-        const data = await res.json();
+        const data = await sdk.datasets.ingest(datasetId);
         console.log('[API:startIngestion] Success', data);
         devLog.action('API:startIngestion', 'Ingestion started successfully', data);
         return data;
     } catch (err: unknown) {
         const error = err instanceof Error ? err : new Error(String(err));
-        const errorInfo = {
-            message: error.message,
-            name: error.name,
-            stack: error.stack,
-            datasetId
-        };
-        console.error('[API:startIngestion] Exception thrown', errorInfo);
-        devLog.error('API:startIngestion', `Exception: ${error.message}`, errorInfo);
+        console.error('[API:startIngestion] Exception thrown', { message: error.message, datasetId });
+        devLog.error('API:startIngestion', `Exception: ${error.message}`, { datasetId });
         throw error;
     }
 }
 
 async function checkJobStatus(jobId: string): Promise<{ id: string; status: string; progress?: number; error?: string }> {
-    const res = await instrumentedFetch(`${API_BASE}/api/v1/jobs/${jobId}`);
-    if (!res.ok) throw new Error('Failed to check job status');
-    const data = await res.json();
+    const data = await sdk.jobs.get(jobId);
     return { id: jobId, ...data };
 }
 
 async function getPresignedUrl(filename: string, fileSize: number, projectId: string, contentType = 'text/csv'): Promise<PresignedUploadResponse> {
-    const reqData = {
-        filename,
-        fileSize,
-        projectId,
-        contentType,
-        url: `${API_BASE}/api/v1/datasets/presign`
-    };
-    console.log('[API] getPresignedUrl request', reqData);
-    devLog.info('API', 'Requesting presigned upload URL', reqData);
-
-    const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/presign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+    console.log('[API] getPresignedUrl request', { filename, fileSize, projectId, contentType });
+    devLog.info('API', 'Requesting presigned upload URL', { filename, fileSize, projectId });
+    try {
+        const data = await sdk.datasets.getPresignedUrl({
             filename,
-            file_size_bytes: fileSize,
-            project_id: projectId,
-            content_type: contentType
-        }),
-    });
-
-    const resData = {
-        status: res.status,
-        statusText: res.statusText,
-        ok: res.ok
-    };
-    console.log('[API] getPresignedUrl response', resData);
-
-    if (!res.ok) {
-        const err = await res.json();
-        const errorData = { status: res.status, error: err };
-        console.error('[API] getPresignedUrl failed', errorData);
-        devLog.error('API', `Presigned URL request failed: ${err.detail || 'Unknown error'}`, errorData);
-        throw new Error(err.detail || 'Failed to get upload URL');
+            fileSizeBytes: fileSize,
+            projectId,
+            contentType,
+        });
+        console.log('[API] getPresignedUrl success', { datasetId: data.dataset_id });
+        devLog.action('API', 'Presigned URL received', { datasetId: data.dataset_id });
+        return data;
+    } catch (err: unknown) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        console.error('[API] getPresignedUrl failed', { error: error.message });
+        devLog.error('API', `Presigned URL request failed: ${error.message}`, { error: error.message });
+        throw error;
     }
-
-    const data = await res.json();
-    const successData = {
-        hasUploadUrl: !!data.upload_url,
-        datasetId: data.dataset_id,
-        expiresIn: data.expires_in
-    };
-    console.log('[API] getPresignedUrl success', successData);
-    devLog.action('API', 'Presigned URL received', successData);
-
-    return data;
 }
 
 async function triggerValidation(datasetId: string): Promise<{ task_id: string }> {
-    const reqData = {
-        datasetId,
-        url: `${API_BASE}/api/v1/datasets/${datasetId}/uploaded`
-    };
-    console.log('[API] triggerValidation request', reqData);
-    devLog.info('API', 'Triggering dataset validation', reqData);
-
-    const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/${datasetId}/uploaded`, {
-        method: 'POST',
-    });
-
-    const resData = {
-        status: res.status,
-        statusText: res.statusText,
-        ok: res.ok
-    };
-    console.log('[API] triggerValidation response', resData);
-
-    if (!res.ok) {
-        const errorText = await res.text().catch(() => 'No error details');
-        const errorData = {
-            status: res.status,
-            statusText: res.statusText,
-            errorText
-        };
-        console.error('[API] triggerValidation failed', errorData);
-        devLog.error('API', 'Validation trigger failed', errorData);
-        throw new Error('Failed to trigger validation');
+    console.log('[API] triggerValidation request', { datasetId });
+    devLog.info('API', 'Triggering dataset validation', { datasetId });
+    try {
+        const data = await sdk.datasets.triggerValidation(datasetId);
+        console.log('[API] triggerValidation success', data);
+        devLog.action('API', 'Dataset validation triggered', data);
+        return data;
+    } catch (err: unknown) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        console.error('[API] triggerValidation failed', { error: error.message });
+        devLog.error('API', 'Validation trigger failed', { error: error.message });
+        throw error;
     }
-
-    const data = await res.json();
-    console.log('[API] triggerValidation success', data);
-    devLog.action('API', 'Dataset validation triggered', data);
-    return data;
 }
 
 const STEP_ORDER: WizardStep[] = ['upload', 'sheets', 'configure', 'mapping', 'finalize'];
@@ -367,29 +283,15 @@ export function useUploadWizard(_projectId: string, initialDatasetId?: string) {
                 setState(prev => ({ ...prev, isLoading: true, error: null }));
                 devLog.state('UploadWizard:uploadFileDirect', 'Upload state: loading', { isLoading: true });
 
-                // Create FormData for multipart upload
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('project_id', _projectId);
-                formData.append('async_store', 'true'); // Store without parsing
-
                 console.log('[UploadWizard:uploadFileDirect] Uploading file directly to backend...');
-                devLog.info('UploadWizard:uploadFileDirect', 'Uploading to /api/v1/datasets/');
+                devLog.info('UploadWizard:uploadFileDirect', 'Uploading via SDK');
 
-                const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/`, {
-                    method: 'POST',
-                    body: formData,
-                    // Don't set Content-Type - browser will set it with boundary
+                const data = await sdk.datasets.upload({
+                    projectId: _projectId,
+                    file,
+                    asyncStore: true, // Store without parsing
                 });
 
-                if (!res.ok) {
-                    const errorData = await res.json().catch(() => ({ detail: 'Upload failed' }));
-                    console.error('[UploadWizard:uploadFileDirect] Upload failed', errorData);
-                    devLog.error('UploadWizard:uploadFileDirect', `Upload failed: ${errorData.detail}`, errorData);
-                    throw new Error(errorData.detail || 'Upload failed');
-                }
-
-                const data = await res.json();
                 console.log('[UploadWizard:uploadFileDirect] Upload successful', data);
                 devLog.action('UploadWizard:uploadFileDirect', 'Direct upload completed', { datasetId: data.id });
 
@@ -406,14 +308,8 @@ export function useUploadWizard(_projectId: string, initialDatasetId?: string) {
                 return data.id;
             } catch (err: unknown) {
                 const error = err instanceof Error ? err : new Error(String(err));
-                const errorData = {
-                    error: error.message,
-                    message: error.message,
-                    stack: error.stack,
-                    fileName: file.name
-                };
-                console.error('[UploadWizard:uploadFileDirect] Exception thrown', errorData);
-                devLog.error('UploadWizard:uploadFileDirect', `Upload failed: ${error.message}`, errorData);
+                console.error('[UploadWizard:uploadFileDirect] Exception thrown', { message: error.message, fileName: file.name });
+                devLog.error('UploadWizard:uploadFileDirect', `Upload failed: ${error.message}`, { fileName: file.name });
                 const msg = error.message || 'Upload failed';
                 setState(prev => ({ ...prev, error: msg, isLoading: false }));
                 throw error;

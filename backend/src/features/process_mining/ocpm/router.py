@@ -11,7 +11,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
-from src.api.dependencies import CurrentUser
+from src.api.dependencies import CurrentUser, ReadDBSession, WriteDBSession
 from src.features.process_mining.models import (
     Dataset,
     DatasetStatus,
@@ -32,6 +32,13 @@ from src.features.process_mining.schemas import (
 )
 from src.platform.core.logging_config import get_logger
 from src.platform.models import AsyncJob
+from src.platform.core.exceptions import (
+    BadRequestError,
+    DiscoveryError,
+    ModelNotFoundError,
+    NotFoundError,
+    ProcessingError,
+)
 
 logger = get_logger(__name__)
 
@@ -74,8 +81,8 @@ async def upload_ocel(
         while chunk := await file.read(CHUNK_SIZE):
             total_size += len(chunk)
             if total_size > MAX_FILE_SIZE_MB * 1024 * 1024:
-                raise HTTPException(
-                    status_code=400, detail=f"File too large (>{MAX_FILE_SIZE_MB}MB)"
+                raise BadRequestError(
+                    message=f"File too large (>{MAX_FILE_SIZE_MB}MB)"
                 )
             content_chunks.append(chunk)
 
@@ -157,7 +164,7 @@ async def upload_ocel(
         )
     except Exception as e:
         logger.error("ocel_upload_failed", filename=filename, error=str(e), exc_info=True)
-        raise HTTPException(status_code=400, detail=f"Failed to parse OCEL file: {e!s}")
+        raise BadRequestError(message=f"Failed to parse OCEL file: {e!s}")
 
 
 @router.get("/logs", response_model=OCELLogListResponse)
@@ -174,7 +181,7 @@ async def get_ocel_log(dataset_id: str, db: ReadDBSession, user: CurrentUser):
     result = await db.execute(select(OCELLog).where(OCELLog.id == dataset_id))
     log = result.scalar_one_or_none()
     if not log:
-        raise HTTPException(status_code=404, detail="OCEL log not found")
+        raise NotFoundError(resource='OCEL Log', resource_id='unknown')
     return OCELLogResponse.model_validate(log)
 
 
@@ -184,7 +191,7 @@ async def delete_ocel_log(dataset_id: str, db: ReadDBSession, user: CurrentUser)
     result = await db.execute(select(OCELLog).where(OCELLog.id == dataset_id))
     log = result.scalar_one_or_none()
     if not log:
-        raise HTTPException(status_code=404, detail="OCEL log not found")
+        raise NotFoundError(resource='OCEL Log', resource_id='unknown')
     await db.delete(log)
     await db.commit()
     return {"status": "deleted", "dataset_id": dataset_id}
@@ -203,7 +210,7 @@ async def get_object_types(dataset_id: str, db: ReadDBSession, user: CurrentUser
     if not object_types:
         log_result = await db.execute(select(OCELLog).where(OCELLog.id == dataset_id))
         if not log_result.scalar_one_or_none():
-            raise HTTPException(status_code=404, detail="OCEL log not found")
+            raise NotFoundError(resource='OCEL Log', resource_id='unknown')
     return [
         OCELObjectTypeResponse(
             name=ot.name,
@@ -222,7 +229,7 @@ async def get_ocel_statistics(dataset_id: str, db: ReadDBSession, user: CurrentU
     result = await db.execute(select(OCELLog).where(OCELLog.id == dataset_id))
     log = result.scalar_one_or_none()
     if not log:
-        raise HTTPException(status_code=404, detail="OCEL log not found")
+        raise NotFoundError(resource='OCEL Log', resource_id='unknown')
     metadata = json.loads(log.metadata_json) if log.metadata_json else {}
     return OCELStatisticsResponse(
         dataset_id=log.id,
@@ -249,9 +256,9 @@ async def discover_oc_petri_net(
     result = await db.execute(select(OCELLog).where(OCELLog.id == request.dataset_id))
     log = result.scalar_one_or_none()
     if not log:
-        raise HTTPException(status_code=404, detail="OCEL log not found")
+        raise NotFoundError(resource='OCEL Log', resource_id='unknown')
     if not log.ocel_storage_key:
-        raise HTTPException(status_code=400, detail="OCEL data not stored. Please re-upload.")
+        raise BadRequestError(message="OCEL data not stored. Please re-upload.")
 
     model_name = request.model_name or f"OC-PN_{log.name}"
 
@@ -308,7 +315,7 @@ async def discover_oc_petri_net(
         )
     except Exception as e:
         logger.error("oc_pn_discovery_failed", error=str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"OC-PN discovery failed: {e!s}")
+        raise DiscoveryError(message=f"OC-PN discovery failed: {e!s}")
 
 
 @router.get("/models", response_model=list[OCPetriNetResponse])
@@ -324,7 +331,7 @@ async def get_oc_petri_net(model_id: str, db: ReadDBSession, user: CurrentUser):
     result = await db.execute(select(OCPetriNet).where(OCPetriNet.id == model_id))
     model = result.scalar_one_or_none()
     if not model:
-        raise HTTPException(status_code=404, detail="OC-PN model not found")
+        raise ModelNotFoundError(model_id='unknown')
     return OCPetriNetResponse.model_validate(model)
 
 
@@ -334,7 +341,7 @@ async def delete_oc_petri_net(model_id: str, db: ReadDBSession, user: CurrentUse
     result = await db.execute(select(OCPetriNet).where(OCPetriNet.id == model_id))
     model = result.scalar_one_or_none()
     if not model:
-        raise HTTPException(status_code=404, detail="OC-PN model not found")
+        raise ModelNotFoundError(model_id='unknown')
     await db.delete(model)
     await db.commit()
     return {"status": "deleted", "model_id": model_id}
@@ -346,7 +353,7 @@ async def get_object_relationships(dataset_id: str, db: ReadDBSession, user: Cur
     result = await db.execute(select(OCELLog).where(OCELLog.id == dataset_id))
     log = result.scalar_one_or_none()
     if not log:
-        raise HTTPException(status_code=404, detail="OCEL log not found")
+        raise NotFoundError(resource='OCEL Log', resource_id='unknown')
     metadata = json.loads(log.metadata_json) if log.metadata_json else {}
     objects_per_type = metadata.get("objects_per_type", {})
     return {
@@ -364,9 +371,9 @@ async def get_oc_dfg(dataset_id: str, db: ReadDBSession, user: CurrentUser):
     result = await db.execute(select(OCELLog).where(OCELLog.id == dataset_id))
     log = result.scalar_one_or_none()
     if not log:
-        raise HTTPException(status_code=404, detail="OCEL log not found")
+        raise NotFoundError(resource='OCEL Log', resource_id='unknown')
     if not log.ocel_storage_key:
-        raise HTTPException(status_code=400, detail="OCEL data not stored.")
+        raise BadRequestError(message="OCEL data not stored.")
 
     start_time = time.perf_counter()
     try:
@@ -375,8 +382,8 @@ async def get_oc_dfg(dataset_id: str, db: ReadDBSession, user: CurrentUser):
         ocel = ocpm_service.read_ocel_from_bytes(ocel_data, log.source_format)
         ocdfg_data = ocpm_service.get_ocdfg_graph_data(ocel)
         if ocdfg_data.get("error"):
-            raise HTTPException(
-                status_code=500, detail=f"OC-DFG computation failed: {ocdfg_data['error']}"
+            raise ProcessingError(
+                message=f"OC-DFG computation failed: {ocdfg_data['error']}"
             )
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info(
@@ -394,7 +401,7 @@ async def get_oc_dfg(dataset_id: str, db: ReadDBSession, user: CurrentUser):
         raise
     except Exception as e:
         logger.error("oc_dfg_computation_failed", error=str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"OC-DFG computation failed: {e!s}")
+        raise ProcessingError(message=f"OC-DFG computation failed: {e!s}")
 
 
 @router.get("/formats")
@@ -425,16 +432,15 @@ async def flatten_ocel_to_dataset(
     result = await db.execute(select(OCELLog).where(OCELLog.id == dataset_id))
     log = result.scalar_one_or_none()
     if not log:
-        raise HTTPException(status_code=404, detail="OCEL log not found")
+        raise NotFoundError(resource='OCEL Log', resource_id='unknown')
     if not log.ocel_storage_key:
-        raise HTTPException(status_code=400, detail="OCEL data not stored.")
+        raise BadRequestError(message="OCEL data not stored.")
 
     metadata = json.loads(log.metadata_json) if log.metadata_json else {}
     available_types = list(metadata.get("objects_per_type", {}).keys())
     if object_type not in available_types:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Object type '{object_type}' not found. Available: {', '.join(available_types)}",
+        raise BadRequestError(
+            message=f"Object type '{object_type}' not found. Available: {', '.join(available_types)}"
         )
 
     dataset_name = name or f"{log.name}_flattened_{object_type}"

@@ -23,6 +23,7 @@ class ErrorCode(str, Enum):
     # ==========================================================================
     # Validation Errors (1xx)
     # ==========================================================================
+    BAD_REQUEST = "ERR_099"  # General bad request (400)
     VALIDATION_FAILED = "ERR_100"
     INVALID_INPUT = "ERR_101"
     MISSING_REQUIRED_FIELD = "ERR_102"

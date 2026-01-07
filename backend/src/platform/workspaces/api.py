@@ -11,7 +11,8 @@ from sqlalchemy import func, select
 from src.api.dependencies import ReadDBSession
 from src.platform.core.logging_config import get_logger
 from src.platform.devconsole import log_error, log_info
-from src.platform.models import Project, Workspace
+from src.platform.users import Project, Workspace
+from src.platform.core.exceptions import BadRequestError, NotFoundError, ProcessingError, ProjectNotFoundError
 from src.platform.schemas import (
     ProjectResponse,
     WorkspaceCreateRequest,
@@ -112,15 +113,7 @@ async def get_workspace(
             error_code="WS_NOT_FOUND",
             workspace_id=workspace_id,
         )
-        raise HTTPException(
-            status_code=404,
-            detail={
-                "error": "Workspace not found",
-                "error_code": "WS_NOT_FOUND",
-                "workspace_id": workspace_id,
-                "suggestion": "Check that the workspace ID is correct and the workspace exists",
-            },
-        )
+        raise NotFoundError(resource='Workspace', resource_id=workspace_id)
 
     # Get projects for this workspace
     projects_result = await db.execute(select(Project).filter(Project.workspace_id == workspace_id))
@@ -198,15 +191,7 @@ async def create_workspace(
             name=request.name,
             reason=str(e),
         )
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Failed to create workspace",
-                "error_code": "WS_CREATE_FAILED",
-                "reason": str(e),
-                "suggestion": "Check database connectivity and ensure the organization exists",
-            },
-        )
+        raise ProcessingError(message="Failed to create workspace")
 
 
 @router.put("/{workspace_id}", response_model=WorkspaceResponse)
@@ -235,15 +220,7 @@ async def update_workspace(
             error_code="WS_NOT_FOUND",
             workspace_id=workspace_id,
         )
-        raise HTTPException(
-            status_code=404,
-            detail={
-                "error": "Workspace not found",
-                "error_code": "WS_NOT_FOUND",
-                "workspace_id": workspace_id,
-                "suggestion": "Verify the workspace ID exists before updating",
-            },
-        )
+        raise NotFoundError(resource='Workspace', resource_id=workspace_id)
 
     if request.name is not None:
         workspace.name = request.name
@@ -280,16 +257,7 @@ async def update_workspace(
             workspace_id=workspace_id,
             reason=str(e),
         )
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Failed to update workspace",
-                "error_code": "WS_UPDATE_FAILED",
-                "workspace_id": workspace_id,
-                "reason": str(e),
-                "suggestion": "Check database connectivity and retry",
-            },
-        )
+        raise ProcessingError(message="Failed to update workspace")
 
 
 @router.delete("/{workspace_id}", status_code=204)
@@ -315,15 +283,7 @@ async def delete_workspace(
             error_code="WS_NOT_FOUND",
             workspace_id=workspace_id,
         )
-        raise HTTPException(
-            status_code=404,
-            detail={
-                "error": "Workspace not found",
-                "error_code": "WS_NOT_FOUND",
-                "workspace_id": workspace_id,
-                "suggestion": "Verify the workspace ID before attempting deletion",
-            },
-        )
+        raise NotFoundError(resource='Workspace', resource_id=workspace_id)
 
     # BUG-036 FIX: Delete projects instead of orphaning
     from sqlalchemy import delete
@@ -363,16 +323,7 @@ async def delete_workspace(
             workspace_id=workspace_id,
             reason=str(e),
         )
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Failed to delete workspace",
-                "error_code": "WS_DELETE_FAILED",
-                "workspace_id": workspace_id,
-                "reason": str(e),
-                "suggestion": "Check database connectivity and ensure no foreign key constraints are blocking deletion",
-            },
-        )
+        raise ProcessingError(message="Failed to delete workspace")
 
 
 # =============================================================================
@@ -392,12 +343,12 @@ async def add_project_to_workspace(
     result = await db.execute(select(Workspace).filter(Workspace.id == workspace_id))
     workspace = result.scalar_one_or_none()
     if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
+        raise NotFoundError(resource='Workspace', resource_id='unknown')
 
     project_result = await db.execute(select(Project).filter(Project.id == project_id))
     project = project_result.scalar_one_or_none()
     if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise ProjectNotFoundError(project_id='unknown')
 
     project.workspace_id = workspace_id
     workspace.updated_at = datetime.utcnow()
@@ -419,15 +370,15 @@ async def remove_project_from_workspace(
     result = await db.execute(select(Workspace).filter(Workspace.id == workspace_id))
     workspace = result.scalar_one_or_none()
     if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
+        raise NotFoundError(resource='Workspace', resource_id='unknown')
 
     project_result = await db.execute(select(Project).filter(Project.id == project_id))
     project = project_result.scalar_one_or_none()
     if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise ProjectNotFoundError(project_id='unknown')
 
     if project.workspace_id != workspace_id:
-        raise HTTPException(status_code=400, detail="Project is not in this workspace")
+        raise BadRequestError(message="Project is not in this workspace")
 
     project.workspace_id = None
     workspace.updated_at = datetime.utcnow()

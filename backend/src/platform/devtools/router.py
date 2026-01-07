@@ -34,6 +34,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from src.platform.core.config import get_settings
+from src.platform.core.exceptions import BadRequestError, NotFoundError
 
 router = APIRouter(prefix="/dev", tags=["Development"])
 settings = get_settings()
@@ -61,12 +62,12 @@ async def receive_log(entry: LogEntry) -> dict[str, str]:
     """Receive a log entry from frontend and append to dev-logs/app.log."""
     # BUG-037 FIX: Disable in production to prevent log-bombing DoS
     if not settings.debug:
-        raise HTTPException(status_code=404, detail="Not found")
+        raise NotFoundError(resource='Resource', resource_id='unknown')
 
     # BUG-037 FIX: Validate message size to prevent memory attacks
     msg_str = str(entry.message)
     if len(msg_str) > MAX_MESSAGE_SIZE:
-        raise HTTPException(status_code=413, detail="Log message too large")
+        raise BadRequestError(message="Log message too large (max 10KB)")
 
     # Ensure log directory exists
     LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -94,7 +95,7 @@ async def get_logs(lines: int = 100) -> dict[str, Any]:
     """Get recent log entries (for debugging)."""
     # BUG-037 FIX: Disable in production
     if not settings.debug:
-        raise HTTPException(status_code=404, detail="Not found")
+        raise NotFoundError(resource='Resource', resource_id='unknown')
 
     if not LOG_FILE.exists():
         return {"lines": [], "total": 0}
@@ -113,7 +114,7 @@ async def clear_logs() -> dict[str, str]:
     """Clear the dev log file."""
     # BUG-037 FIX: Disable in production
     if not settings.debug:
-        raise HTTPException(status_code=404, detail="Not found")
+        raise NotFoundError(resource='Resource', resource_id='unknown')
 
     if LOG_FILE.exists():
         LOG_FILE.unlink()

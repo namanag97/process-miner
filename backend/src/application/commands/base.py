@@ -3,19 +3,39 @@
 Provides:
 - BaseCommand: Abstract base for all command data classes
 - CommandHandler: Handler interface for processing commands
+- CommandSuccess: Standard result for successful command execution
 - CommandBus: Dispatcher that routes commands to handlers
 """
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from uuid import uuid4
 
 from src.platform.core.logging_config import get_logger
 
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from src.shared.events import EventStore
+
 logger = get_logger(__name__)
 
 T = TypeVar("T", bound="BaseCommand")
+R = TypeVar("R")  # Result type for handlers
+
+
+@dataclass
+class CommandSuccess:
+    """Standard result for successful command execution.
+    
+    Attributes:
+        id: The ID of the created/modified resource
+        message: Human-readable success message
+        data: Optional additional data
+    """
+    id: str
+    message: str = "Command executed successfully"
+    data: dict[str, Any] | None = None
 
 
 @dataclass

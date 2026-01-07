@@ -65,6 +65,14 @@ from src.features.process_mining.schemas import (
     QualityMetricsResponse,
 )
 from src.platform.core.logging_config import get_logger
+from src.platform.core.exceptions import (
+    BadRequestError,
+    ConformanceError,
+    ModelNotFoundError,
+    NotFoundError,
+    ProcessingError,
+    ProjectNotFoundError,
+)
 
 logger = get_logger(__name__)
 
@@ -81,7 +89,7 @@ async def _get_dataset_or_404(db: ReadDBSession, dataset_id: str) -> Dataset:
     result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
     if not dataset:
-        raise HTTPException(status_code=404, detail="Event log not found")
+        raise NotFoundError(resource='Dataset', resource_id='unknown')
     return dataset
 
 
@@ -90,9 +98,9 @@ async def _get_model_or_404(db: ReadDBSession, model_id: str) -> ProcessModel:
     result = await db.execute(select(ProcessModel).where(ProcessModel.id == model_id))
     model = result.scalar_one_or_none()
     if not model:
-        raise HTTPException(status_code=404, detail="Process model not found")
+        raise ModelNotFoundError(model_id='unknown')
     if not model.serialized_model:
-        raise HTTPException(status_code=400, detail="Process model has no serialized data")
+        raise BadRequestError(message="Process model has no serialized data")
     return model
 
 
@@ -120,9 +128,8 @@ async def check_conformance(
     event_log = await _get_dataset_or_404(db, request.dataset_id)
 
     if event_log.status != DatasetStatus.READY.value:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Dataset not ready (status: {event_log.status}). Complete ingestion first.",
+        raise ConflictError(
+            message=f"Dataset not ready (status: {event_log.status}). Complete ingestion first."
         )
 
     model = await _get_model_or_404(db, request.model_id)
@@ -176,7 +183,7 @@ async def check_conformance(
 
     except Exception as e:
         logger.error("conformance_check_failed", error=str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Conformance check failed: {e!s}")
+        raise ConformanceError(message=f"Conformance check failed: {e!s}")
 
 
 @router.get("/results", response_model=ConformanceListResponse)
@@ -235,7 +242,7 @@ async def get_conformance_result(result_id: str, db: ReadDBSession):
     result = await db.execute(select(ConformanceResult).where(ConformanceResult.id == result_id))
     record = result.scalar_one_or_none()
     if not record:
-        raise HTTPException(status_code=404, detail="Conformance result not found")
+        raise NotFoundError(resource='Conformance Result', resource_id='unknown')
 
     diagnostics = json.loads(record.diagnostics_json) if record.diagnostics_json else {}
     return ConformanceResponse(
@@ -259,7 +266,7 @@ async def delete_conformance_result(result_id: str, db: ReadDBSession):
     result = await db.execute(select(ConformanceResult).where(ConformanceResult.id == result_id))
     record = result.scalar_one_or_none()
     if not record:
-        raise HTTPException(status_code=404, detail="Conformance result not found")
+        raise NotFoundError(resource='Conformance Result', resource_id='unknown')
     await db.delete(record)
     await db.commit()
     return {"status": "deleted", "result_id": result_id}
@@ -290,7 +297,7 @@ async def get_conformance_diagnostics(
             deviations=diagnostics["deviations"],
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get diagnostics: {e!s}")
+        raise ProcessingError(message=f"Failed to get diagnostics: {e!s}")
 
 
 @router.get("/deviations/{dataset_id}/{model_id}", response_model=list[DeviationResponse])
@@ -317,7 +324,7 @@ async def get_deviations(
             for d in deviations[:100]
         ]
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to detect deviations: {e!s}")
+        raise ProcessingError(message=f"Failed to detect deviations: {e!s}")
 
 
 @router.get("/alignments/{dataset_id}/{model_id}", response_model=AlignmentDiagnosticsResponse)
@@ -351,7 +358,7 @@ async def get_alignment_diagnostics(
         )
     except Exception as e:
         logger.error("alignment_diagnostics_failed", error=str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get alignment diagnostics: {e!s}")
+        raise ProcessingError(message=f"Failed to get alignment diagnostics: {e!s}")
 
 
 @router.get("/methods")
@@ -404,7 +411,7 @@ async def get_quality_metrics(
         )
     except Exception as e:
         logger.error("quality_metrics_failed", error=str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get quality metrics: {e!s}")
+        raise ProcessingError(message=f"Failed to get quality metrics: {e!s}")
 
 
 @router.post("/import-model")
@@ -426,7 +433,7 @@ async def import_reference_model(
 
     project_result = await db.execute(select(Project).where(Project.id == project_id))
     if not project_result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise ProjectNotFoundError(project_id='unknown')
 
     try:
         model_format = model_importer.validate_model_format(model_content)
@@ -436,7 +443,7 @@ async def import_reference_model(
         elif model_format == ModelFormat.BPMN:
             net, im, fm = model_importer.import_and_convert_bpmn(model_content)
         else:
-            raise HTTPException(status_code=400, detail=f"Unsupported format: {model_format.value}")
+            raise BadRequestError(message=f"Unsupported format: {model_format.value}")
 
         serialized_model = model_importer.serialize_petri_net(net, im, fm)
 
@@ -475,10 +482,10 @@ async def import_reference_model(
         }
 
     except ValidationError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise BadRequestError(message=str(e)) from e
     except Exception as e:
         logger.error("model_import_failed", error=str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to import model: {e!s}") from e
+        raise ProcessingError(message=f"Failed to import model: {e!s}") from e
 
 
 @router.get("/root-cause/{dataset_id}/{model_id}")
@@ -511,7 +518,7 @@ async def get_root_cause_analysis(
         return analysis
     except Exception as e:
         logger.error("root_cause_analysis_failed", error=str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to analyze root causes: {e!s}") from e
+        raise ProcessingError(message=f"Failed to analyze root causes: {e!s}") from e
 
 
 @router.get("/deviations/by-activity/{dataset_id}/{model_id}")
@@ -529,7 +536,7 @@ async def get_deviations_by_activity(
     try:
         return root_cause_analyzer.aggregate_deviations_by_activity(event_log, model)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to aggregate deviations: {e!s}") from e
+        raise ProcessingError(message=f"Failed to aggregate deviations: {e!s}") from e
 
 
 @router.get("/deviations/by-position/{dataset_id}/{model_id}")
@@ -547,7 +554,7 @@ async def get_deviations_by_position(
     try:
         return root_cause_analyzer.aggregate_deviations_by_position(event_log, model)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to aggregate deviations: {e!s}") from e
+        raise ProcessingError(message=f"Failed to aggregate deviations: {e!s}") from e
 
 
 @router.get("/deviations/attribute-correlation/{dataset_id}/{model_id}")
@@ -566,6 +573,6 @@ async def get_attribute_correlation(
     try:
         return root_cause_analyzer.analyze_attribute_correlation(event_log, model, attribute)
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to analyze attribute correlation: {e!s}"
+        raise ProcessingError(
+            message=f"Failed to analyze attribute correlation: {e!s}"
         ) from e

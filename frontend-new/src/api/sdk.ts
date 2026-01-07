@@ -471,6 +471,42 @@ export const sdk = {
             const { data } = await apiClient.post(`/datasets/${datasetId}/ingest`);
             return data;
         },
+
+        // Preview (for upload wizard)
+        getPreview: async (datasetId: string, rows = 10) => {
+            const { data } = await apiClient.get(`/datasets/${datasetId}/preview`, {
+                params: { rows },
+            });
+            return data;
+        },
+
+        // Sheets (for Excel/multi-sheet files)
+        getSheets: async (datasetId: string) => {
+            const { data } = await apiClient.get(`/datasets/${datasetId}/sheets`);
+            return data;
+        },
+
+        // Presigned upload URL (for S3 direct upload)
+        getPresignedUrl: async (params: {
+            filename: string;
+            fileSizeBytes: number;
+            projectId: string;
+            contentType?: string;
+        }) => {
+            const { data } = await apiClient.post(`/datasets/presign`, {
+                filename: params.filename,
+                file_size_bytes: params.fileSizeBytes,
+                project_id: params.projectId,
+                content_type: params.contentType,
+            });
+            return data;
+        },
+
+        // Trigger validation after S3 upload
+        triggerValidation: async (datasetId: string) => {
+            const { data } = await apiClient.post(`/datasets/${datasetId}/uploaded`);
+            return data;
+        },
     },
 
     // ========================================

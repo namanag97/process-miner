@@ -57,6 +57,8 @@ from src.features.process_mining.schemas import (
     TrainPredictorRequest,
 )
 from src.platform.core.logging_config import get_logger
+from src.platform.core.exceptions import BadRequestError, NotFoundError, ProcessingError
+from src.platform.devconsole import log_error, log_info
 
 logger = get_logger(__name__)
 
@@ -70,9 +72,9 @@ async def _get_pm4py_log(dataset_id: str, db: ReadDBSession, container: ServiceC
     event_log = result.scalar_one_or_none()
     if not event_log:
         logger.error("predictions_dataset_not_found", dataset_id=dataset_id)
-        raise HTTPException(
-            status_code=404,
-            detail=f"Dataset not found: {dataset_id}. Verify the dataset ID exists.",
+        raise NotFoundError(
+            resource='Dataset',
+            resource_id=dataset_id
         )
 
     try:
@@ -86,8 +88,8 @@ async def _get_pm4py_log(dataset_id: str, db: ReadDBSession, container: ServiceC
             error_type=type(e).__name__,
             exc_info=True,
         )
-        raise HTTPException(
-            status_code=500, detail=f"Failed to convert dataset {dataset_id} to PM4Py log: {e!s}"
+        raise ProcessingError(
+            message=f"Failed to convert dataset {dataset_id} to PM4Py log: {e!s}"
         )
 
 
@@ -121,12 +123,12 @@ async def train_predictor(
     result = await db.execute(query)
     event_log = result.scalar_one_or_none()
     if not event_log:
-        raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+        raise NotFoundError(resource='Dataset', resource_id=dataset_id)
 
     if async_mode:
         # TODO: Implement Temporal v2 workflow for async training
-        raise HTTPException(
-            status_code=501, detail="Async training not yet implemented. Use async_mode=false."
+        raise ProcessingError(
+            message="Async training not yet implemented. Use async_mode=false."
         )
 
     # Train synchronously
@@ -141,8 +143,8 @@ async def train_predictor(
             pm4py_log, request.algorithm
         )
     else:
-        raise HTTPException(
-            status_code=400, detail=f"Unsupported target type: {request.target_type}"
+        raise BadRequestError(
+            message=f"Unsupported target type: {request.target_type}"
         )
 
     activities = container.predictions.get_activities_from_log(pm4py_log)
@@ -219,7 +221,7 @@ async def get_predictor(predictor_id: str, db: ReadDBSession) -> PredictorRespon
     predictor = result.scalar_one_or_none()
 
     if not predictor:
-        raise HTTPException(status_code=404, detail=f"Predictor {predictor_id} not found")
+        raise NotFoundError(resource='Predictor', resource_id=predictor_id)
 
     return PredictorResponse.model_validate(predictor)
 
@@ -238,13 +240,13 @@ async def predict(
     predictor = result.scalar_one_or_none()
 
     if not predictor:
-        raise HTTPException(status_code=404, detail=f"Predictor {predictor_id} not found")
+        raise NotFoundError(resource='Predictor', resource_id=predictor_id)
 
     metrics = json.loads(predictor.metrics_json) if predictor.metrics_json else {}
     activities = metrics.get("activities", [])
 
     if not predictor.model_binary:
-        raise HTTPException(status_code=400, detail="Predictor model data is missing")
+        raise BadRequestError(message="Predictor model data is missing")
 
     if predictor.target_type == "next_activity":
         prediction_result = container.predictions.predict_next_activity(
@@ -267,7 +269,7 @@ async def predict(
             prediction=prediction_result["prediction_seconds"],
             confidence=prediction_result["confidence"],
         )
-    raise HTTPException(status_code=400, detail=f"Unsupported target type: {predictor.target_type}")
+    raise BadRequestError(message=f"Unsupported target type: {predictor.target_type}")
 
 
 async def predict_batch(
@@ -284,13 +286,13 @@ async def predict_batch(
     predictor = result.scalar_one_or_none()
 
     if not predictor:
-        raise HTTPException(status_code=404, detail=f"Predictor {predictor_id} not found")
+        raise NotFoundError(resource='Predictor', resource_id=predictor_id)
 
     metrics = json.loads(predictor.metrics_json) if predictor.metrics_json else {}
     activities = metrics.get("activities", [])
 
     if not predictor.model_binary:
-        raise HTTPException(status_code=400, detail="Predictor model data is missing")
+        raise BadRequestError(message="Predictor model data is missing")
 
     predictions = []
     for case in request.cases:
@@ -331,7 +333,7 @@ async def delete_predictor(predictor_id: str, db: WriteDBSession) -> dict[str, A
     predictor = result.scalar_one_or_none()
 
     if not predictor:
-        raise HTTPException(status_code=404, detail=f"Predictor {predictor_id} not found")
+        raise NotFoundError(resource='Predictor', resource_id=predictor_id)
 
     await db.delete(predictor)
     await db.commit()
