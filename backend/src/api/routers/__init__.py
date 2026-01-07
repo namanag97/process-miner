@@ -10,6 +10,7 @@ Consolidated architecture:
 # ============================================================================
 # Platform Infrastructure
 from src.api.routers.operations import router as operations_router  # Unified Temporal API
+# from src.api.routers.telemetry import router as telemetry_router  # TODO: Create telemetry router
 from src.api.routers.workflows import router as workflows_api_router
 
 # ============================================================================
@@ -98,6 +99,7 @@ __all__ = [
     "simulation_router",
     # Process Mining Features
     "statistics_router",
+    # "telemetry_router",  # TODO: Create telemetry router
     "visualization_router",
     "workflows_api_router",
     "workflows_router",

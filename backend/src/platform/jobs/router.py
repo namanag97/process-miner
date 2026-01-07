@@ -252,8 +252,8 @@ async def cancel_job(
 @router.get("/{job_id}/stream")
 async def stream_job_progress(
     db: DBSession,
+    request: Request,
     job_id: str = Path(..., description="Job ID (UUID format)"),
-    request: Request | None = None,
 ):
     """
     SSE stream for real-time job progress updates.

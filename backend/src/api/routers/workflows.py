@@ -133,57 +133,42 @@ async def get_workflow_tasks(
 # =============================================================================
 # Temporal Integration Endpoints
 # =============================================================================
-
-
-@router.get("/{workflow_id}/status")
-async def get_workflow_temporal_status(workflow_id: str) -> dict:
-    """Get real-time status from Temporal for a workflow.
-
-    Args:
-        workflow_id: The Temporal workflow ID (e.g., "dataset_ingestion-abc123")
-
-    Returns:
-        Workflow status including current activity and progress from Temporal
-    """
-    from src.platform.temporal.compat import get_workflow_status as query_status
-
-    try:
-        status = await query_status(workflow_id)
-        return {
-            "workflow_id": workflow_id,
-            "status": status.get("status", "UNKNOWN"),
-            "current_activity": status.get("current_activity"),
-            "progress": status.get("progress"),
-            "started_at": status.get("started_at"),
-            "completed_at": status.get("completed_at"),
-            "error_message": status.get("error_message"),
-        }
-    except KeyError:
-        raise HTTPException(status_code=404, detail=f"Workflow not found: {workflow_id}")
-    except ConnectionError as e:
-        logger.error("temporal_connection_failed", workflow_id=workflow_id, error=str(e))
-        raise HTTPException(status_code=503, detail="Workflow service temporarily unavailable")
-    except Exception as e:
-        logger.error("workflow_status_error", workflow_id=workflow_id, error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to get workflow status: {e!s}")
-
-
-@router.post("/{workflow_id}/cancel")
-async def cancel_workflow(workflow_id: str) -> dict:
-    """Cancel a running Temporal workflow.
-
-    Args:
-        workflow_id: The workflow ID to cancel
-
-    Returns:
-        Confirmation of cancellation request
-    """
-    from src.platform.temporal.compat import cancel_workflow as do_cancel
-
-    try:
-        await do_cancel(workflow_id)
-        logger.info("workflow_cancelled", workflow_id=workflow_id)
-        return {"workflow_id": workflow_id, "status": "cancel_requested"}
-    except Exception as e:
-        logger.error("workflow_cancel_error", workflow_id=workflow_id, error=str(e))
-        raise HTTPException(status_code=400, detail=f"Failed to cancel workflow: {e}")
+#
+# NOTE: These endpoints have been deprecated in favor of the unified
+# /operations API. The src.platform.temporal.compat module has been removed.
+# Use /operations/{workflow_id} for status and cancellation instead.
+#
+# @router.get("/{workflow_id}/status")
+# async def get_workflow_temporal_status(workflow_id: str) -> dict:
+#     """DEPRECATED: Use /operations/{workflow_id} instead.
+#
+#     Get real-time status from Temporal for a workflow.
+#
+#     Args:
+#         workflow_id: The Temporal workflow ID (e.g., "dataset_ingestion-abc123")
+#
+#     Returns:
+#         Workflow status including current activity and progress from Temporal
+#     """
+#     raise HTTPException(
+#         status_code=410,
+#         detail="This endpoint is deprecated. Use GET /operations/{workflow_id} instead."
+#     )
+#
+#
+# @router.post("/{workflow_id}/cancel")
+# async def cancel_workflow(workflow_id: str) -> dict:
+#     """DEPRECATED: Use POST /operations/{workflow_id}/cancel instead.
+#
+#     Cancel a running Temporal workflow.
+#
+#     Args:
+#         workflow_id: The workflow ID to cancel
+#
+#     Returns:
+#         Confirmation of cancellation request
+#     """
+#     raise HTTPException(
+#         status_code=410,
+#         detail="This endpoint is deprecated. Use POST /operations/{workflow_id}/cancel instead."
+#     )

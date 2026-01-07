@@ -32,11 +32,11 @@ Results are cached for 1 hour. Subsequent calls return cached data.
 - **404**: Dataset not found (verify dataset_id UUID)
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.dependencies import CurrentUser, ServiceContainer, get_db
+from src.api.dependencies import CurrentUser, ReadDBSession, ServiceContainer
 from src.features.process_mining.models import Dataset
 from src.features.process_mining.schemas import (
     BottleneckListResponse,
@@ -63,7 +63,7 @@ CACHE_VERSION = "v1"
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 
-async def _get_pm4py_log(dataset_id: str, db: AsyncSession, container: ServiceContainer):
+async def _get_pm4py_log(dataset_id: str, db: ReadDBSession, container: ServiceContainer):
     """Helper to get PM4Py log from dataset_id."""
     query = select(Dataset).where(Dataset.id == dataset_id)
     result = await db.execute(query)
@@ -78,7 +78,7 @@ async def get_bottlenecks(
     dataset_id: str,
     user: CurrentUser,
     container: ServiceContainer,
-    db: AsyncSession = Depends(get_db),
+    db: ReadDBSession,  # CQRS: Read-optimized pool
 ) -> BottleneckListResponse:
     """Detect process bottlenecks based on waiting times."""
     logger.info("getting_bottlenecks", dataset_id=dataset_id)
@@ -108,7 +108,7 @@ async def get_rework(
     dataset_id: str,
     user: CurrentUser,
     container: ServiceContainer,
-    db: AsyncSession = Depends(get_db),
+    db: ReadDBSession,  # CQRS: Read-optimized pool
 ) -> ReworkListResponse:
     """Analyze rework (repeated activities) in cases."""
     logger.info("getting_rework", dataset_id=dataset_id)
@@ -139,7 +139,7 @@ async def get_service_times(
     dataset_id: str,
     user: CurrentUser,
     container: ServiceContainer,
-    db: AsyncSession = Depends(get_db),
+    db: ReadDBSession,  # CQRS: Read-optimized pool
 ) -> list[ServiceTimeResponse]:
     """Get service time statistics per activity."""
     logger.info("getting_service_times", dataset_id=dataset_id)
@@ -165,7 +165,7 @@ async def get_cycle_time(
     dataset_id: str,
     user: CurrentUser,
     container: ServiceContainer,
-    db: AsyncSession = Depends(get_db),
+    db: ReadDBSession,  # CQRS: Read-optimized pool
 ) -> CycleTimeResponse:
     """Get cycle time (case duration) statistics."""
     logger.info("getting_cycle_time", dataset_id=dataset_id)
@@ -189,7 +189,7 @@ async def get_throughput(
     dataset_id: str,
     user: CurrentUser,
     container: ServiceContainer,
-    db: AsyncSession = Depends(get_db),
+    db: ReadDBSession,  # CQRS: Read-optimized pool
 ) -> ThroughputResponse:
     """Get throughput metrics (cases per day/week/month)."""
     logger.info("getting_throughput", dataset_id=dataset_id)
@@ -211,10 +211,10 @@ async def get_throughput(
 @router.get("/datasets/{dataset_id}/patterns")
 async def get_patterns(
     dataset_id: str,
+    db: ReadDBSession,  # CQRS: Read-optimized pool
     user: CurrentUser,
     container: ServiceContainer,
     min_support: float = 0.1,
-    db: AsyncSession = Depends(get_db),
 ) -> list[PatternResponse]:
     """Get frequent activity patterns/subsequences."""
     logger.info("getting_patterns", dataset_id=dataset_id, min_support=min_support)
@@ -228,7 +228,7 @@ async def get_rework_chains(
     dataset_id: str,
     user: CurrentUser,
     container: ServiceContainer,
-    db: AsyncSession = Depends(get_db),
+    db: ReadDBSession,  # CQRS: Read-optimized pool
 ) -> ReworkChainListResponse:
     """Detect rework chains - consecutive repetitions of the same activity.
 
@@ -272,7 +272,7 @@ async def get_performance_dashboard(
     dataset_id: str,
     user: CurrentUser,
     container: ServiceContainer,
-    db: AsyncSession = Depends(get_db),
+    db: ReadDBSession,  # CQRS: Read-optimized pool
 ) -> PerformanceDashboardResponse:
     """Get comprehensive performance dashboard."""
     logger.info("getting_performance_dashboard", dataset_id=dataset_id)

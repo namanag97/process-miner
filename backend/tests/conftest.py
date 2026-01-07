@@ -224,15 +224,12 @@ async def seeded_dataset_ready(db_session: AsyncSession, seeded_project: Any) ->
         project_id=seeded_project.id,
         name="Test Dataset (Ready)",
         source_format="csv",
-        original_filename="test.csv",
+        source_file="test.csv",
         status=DatasetStatus.READY.value,
         total_cases=3,
         total_events=9,
         total_activities=3,
         activities_json=json.dumps(["Start", "Process", "End"]),
-        case_id_column="case_id",
-        activity_column="activity",
-        timestamp_column="timestamp",
     )
     db_session.add(dataset)
     await db_session.flush()
@@ -250,6 +247,7 @@ async def seeded_dataset_ready(db_session: AsyncSession, seeded_project: Any) ->
         for j, activity in enumerate(activities):
             event = ProcessEvent(
                 id=str(uuid4()),
+                dataset_id=dataset.id,
                 case_ref_id=case.id,
                 activity=activity,
                 timestamp=datetime(2024, 1, 1, 10, j, 0, tzinfo=timezone.utc),
