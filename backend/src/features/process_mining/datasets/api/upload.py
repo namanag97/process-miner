@@ -285,21 +285,29 @@ async def confirm_upload_complete(
     dataset.status = DatasetStatus.UPLOADED.value
     await db.commit()
 
-    # Queue validation job
-    from src.platform.infrastructure.tasks import validate_uploaded_file_task
+    # Queue validation job via Temporal/Celery compat layer
+    from src.platform.temporal.compat import dispatch_workflow
 
-    task = validate_uploaded_file_task.delay(dataset_id, dataset.storage_key)
+    result = await dispatch_workflow(
+        workflow_type="validate_uploaded_file",
+        args={
+            "dataset_id": dataset_id,
+            "storage_key": dataset.storage_key,
+        },
+        entity_type="dataset",
+        entity_id=dataset_id,
+    )
 
     logger.info(
         "upload_confirmed_validation_queued",
         dataset_id=dataset_id,
-        task_id=task.id,
+        workflow_id=result.get("workflow_id"),
     )
 
     return {
         "status": "validation_queued",
         "dataset_id": dataset_id,
-        "job_id": task.id,
+        "job_id": result.get("workflow_id") or result.get("job_id"),
     }
 
 
@@ -344,7 +352,7 @@ async def upload_dataset(
     """
     from src.platform.core.permissions import Permission
     from src.platform.infrastructure.object_storage import get_storage_client
-    from src.platform.infrastructure.tasks import validate_uploaded_file_task
+    from src.platform.temporal.compat import dispatch_workflow
     from src.platform.workspaces.authorization import require_project_permission
 
     # Validate file type
@@ -434,14 +442,22 @@ async def upload_dataset(
 
         await db.commit()
 
-        # Queue validation job
-        task = validate_uploaded_file_task.delay(dataset_id, storage_key)
+        # Queue validation job via Temporal/Celery compat layer
+        result = await dispatch_workflow(
+            workflow_type="validate_uploaded_file",
+            args={
+                "dataset_id": dataset_id,
+                "storage_key": storage_key,
+            },
+            entity_type="dataset",
+            entity_id=dataset_id,
+        )
 
         logger.info(
             "direct_upload_complete",
             dataset_id=dataset_id,
             storage_key=storage_key,
-            task_id=task.id,
+            workflow_id=result.get("workflow_id"),
         )
 
         return DatasetResponse(
@@ -469,5 +485,5 @@ async def upload_dataset(
         if temp_file_path and os.path.exists(temp_file_path):
             try:
                 os.unlink(temp_file_path)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("temp_file_cleanup_failed", path=temp_file_path, error=str(e))

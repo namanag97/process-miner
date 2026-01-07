@@ -12,7 +12,7 @@ import {
     useLogoutApiV1AuthLogoutPost,
     LoginRequest,
     CurrentUserResponse,
-} from '../../../libs/api-hooks/src/generated/api';
+} from '@/src/api/generated';
 
 const ACCESS_TOKEN_KEY = 'auth_token';
 const REFRESH_TOKEN_KEY = 'auth_refresh_token';

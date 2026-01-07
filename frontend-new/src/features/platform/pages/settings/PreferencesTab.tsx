@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card, Form, Select, Switch, Button, Space, Divider, Typography } from 'antd';
-import { tokens, toast } from '@lumina/design-system';
+import { tokens, toast } from '@/src/shared/design-system';
 import { createLogger } from '../../../../shared/lib/logger';
 
 const log = createLogger('Settings');

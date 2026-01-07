@@ -33,7 +33,7 @@ import {
   UseQueryResult,
   UseMutationResult,
 } from '@tanstack/react-query';
-import { useSDK, toast, ProcessMiningSdk } from '@lumina/design-system';
+import { useSDK, toast, ProcessMiningSdk } from '@/src/shared/design-system';
 
 // ============================================
 // Query Hook Factory

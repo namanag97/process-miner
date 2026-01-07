@@ -112,12 +112,17 @@ class DatasetIngestionWorkflow:
             retry_policy=retry_policy,
         )
 
-        # Step 4: Compute statistics
+        # Step 4: Compute statistics (include parquet metadata for Parquet-First strategy)
+        stats_with_parquet = {
+            **parse_result.statistics,
+            "parquet_s3_key": parse_result.parquet_s3_key,
+            "parquet_size_bytes": parse_result.parquet_size_bytes,
+        }
         await workflow.execute_activity(
             compute_statistics_activity,
             ComputeStatsInput(
                 dataset_id=dataset_id,
-                statistics=parse_result.statistics,
+                statistics=stats_with_parquet,
             ),
             start_to_close_timeout=timedelta(minutes=5),
             retry_policy=retry_policy,
@@ -131,6 +136,7 @@ class DatasetIngestionWorkflow:
             "total_activities": parse_result.total_activities,
             "cases_inserted": bulk_result.cases_inserted,
             "events_inserted": bulk_result.events_inserted,
+            "parquet_s3_key": parse_result.parquet_s3_key,
         }
 
 

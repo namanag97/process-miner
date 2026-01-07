@@ -8,7 +8,7 @@ import {
     useGetBottlenecksApiV1AnalyticsDatasetsDatasetIdBottlenecksGet,
     useGetCycleTimeApiV1AnalyticsDatasetsDatasetIdCycleTimeGet,
     useGetThroughputApiV1AnalyticsDatasetsDatasetIdThroughputGet,
-} from '../../../libs/api-hooks/src/generated/api';
+} from '@/src/api/generated';
 
 export interface AnalyticsDashboardData {
     /** Bottleneck analysis */

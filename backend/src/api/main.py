@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.api.routers import (
+    algorithms_router,
     analyses_router,
     analytics_router,
     auth_router,
@@ -34,6 +35,7 @@ from src.api.routers import (
     organizations_router,
     predictions_router,
     projects_router,
+    quality_metrics_router,
     simulation_router,
     visualization_router,
     workflows_api_router,
@@ -108,6 +110,7 @@ async def _seed_mvp_data() -> None:
     Creates:
     - mvp-org-001: Demo Organization
     - mvp-ws-001: Default Workspace
+    - mvp-proj-001: Default Project
     - mvp-user-001: Process Analyst user
 
     This ensures the frontend's hardcoded IDs work out of the box.
@@ -115,7 +118,7 @@ async def _seed_mvp_data() -> None:
     from sqlalchemy import select
 
     from src.platform.infrastructure.database import async_session_maker
-    from src.platform.models import Organization, User, Workspace, WorkspaceMember
+    from src.platform.models import Organization, User, Workspace, WorkspaceMember, Project
 
     try:
         async with async_session_maker() as db:
@@ -143,6 +146,15 @@ async def _seed_mvp_data() -> None:
             )
             db.add(workspace)
 
+            # Create default project
+            project = Project(
+                id="mvp-proj-001",
+                workspace_id="mvp-ws-001",
+                name="Default Project",
+                description="Your default process mining project",
+            )
+            db.add(project)
+
             # Create user
             user = User(
                 id="mvp-user-001",
@@ -166,6 +178,7 @@ async def _seed_mvp_data() -> None:
                 "mvp_seed_data_created",
                 org_id="mvp-org-001",
                 workspace_id="mvp-ws-001",
+                project_id="mvp-proj-001",
                 user_id="mvp-user-001",
             )
 
@@ -500,6 +513,8 @@ For support, please contact the developer team or refer to the internal document
     app.include_router(ocpm_router, prefix=settings.api_prefix)
     app.include_router(business_use_cases_router, prefix=settings.api_prefix)
     app.include_router(workflows_router, prefix=settings.api_prefix)
+    app.include_router(algorithms_router, prefix=settings.api_prefix)  # Algorithm registry
+    app.include_router(quality_metrics_router, prefix=settings.api_prefix)  # Quality metrics
 
     # =========================================================================
     # Platform Infrastructure Routers

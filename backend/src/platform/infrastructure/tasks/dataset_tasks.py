@@ -5,6 +5,7 @@ Celery tasks for dataset validation, file processing, and ingestion.
 
 import json
 import time
+import warnings
 from datetime import datetime
 from typing import Any
 
@@ -17,6 +18,20 @@ from .base import AsyncSessionLocal, AsyncTask, celery_app
 from src.platform.models import Project
 
 logger = structlog.get_logger(__name__)
+
+# =============================================================================
+# DEPRECATION NOTICE
+# =============================================================================
+# These Celery tasks are deprecated and will be removed in a future release.
+# Use Temporal workflows via src.platform.temporal.compat.dispatch_workflow
+# 
+# Deprecated tasks:
+#   - validate_dataset_task → DatasetValidationWorkflow
+#   - validate_uploaded_file_task → DatasetValidationWorkflow  
+#   - ingest_dataset_task → DatasetIngestionWorkflow
+#
+# Scheduled for removal: 2026-01-21
+# =============================================================================
 
 
 # =============================================================================
@@ -58,6 +73,15 @@ async def validate_dataset_task(
         job_id=job_id,
         task_id=self.request.id,
     )
+    
+    # DEPRECATION WARNING
+    warnings.warn(
+        "validate_dataset_task is deprecated. Use DatasetValidationWorkflow via "
+        "dispatch_workflow('validate_dataset', ...). Scheduled for removal: 2026-01-21",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    
     start = time.perf_counter()
 
     try:
@@ -284,6 +308,15 @@ async def validate_uploaded_file_task(
         storage_key=storage_key,
         task_id=self.request.id,
     )
+    
+    # DEPRECATION WARNING
+    warnings.warn(
+        "validate_uploaded_file_task is deprecated. Use DatasetValidationWorkflow via "
+        "dispatch_workflow('validate_uploaded_file', ...). Scheduled for removal: 2026-01-21",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    
     start = time.perf_counter()
 
     try:
@@ -294,10 +327,6 @@ async def validate_uploaded_file_task(
 
         async with AsyncSessionLocal() as db:
             from src.features.process_mining.models import Dataset, DatasetStatus
-            from src.features.process_mining.services.ingestion.unified import (
-                unified_ingestion_service,
-            )
-            from src.platform.infrastructure.object_storage import get_storage_client
             from src.features.process_mining.services.ingestion.unified import (
                 unified_ingestion_service,
             )
@@ -600,6 +629,15 @@ async def ingest_dataset_task(
         job_id=job_id,
         task_id=self.request.id,
     )
+    
+    # DEPRECATION WARNING
+    warnings.warn(
+        "ingest_dataset_task is deprecated. Use DatasetIngestionWorkflow via "
+        "dispatch_workflow('dataset_ingestion', ...). Scheduled for removal: 2026-01-21",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    
     start = time.perf_counter()
 
     try:

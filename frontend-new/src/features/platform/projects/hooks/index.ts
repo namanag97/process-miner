@@ -5,7 +5,7 @@
  * Wraps design-system hooks with standardized patterns.
  */
 
-import { queryKeys } from '@lumina/design-system';
+import { queryKeys } from '@/src/shared/design-system';
 import { createQueryHook, createMutationHook } from '../../../../shared/core';
 import type {
   Project,

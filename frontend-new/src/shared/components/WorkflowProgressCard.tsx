@@ -12,7 +12,7 @@ import {
     PauseCircleOutlined,
     ReloadOutlined,
 } from '@ant-design/icons';
-import { tokens } from '@lumina/design-system';
+import { tokens } from '@/src/shared/design-system';
 import { WorkflowElapsedTime } from './WorkflowElapsedTime';
 import type { WorkflowProgress } from '../hooks/useWorkflowPolling';
 

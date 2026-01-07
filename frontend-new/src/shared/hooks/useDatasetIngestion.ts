@@ -9,7 +9,7 @@ import {
     useUploadDatasetApiV1DatasetsPost,
     useListDatasetsApiV1DatasetsGet,
     useGetDatasetApiV1DatasetsDatasetIdGet,
-} from '../../../libs/api-hooks/src/generated/api';
+} from '@/src/api/generated';
 import { useWorkflowPolling } from './useWorkflowPolling';
 
 export interface DatasetIngestionState {

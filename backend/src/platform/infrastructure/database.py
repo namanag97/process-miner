@@ -61,6 +61,7 @@ async def init_database() -> None:
     from src.shared.database import Base
     # Import all models to ensure they're registered with the Base
     import src.platform.models  # noqa: F401
+    import src.platform.workflows.models  # noqa: F401 - Workflow, WorkflowTask
     import src.features.process_mining.models  # noqa: F401
 
     logger.info("database_initializing", url=settings.database_url)

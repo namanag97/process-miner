@@ -4,7 +4,7 @@ import { render, RenderOptions, RenderResult, screen, waitFor } from '@testing-l
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
-import { SDKProvider, luminaTheme } from '@lumina/design-system';
+import { SDKProvider, luminaTheme } from '@/src/shared/design-system';
 import { UserProvider } from '../shared/context/UserContext';
 import { NotificationProvider } from '../shared/context/NotificationContext';
 import { BackendHealthProvider } from '../shared/context/BackendHealthContext';

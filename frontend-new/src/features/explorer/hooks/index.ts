@@ -4,7 +4,7 @@
  * Data fetching hooks using the createFeatureHook factory.
  */
 
-import { queryKeys } from '@lumina/design-system';
+import { queryKeys } from '@/src/shared/design-system';
 import { createQueryHook } from '../../../shared/core';
 
 // ============================================

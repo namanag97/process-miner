@@ -154,6 +154,10 @@ class NotFoundError(AppException):
         )
 
 
+# Alias for backward compatibility
+ResourceNotFoundError = NotFoundError
+
+
 class ProjectNotFoundError(NotFoundError):
     """Project not found."""
 

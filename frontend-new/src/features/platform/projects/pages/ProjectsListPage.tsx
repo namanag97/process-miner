@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Form } from 'antd';
 import { PlusOutlined, FolderOutlined } from '@ant-design/icons';
-import { DataTable, tokens, type DataTableColumn, logAction } from '@lumina/design-system';
+import { DataTable, tokens, type DataTableColumn, logAction } from '@/src/shared/design-system';
 import { FeaturePage, PageSection } from '../../../../shared/core';
 import { useProjectList, useCreateProject } from '../hooks';
 import { CreateProjectModal } from '../components/CreateProjectModal';

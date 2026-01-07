@@ -40,7 +40,7 @@ import {
   SwapRightOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { tokens } from '@lumina/design-system';
+import { tokens } from '@/src/shared/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 import { formatDuration } from '../utils/colorScales';
 import type { AppliedFilter, FilterOptions, FilterType } from '../types';

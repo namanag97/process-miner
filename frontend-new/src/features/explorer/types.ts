@@ -3,24 +3,8 @@
  *
  * Type definitions for process explorer entities including
  * DFG nodes, edges, variants, and activities.
- *
- * NOTE: SDK types are available at @frontend-new/openapi-sdk for API validation.
- * Frontend uses camelCase conventions while SDK uses snake_case from backend.
+ * All types defined locally for frontend use.
  */
-
-// ============================================
-// SDK Types for Reference/Validation
-// ============================================
-
-export type {
-  DFGNode as SDKDFGNode,
-  DFGEdge as SDKDFGEdge,
-  DFGResponse as SDKDFGResponse,
-  VariantResponse as SDKVariantResponse,
-  ActivityDetailResponse as SDKActivityDetail,
-  StatisticsResponse as SDKStatisticsResponse,
-  FilterOptionsResponse as SDKFilterOptions,
-} from '@frontend-new/openapi-sdk';
 
 // ============================================
 // DFG Types (frontend shape)
@@ -52,6 +36,13 @@ export interface DFGStats {
   totalCases: number;
   totalActivities: number;
   totalTransitions: number;
+}
+
+export interface DFGData {
+  nodes: DFGNode[];
+  edges: DFGEdge[];
+  startActivities?: Record<string, number>;
+  endActivities?: Record<string, number>;
 }
 
 // ============================================
@@ -230,3 +221,15 @@ export function toActivityData(activity: ActivityDetail): ActivityData {
     resources: activity.resources,
   };
 }
+
+// ============================================
+// SDK Compatibility Aliases
+// ============================================
+
+export type SDKDFGNode = DFGNode;
+export type SDKDFGEdge = DFGEdge;
+export type SDKDFGResponse = DFGResponse;
+export type SDKVariantResponse = Variant;
+export type SDKActivityDetail = ActivityDetail;
+export type SDKStatisticsResponse = DFGStats;
+export type SDKFilterOptions = FilterOptions;

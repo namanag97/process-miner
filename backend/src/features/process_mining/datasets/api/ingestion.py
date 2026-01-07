@@ -4,6 +4,8 @@ Handles triggering the ingestion job after mapping is confirmed.
 Part of 4-Phase Upload Architecture: Upload → Validate → Map → Ingest
 """
 
+import json
+
 from fastapi import APIRouter
 from sqlalchemy import select
 
@@ -57,7 +59,7 @@ async def trigger_ingestion(
     from uuid import uuid4
 
     from src.platform.core.enums import JobStatus
-    from src.platform.infrastructure.tasks import ingest_dataset_task
+    from src.platform.temporal.compat import dispatch_workflow
 
     # Verify permission
     _, dataset = await require_dataset_permission(
@@ -80,6 +82,13 @@ async def trigger_ingestion(
     if not mapping and not dataset.mapping_json:
         raise ValidationError("No column mapping found. Submit mapping first.")
 
+    # Get column mapping
+    mapping_data = mapping.__dict__ if mapping else json.loads(dataset.mapping_json or "{}")
+    case_id_col = mapping_data.get("case_id_column", "case_id")
+    activity_col = mapping_data.get("activity_column", "activity")
+    timestamp_col = mapping_data.get("timestamp_column", "timestamp")
+    resource_col = mapping_data.get("resource_column")
+
     # Create async job record
     job = AsyncJob(
         id=str(uuid4()),
@@ -99,18 +108,30 @@ async def trigger_ingestion(
 
     await db.commit()
 
-    # Queue Celery task
-    task = ingest_dataset_task.delay(dataset_id, job.id)
+    # Dispatch via Temporal/Celery compat layer
+    result = await dispatch_workflow(
+        workflow_type="dataset_ingestion",
+        args={
+            "dataset_id": dataset_id,
+            "storage_key": dataset.storage_key,
+            "case_id_column": case_id_col,
+            "activity_column": activity_col,
+            "timestamp_column": timestamp_col,
+            "resource_column": resource_col,
+        },
+        entity_type="dataset",
+        entity_id=dataset_id,
+    )
 
-    # Update job with task_id
-    job.task_id = task.id
+    # Update job with workflow/task_id
+    job.task_id = result.get("workflow_id") or result.get("task_id")
     await db.commit()
 
     logger.info(
         "ingestion_triggered",
         dataset_id=dataset_id,
         job_id=job.id,
-        task_id=task.id,
+        workflow_id=result.get("workflow_id"),
     )
 
     return JobStatusResponse(
@@ -120,7 +141,7 @@ async def trigger_ingestion(
         progress=0,
         stage="queued",
         created_at=job.created_at,
-        result={"task_id": task.id, "message": "Ingestion job queued"},
+        result={"workflow_id": result.get("workflow_id"), "message": "Ingestion job queued"},
     )
 
 
@@ -152,7 +173,7 @@ async def trigger_reingest(
     from uuid import uuid4
 
     from src.platform.core.enums import JobStatus
-    from src.platform.infrastructure.tasks import ingest_dataset_task
+    from src.platform.temporal.compat import dispatch_workflow
 
     # Verify permission
     _, dataset = await require_dataset_permission(
@@ -179,6 +200,13 @@ async def trigger_reingest(
     if not mapping and not dataset.mapping_json:
         raise ValidationError("No column mapping found. Submit mapping first.")
 
+    # Get column mapping
+    mapping_data = mapping.__dict__ if mapping else json.loads(dataset.mapping_json or "{}")
+    case_id_col = mapping_data.get("case_id_column", "case_id")
+    activity_col = mapping_data.get("activity_column", "activity")
+    timestamp_col = mapping_data.get("timestamp_column", "timestamp")
+    resource_col = mapping_data.get("resource_column")
+
     # Create async job record
     job = AsyncJob(
         id=str(uuid4()),
@@ -198,18 +226,30 @@ async def trigger_reingest(
 
     await db.commit()
 
-    # Queue Celery task (same as regular ingest, but could clear existing data)
-    task = ingest_dataset_task.delay(dataset_id, job.id)
+    # Dispatch via Temporal/Celery compat layer
+    result = await dispatch_workflow(
+        workflow_type="dataset_ingestion",
+        args={
+            "dataset_id": dataset_id,
+            "storage_key": dataset.storage_key,
+            "case_id_column": case_id_col,
+            "activity_column": activity_col,
+            "timestamp_column": timestamp_col,
+            "resource_column": resource_col,
+        },
+        entity_type="dataset",
+        entity_id=dataset_id,
+    )
 
-    # Update job with task_id
-    job.task_id = task.id
+    # Update job with workflow/task_id
+    job.task_id = result.get("workflow_id") or result.get("task_id")
     await db.commit()
 
     logger.info(
         "reingest_triggered",
         dataset_id=dataset_id,
         job_id=job.id,
-        task_id=task.id,
+        workflow_id=result.get("workflow_id"),
     )
 
     return JobStatusResponse(
@@ -219,5 +259,5 @@ async def trigger_reingest(
         progress=0,
         stage="queued",
         created_at=job.created_at,
-        result={"task_id": task.id, "message": "Re-ingestion job queued"},
+        result={"workflow_id": result.get("workflow_id"), "message": "Re-ingestion job queued"},
     )

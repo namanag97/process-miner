@@ -39,6 +39,10 @@ from src.features.process_mining.statistics import router as statistics_router
 from src.features.process_mining.visualization import router as visualization_router
 from src.features.process_mining.workflows import router as workflows_router
 
+# Algorithm Registry and Quality Metrics
+from src.features.process_mining.api.algorithms import router as algorithms_router
+from src.features.process_mining.api.quality import router as quality_metrics_router
+
 # ============================================================================
 # Datasets Routers (from features/process_mining/datasets)
 # ============================================================================
@@ -84,4 +88,7 @@ __all__ = [
     "ocpm_router",
     "business_use_cases_router",
     "workflows_router",
+    # Algorithm Registry and Quality Metrics
+    "algorithms_router",
+    "quality_metrics_router",
 ]

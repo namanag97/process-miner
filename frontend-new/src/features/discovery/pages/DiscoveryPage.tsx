@@ -11,7 +11,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { logAction, logError } from '@lumina/design-system';
+import { logAction, logError } from '@/src/shared/design-system';
 import {
     useModelVisualization,
 } from '../hooks';

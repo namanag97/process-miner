@@ -5,7 +5,7 @@
 import { Card, Typography, Space, Tag } from 'antd';
 import { FolderOutlined, DatabaseOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { tokens } from '@lumina/design-system';
+import { tokens } from '@/src/shared/design-system';
 import type { Project } from '../types';
 
 const { Text, Paragraph } = Typography;

@@ -2,7 +2,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { ProcessQuestionsPage } from '../pages/ProcessQuestionsPage';
-import { useProcess } from '@lumina/design-system';
+import { useProcess } from '@/src/shared/design-system';
 
 // Mock dependencies
 jest.mock('react-router-dom', () => ({

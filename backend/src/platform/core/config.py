@@ -5,6 +5,15 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings
 
+# Security: Known insecure default secrets that must not be used in production
+INSECURE_SECRETS = frozenset({
+    "dev-secret-change-in-production",
+    "change_me",
+    "secret",
+    "changeme",
+    "",
+})
+
 
 class Settings(BaseSettings):
     """Application settings with environment variable support."""
@@ -82,10 +91,35 @@ class Settings(BaseSettings):
         self.models_dir.mkdir(parents=True, exist_ok=True)
         Path("./data/db").mkdir(parents=True, exist_ok=True)
 
+    def validate_production_settings(self) -> None:
+        """Validate settings for production deployment.
+
+        Raises:
+            SystemExit: If insecure settings are detected in production mode.
+        """
+        if self.debug:
+            return  # Skip validation in debug/development mode
+
+        # Check for insecure JWT secret
+        if self.jwt_secret in INSECURE_SECRETS:
+            raise SystemExit(
+                "FATAL: jwt_secret is set to an insecure default. "
+                "Set the JWT_SECRET environment variable for production."
+            )
+
+        # Require minimum secret length when auth is enabled
+        if self.auth_enabled and len(self.jwt_secret) < 32:
+            raise SystemExit(
+                "FATAL: jwt_secret must be at least 32 characters for production. "
+                f"Current length: {len(self.jwt_secret)}"
+            )
+
 
 @lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance."""
     settings = Settings()
     settings.ensure_directories()
+    settings.validate_production_settings()
     return settings
+

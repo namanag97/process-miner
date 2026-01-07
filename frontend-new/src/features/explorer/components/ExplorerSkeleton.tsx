@@ -5,7 +5,7 @@
  */
 
 import { Skeleton, Card, Space } from 'antd';
-import { tokens } from '@lumina/design-system';
+import { tokens } from '@/src/shared/design-system';
 
 export interface ExplorerSkeletonProps {
     /** Show full page skeleton or just graph area */

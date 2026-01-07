@@ -157,9 +157,14 @@ async def get_workflow_temporal_status(workflow_id: str) -> dict:
             "completed_at": status.get("completed_at"),
             "error_message": status.get("error_message"),
         }
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Workflow not found: {workflow_id}")
+    except ConnectionError as e:
+        logger.error("temporal_connection_failed", workflow_id=workflow_id, error=str(e))
+        raise HTTPException(status_code=503, detail="Workflow service temporarily unavailable")
     except Exception as e:
         logger.error("workflow_status_error", workflow_id=workflow_id, error=str(e))
-        raise HTTPException(status_code=404, detail=f"Workflow not found: {workflow_id}")
+        raise HTTPException(status_code=500, detail=f"Failed to get workflow status: {str(e)}")
 
 
 @router.post("/{workflow_id}/cancel")

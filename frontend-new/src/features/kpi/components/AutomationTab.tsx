@@ -7,7 +7,7 @@ import {
   EmptyState,
   tokens,
   useAutomation,
-} from '@lumina/design-system';
+} from '@/src/shared/design-system';
 
 const { Text } = Typography;
 

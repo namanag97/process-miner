@@ -76,6 +76,9 @@ class ParseToParquetOutput:
     cases_data: list[dict[str, Any]] = field(default_factory=list)
     events_data: list[dict[str, Any]] = field(default_factory=list)
     statistics: dict[str, Any] = field(default_factory=dict)
+    # Parquet-First Strategy: S3 key where events Parquet was written
+    parquet_s3_key: str | None = None
+    parquet_size_bytes: int | None = None
 
 
 @dataclass

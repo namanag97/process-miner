@@ -6,7 +6,7 @@
  */
 
 import { useMemo, useEffect } from 'react';
-import { logError } from '@lumina/design-system';
+import { logError } from '@/src/shared/design-system';
 
 // ============================================
 // Error Classification

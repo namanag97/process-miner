@@ -187,7 +187,7 @@ def prepare_log_summary(logs: List[Dict]) -> Dict[str, Any]:
 
     total = len(logs)
     errors = sum(1 for log in logs if log.get("level") == "error")
-    slow_requests = sum(1 for log in logs if log.get("duration", 0) > 1000)
+    slow_requests = sum(1 for log in logs if (log.get("duration") or 0) > 1000)
 
     # Time range
     timestamps = [log.get("timestamp") for log in logs if log.get("timestamp")]

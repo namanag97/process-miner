@@ -20,7 +20,7 @@ import {
   InfoCircleOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
-import { PageHeader, MetricCard, EmptyState, tokens, formatCompactNumber, useSDK, formatDurationFromSeconds, type EventLog, logAction } from '@lumina/design-system';
+import { PageHeader, MetricCard, EmptyState, tokens, formatCompactNumber, useSDK, formatDurationFromSeconds, type EventLog, logAction } from '@/src/shared/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 import { PerformanceTab, ConformanceTab, ReworkTab, ResourcesTab } from '../components';
 

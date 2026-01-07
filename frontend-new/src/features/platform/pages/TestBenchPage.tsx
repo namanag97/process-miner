@@ -23,7 +23,7 @@ import {
   InfoCircleOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
-import { PageHeader, useSDK, tokens } from '@lumina/design-system';
+import { PageHeader, useSDK, tokens } from '@/src/shared/design-system';
 import { CytoscapeCanvas, type ProcessGraphData } from '../../explorer/components/CytoscapeCanvas';
 
 const { Text } = Typography;

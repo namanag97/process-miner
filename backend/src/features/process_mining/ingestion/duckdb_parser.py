@@ -76,7 +76,11 @@ class DuckDBParser:
         resource_col: str | None = None,
         delimiter: str = ",",
     ) -> dict[str, Any]:
-        """Parse CSV using DuckDB for vectorized performance."""
+        """Parse CSV using DuckDB for vectorized performance.
+        
+        WARNING: This method loads all data into memory. For large files (>100MB),
+        use parse_csv_streaming() instead.
+        """
         # Sanitize inputs
         case_id_col = _sanitize_column_name(case_id_col, "case_id_column")
         activity_col = _sanitize_column_name(activity_col, "activity_column")
@@ -172,6 +176,122 @@ class DuckDBParser:
                 "events_arrow": arrow_table,
                 "cases_arrow": case_stats,
             }
+        finally:
+            if temp_path and os.path.exists(temp_path):
+                os.unlink(temp_path)
+
+    def parse_csv_streaming(
+        self,
+        file_content: bytes,
+        case_id_col: str = "case_id",
+        activity_col: str = "activity",
+        timestamp_col: str = "timestamp",
+        resource_col: str | None = None,
+        delimiter: str = ",",
+        chunk_size: int = 50_000,
+    ):
+        """Parse CSV using DuckDB with memory-efficient streaming.
+        
+        Yields Arrow RecordBatches instead of loading all data into memory.
+        Use this for files larger than 100MB to avoid OOM errors.
+        
+        Args:
+            file_content: Raw CSV bytes
+            case_id_col: Column name for case ID
+            activity_col: Column name for activity  
+            timestamp_col: Column name for timestamp
+            resource_col: Optional column name for resource
+            delimiter: CSV delimiter character
+            chunk_size: Number of rows per batch (default: 50,000)
+            
+        Yields:
+            dict with 'batch' (Arrow RecordBatch), 'batch_rows', and 'statistics' (first batch only)
+        """
+        import pyarrow as pa
+        
+        # Sanitize inputs
+        case_id_col = _sanitize_column_name(case_id_col, "case_id_column")
+        activity_col = _sanitize_column_name(activity_col, "activity_column")
+        timestamp_col = _sanitize_column_name(timestamp_col, "timestamp_column")
+        if resource_col:
+            resource_col = _sanitize_column_name(resource_col, "resource_column")
+        delimiter = _sanitize_delimiter(delimiter)
+
+        duckdb_manager = self._get_manager()
+        logger.info("duckdb_parse_streaming_started", size_bytes=len(file_content), chunk_size=chunk_size)
+
+        temp_path = None
+        conn = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="wb", suffix=".csv", delete=False) as f:
+                f.write(file_content)
+                temp_path = f.name
+
+            resource_select = f'"{resource_col}"' if resource_col else "NULL"
+
+            conn = duckdb_manager.get_connection()
+            conn.execute(f"""
+                CREATE OR REPLACE TEMP TABLE events AS
+                SELECT
+                    "{case_id_col}"::VARCHAR as case_id,
+                    "{activity_col}"::VARCHAR as activity,
+                    "{timestamp_col}"::TIMESTAMP as timestamp,
+                    {resource_select}::VARCHAR as resource
+                FROM read_csv_auto('{temp_path}', delim='{delimiter}', header=true)
+                WHERE "{case_id_col}" IS NOT NULL
+                  AND "{activity_col}" IS NOT NULL
+                  AND "{timestamp_col}" IS NOT NULL
+            """)
+
+            # Get aggregate statistics once
+            stats = conn.execute("""
+                SELECT
+                    COUNT(DISTINCT case_id) as total_cases,
+                    COUNT(*) as total_events,
+                    COUNT(DISTINCT activity) as total_activities,
+                    MIN(timestamp) as start_time,
+                    MAX(timestamp) as end_time,
+                    LIST(DISTINCT activity ORDER BY activity) as activities,
+                    COUNT(DISTINCT resource) FILTER (WHERE resource IS NOT NULL) as total_resources
+                FROM events
+            """).fetchone()
+            
+            statistics = {
+                "total_cases": stats[0],
+                "total_events": stats[1],
+                "total_activities": stats[2],
+                "start_time": stats[3].isoformat() if stats[3] else None,
+                "end_time": stats[4].isoformat() if stats[4] else None,
+                "activities": list(stats[5]) if stats[5] else [],
+                "total_resources": stats[6],
+            }
+
+            # Stream events using fetch_arrow_reader
+            arrow_reader = conn.execute("""
+                SELECT case_id, activity, timestamp, resource
+                FROM events
+                ORDER BY case_id, timestamp
+            """).fetch_arrow_reader(chunk_size)
+
+            batch_num = 0
+            for batch in arrow_reader:
+                batch_num += 1
+                result = {
+                    "batch": batch,
+                    "batch_rows": batch.num_rows,
+                    "batch_num": batch_num,
+                }
+                # Include statistics only in first batch
+                if batch_num == 1:
+                    result["statistics"] = statistics
+                yield result
+
+            logger.info(
+                "duckdb_parse_streaming_completed",
+                total_batches=batch_num,
+                total_events=statistics["total_events"],
+            )
+
         finally:
             if temp_path and os.path.exists(temp_path):
                 os.unlink(temp_path)

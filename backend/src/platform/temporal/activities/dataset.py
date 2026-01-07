@@ -215,12 +215,21 @@ async def parse_to_parquet_activity(input: ParseToParquetInput) -> ParseToParque
 
     This is a long-running activity that uses heartbeats to signal liveness.
     Converts raw file to structured cases and events data.
+    
+    Memory Management:
+    - For large files (>100MB), data is processed in batches with explicit
+      heartbeats to prevent Temporal timeouts.
+    - Arrow tables are converted to Python lists in chunks to avoid OOM.
+    
+    Parquet-First Strategy:
+    - Events are also written to S3 as Parquet for analytics queries
+    - DuckDB can read directly from S3 without hitting the database
 
     Args:
         input: ParseToParquetInput with column mappings
 
     Returns:
-        ParseToParquetOutput with parsed data and statistics
+        ParseToParquetOutput with parsed data, statistics, and parquet_s3_key
     """
     logger.info(
         "parse_to_parquet_activity_started",
@@ -229,7 +238,9 @@ async def parse_to_parquet_activity(input: ParseToParquetInput) -> ParseToParque
     )
 
     try:
+        import io
         import pyarrow as pa
+        import pyarrow.parquet as pq
 
         from src.features.process_mining.services.ingestion.duckdb import (
             duckdb_ingestion_service,
@@ -243,6 +254,13 @@ async def parse_to_parquet_activity(input: ParseToParquetInput) -> ParseToParque
         storage_client = get_storage_client()
         file_obj = storage_client.download_fileobj("raw", input.storage_key)
         file_content = file_obj.read()
+        
+        file_size_mb = len(file_content) / (1024 * 1024)
+        logger.info(
+            "file_downloaded",
+            dataset_id=input.dataset_id,
+            file_size_mb=round(file_size_mb, 2),
+        )
 
         # Heartbeat after download
         activity.heartbeat("parsing_with_duckdb")
@@ -261,22 +279,83 @@ async def parse_to_parquet_activity(input: ParseToParquetInput) -> ParseToParque
         events_arrow = duck_result["events_arrow"]
 
         # Heartbeat during conversion
-        activity.heartbeat("converting_to_records")
+        activity.heartbeat("converting_cases_to_records")
 
-        # Convert Arrow to Python dicts for serialization
+        # Convert Arrow to Python lists with batched processing
         if isinstance(cases_arrow, pa.RecordBatchReader):
-            cases_arrow = cases_arrow.read_all()
-        if isinstance(events_arrow, pa.RecordBatchReader):
-            events_arrow = events_arrow.read_all()
+            cases_data = []
+            for batch in cases_arrow:
+                cases_data.extend(batch.to_pylist())
+                activity.heartbeat(f"processing_cases_batch_{len(cases_data)}")
+        else:
+            batch_size = 10000
+            cases_data = []
+            for batch in cases_arrow.to_batches(max_chunksize=batch_size):
+                cases_data.extend(batch.to_pylist())
+            activity.heartbeat("cases_converted")
 
-        cases_data = cases_arrow.to_pylist()
-        events_data = events_arrow.to_pylist()
+        activity.heartbeat("converting_events_to_records")
+        
+        # For events, also keep the Arrow table for Parquet writing
+        if isinstance(events_arrow, pa.RecordBatchReader):
+            events_batches = list(events_arrow)
+            events_table = pa.Table.from_batches(events_batches)
+            events_data = []
+            for batch in events_batches:
+                events_data.extend(batch.to_pylist())
+                activity.heartbeat(f"processing_events_batch_{len(events_data)}")
+        else:
+            events_table = events_arrow
+            batch_size = 20000
+            events_data = []
+            for batch in events_arrow.to_batches(max_chunksize=batch_size):
+                events_data.extend(batch.to_pylist())
+            activity.heartbeat("events_converted")
+
+        # Parquet-First Strategy: Write events to S3 as Parquet
+        parquet_s3_key = None
+        parquet_size_bytes = None
+        
+        activity.heartbeat("writing_parquet_to_s3")
+        try:
+            parquet_key = f"parsed/{input.dataset_id}/events.parquet"
+            
+            # Write to bytes buffer
+            parquet_buffer = io.BytesIO()
+            pq.write_table(events_table, parquet_buffer, compression='snappy')
+            parquet_bytes = parquet_buffer.getvalue()
+            parquet_size_bytes = len(parquet_bytes)
+            
+            # Upload to S3
+            storage_client.upload_fileobj(
+                bucket_type="cache",
+                key=parquet_key,
+                file_obj=io.BytesIO(parquet_bytes),
+                content_type="application/octet-stream",
+            )
+            
+            parquet_s3_key = parquet_key
+            logger.info(
+                "parquet_written_to_s3",
+                dataset_id=input.dataset_id,
+                parquet_key=parquet_key,
+                parquet_size_mb=round(parquet_size_bytes / (1024 * 1024), 2),
+            )
+        except Exception as e:
+            # Parquet write failure is not fatal - we still have the data in memory
+            logger.warning(
+                "parquet_write_failed",
+                dataset_id=input.dataset_id,
+                error=str(e),
+            )
 
         logger.info(
             "parse_to_parquet_activity_completed",
             dataset_id=input.dataset_id,
             total_cases=stats["total_cases"],
             total_events=stats["total_events"],
+            file_size_mb=round(file_size_mb, 2),
+            parquet_s3_key=parquet_s3_key,
         )
 
         return ParseToParquetOutput(
@@ -287,6 +366,8 @@ async def parse_to_parquet_activity(input: ParseToParquetInput) -> ParseToParque
             cases_data=cases_data,
             events_data=events_data,
             statistics=stats,
+            parquet_s3_key=parquet_s3_key,
+            parquet_size_bytes=parquet_size_bytes,
         )
 
     except Exception as e:
@@ -457,6 +538,12 @@ async def compute_statistics_activity(input: ComputeStatsInput) -> ComputeStatsO
             dataset.total_activities = stats.get("total_activities", 0)
             dataset.activities_json = json.dumps(stats.get("activities", []))
             dataset.statistics_json = json.dumps(stats)
+            
+            # Parquet-First Strategy: Store parquet metadata for analytics
+            if stats.get("parquet_s3_key"):
+                dataset.parquet_s3_key = stats["parquet_s3_key"]
+                dataset.parquet_size_bytes = stats.get("parquet_size_bytes")
+                dataset.parquet_row_count = stats.get("total_events", 0)
             dataset.status = DatasetStatus.READY.value
             dataset.error_message = None
 

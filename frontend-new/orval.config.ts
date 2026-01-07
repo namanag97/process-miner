@@ -3,28 +3,23 @@ import { defineConfig } from 'orval';
 /**
  * Orval configuration for generating React Query hooks from OpenAPI spec.
  * 
- * This generates type-safe React Query hooks that integrate directly with
- * the existing @tanstack/react-query setup.
+ * Output: Single consolidated file at src/api/generated.ts
  * 
  * Usage:
- *   npm run generate:api       # Generate hooks
- *   npx orval --config orval.config.ts  # Direct invocation
- * 
- * Output goes to libs/api-hooks/src/generated/ to keep it separate from
- * the existing openapi-sdk until migration is complete.
+ *   npm run generate:api
  */
 export default defineConfig({
     api: {
         input: '../backend/docs/openapi.json',
         output: {
             mode: 'single',
-            target: './libs/api-hooks/src/generated/api.ts',
+            target: './src/api/generated.ts',
             client: 'react-query',
-            clean: true,
+            clean: false,
             prettier: true,
             override: {
                 mutator: {
-                    path: './libs/api-hooks/src/axios-instance.ts',
+                    path: './src/api/client.ts',
                     name: 'customInstance',
                 },
                 query: {
@@ -37,3 +32,4 @@ export default defineConfig({
         },
     },
 });
+

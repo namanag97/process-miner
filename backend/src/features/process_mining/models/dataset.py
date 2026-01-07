@@ -72,6 +72,12 @@ class Dataset(Base):
     # Temporal workflow tracking (Phase 4+ of migration)
     workflow_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
 
+    # Parquet-First Strategy (Phase 4): Store events as Parquet in S3 for analytics
+    # When parquet_s3_key is set, analytics queries use DuckDB read_parquet() instead of DB
+    parquet_s3_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    parquet_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    parquet_row_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 

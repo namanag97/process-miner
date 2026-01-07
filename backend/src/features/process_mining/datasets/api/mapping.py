@@ -302,8 +302,8 @@ async def get_mapping(
                     resource_column=data.get("resource_column"),
                     timestamp_format=data.get("timestamp_format"),
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("legacy_mapping_parse_failed", dataset_id=dataset_id, error=str(e))
         raise NotFoundError("No mapping found for this dataset")
 
     return MappingResponse(
@@ -377,7 +377,7 @@ async def update_mapping(
         mapping.resource_column = request.resource_column
         mapping.timestamp_format = request.timestamp_format
         mapping.auto_mapped = False
-        mapping.updated_at = datetime.utcnow()
+        mapping.updated_at = datetime.now(timezone.utc)
     else:
         mapping = DatasetColumnMapping(
             dataset_id=dataset_id,

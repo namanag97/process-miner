@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { UploadWizardPage } from '../upload-wizard/pages/UploadWizardPage';
-import { instrumentedFetch } from '@lumina/design-system';
+import { instrumentedFetch } from '@/src/shared/design-system';
 import { devLog } from '../../../shared/ui/DevConsole';
 import * as EnvConfig from 'src/config/env';
 

@@ -6,7 +6,7 @@
  */
 
 import { Progress, Typography } from 'antd';
-import { tokens } from '@lumina/design-system';
+import { tokens } from '@/src/shared/design-system';
 
 const { Text } = Typography;
 

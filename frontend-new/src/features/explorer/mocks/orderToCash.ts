@@ -11,7 +11,7 @@ import type {
   DFGEdge,
   Variant,
   ActivityDetail,
-} from '@lumina/design-system';
+} from '@/src/shared/design-system';
 
 // ============================================
 // DFG Mock Data

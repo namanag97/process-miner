@@ -20,7 +20,7 @@ import {
     BulbOutlined,
     CheckCircleOutlined,
 } from '@ant-design/icons';
-import { tokens, logAction } from '@lumina/design-system';
+import { tokens, logAction } from '@/src/shared/design-system';
 import { devLog } from '../../../../../shared/ui/DevConsole';
 import type { DataPreview, ColumnMapping } from '../../types';
 

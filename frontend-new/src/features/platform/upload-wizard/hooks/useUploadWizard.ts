@@ -14,7 +14,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { message } from 'antd';
-import { instrumentedFetch } from '@lumina/design-system';
+import { instrumentedFetch } from '@/src/shared/design-system';
 import { env } from '../../../../config/env';
 import { devLog } from '../../../../shared/ui/DevConsole';
 import type {
@@ -40,9 +40,10 @@ async function fetchPreview(datasetId: string, rows: number = 10): Promise<DataP
     devLog.info('API:fetchPreview', 'Fetching dataset preview', { datasetId, rows });
     const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/${datasetId}/preview?rows=${rows}`);
     if (!res.ok) {
-        console.error('[API:fetchPreview] Request failed', { status: res.status });
-        devLog.error('API:fetchPreview', 'Failed to fetch preview', { status: res.status });
-        throw new Error('Failed to fetch preview');
+        const errorData = await res.json().catch(() => ({ detail: 'Failed to fetch preview' }));
+        console.error('[API:fetchPreview] Request failed', { status: res.status, error: errorData });
+        devLog.error('API:fetchPreview', `Failed: ${res.status} - ${errorData.detail}`, { status: res.status, error: errorData });
+        throw new Error(errorData.detail || `Failed to fetch preview (${res.status})`);
     }
     const data = await res.json();
     console.log('[API:fetchPreview] Success', { columns: data.columns?.length, rows: data.rows?.length });
@@ -55,9 +56,10 @@ async function fetchSheets(datasetId: string): Promise<SheetsResponse> {
     devLog.info('API:fetchSheets', 'Fetching dataset sheets', { datasetId });
     const res = await instrumentedFetch(`${API_BASE}/api/v1/datasets/${datasetId}/sheets`);
     if (!res.ok) {
-        console.error('[API:fetchSheets] Request failed', { status: res.status });
-        devLog.error('API:fetchSheets', 'Failed to fetch sheets', { status: res.status });
-        throw new Error('Failed to fetch sheets');
+        const errorData = await res.json().catch(() => ({ detail: 'Failed to fetch sheets' }));
+        console.error('[API:fetchSheets] Request failed', { status: res.status, error: errorData });
+        devLog.error('API:fetchSheets', `Failed: ${res.status} - ${errorData.detail}`, { status: res.status, error: errorData });
+        throw new Error(errorData.detail || `Failed to fetch sheets (${res.status})`);
     }
     const data = await res.json();
     console.log('[API:fetchSheets] Success', { sheets: data.sheets?.length });
@@ -111,9 +113,15 @@ async function startIngestion(datasetId: string, mapping: ColumnMapping): Promis
 }
 
 async function checkJobStatus(jobId: string): Promise<{ id: string; status: string; progress?: number; error?: string }> {
+    devLog.info('API:checkJobStatus', 'Polling job status', { jobId });
     const res = await instrumentedFetch(`${API_BASE}/api/v1/jobs/${jobId}`);
-    if (!res.ok) throw new Error('Failed to check job status');
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ detail: 'Failed to check job status' }));
+        devLog.error('API:checkJobStatus', `Failed: ${res.status}`, { jobId, error: errorData });
+        throw new Error(errorData.detail || 'Failed to check job status');
+    }
     const data = await res.json();
+    devLog.action('API:checkJobStatus', `Job ${data.status}`, { jobId, status: data.status, progress: data.progress });
     return { id: jobId, ...data };
 }
 

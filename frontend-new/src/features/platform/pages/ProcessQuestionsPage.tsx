@@ -14,7 +14,7 @@ import {
   EmptyState,
   tokens,
   useProcess,
-} from '@lumina/design-system';
+} from '@/src/shared/design-system';
 import { PROCESS_QUESTIONS } from './questionsData';
 import { useAuditLogger } from '../../../shared/hooks';
 

@@ -6,7 +6,7 @@ import {
   InfoCircleOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
-import { MetricCard, tokens, formatDurationFromSeconds, useSDK } from '@lumina/design-system';
+import { MetricCard, tokens, formatDurationFromSeconds, useSDK } from '@/src/shared/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 
 const { Text } = Typography;

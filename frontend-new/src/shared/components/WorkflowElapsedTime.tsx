@@ -7,7 +7,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Typography, Space, Tag } from 'antd';
 import { ClockCircleOutlined, LoadingOutlined } from '@ant-design/icons';
-import { tokens } from '@lumina/design-system';
+import { tokens } from '@/src/shared/design-system';
 
 const { Text } = Typography;
 

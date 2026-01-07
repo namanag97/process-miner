@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Tabs } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { PageHeader, tokens, logAction } from '@lumina/design-system';
+import { PageHeader, tokens, logAction } from '@/src/shared/design-system';
 import { ProfileTab } from './ProfileTab';
 import { PreferencesTab } from './PreferencesTab';
 import { NotificationsTab } from './NotificationsTab';

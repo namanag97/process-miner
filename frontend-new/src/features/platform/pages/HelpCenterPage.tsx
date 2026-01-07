@@ -37,7 +37,7 @@ import {
   InfoCircleOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { PageHeader, tokens } from '@lumina/design-system';
+import { PageHeader, tokens } from '@/src/shared/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 
 const log = createLogger('Help');

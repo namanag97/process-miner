@@ -9,7 +9,7 @@ import {
   ThunderboltOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
-import { PageHeader, MetricCard, tokens, toast } from '@lumina/design-system';
+import { PageHeader, MetricCard, tokens, toast } from '@/src/shared/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 
 const { Text, Title, Paragraph } = Typography;

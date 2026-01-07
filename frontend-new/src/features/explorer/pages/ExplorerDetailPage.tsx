@@ -24,7 +24,7 @@ import {
   PlusOutlined,
   QuestionCircleOutlined,
 } from '@ant-design/icons';
-import { tokens, toast, logAction, logError, ErrorBoundary, type ActivityDetail } from '@lumina/design-system';
+import { tokens, toast, logAction, logError, ErrorBoundary, type ActivityDetail } from '@/src/shared/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 
 const { Text } = Typography;

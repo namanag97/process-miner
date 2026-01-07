@@ -26,7 +26,7 @@ import {
   tokens,
   useProcess,
   logAction,
-} from '@lumina/design-system';
+} from '@/src/shared/design-system';
 import { PerformanceTab, DeadlinesTab, UnwantedActivitiesTab, AutomationTab } from '../components';
 import { useKPIAuditLogger } from '../../../shared/hooks';
 import { createLogger } from '../../../shared/lib/logger';

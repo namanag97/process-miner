@@ -81,6 +81,18 @@ from src.features.process_mining.models.ocel import (
     OCPetriNet,
 )
 
+# Algorithm Registry
+from src.features.process_mining.models.algorithm_registry import (
+    Algorithm,
+    AlgorithmParameter,
+)
+
+# Cache Models
+from src.features.process_mining.models.cache_models import (
+    DFGCache,
+    VariantCache,
+)
+
 __all__ = [
     # Enums
     "DatasetStatus",
@@ -129,4 +141,10 @@ __all__ = [
     "OCELLog",
     "OCELObjectType",
     "OCPetriNet",
+    # Algorithm Registry
+    "Algorithm",
+    "AlgorithmParameter",
+    # Cache Models
+    "DFGCache",
+    "VariantCache",
 ]

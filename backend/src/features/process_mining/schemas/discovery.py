@@ -64,6 +64,10 @@ class ModelResponse(BaseModel):
     dataset_id: str | None
     fitness: float | None
     precision: float | None
+    metrics_status: str | None = Field(
+        None,
+        description="Status of quality metrics: 'success', 'failed', or 'not_applicable'",
+    )
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

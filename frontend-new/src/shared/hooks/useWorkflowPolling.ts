@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     useGetWorkflowApiV1WorkflowsWorkflowIdGet,
     useGetWorkflowTemporalStatusApiV1WorkflowsWorkflowIdStatusGet,
-} from '../../../libs/api-hooks/src/generated/api';
+} from '@/src/api/generated';
 
 export type WorkflowStatus =
     | 'pending'

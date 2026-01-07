@@ -59,6 +59,9 @@ from src.platform.infrastructure.cache import cache_service
 
 logger = get_logger(__name__)
 
+# Cache version - increment when response format or algorithm changes
+CACHE_VERSION = "v1"
+
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 

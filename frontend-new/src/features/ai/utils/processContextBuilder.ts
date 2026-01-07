@@ -2,7 +2,7 @@
  * Process Context Builder - Utility to format process analytics data for LLM prompts
  */
 
-import type { ProcessSummaryData } from '@lumina/design-system';
+import type { ProcessSummaryData } from '@/src/shared/design-system';
 
 /**
  * Formats duration in seconds to human-readable string

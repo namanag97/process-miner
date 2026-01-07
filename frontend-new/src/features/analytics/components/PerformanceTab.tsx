@@ -5,7 +5,7 @@ import {
   WarningOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons';
-import { MetricCard, tokens, formatDurationFromSeconds, formatCompactNumber, type PerformanceData } from '@lumina/design-system';
+import { MetricCard, tokens, formatDurationFromSeconds, formatCompactNumber, type PerformanceData } from '@/src/shared/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 
 const { Text, Title } = Typography;

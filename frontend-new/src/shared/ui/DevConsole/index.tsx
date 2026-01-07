@@ -47,7 +47,7 @@ import {
   ReloadOutlined,
   DatabaseOutlined,
 } from '@ant-design/icons';
-import { registerDevConsoleCallback } from '@lumina/design-system';
+import { registerDevConsoleCallback } from '@/src/shared/design-system';
 import { useBackendLogs } from '../../hooks/useBackendLogs';
 import { BackendMetricsPanel } from '../BackendMetricsPanel';
 import { DataViewer } from '../DataViewer';

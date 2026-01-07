@@ -6,15 +6,6 @@
  */
 
 // ============================================
-// SDK Types for Reference (use transform functions)
-// ============================================
-
-export type {
-    ColumnTypeInfo as SDKColumnTypeInfo,
-    PreviewResponse as SDKDataPreview,
-} from '@frontend-new/openapi-sdk';
-
-// ============================================
 // Wizard Types (frontend-specific)
 // ============================================
 
@@ -80,3 +71,10 @@ export interface ParseConfig {
     sheet_name?: string;
     encoding: string;
 }
+
+// ============================================
+// SDK Compatibility Aliases
+// ============================================
+
+export type SDKColumnTypeInfo = ColumnTypeInfo;
+export type SDKDataPreview = DataPreview;

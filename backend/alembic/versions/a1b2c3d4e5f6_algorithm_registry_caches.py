@@ -1,0 +1,615 @@
+"""Add algorithm registry and cache tables.
+
+Revision ID: a1b2c3d4e5f6
+Revises: e8d19b5573b2
+Create Date: 2026-01-07
+
+This migration adds:
+- algorithms: Registry of mining algorithms with metadata
+- algorithm_parameters: Parameters for each algorithm
+- dfg_cache: Pre-computed DFG for performance
+- variant_cache: Pre-computed variant representation
+"""
+
+from datetime import datetime
+
+from alembic import op
+import sqlalchemy as sa
+
+
+# revision identifiers, used by Alembic.
+revision = "a1b2c3d4e5f6"  # Algorithm registry and caches
+down_revision = "73e54e8b10ef"  # Schema driven dev migration
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    # =========================================================================
+    # Create algorithms table
+    # =========================================================================
+    op.create_table(
+        "algorithms",
+        sa.Column("id", sa.String(50), primary_key=True),
+        sa.Column("name", sa.String(100), nullable=False),
+        sa.Column("description", sa.Text, nullable=True),
+        sa.Column("category", sa.String(50), nullable=False, index=True),
+        sa.Column("output_format", sa.String(50), nullable=False),
+        sa.Column("requires_external", sa.Boolean, nullable=False, default=False),
+        sa.Column("external_dependency", sa.String(100), nullable=True),
+        sa.Column("guarantees_soundness", sa.Boolean, nullable=False, default=False),
+        sa.Column("noise_tolerance", sa.Integer, nullable=False, default=3),
+        sa.Column("speed_rating", sa.Integer, nullable=False, default=3),
+        sa.Column("complexity_class", sa.String(20), nullable=True),
+        sa.Column("max_recommended_events", sa.Integer, nullable=True),
+        sa.Column("max_recommended_activities", sa.Integer, nullable=True),
+        sa.Column("min_recommended_events", sa.Integer, nullable=True),
+        sa.Column("documentation_url", sa.String(500), nullable=True),
+        sa.Column("display_order", sa.Integer, nullable=False, default=100),
+        sa.Column("is_enabled", sa.Boolean, nullable=False, default=True),
+        sa.Column("is_recommended", sa.Boolean, nullable=False, default=False),
+        sa.Column("created_at", sa.DateTime, default=datetime.utcnow),
+        sa.Column("updated_at", sa.DateTime, default=datetime.utcnow),
+    )
+
+    # =========================================================================
+    # Create algorithm_parameters table
+    # =========================================================================
+    op.create_table(
+        "algorithm_parameters",
+        sa.Column("id", sa.String(36), primary_key=True),
+        sa.Column("algorithm_id", sa.String(50), sa.ForeignKey("algorithms.id", ondelete="CASCADE"), nullable=False, index=True),
+        sa.Column("param_name", sa.String(50), nullable=False),
+        sa.Column("param_type", sa.String(20), nullable=False),
+        sa.Column("default_value", sa.String(100), nullable=True),
+        sa.Column("min_value", sa.String(50), nullable=True),
+        sa.Column("max_value", sa.String(50), nullable=True),
+        sa.Column("enum_values", sa.Text, nullable=True),
+        sa.Column("display_name", sa.String(100), nullable=False),
+        sa.Column("description", sa.Text, nullable=True),
+        sa.Column("display_order", sa.Integer, nullable=False, default=0),
+        sa.Column("is_advanced", sa.Boolean, nullable=False, default=False),
+        sa.Column("is_required", sa.Boolean, nullable=False, default=False),
+        sa.Column("created_at", sa.DateTime, default=datetime.utcnow),
+    )
+    op.create_index(
+        "ix_algo_param_unique",
+        "algorithm_parameters",
+        ["algorithm_id", "param_name"],
+        unique=True,
+    )
+
+    # =========================================================================
+    # Create dfg_cache table
+    # =========================================================================
+    op.create_table(
+        "dfg_cache",
+        sa.Column("id", sa.String(36), primary_key=True),
+        sa.Column("dataset_id", sa.String(36), sa.ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("dfg_data", sa.Text, nullable=False),
+        sa.Column("start_activities", sa.Text, nullable=False),
+        sa.Column("end_activities", sa.Text, nullable=False),
+        sa.Column("activity_counts", sa.Text, nullable=True),
+        sa.Column("has_performance_data", sa.Boolean, nullable=False, default=False),
+        sa.Column("performance_dfg_data", sa.Text, nullable=True),
+        sa.Column("edge_count", sa.Integer, nullable=True),
+        sa.Column("activity_count", sa.Integer, nullable=True),
+        sa.Column("created_at", sa.DateTime, default=datetime.utcnow),
+        sa.Column("computation_time_ms", sa.Integer, nullable=True),
+    )
+    op.create_index("ix_dfg_cache_dataset", "dfg_cache", ["dataset_id"], unique=True)
+
+    # =========================================================================
+    # Create variant_cache table
+    # =========================================================================
+    op.create_table(
+        "variant_cache",
+        sa.Column("id", sa.String(36), primary_key=True),
+        sa.Column("dataset_id", sa.String(36), sa.ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("variants_data", sa.Text, nullable=False),
+        sa.Column("variant_count", sa.Integer, nullable=False),
+        sa.Column("top_variant_coverage", sa.Float, nullable=True),
+        sa.Column("top_5_coverage", sa.Float, nullable=True),
+        sa.Column("avg_variant_length", sa.Float, nullable=True),
+        sa.Column("created_at", sa.DateTime, default=datetime.utcnow),
+        sa.Column("computation_time_ms", sa.Integer, nullable=True),
+    )
+    op.create_index("ix_variant_cache_dataset", "variant_cache", ["dataset_id"], unique=True)
+
+    # =========================================================================
+    # Seed algorithm data
+    # =========================================================================
+    algorithms_table = sa.table(
+        "algorithms",
+        sa.column("id", sa.String),
+        sa.column("name", sa.String),
+        sa.column("description", sa.Text),
+        sa.column("category", sa.String),
+        sa.column("output_format", sa.String),
+        sa.column("requires_external", sa.Boolean),
+        sa.column("external_dependency", sa.String),
+        sa.column("guarantees_soundness", sa.Boolean),
+        sa.column("noise_tolerance", sa.Integer),
+        sa.column("speed_rating", sa.Integer),
+        sa.column("complexity_class", sa.String),
+        sa.column("max_recommended_events", sa.Integer),
+        sa.column("max_recommended_activities", sa.Integer),
+        sa.column("display_order", sa.Integer),
+        sa.column("is_enabled", sa.Boolean),
+        sa.column("is_recommended", sa.Boolean),
+    )
+
+    op.bulk_insert(
+        algorithms_table,
+        [
+            # === Fast Tier ===
+            {
+                "id": "dfg",
+                "name": "DFG Generation",
+                "description": "Directly-Follows Graph. Simple frequency-based graph, not a formal process model but great for exploration.",
+                "category": "discovery",
+                "output_format": "dfg",
+                "requires_external": False,
+                "external_dependency": None,
+                "guarantees_soundness": False,
+                "noise_tolerance": 4,
+                "speed_rating": 5,
+                "complexity_class": "O(n)",
+                "max_recommended_events": 10000000,
+                "max_recommended_activities": 500,
+                "display_order": 10,
+                "is_enabled": True,
+                "is_recommended": True,
+            },
+            {
+                "id": "alpha",
+                "name": "Alpha Miner",
+                "description": "Classic algorithm from academia. Fast but sensitive to noise. Best for clean, simple logs as educational baseline.",
+                "category": "discovery",
+                "output_format": "petri_net",
+                "requires_external": False,
+                "external_dependency": None,
+                "guarantees_soundness": False,
+                "noise_tolerance": 1,
+                "speed_rating": 5,
+                "complexity_class": "O(n²)",
+                "max_recommended_events": 10000,
+                "max_recommended_activities": 50,
+                "display_order": 20,
+                "is_enabled": True,
+                "is_recommended": False,
+            },
+            {
+                "id": "alpha_plus",
+                "name": "Alpha+ Miner",
+                "description": "Extension of Alpha with better short loop handling. Still noise-sensitive.",
+                "category": "discovery",
+                "output_format": "petri_net",
+                "requires_external": False,
+                "external_dependency": None,
+                "guarantees_soundness": False,
+                "noise_tolerance": 2,
+                "speed_rating": 4,
+                "complexity_class": "O(n²)",
+                "max_recommended_events": 10000,
+                "max_recommended_activities": 50,
+                "display_order": 25,
+                "is_enabled": True,
+                "is_recommended": False,
+            },
+            # === Medium Tier ===
+            {
+                "id": "inductive",
+                "name": "Inductive Miner",
+                "description": "Recommended default. Guarantees sound models (proper start/end). Good balance of speed, quality, and noise handling.",
+                "category": "discovery",
+                "output_format": "process_tree",
+                "requires_external": False,
+                "external_dependency": None,
+                "guarantees_soundness": True,
+                "noise_tolerance": 3,
+                "speed_rating": 3,
+                "complexity_class": "O(n log n)",
+                "max_recommended_events": 100000,
+                "max_recommended_activities": 100,
+                "display_order": 30,
+                "is_enabled": True,
+                "is_recommended": True,
+            },
+            {
+                "id": "inductive_infrequent",
+                "name": "Inductive Miner (Infrequent)",
+                "description": "Aggressive noise filtering variant. Best for highly variable logs with many outlier traces.",
+                "category": "discovery",
+                "output_format": "process_tree",
+                "requires_external": False,
+                "external_dependency": None,
+                "guarantees_soundness": True,
+                "noise_tolerance": 5,
+                "speed_rating": 2,
+                "complexity_class": "O(n log n)",
+                "max_recommended_events": 100000,
+                "max_recommended_activities": 100,
+                "display_order": 35,
+                "is_enabled": True,
+                "is_recommended": False,
+            },
+            {
+                "id": "heuristics",
+                "name": "Heuristic Miner",
+                "description": "Frequency-based discovery with tunable thresholds. Excellent for noisy real-world logs.",
+                "category": "discovery",
+                "output_format": "heuristics_net",
+                "requires_external": False,
+                "external_dependency": None,
+                "guarantees_soundness": False,
+                "noise_tolerance": 4,
+                "speed_rating": 3,
+                "complexity_class": "O(n²)",
+                "max_recommended_events": 100000,
+                "max_recommended_activities": 100,
+                "display_order": 40,
+                "is_enabled": True,
+                "is_recommended": True,
+            },
+            {
+                "id": "performance_dfg",
+                "name": "Performance DFG",
+                "description": "DFG with timing information. Shows average durations between activities for bottleneck analysis.",
+                "category": "discovery",
+                "output_format": "performance_dfg",
+                "requires_external": False,
+                "external_dependency": None,
+                "guarantees_soundness": False,
+                "noise_tolerance": 4,
+                "speed_rating": 4,
+                "complexity_class": "O(n)",
+                "max_recommended_events": 1000000,
+                "max_recommended_activities": 200,
+                "display_order": 15,
+                "is_enabled": True,
+                "is_recommended": False,
+            },
+            # === Slow Tier ===
+            {
+                "id": "ilp",
+                "name": "ILP Miner",
+                "description": "Integer Linear Programming based. Produces optimal models but extremely slow. Only for small, critical logs.",
+                "category": "discovery",
+                "output_format": "petri_net",
+                "requires_external": True,
+                "external_dependency": "pulp",
+                "guarantees_soundness": True,
+                "noise_tolerance": 2,
+                "speed_rating": 1,
+                "complexity_class": "O(2^n)",
+                "max_recommended_events": 5000,
+                "max_recommended_activities": 30,
+                "display_order": 50,
+                "is_enabled": True,
+                "is_recommended": False,
+            },
+            # === BPMN ===
+            {
+                "id": "bpmn_inductive",
+                "name": "BPMN Discovery",
+                "description": "Discover BPMN model directly using inductive approach. Good for business stakeholder presentations.",
+                "category": "discovery",
+                "output_format": "bpmn",
+                "requires_external": False,
+                "external_dependency": None,
+                "guarantees_soundness": True,
+                "noise_tolerance": 3,
+                "speed_rating": 3,
+                "complexity_class": "O(n log n)",
+                "max_recommended_events": 100000,
+                "max_recommended_activities": 100,
+                "display_order": 45,
+                "is_enabled": True,
+                "is_recommended": False,
+            },
+            # === Declarative ===
+            {
+                "id": "declare",
+                "name": "Declare Miner",
+                "description": "Discover declarative constraints (LTL). Different paradigm - what must/can happen rather than exact flow.",
+                "category": "declarative",
+                "output_format": "declare",
+                "requires_external": False,
+                "external_dependency": None,
+                "guarantees_soundness": False,
+                "noise_tolerance": 3,
+                "speed_rating": 2,
+                "complexity_class": "O(n×t)",
+                "max_recommended_events": 50000,
+                "max_recommended_activities": 50,
+                "display_order": 60,
+                "is_enabled": True,
+                "is_recommended": False,
+            },
+            {
+                "id": "log_skeleton",
+                "name": "Log Skeleton",
+                "description": "Discover log skeleton constraints. Useful for conformance checking with declarative models.",
+                "category": "declarative",
+                "output_format": "log_skeleton",
+                "requires_external": False,
+                "external_dependency": None,
+                "guarantees_soundness": False,
+                "noise_tolerance": 3,
+                "speed_rating": 3,
+                "complexity_class": "O(n)",
+                "max_recommended_events": 100000,
+                "max_recommended_activities": 100,
+                "display_order": 65,
+                "is_enabled": True,
+                "is_recommended": False,
+            },
+            # === Advanced ===
+            {
+                "id": "prefix_tree",
+                "name": "Prefix Tree",
+                "description": "Build prefix tree automaton. Useful for predictive monitoring and next activity prediction.",
+                "category": "discovery",
+                "output_format": "prefix_tree",
+                "requires_external": False,
+                "external_dependency": None,
+                "guarantees_soundness": False,
+                "noise_tolerance": 5,
+                "speed_rating": 4,
+                "complexity_class": "O(n)",
+                "max_recommended_events": 100000,
+                "max_recommended_activities": 100,
+                "display_order": 70,
+                "is_enabled": True,
+                "is_recommended": False,
+            },
+            {
+                "id": "transition_system",
+                "name": "Transition System",
+                "description": "State-based model from activity windows. Shows process as state machine.",
+                "category": "discovery",
+                "output_format": "transition_system",
+                "requires_external": False,
+                "external_dependency": None,
+                "guarantees_soundness": False,
+                "noise_tolerance": 4,
+                "speed_rating": 4,
+                "complexity_class": "O(n)",
+                "max_recommended_events": 100000,
+                "max_recommended_activities": 100,
+                "display_order": 75,
+                "is_enabled": True,
+                "is_recommended": False,
+            },
+            {
+                "id": "temporal_profile",
+                "name": "Temporal Profile",
+                "description": "Discover timing patterns. Shows expected durations between activities for deviation detection.",
+                "category": "enhancement",
+                "output_format": "temporal_profile",
+                "requires_external": False,
+                "external_dependency": None,
+                "guarantees_soundness": False,
+                "noise_tolerance": 4,
+                "speed_rating": 4,
+                "complexity_class": "O(n)",
+                "max_recommended_events": 100000,
+                "max_recommended_activities": 100,
+                "display_order": 80,
+                "is_enabled": True,
+                "is_recommended": False,
+            },
+            {
+                "id": "batches",
+                "name": "Batch Detection",
+                "description": "Detect batch activities (simultaneous execution patterns). Useful for identifying bundled operations.",
+                "category": "enhancement",
+                "output_format": "batches",
+                "requires_external": False,
+                "external_dependency": None,
+                "guarantees_soundness": False,
+                "noise_tolerance": 3,
+                "speed_rating": 4,
+                "complexity_class": "O(n)",
+                "max_recommended_events": 100000,
+                "max_recommended_activities": 100,
+                "display_order": 85,
+                "is_enabled": True,
+                "is_recommended": False,
+            },
+        ],
+    )
+
+    # =========================================================================
+    # Seed algorithm parameters
+    # =========================================================================
+    params_table = sa.table(
+        "algorithm_parameters",
+        sa.column("id", sa.String),
+        sa.column("algorithm_id", sa.String),
+        sa.column("param_name", sa.String),
+        sa.column("param_type", sa.String),
+        sa.column("default_value", sa.String),
+        sa.column("min_value", sa.String),
+        sa.column("max_value", sa.String),
+        sa.column("enum_values", sa.Text),
+        sa.column("display_name", sa.String),
+        sa.column("description", sa.Text),
+        sa.column("display_order", sa.Integer),
+        sa.column("is_advanced", sa.Boolean),
+        sa.column("is_required", sa.Boolean),
+    )
+
+    import uuid
+
+    op.bulk_insert(
+        params_table,
+        [
+            # Inductive Miner parameters
+            {
+                "id": str(uuid.uuid4()),
+                "algorithm_id": "inductive",
+                "param_name": "noise_threshold",
+                "param_type": "float",
+                "default_value": "0.0",
+                "min_value": "0.0",
+                "max_value": "1.0",
+                "enum_values": None,
+                "display_name": "Noise Threshold",
+                "description": "Filter infrequent behavior below this threshold (0.0 = no filtering, 1.0 = max filtering)",
+                "display_order": 1,
+                "is_advanced": False,
+                "is_required": False,
+            },
+            # Inductive Infrequent parameters
+            {
+                "id": str(uuid.uuid4()),
+                "algorithm_id": "inductive_infrequent",
+                "param_name": "noise_threshold",
+                "param_type": "float",
+                "default_value": "0.2",
+                "min_value": "0.0",
+                "max_value": "0.8",
+                "enum_values": None,
+                "display_name": "Noise Threshold",
+                "description": "Aggressive filtering threshold for infrequent behavior",
+                "display_order": 1,
+                "is_advanced": False,
+                "is_required": False,
+            },
+            # Heuristics Miner parameters
+            {
+                "id": str(uuid.uuid4()),
+                "algorithm_id": "heuristics",
+                "param_name": "dependency_threshold",
+                "param_type": "float",
+                "default_value": "0.5",
+                "min_value": "0.0",
+                "max_value": "1.0",
+                "enum_values": None,
+                "display_name": "Dependency Threshold",
+                "description": "Minimum dependency measure for edge inclusion",
+                "display_order": 1,
+                "is_advanced": False,
+                "is_required": False,
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "algorithm_id": "heuristics",
+                "param_name": "and_threshold",
+                "param_type": "float",
+                "default_value": "0.65",
+                "min_value": "0.0",
+                "max_value": "1.0",
+                "enum_values": None,
+                "display_name": "AND Threshold",
+                "description": "Threshold for detecting parallel splits (AND-gateways)",
+                "display_order": 2,
+                "is_advanced": True,
+                "is_required": False,
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "algorithm_id": "heuristics",
+                "param_name": "loop_two_threshold",
+                "param_type": "float",
+                "default_value": "0.5",
+                "min_value": "0.0",
+                "max_value": "1.0",
+                "enum_values": None,
+                "display_name": "Loop-2 Threshold",
+                "description": "Threshold for length-2 loop detection",
+                "display_order": 3,
+                "is_advanced": True,
+                "is_required": False,
+            },
+            # DFG parameters
+            {
+                "id": str(uuid.uuid4()),
+                "algorithm_id": "dfg",
+                "param_name": "frequency_threshold",
+                "param_type": "int",
+                "default_value": "1",
+                "min_value": "1",
+                "max_value": "1000",
+                "enum_values": None,
+                "display_name": "Minimum Frequency",
+                "description": "Minimum edge frequency to include in the graph",
+                "display_order": 1,
+                "is_advanced": False,
+                "is_required": False,
+            },
+            # ILP Miner parameters
+            {
+                "id": str(uuid.uuid4()),
+                "algorithm_id": "ilp",
+                "param_name": "alpha",
+                "param_type": "float",
+                "default_value": "1.0",
+                "min_value": "0.0",
+                "max_value": "1.0",
+                "enum_values": None,
+                "display_name": "Alpha",
+                "description": "Noise filtering parameter (1.0 = no filtering)",
+                "display_order": 1,
+                "is_advanced": False,
+                "is_required": False,
+            },
+            # Log Skeleton parameters
+            {
+                "id": str(uuid.uuid4()),
+                "algorithm_id": "log_skeleton",
+                "param_name": "noise_threshold",
+                "param_type": "float",
+                "default_value": "0.0",
+                "min_value": "0.0",
+                "max_value": "1.0",
+                "enum_values": None,
+                "display_name": "Noise Threshold",
+                "description": "Filter constraints with support below this threshold",
+                "display_order": 1,
+                "is_advanced": False,
+                "is_required": False,
+            },
+            # Transition System parameters
+            {
+                "id": str(uuid.uuid4()),
+                "algorithm_id": "transition_system",
+                "param_name": "direction",
+                "param_type": "enum",
+                "default_value": "forward",
+                "min_value": None,
+                "max_value": None,
+                "enum_values": '["forward", "backward"]',
+                "display_name": "Direction",
+                "description": "Build states looking forward or backward in traces",
+                "display_order": 1,
+                "is_advanced": False,
+                "is_required": False,
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "algorithm_id": "transition_system",
+                "param_name": "window",
+                "param_type": "int",
+                "default_value": "2",
+                "min_value": "1",
+                "max_value": "10",
+                "enum_values": None,
+                "display_name": "Window Size",
+                "description": "Number of activities in state representation",
+                "display_order": 2,
+                "is_advanced": False,
+                "is_required": False,
+            },
+        ],
+    )
+
+
+def downgrade() -> None:
+    op.drop_table("variant_cache")
+    op.drop_table("dfg_cache")
+    op.drop_index("ix_algo_param_unique", table_name="algorithm_parameters")
+    op.drop_table("algorithm_parameters")
+    op.drop_table("algorithms")

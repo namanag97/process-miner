@@ -8,7 +8,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Input, Typography, Row, Col, Tag, Space } from 'antd';
 import { SearchOutlined, FolderOpenOutlined, PlayCircleOutlined } from '@ant-design/icons';
-import { EmptyState, tokens, logAction } from '@lumina/design-system';
+import { EmptyState, tokens, logAction } from '@/src/shared/design-system';
 import { FeaturePage } from '../../../shared/core';
 import { useEventLogsList } from '../hooks';
 import { createLogger } from '../../../shared/lib/logger';

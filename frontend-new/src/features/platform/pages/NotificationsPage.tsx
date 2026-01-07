@@ -6,7 +6,7 @@ import {
   WarningOutlined,
   CloseCircleOutlined,
 } from '@ant-design/icons';
-import { PageHeader, EmptyState, tokens, logAction } from '@lumina/design-system';
+import { PageHeader, EmptyState, tokens, logAction } from '@/src/shared/design-system';
 import { useNotifications, Notification } from '../../../shared/context/NotificationContext';
 import { createLogger } from '../../../shared/lib/logger';
 

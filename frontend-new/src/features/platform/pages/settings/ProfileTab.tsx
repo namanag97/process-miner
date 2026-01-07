@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, Form, Input, Button, Avatar, Space, Typography, message } from 'antd';
 import { UserOutlined, CameraOutlined } from '@ant-design/icons';
-import { tokens, toast } from '@lumina/design-system';
+import { tokens, toast } from '@/src/shared/design-system';
 import { useUser } from '../../../../shared/context/UserContext';
 import { createLogger } from '../../../../shared/lib/logger';
 

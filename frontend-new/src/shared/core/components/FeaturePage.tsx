@@ -37,7 +37,7 @@ import {
   HomeOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { PageHeader, tokens, logAction } from '@lumina/design-system';
+import { PageHeader, tokens, logAction } from '@/src/shared/design-system';
 
 // ============================================
 // Types

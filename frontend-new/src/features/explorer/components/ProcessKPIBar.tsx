@@ -21,7 +21,7 @@ import {
   ArrowUpOutlined,
   ArrowDownOutlined,
 } from '@ant-design/icons';
-import { tokens } from '@lumina/design-system';
+import { tokens } from '@/src/shared/design-system';
 import { formatDuration, formatNumber, COLORS } from '../utils/colorScales';
 import type { ProcessKPIs } from '../types';
 

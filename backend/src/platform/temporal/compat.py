@@ -17,7 +17,10 @@ import os
 from typing import Any
 from uuid import uuid4
 
+from src.platform.core.logging_config import get_logger
 from src.platform.temporal.config import get_temporal_config
+
+logger = get_logger(__name__)
 
 # Feature flag for Temporal migration - now defaults to TRUE for MVP
 USE_TEMPORAL = os.getenv("USE_TEMPORAL", "true").lower() == "true"

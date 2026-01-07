@@ -9,7 +9,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
-import { queryKeys, instrumentedFetch } from '@lumina/design-system';
+import { queryKeys, instrumentedFetch } from '@/src/shared/design-system';
 import { env } from '../../../../config/env';
 
 interface UploadDatasetParams {

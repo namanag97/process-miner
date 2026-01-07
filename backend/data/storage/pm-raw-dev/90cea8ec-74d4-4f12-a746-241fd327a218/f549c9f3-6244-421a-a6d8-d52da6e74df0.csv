@@ -1,0 +1,13 @@
+case_id,activity,timestamp,resource
+case_1,Start,2026-01-01 09:00:00,Alice
+case_1,Process,2026-01-01 09:30:00,Bob
+case_1,Approve,2026-01-01 10:00:00,Charlie
+case_1,End,2026-01-01 10:30:00,Alice
+case_2,Start,2026-01-01 10:00:00,Bob
+case_2,Process,2026-01-01 10:45:00,Alice
+case_2,End,2026-01-01 11:00:00,Bob
+case_3,Start,2026-01-01 11:00:00,Alice
+case_3,Review,2026-01-01 11:30:00,Charlie
+case_3,Process,2026-01-01 12:00:00,Bob
+case_3,Approve,2026-01-01 12:30:00,Charlie
+case_3,End,2026-01-01 13:00:00,Alice

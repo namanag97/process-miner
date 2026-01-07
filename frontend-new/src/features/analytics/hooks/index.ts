@@ -4,7 +4,7 @@
  * Re-exports and custom hooks for analytics feature.
  */
 
-import { queryKeys } from '@lumina/design-system';
+import { queryKeys } from '@/src/shared/design-system';
 import { createQueryHook } from '../../../shared/core';
 
 // ============================================

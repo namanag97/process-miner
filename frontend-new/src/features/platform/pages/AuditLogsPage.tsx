@@ -35,7 +35,7 @@ import {
   toast,
   useAuditLogs,
   type AuditLogEntry,
-} from '@lumina/design-system';
+} from '@/src/shared/design-system';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;

@@ -8,7 +8,7 @@
 import { useState, useMemo } from 'react';
 import { Input, Button, Badge, Tooltip, Empty } from 'antd';
 import { SearchOutlined, PlusOutlined, FilterOutlined } from '@ant-design/icons';
-import { tokens } from '@lumina/design-system';
+import { tokens } from '@/src/shared/design-system';
 
 export interface ActivityItem {
     id: string;

@@ -10,7 +10,7 @@ export {
   useCycleTime,
   useThroughput,
   useProcess,
-} from '@lumina/design-system';
+} from '@/src/shared/design-system';
 
 // Note: Additional KPI-specific hooks can be added here using createQueryHook
 // Example:

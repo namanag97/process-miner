@@ -19,7 +19,7 @@ import { useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, Typography, Button, Space, Spin, message } from 'antd';
 import { ArrowLeftOutlined, LoadingOutlined } from '@ant-design/icons';
-import { tokens, logAction } from '@lumina/design-system';
+import { tokens, logAction } from '@/src/shared/design-system';
 import { devLog } from '../../../../shared/ui/DevConsole';
 import { useUploadWizard } from '../hooks/useUploadWizard';
 import { WizardStepper } from '../components/WizardStepper';

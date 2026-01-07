@@ -4,7 +4,7 @@
  */
 
 import { useCallback } from 'react';
-import { useLogAuditEvent } from '@lumina/design-system';
+import { useLogAuditEvent } from '@/src/shared/design-system';
 
 export type AuditEventType =
   | 'project.created'

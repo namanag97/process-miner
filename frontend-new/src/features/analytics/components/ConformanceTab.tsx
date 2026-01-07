@@ -7,7 +7,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { MetricCard, tokens, formatCompactNumber, useSDK, queryKeys, EmptyState } from '@lumina/design-system';
+import { MetricCard, tokens, formatCompactNumber, useSDK, queryKeys, EmptyState } from '@/src/shared/design-system';
 import { createLogger } from '../../../shared/lib/logger';
 
 const { Text } = Typography;

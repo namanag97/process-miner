@@ -7,7 +7,10 @@ Manages connection lifecycle and provides singleton access.
 
 from temporalio.client import Client
 
+from src.platform.core.logging_config import get_logger
 from src.platform.temporal.config import get_temporal_config
+
+logger = get_logger(__name__)
 
 # Module-level client cache
 _client: Client | None = None
