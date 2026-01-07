@@ -5,41 +5,11 @@
  * Provides performance analysis, deadline tracking, and automation assessment.
  */
 
-import { FeatureRegistry } from '../../shared/core/plugins/FeatureRegistry';
-import { kpiRouteConfig } from './routes';
-
-// ============================================
-// Feature Configuration
-// ============================================
-
-export const FEATURE_ID = 'kpi';
-
-export const FEATURE_CONFIG = {
-  id: 'kpi',
-  name: 'KPI Dashboard',
-  version: '1.0.0',
-  icon: 'DashboardOutlined',
-  navPath: '/workspace/:projectId/data/:datasetId/kpi',
-  navOrder: 4,
-};
-
-// Register feature
-FeatureRegistry.register({
-  ...FEATURE_CONFIG,
-  routes: kpiRouteConfig,
-});
-
 // ============================================
 // Page Exports
 // ============================================
 
 export { KPIPage } from './pages/KPIPage';
-
-// ============================================
-// Route Exports
-// ============================================
-
-export { KPIRoutes, kpiRouteConfig } from './routes';
 
 // ============================================
 // Hook Exports

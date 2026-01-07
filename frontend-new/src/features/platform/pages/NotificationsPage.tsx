@@ -1,3 +1,22 @@
+/**
+ * NotificationsPage - In-app notification center
+ *
+ * BACKEND INTEGRATION STATUS:
+ * - Currently uses CLIENT-SIDE state via NotificationContext (React Context)
+ * - No backend notification API exists yet
+ *
+ * The notification system stores notifications in memory during the session.
+ * Notifications are triggered by:
+ * - Toast messages that are stored for history
+ * - System events (upload complete, analysis finished, etc.)
+ *
+ * TODO: When a backend notification API is added (e.g., GET/POST /api/v1/notifications),
+ * migrate from NotificationContext to backend-persisted notifications with:
+ * - Real-time updates via WebSocket or SSE
+ * - Persistent notification history across sessions
+ * - Push notification support
+ */
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { List, Tabs, Button, Typography, Badge, Space } from 'antd';
 import {

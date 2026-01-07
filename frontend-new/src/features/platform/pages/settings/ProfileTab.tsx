@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Card, Form, Input, Button, Avatar, Space, Typography, message } from 'antd';
 import { UserOutlined, CameraOutlined } from '@ant-design/icons';
-import { tokens, toast } from '@lumina/design-system';
+import { tokens, toast, logAction } from '@lumina/design-system';
 import { useUser } from '../../../../shared/context/UserContext';
 import { createLogger } from '../../../../shared/lib/logger';
+import { sdk } from '../../../../api/sdk';
 
 const log = createLogger('Settings');
 const { Text } = Typography;
@@ -44,15 +45,22 @@ export function ProfileTab() {
 
   const handleSave = async () => {
     setIsSaving(true);
-    log.info('Saving profile changes', form.getFieldsValue());
+    const values = form.getFieldsValue();
+    log.info('Saving profile changes', values);
+    logAction('ProfileTab', 'save_profile_clicked', { name: values.name });
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    toast.success('Profile updated successfully');
-    setIsDirty(false);
-    setIsSaving(false);
-    log.info('Profile saved successfully');
+    try {
+      await sdk.auth.updateProfile({ name: values.name });
+      toast.success('Profile updated successfully');
+      setIsDirty(false);
+      log.info('Profile saved successfully');
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      log.error('Failed to save profile', { error: error.message });
+      toast.error(`Failed to update profile: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleAvatarChange = () => {

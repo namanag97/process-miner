@@ -1,4 +1,4 @@
-import { useEffect, Suspense } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, type RouteObject } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
 import { AppShell, SDKProvider, luminaTheme, logAction } from '@lumina/design-system';
@@ -6,16 +6,16 @@ import { UserProvider, useUser } from './shared/context/UserContext';
 import { NotificationProvider, useNotifications } from './shared/context/NotificationContext';
 import { BackendHealthProvider } from './shared/context/BackendHealthContext';
 import { GlobalErrorBoundary, ErrorReport } from './shared/ui/GlobalErrorBoundary';
-import { PageLoader } from './shared/ui/PageLoader';
 import { DevConsole, devLog } from './shared/ui/DevConsole';
 import { createLogger } from './shared/lib/logger';
-import { useFeatureRoutes } from './shared/core/plugins/FeatureRegistry';
 
-// ============================================
-// Feature Auto-Registration
-// ============================================
-// This import triggers auto-registration of all features via FeatureRegistry
-import './features';
+// Explicit routes and navigation (no more FeatureRegistry magic)
+import { routes } from './routes';
+import { navRoutes, getActiveNavId } from './navigation';
+import { PageLoader } from './shared/ui/PageLoader';
+
+// Landing page lazy-loaded separately (rendered outside AppShell)
+const LandingPage = lazy(() => import('./features/landing/pages/LandingPage'));
 
 const log = createLogger('Navigation');
 
@@ -98,87 +98,75 @@ function AppLayout() {
   const { user } = useUser();
   const { unreadCount } = useNotifications();
 
-  // Get all routes from registered features
-  const featureRoutes = useFeatureRoutes();
-
   // Log route changes for dev debugging
   useEffect(() => {
     logAction('Navigation', location.pathname, { from: document.referrer || 'direct' });
     devLog.action('Route Change', location.pathname);
   }, [location.pathname]);
 
-  // Determine active nav item from URL
-  const getActiveId = () => {
-    const path = location.pathname;
-    if (path.startsWith('/workspace')) return 'workspace';
-    if (path.startsWith('/home')) return 'workspace'; // Legacy redirect
-    if (path.startsWith('/projects')) return 'workspace'; // Projects are part of workspace
-    if (path.startsWith('/processes')) return 'logs';
-    if (path.startsWith('/explorer') || path.startsWith('/explore')) return 'explorer';
-    if (path.startsWith('/analytics')) return 'analytics';
-    if (path.startsWith('/ai')) return 'ai-insights';
-    if (path.startsWith('/predictions')) return 'predictions';
-    if (path.startsWith('/settings')) return 'settings';
-    if (path.startsWith('/help')) return 'help';
-    if (path.startsWith('/notifications')) return 'notifications';
-    if (path.startsWith('/activity')) return 'activity';
-    if (path.startsWith('/test-bench')) return 'test-bench';
-    if (path.startsWith('/audit')) return 'audit-logs';
-    return 'workspace';
-  };
-
   const handleNavigate = (id: string) => {
-    const routes: Record<string, string> = {
-      workspace: '/workspace',
-      home: '/workspace', // Legacy - redirect to workspace
-      logs: '/processes',
-      explorer: '/explore',
-      analytics: '/analytics',
-      'ai-insights': '/ai/assistant',
-      predictions: '/ai/predictions',
-      settings: '/settings/profile',
-      help: '/help',
-      notifications: '/notifications',
-      activity: '/activity',
-      'test-bench': '/test-bench',
-    };
-    log.debug('Navigating', { from: location.pathname, to: routes[id] });
-    navigate(routes[id] || '/workspace');
+    const targetPath = navRoutes[id] || '/workspace';
+    log.debug('Navigating', { from: location.pathname, to: targetPath });
+    navigate(targetPath);
   };
 
   return (
     <AppShell
-      activeId={getActiveId()}
+      activeId={getActiveNavId(location.pathname)}
       onNavigate={handleNavigate}
       userName={user?.name}
       userEmail={user?.email}
       notificationCount={unreadCount}
     >
-      <Suspense fallback={<PageLoader fullPage={false} message="Loading page..." />}>
-        <Routes>
-          {/* ============================================ */}
-          {/* Dynamic Feature Routes */}
-          {/* ============================================ */}
-          {featureRoutes.map((route, i) => renderRouteObject(route, i))}
+      <Routes>
+        {/* ============================================ */}
+        {/* Explicit Application Routes */}
+        {/* ============================================ */}
+        {routes.map((route, i) => renderRouteObject(route, i))}
 
-          {/* ============================================ */}
-          {/* Legacy Redirects - Keep for backward compatibility */}
-          {/* ============================================ */}
-          <Route path="/explorer" element={<Navigate to="/explore" replace />} />
-          <Route path="/processes" element={<Navigate to="/workspace" replace />} />
-          <Route path="/processes/upload" element={<Navigate to="/workspace" replace />} />
-          <Route path="/processes/:id/*" element={<Navigate to="/workspace" replace />} />
-          <Route path="/" element={<Navigate to="/workspace" replace />} />
-          <Route path="/home" element={<Navigate to="/workspace" replace />} />
-          <Route path="/projects" element={<Navigate to="/workspace" replace />} />
-          <Route path="/projects/*" element={<Navigate to="/workspace" replace />} />
+        {/* ============================================ */}
+        {/* Legacy Redirects - Keep for backward compatibility */}
+        {/* ============================================ */}
+        <Route path="/explorer" element={<Navigate to="/explore" replace />} />
+        <Route path="/processes" element={<Navigate to="/workspace" replace />} />
+        <Route path="/processes/upload" element={<Navigate to="/workspace" replace />} />
+        <Route path="/processes/:id/*" element={<Navigate to="/workspace" replace />} />
+        {/* "/" is now the landing page - handled by AppRouter */}
+        <Route path="/home" element={<Navigate to="/" replace />} />
+        <Route path="/projects" element={<Navigate to="/workspace" replace />} />
+        <Route path="/projects/*" element={<Navigate to="/workspace" replace />} />
 
-          {/* Fallback - catch all unmatched routes */}
-          <Route path="*" element={<Navigate to="/workspace" replace />} />
-        </Routes>
-      </Suspense>
+        {/* Fallback - catch all unmatched routes */}
+        <Route path="*" element={<Navigate to="/workspace" replace />} />
+      </Routes>
     </AppShell>
   );
+}
+
+/**
+ * Landing page wrapper - renders outside the AppShell
+ */
+function LandingWrapper() {
+  return (
+    <Suspense fallback={<PageLoader fullPage message="Loading..." />}>
+      <LandingPage />
+    </Suspense>
+  );
+}
+
+/**
+ * Router component that handles landing page vs app routes
+ */
+function AppRouter() {
+  const location = useLocation();
+
+  // Landing page renders without AppShell
+  if (location.pathname === '/') {
+    return <LandingWrapper />;
+  }
+
+  // All other routes render within AppShell
+  return <AppLayout />;
 }
 
 function App() {
@@ -190,8 +178,8 @@ function App() {
             <UserProvider>
               <NotificationProvider>
                 <BrowserRouter>
-                  {/* No authentication - direct access to app */}
-                  <AppLayout />
+                  {/* Router decides between landing page and app */}
+                  <AppRouter />
                   {/* Dev Console - only renders in development */}
                   <DevConsole />
                 </BrowserRouter>

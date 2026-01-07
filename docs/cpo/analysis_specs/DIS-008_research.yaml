@@ -1,6 +1,0 @@
-feature_id: "DIS-008"
-research_findings:
-  libraries:
-    frontend: ["React Flow", "Cytoscape.js"]
-  recommendations:
-    must_have: ["Interactive zoom/pan", "Sugiyama layout", "Mini-map"]

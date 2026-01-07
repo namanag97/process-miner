@@ -35,40 +35,49 @@ npm run test -- src/features/explorer               # Specific directory
 
 ## Architecture
 
-### Feature Plugin System
+### Explicit Routing
 
-Features auto-register via `FeatureRegistry`. Each feature is self-contained:
+All routes are defined explicitly in two files for clarity and maintainability:
+
+- **`src/routes.tsx`** - All application routes with lazy loading and error boundaries
+- **`src/navigation.ts`** - Navigation items and route mappings
+
+**To add a new route:**
+1. Create the page component in the appropriate feature directory
+2. Add a lazy import in `src/routes.tsx`
+3. Add the route to the `routes` array with error boundary wrapping
+
+```typescript
+// src/routes.tsx
+const MyFeaturePage = lazy(() => import('./features/my-feature/pages/MyFeaturePage'));
+
+export const routes: RouteObject[] = [
+  // ... existing routes
+  { path: '/my-feature', element: page(<MyFeaturePage />, 'My Feature') },
+];
+```
+
+### Feature Module Structure
+
+Each feature is self-contained with pages, components, hooks, and types:
 
 ```
 src/features/{feature}/
-├── index.ts              # Registers routes via registerFeature()
-├── {Feature}Page.tsx     # Main page component
+├── index.ts              # Re-exports pages, hooks, components, types
+├── pages/                # Page components
 ├── components/           # Feature-specific UI
 ├── hooks/                # Feature-specific hooks
 └── types/                # TypeScript types
 ```
-
-**To add a new feature:**
-1. Create directory in `src/features/`
-2. Register in feature's `index.ts`:
-```typescript
-import { registerFeature } from '@/shared/core/plugins/FeatureRegistry';
-
-registerFeature({
-  id: 'my-feature',
-  name: 'My Feature',
-  routes: [{ path: '/my-feature', element: <MyFeaturePage /> }],
-  navConfig: { icon: 'AppstoreOutlined', label: 'My Feature', order: 10 },
-});
-```
-3. Export from `src/features/index.ts`
 
 ### Layer Structure
 
 ```
 src/
 ├── App.tsx                 # App shell, providers, routing
-├── features/               # Feature modules (plugin architecture)
+├── routes.tsx              # Explicit route definitions
+├── navigation.ts           # Navigation configuration
+├── features/               # Feature modules
 │   ├── platform/           # Workspace, projects, settings
 │   ├── explorer/           # Process visualization (DFG, Petri nets)
 │   ├── analytics/          # Performance analytics
@@ -78,7 +87,7 @@ src/
 ├── shared/                 # Shared code
 │   ├── design-system.ts    # UI components (import from here)
 │   ├── context/            # UserContext, NotificationContext, BackendHealthContext
-│   ├── core/plugins/       # FeatureRegistry
+│   ├── core/               # Core utilities and hooks
 │   ├── hooks/              # Shared custom hooks
 │   ├── lib/                # Utilities (logger, formatters)
 │   └── ui/                 # DevConsole, ErrorBoundary
@@ -160,17 +169,11 @@ The app uses a **three-tier error boundary strategy** for graceful degradation:
 └─────────────────────────────────────────────────────┘
 ```
 
-**Route-level error boundaries:**
+**Route-level error boundaries (in routes.tsx):**
 ```typescript
-import { wrapRoutesWithErrorBoundary } from '@/shared/core';
-
-export const featureRoutes = wrapRoutesWithErrorBoundary(
-  [
-    { path: '/feature', element: <FeaturePage /> },
-    { path: '/feature/:id', element: <FeatureDetailPage /> },
-  ],
-  { featureName: 'My Feature', fallbackPath: '/workspace' }
-);
+// Error boundaries are built into the page() helper in routes.tsx
+{ path: '/my-feature', element: page(<MyFeaturePage />, 'My Feature') }
+// The page() helper wraps components with Suspense and ErrorBoundary
 ```
 
 **Component-level error boundaries:**

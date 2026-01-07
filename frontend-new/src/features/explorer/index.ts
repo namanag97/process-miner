@@ -5,42 +5,12 @@
  * Provides DFG visualization, variant analysis, and activity inspection.
  */
 
-import { FeatureRegistry } from '../../shared/core/plugins/FeatureRegistry';
-import { explorerRouteConfig } from './routes';
-
-// ============================================
-// Feature Configuration
-// ============================================
-
-export const FEATURE_ID = 'explorer';
-
-export const FEATURE_CONFIG = {
-  id: 'explorer',
-  name: 'Process Explorer',
-  version: '1.0.0',
-  icon: 'SearchOutlined',
-  navPath: '/explorer',
-  navOrder: 3,
-};
-
-// Register feature (auto-registration on import)
-FeatureRegistry.register({
-  ...FEATURE_CONFIG,
-  routes: explorerRouteConfig,
-});
-
 // ============================================
 // Page Exports
 // ============================================
 
 export { ExplorerIndexPage } from './pages/ExplorerIndexPage';
 export { ExplorerDetailPage } from './pages/ExplorerDetailPage';
-
-// ============================================
-// Route Exports
-// ============================================
-
-export { ExplorerRoutes, explorerRouteConfig } from './routes';
 
 // ============================================
 // Hook Exports

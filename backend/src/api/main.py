@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.api.routers import (
+    ai_router,
     algorithms_router,
     analyses_router,
     analytics_router,
@@ -125,6 +126,7 @@ async def _seed_mvp_data() -> None:
     """
     from sqlalchemy import select
 
+    from src.infra.core.security import hash_password
     from src.infra.infrastructure.database import write_session_maker
     from src.infra.users import Organization, Project, User, Workspace, WorkspaceMember
 
@@ -163,13 +165,15 @@ async def _seed_mvp_data() -> None:
             )
             db.add(project)
 
-            # Create user
+            # Create user with password for testing
+            # Password: TestPass123 (simple, no special chars for shell compat)
             user = User(
                 id="mvp-user-001",
                 org_id="mvp-org-001",
                 email="analyst@example.com",
                 name="Process Analyst",
                 role="admin",
+                password_hash=hash_password("TestPass123"),
             )
             db.add(user)
 
@@ -205,136 +209,274 @@ def create_app() -> FastAPI:
     # OpenAPI tags for documentation organization
     openapi_tags = [
         # =====================================================================
-        # Platform Layer
+        # Getting Started (First)
         # =====================================================================
         {
-            "name": "Auth",
-            "description": "🔐 Authentication and authorization. Uses JWT (Access & Refresh Tokens).",
+            "name": "Health",
+            "description": "Health checks for k8s probes. `/health/live` for liveness, `/health/ready` for readiness.",
         },
         {
+            "name": "Auth",
+            "description": """**Start here!** JWT authentication.
+
+**Quick Login:**
+```
+POST /auth/login
+{"email": "analyst@example.com", "password": "TestPass123"}
+```
+Returns `access_token` for Bearer auth.""",
+        },
+        # =====================================================================
+        # Platform - Multi-Tenant Structure
+        # =====================================================================
+        {
             "name": "Organizations",
-            "description": "🏛️ Organization management. Multi-tenant org structure and billing.",
+            "description": "Multi-tenant orgs. Users belong to one org.",
         },
         {
             "name": "Workspaces",
-            "description": "🏢 Multi-tenant workspace management. Create, update, and manage workspaces.",
+            "description": "Collaborative containers within orgs. Supports RBAC (owner/admin/editor/viewer).",
         },
         {
             "name": "Projects",
-            "description": "📁 Project organization for event logs and analyses.",
-        },
-        {
-            "name": "Jobs",
-            "description": "⚡ Unified async job tracking and progress monitoring.",
-        },
-        {
-            "name": "DAGs",
-            "description": "🔀 DAG workflow orchestration. Trigger and monitor multi-step workflows.",
-        },
-        {
-            "name": "Admin",
-            "description": "🛡️ Admin-only system management and monitoring.",
-        },
-        {
-            "name": "Health",
-            "description": "❤️ Application health and readiness endpoints for k8s/monitoring.",
-        },
-        {
-            "name": "Observability",
-            "description": "📊 Metrics, tracing, and logging endpoints.",
+            "description": "Group datasets and analyses. Use `mvp-proj-001` for dev.",
         },
         # =====================================================================
-        # Process Mining Domain - Core
+        # Core Flow: Datasets
         # =====================================================================
         {
             "name": "Datasets",
-            "description": "💾 Event log management. Upload, ingest, and manage CSV/XES/OCEL files.",
+            "description": """**Main user flow starts here.**
+
+**Upload Flow:**
+1. `POST /presign` → get S3 URL
+2. `PUT <url>` → upload file
+3. `POST /{id}/uploaded` → confirm
+4. `GET /{id}/columns` → see detected columns
+5. `POST /{id}/mapping` → set case_id, activity, timestamp
+6. `POST /{id}/ingest` → start processing
+
+**Status progression:** PENDING → UPLOADED → MAPPED → INGESTING → READY""",
         },
+        # =====================================================================
+        # Core Flow: Discovery
+        # =====================================================================
         {
             "name": "Discovery",
-            "description": "🔍 Process model discovery. Alpha, Inductive, Heuristics miners.",
-        },
-        {
-            "name": "Conformance",
-            "description": "✅ Conformance checking. Token replay, alignments, and deviation analysis.",
-        },
-        {
-            "name": "Visualization",
-            "description": "🎨 Process visualization. DFG, Petri nets, and BPMN layouts.",
+            "description": """Discover process models from event logs.
+
+**Miners:** `alpha`, `inductive`, `heuristic`, `split`
+
+**Usage:**
+1. `GET /miners` → list algorithms
+2. `POST /discover` → start (returns workflow_id)
+3. `GET /models` → view results""",
         },
         # =====================================================================
-        # Process Mining Domain - Advanced
+        # Core Flow: Analytics
         # =====================================================================
-        {
-            "name": "Analyses",
-            "description": "📋 Stored analyses and results management.",
-        },
         {
             "name": "Analytics",
-            "description": "📈 Performance analytics. Bottlenecks, cycle times, and throughput.",
+            "description": """Performance analysis of process data.
+
+**Key endpoints:**
+- `/bottlenecks` - Identify slow activities
+- `/cycle-time` - Duration distribution
+- `/throughput` - Volume trends
+- `/rework` - Rework patterns
+- `/service-times` - Per-activity timing""",
+        },
+        # =====================================================================
+        # Core Flow: Conformance
+        # =====================================================================
+        {
+            "name": "Conformance",
+            "description": """Compare actual execution vs expected model.
+
+**Methods:** `token_replay`, `alignments`, `footprints`
+
+**Usage:**
+1. `POST /check` → run conformance
+2. `GET /deviations/{ds}/{model}` → view issues
+3. `GET /alignments/{ds}/{model}` → case details""",
+        },
+        # =====================================================================
+        # Visualization
+        # =====================================================================
+        {
+            "name": "Visualization",
+            "description": """Graph data for rendering.
+
+**Endpoints:**
+- `/{id}/dfg` - Directly-Follows Graph (JSON)
+- `/{id}/dfg/svg` - DFG as SVG image
+- `/models/{id}/petri` - Petri net structure
+- `/{id}/explorer-data` - Variant explorer data""",
+        },
+        # =====================================================================
+        # Real-Time Operations
+        # =====================================================================
+        {
+            "name": "Operations",
+            "description": """**Real-time progress tracking (SSE).**
+
+Long operations return `workflow_id`. Subscribe:
+```javascript
+new EventSource('/api/v1/operations/{id}/stream')
+```
+
+**Events:** `step:progress`, `workflow:completed`, `workflow:failed`""",
+        },
+        {
+            "name": "Jobs",
+            "description": "Async job tracking. Alternative to SSE for polling.",
+        },
+        # =====================================================================
+        # Advanced Features
+        # =====================================================================
+        {
+            "name": "AI",
+            "description": "AI chat assistant for process insights.",
+        },
+        {
+            "name": "Analyses",
+            "description": "Save and retrieve analysis results.",
         },
         {
             "name": "Predictions",
-            "description": "🔮 ML-based predictions. Next activity and remaining time estimation.",
+            "description": "ML predictions: next activity, remaining time.",
         },
         {
             "name": "Simulation",
-            "description": "🎲 Process simulation and what-if analysis.",
+            "description": "What-if analysis and process simulation.",
         },
         {
             "name": "Filtering",
-            "description": "🔍 Event log filtering and subsetting.",
+            "description": "Filter event logs by criteria.",
         },
         {
             "name": "Organizational",
-            "description": "👥 Organizational mining. Social networks and resource analysis.",
+            "description": "Resource analysis and social networks.",
         },
         {
             "name": "OCPM",
-            "description": "📦 Object-Centric Process Mining (OCEL 2.0).",
+            "description": "Object-Centric Process Mining (OCEL 2.0).",
         },
         {
             "name": "Business Use Cases",
-            "description": "💼 Specific business scenarios (P2P, O2C, Customer Journey).",
+            "description": "P2P, O2C, Customer Journey templates.",
         },
     ]
 
     description = """
 # Process Mining SaaS API
 
-Welcome to the **Process Mining SaaS API**. This API provides enterprise-grade process mining capabilities, allowing you to discover, analyze, and optimize business processes from event logs.
+Enterprise-grade process mining platform for discovering, analyzing, and optimizing business processes.
 
-## 🚀 Key Features
+---
 
-*   **Event Log Management**: Upload and process CSV, XES, and OCEL files with automatic schema detection.
-*   **Process Discovery**: Automatically generate process models (Petri nets, BPMN, DFG) using state-of-the-art algorithms (Alpha, Inductive, Heuristics).
-*   **Conformance Checking**: Compare actual process execution against reference models to identify deviations and root causes.
-*   **Performance Analytics**: Deep dive into bottlenecks, cycle times, and throughput efficiency.
-*   **Predictive Process Monitoring**: Leverage Machine Learning to predict next activities and remaining process time.
-*   **Object-Centric Process Mining (OCPM)**: Native support for OCEL 2.0 to analyze complex, multi-object processes.
+## 🧪 Quick Start (Dev Credentials)
+
+```
+Email:    analyst@example.com
+Password: TestPass123
+```
+
+Pre-seeded IDs: `mvp-org-001`, `mvp-ws-001`, `mvp-proj-001`, `mvp-user-001`
+
+---
 
 ## 🔐 Authentication
 
-This API uses **JWT (JSON Web Token)** for authentication.
+1. **Login**: `POST /api/v1/auth/login` → Returns `access_token`
+2. **Use Token**: Click **Authorize** button (top-right) → Enter token
+3. **Refresh**: `POST /api/v1/auth/refresh` when token expires
 
-1.  **Register/Login**: Use `/api/v1/auth/login` to obtain an `access_token` and `refresh_token`.
-2.  **Authorize**: Click the **Authorize** button at the top right and enter your token (Bearer format is handled automatically by the UI, just enter the token string if prompted, or follows the Scheme).
-    *   *Note: For this specific Swagger UI, standard Bearer auth is configured.*
+---
 
-## 📦 Rate Limiting
+## 📊 User Flows
 
-API requests are rate-limited to ensure stability.
-*   **Standard**: 100 requests/minute
-*   **Uploads**: 10 requests/minute
+### Flow 1: Upload Dataset → Analyze
 
-Headers returned:
-*   `X-RateLimit-Limit`
-*   `X-RateLimit-Remaining`
-*   `X-RateLimit-Reset`
+```
+1. POST /datasets/presign        → Get S3 upload URL
+2. PUT  <upload_url>             → Upload file to S3
+3. POST /datasets/{id}/uploaded  → Confirm upload, get detected columns
+4. POST /datasets/{id}/mapping   → Map columns (case_id, activity, timestamp)
+5. POST /datasets/{id}/ingest    → Start ingestion (returns workflow_id)
+6. GET  /operations/{workflow_id}/stream → SSE progress (real-time)
+7. GET  /datasets/{id}/statistics → View dataset stats when READY
+```
 
-## 🆘 Support
+### Flow 2: Discover Process Model
 
-For support, please contact the developer team or refer to the internal documentation.
+```
+1. GET  /discovery/miners           → List available algorithms
+2. POST /discovery/discover         → Start discovery (returns workflow_id)
+3. GET  /operations/{workflow_id}/stream → SSE progress
+4. GET  /discovery/models           → List discovered models
+5. GET  /visualization/{id}/dfg     → Get DFG graph data
+```
+
+### Flow 3: Analyze Performance
+
+```
+1. GET /analytics/datasets/{id}/bottlenecks   → Identify slow activities
+2. GET /analytics/datasets/{id}/cycle-time    → Duration analysis
+3. GET /analytics/datasets/{id}/throughput    → Volume trends
+4. GET /analytics/datasets/{id}/rework        → Rework patterns
+```
+
+### Flow 4: Check Conformance
+
+```
+1. GET  /conformance/methods                      → List methods
+2. POST /conformance/check                        → Run check
+3. GET  /conformance/deviations/{dataset}/{model} → View deviations
+4. GET  /conformance/alignments/{dataset}/{model} → Case alignments
+```
+
+---
+
+## 📡 Real-Time Progress (SSE)
+
+Long operations (ingestion, discovery) return a `workflow_id`. Subscribe to progress:
+
+```javascript
+const es = new EventSource('/api/v1/operations/{workflow_id}/stream');
+es.addEventListener('step:progress', e => console.log(JSON.parse(e.data)));
+es.addEventListener('workflow:completed', e => { console.log('Done!'); es.close(); });
+```
+
+**Events**: `workflow:progress`, `step:started`, `step:progress`, `step:completed`, `workflow:completed`, `workflow:failed`
+
+---
+
+## ⚠️ Error Format (RFC 7807)
+
+```json
+{
+  "type": "about:blank",
+  "title": "Not Found",
+  "status": 404,
+  "detail": "Dataset with id 'xyz' not found",
+  "error_code": "RESOURCE_NOT_FOUND",
+  "correlation_id": "req-abc123"
+}
+```
+
+**Common Codes**: `VALIDATION_ERROR` (400), `INVALID_CREDENTIALS` (401), `TOKEN_EXPIRED` (401), `PERMISSION_DENIED` (403), `RESOURCE_NOT_FOUND` (404)
+
+---
+
+## 📦 Rate Limits
+
+| Type | Limit |
+|------|-------|
+| Standard | 100 req/min |
+| Uploads | 10 req/min |
+
+Headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
 """
 
     app = FastAPI(
@@ -513,6 +655,7 @@ For support, please contact the developer team or refer to the internal document
     # =========================================================================
     # Analysis Domain Routers
     # =========================================================================
+    app.include_router(ai_router, prefix=settings.api_prefix)  # AI Chat
     app.include_router(analyses_router, prefix=settings.api_prefix)
     app.include_router(discovery_router, prefix=settings.api_prefix)
     app.include_router(conformance_router, prefix=settings.api_prefix)

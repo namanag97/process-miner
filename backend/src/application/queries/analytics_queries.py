@@ -70,6 +70,17 @@ class GetVariantsQuery(BaseQuery):
 
 
 @dataclass
+class GetThroughputQuery(BaseQuery):
+    """Get throughput statistics."""
+
+    dataset_id: str
+
+    def validate(self) -> None:
+        if not self.dataset_id:
+            raise ValueError("Dataset ID is required")
+
+
+@dataclass
 class GetDFGQuery(BaseQuery):
     """Get Directly-Follows Graph data."""
 
@@ -154,6 +165,18 @@ class VariantsResult:
     total_cases: int
 
 
+@dataclass
+class ThroughputResult:
+    """Throughput statistics result."""
+
+    total_cases: int
+    completed_cases: int
+    cases_per_day: float
+    cases_per_week: float
+    cases_per_month: float
+    time_range_days: float
+
+
 # =============================================================================
 # Query Handlers
 # =============================================================================
@@ -163,16 +186,34 @@ class AnalyticsQueryHandlerBase(QueryHandler):
     """Base class for analytics query handlers.
 
     Provides common functionality for Parquet/DuckDB queries.
+    Uses isolated DuckDB connections for thread-safe concurrent execution.
     """
 
     def __init__(
         self,
-        duckdb_conn: duckdb.DuckDBPyConnection | None = None,
+        duckdb_manager: Any = None,  # DuckDBManager for isolated connections
+        duckdb_conn: duckdb.DuckDBPyConnection | None = None,  # Legacy, deprecated
         db: AsyncSession | None = None,
         cache: Any | None = None,
     ):
+        # Support both new (duckdb_manager) and legacy (duckdb_conn) patterns
         super().__init__(duckdb_conn=duckdb_conn, cache=cache)
         self.db = db  # For metadata lookups only
+        self._duckdb_manager = duckdb_manager
+
+    def get_isolated_connection(self):
+        """Get an isolated DuckDB connection for thread-safe query execution.
+
+        Returns a context manager that yields a fresh connection.
+        """
+        if self._duckdb_manager is not None:
+            return self._duckdb_manager.get_isolated_connection()
+        # Fallback for legacy code - use shared connection (not thread-safe)
+        from contextlib import contextmanager
+        @contextmanager
+        def legacy_conn():
+            yield self.duckdb
+        return legacy_conn()
 
     async def get_parquet_path(self, dataset_id: str) -> str:
         """Get Parquet file path for a dataset.
@@ -215,43 +256,58 @@ class GetBottlenecksHandler(AnalyticsQueryHandlerBase):
         if cached:
             return cached
 
-        assert self.duckdb is not None, "DuckDB connection is required"
         parquet_path = await self.get_parquet_path(query.dataset_id)
 
-        # DuckDB query - compute wait times between activities
-        sql = f"""
-            WITH events AS (
+        # Use isolated connection for thread-safe concurrent execution
+        with self.get_isolated_connection() as conn:
+            # Single optimized query - reads Parquet once, computes both bottlenecks and totals
+            sql = f"""
+                WITH raw_data AS (
+                    SELECT
+                        "case:concept:name" as case_id,
+                        "concept:name" as activity,
+                        "time:timestamp" as ts
+                    FROM read_parquet('{parquet_path}')
+                ),
+                events_with_lag AS (
+                    SELECT
+                        case_id,
+                        activity,
+                        ts,
+                        LAG(ts) OVER (PARTITION BY case_id ORDER BY ts) as prev_ts
+                    FROM raw_data
+                ),
+                wait_times AS (
+                    SELECT
+                        activity,
+                        EXTRACT(EPOCH FROM (ts - prev_ts)) as wait_seconds
+                    FROM events_with_lag
+                    WHERE prev_ts IS NOT NULL
+                ),
+                bottleneck_stats AS (
+                    SELECT
+                        activity,
+                        AVG(wait_seconds) as avg_wait,
+                        MEDIAN(wait_seconds) as median_wait,
+                        MAX(wait_seconds) as max_wait,
+                        COUNT(*) as occurrences
+                    FROM wait_times
+                    GROUP BY activity
+                    ORDER BY avg_wait DESC
+                    LIMIT {query.limit}
+                ),
+                total_activities AS (
+                    SELECT COUNT(DISTINCT activity) as cnt FROM raw_data
+                )
                 SELECT
-                    "case:concept:name" as case_id,
-                    "concept:name" as activity,
-                    "time:timestamp" as ts,
-                    LAG("time:timestamp") OVER (
-                        PARTITION BY "case:concept:name"
-                        ORDER BY "time:timestamp"
-                    ) as prev_ts
-                FROM read_parquet('{parquet_path}')
-            ),
-            wait_times AS (
-                SELECT
-                    activity,
-                    EXTRACT(EPOCH FROM (ts - prev_ts)) as wait_seconds
-                FROM events
-                WHERE prev_ts IS NOT NULL
-            )
-            SELECT
-                activity,
-                AVG(wait_seconds) as avg_wait,
-                MEDIAN(wait_seconds) as median_wait,
-                MAX(wait_seconds) as max_wait,
-                COUNT(*) as occurrences
-            FROM wait_times
-            GROUP BY activity
-            ORDER BY avg_wait DESC
-            LIMIT {query.limit}
-        """
+                    b.activity, b.avg_wait, b.median_wait, b.max_wait, b.occurrences,
+                    t.cnt as total_activities
+                FROM bottleneck_stats b, total_activities t
+            """
 
-        result = self.duckdb.execute(sql).fetchall()
+            rows = conn.execute(sql).fetchall()
 
+        total_activities = rows[0][5] if rows else 0
         bottlenecks = [
             BottleneckResult(
                 activity=row[0],
@@ -260,20 +316,12 @@ class GetBottlenecksHandler(AnalyticsQueryHandlerBase):
                 max_wait_time_seconds=row[3] or 0,
                 occurrence_count=row[4],
             )
-            for row in result
+            for row in rows
         ]
-
-        # Get total activities
-        total_sql = f"""
-            SELECT COUNT(DISTINCT "concept:name")
-            FROM read_parquet('{parquet_path}')
-        """
-        total_row = self.duckdb.execute(total_sql).fetchone()
-        total = total_row[0] if total_row else 0
 
         response = BottlenecksResult(
             bottlenecks=bottlenecks,
-            total_activities=total or 0,
+            total_activities=total_activities or 0,
         )
 
         # Cache result
@@ -293,34 +341,35 @@ class GetCycleTimeHandler(AnalyticsQueryHandlerBase):
         if cached:
             return cached
 
-        assert self.duckdb is not None, "DuckDB connection is required"
         parquet_path = await self.get_parquet_path(query.dataset_id)
 
-        sql = f"""
-            WITH case_times AS (
+        # Use isolated connection for thread-safe concurrent execution
+        with self.get_isolated_connection() as conn:
+            sql = f"""
+                WITH case_times AS (
+                    SELECT
+                        "case:concept:name" as case_id,
+                        MIN("time:timestamp") as start_time,
+                        MAX("time:timestamp") as end_time
+                    FROM read_parquet('{parquet_path}')
+                    GROUP BY "case:concept:name"
+                ),
+                durations AS (
+                    SELECT
+                        EXTRACT(EPOCH FROM (end_time - start_time)) as duration_seconds
+                    FROM case_times
+                )
                 SELECT
-                    "case:concept:name" as case_id,
-                    MIN("time:timestamp") as start_time,
-                    MAX("time:timestamp") as end_time
-                FROM read_parquet('{parquet_path}')
-                GROUP BY "case:concept:name"
-            ),
-            durations AS (
-                SELECT
-                    EXTRACT(EPOCH FROM (end_time - start_time)) as duration_seconds
-                FROM case_times
-            )
-            SELECT
-                AVG(duration_seconds) as mean_dur,
-                MEDIAN(duration_seconds) as median_dur,
-                MIN(duration_seconds) as min_dur,
-                MAX(duration_seconds) as max_dur,
-                STDDEV(duration_seconds) as std_dur,
-                COUNT(*) as total_cases
-            FROM durations
-        """
+                    AVG(duration_seconds) as mean_dur,
+                    MEDIAN(duration_seconds) as median_dur,
+                    MIN(duration_seconds) as min_dur,
+                    MAX(duration_seconds) as max_dur,
+                    STDDEV(duration_seconds) as std_dur,
+                    COUNT(*) as total_cases
+                FROM durations
+            """
 
-        row = self.duckdb.execute(sql).fetchone()
+            row = conn.execute(sql).fetchone()
 
         if row:
             result = CycleTimeResult(
@@ -356,75 +405,148 @@ class GetReworkHandler(AnalyticsQueryHandlerBase):
         if cached:
             return cached
 
-        assert self.duckdb is not None, "DuckDB connection is required"
         parquet_path = await self.get_parquet_path(query.dataset_id)
 
-        sql = f"""
-            WITH activity_counts AS (
+        # Use isolated connection for thread-safe concurrent execution
+        with self.get_isolated_connection() as conn:
+            # Single optimized query - reads Parquet once, computes all rework stats
+            sql = f"""
+                WITH raw_data AS (
+                    SELECT
+                        "case:concept:name" as case_id,
+                        "concept:name" as activity
+                    FROM read_parquet('{parquet_path}')
+                ),
+                total_cases AS (
+                    SELECT COUNT(DISTINCT case_id) as cnt FROM raw_data
+                ),
+                activity_counts AS (
+                    SELECT
+                        case_id,
+                        activity,
+                        COUNT(*) as repeat_count
+                    FROM raw_data
+                    GROUP BY case_id, activity
+                    HAVING COUNT(*) > 1
+                ),
+                rework_stats AS (
+                    SELECT
+                        COUNT(DISTINCT case_id) as cases_with_rework
+                    FROM activity_counts
+                ),
+                activity_rework AS (
+                    SELECT
+                        activity,
+                        SUM(repeat_count) as total_repeats,
+                        COUNT(DISTINCT case_id) as case_count
+                    FROM activity_counts
+                    GROUP BY activity
+                    ORDER BY total_repeats DESC
+                    LIMIT 20
+                )
                 SELECT
-                    "case:concept:name" as case_id,
-                    "concept:name" as activity,
-                    COUNT(*) as repeat_count
-                FROM read_parquet('{parquet_path}')
-                GROUP BY "case:concept:name", "concept:name"
-                HAVING COUNT(*) > 1
-            ),
-            total_cases AS (
-                SELECT COUNT(DISTINCT "case:concept:name") as cnt
-                FROM read_parquet('{parquet_path}')
-            )
-            SELECT
-                a.activity,
-                SUM(a.repeat_count) as total_repeats,
-                COUNT(DISTINCT a.case_id) as case_count,
-                COUNT(DISTINCT a.case_id) * 100.0 / t.cnt as percentage
-            FROM activity_counts a, total_cases t
-            GROUP BY a.activity, t.cnt
-            ORDER BY total_repeats DESC
-            LIMIT 20
-        """
+                    ar.activity,
+                    ar.total_repeats,
+                    ar.case_count,
+                    ar.case_count * 100.0 / tc.cnt as percentage,
+                    rs.cases_with_rework,
+                    tc.cnt as total_cases
+                FROM activity_rework ar, total_cases tc, rework_stats rs
+            """
 
-        rows = self.duckdb.execute(sql).fetchall()
+            rows = conn.execute(sql).fetchall()
 
-        patterns = [
-            ReworkItem(
-                activity=row[0],
-                repeat_count=row[1],
-                case_count=row[2],
-                percentage=row[3] or 0,
-            )
-            for row in rows
-        ]
-
-        # Get total cases with any rework
-        rework_sql = f"""
-            WITH activity_counts AS (
-                SELECT
-                    "case:concept:name" as case_id,
-                    "concept:name" as activity,
-                    COUNT(*) as cnt
-                FROM read_parquet('{parquet_path}')
-                GROUP BY "case:concept:name", "concept:name"
-                HAVING COUNT(*) > 1
-            ),
-            total_cases AS (
-                SELECT COUNT(DISTINCT "case:concept:name") as cnt
-                FROM read_parquet('{parquet_path}')
-            )
-            SELECT
-                COUNT(DISTINCT case_id) as cases_with_rework,
-                (SELECT cnt FROM total_cases) as total
-            FROM activity_counts
-        """
-        stats = self.duckdb.execute(rework_sql).fetchone()
-        cases_with_rework = stats[0] if stats else 0
-        total = stats[1] if stats else 1
+        if rows:
+            cases_with_rework = rows[0][4]
+            total = rows[0][5]
+            patterns = [
+                ReworkItem(
+                    activity=row[0],
+                    repeat_count=row[1],
+                    case_count=row[2],
+                    percentage=row[3] or 0,
+                )
+                for row in rows
+            ]
+        else:
+            cases_with_rework = 0
+            total = 1
+            patterns = []
 
         result = ReworkResult(
             rework_patterns=patterns,
             total_cases_with_rework=cases_with_rework,
             rework_rate=cases_with_rework / total if total > 0 else 0,
         )
+
+        await self.set_cached(query, result, ttl=3600)
+        return result
+
+
+class GetThroughputHandler(AnalyticsQueryHandlerBase):
+    """Handler for GetThroughputQuery.
+
+    Computes throughput statistics from Parquet.
+    """
+
+    async def handle(self, query: GetThroughputQuery) -> ThroughputResult:
+        cached = await self.get_cached(query)
+        if cached:
+            return cached
+
+        parquet_path = await self.get_parquet_path(query.dataset_id)
+
+        # Use isolated connection for thread-safe concurrent execution
+        with self.get_isolated_connection() as conn:
+            sql = f"""
+                WITH case_times AS (
+                    SELECT
+                        "case:concept:name" as case_id,
+                        MIN("time:timestamp") as start_time,
+                        MAX("time:timestamp") as end_time
+                    FROM read_parquet('{parquet_path}')
+                    GROUP BY "case:concept:name"
+                ),
+                stats AS (
+                    SELECT
+                        COUNT(*) as total_cases,
+                        MIN(start_time) as earliest_start,
+                        MAX(end_time) as latest_end
+                    FROM case_times
+                )
+                SELECT
+                    total_cases,
+                    total_cases as completed_cases,
+                    EXTRACT(DAY FROM (latest_end - earliest_start)) as time_range_days
+                FROM stats
+            """
+
+            row = conn.execute(sql).fetchone()
+
+        if row:
+            total_cases = row[0] or 0
+            time_range_days = row[2] or 1
+            # Avoid division by zero
+            if time_range_days < 1:
+                time_range_days = 1
+
+            result = ThroughputResult(
+                total_cases=total_cases,
+                completed_cases=total_cases,  # Assuming all cases are completed
+                cases_per_day=total_cases / time_range_days,
+                cases_per_week=total_cases / time_range_days * 7,
+                cases_per_month=total_cases / time_range_days * 30,
+                time_range_days=time_range_days,
+            )
+        else:
+            result = ThroughputResult(
+                total_cases=0,
+                completed_cases=0,
+                cases_per_day=0,
+                cases_per_week=0,
+                cases_per_month=0,
+                time_range_days=0,
+            )
 
         await self.set_cached(query, result, ttl=3600)
         return result
@@ -444,6 +566,9 @@ __all__ = [
     "GetDFGQuery",
     "GetReworkHandler",
     "GetReworkQuery",
+    "GetThroughputHandler",
+    "GetThroughputQuery",
     "GetVariantsQuery",
     "ReworkResult",
+    "ThroughputResult",
 ]

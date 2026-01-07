@@ -19,6 +19,7 @@ from src.api.routers.workflows import router as workflows_api_router
 # ============================================================================
 # Process Mining Feature Routers
 # ============================================================================
+from src.features.process_mining.ai import router as ai_router
 from src.features.process_mining.analyses import router as analyses_router
 from src.features.process_mining.analytics import router as analytics_router
 
@@ -72,6 +73,8 @@ from src.infra.users.api import (
 )
 
 __all__ = [
+    # AI
+    "ai_router",
     # Algorithm Registry and Quality Metrics
     "algorithms_router",
     "analyses_router",

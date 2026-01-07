@@ -19,7 +19,7 @@ from src.infra.core.domain_events import (
     event_publisher,
 )
 from src.infra.core.logging_config import get_logger
-from src.infra.infrastructure.cache import cache_service
+from src.infra.infrastructure.cache import cache_service, invalidate_dataset_cache
 
 logger = get_logger(__name__)
 
@@ -50,7 +50,7 @@ class AnalyticsCacheProjection:
         logger.info("analytics_cache_projection_registered")
 
     async def on_dataset_ingested(self, event: DatasetIngestedEvent) -> None:
-        """Handle dataset ingestion - pre-compute and cache analytics.
+        """Handle dataset ingestion - invalidate stale cache and pre-compute analytics.
 
         Args:
             event: The ingestion event containing dataset metadata
@@ -63,7 +63,16 @@ class AnalyticsCacheProjection:
         )
 
         try:
-            # Pre-compute analytics in background
+            # CRITICAL: Invalidate all stale analytics when data is re-ingested
+            # This prevents serving outdated results after data updates
+            keys_deleted = invalidate_dataset_cache(event.dataset_id)
+            logger.info(
+                "analytics_stale_cache_invalidated",
+                dataset_id=event.dataset_id,
+                keys_deleted=keys_deleted,
+            )
+
+            # Pre-compute basic analytics in background
             # Note: For large datasets, this could be offloaded to Temporal
             await self._cache_basic_statistics(event)
 
@@ -90,28 +99,13 @@ class AnalyticsCacheProjection:
             dataset_id=event.dataset_id,
         )
 
-        # Invalidate all cached analytics for this dataset
-        cache_keys = [
-            f"dfg:{CACHE_VERSION}:{event.dataset_id}",
-            f"variants:{CACHE_VERSION}:{event.dataset_id}",
-            f"statistics:{CACHE_VERSION}:{event.dataset_id}",
-            f"bottlenecks:{CACHE_VERSION}:{event.dataset_id}",
-            f"rework:{CACHE_VERSION}:{event.dataset_id}",
-            f"cycle_time:{CACHE_VERSION}:{event.dataset_id}",
-            f"throughput:{CACHE_VERSION}:{event.dataset_id}",
-            f"rework_chains:{CACHE_VERSION}:{event.dataset_id}",
-        ]
-
-        for key in cache_keys:
-            try:
-                cache_service.delete(key)
-            except Exception:
-                pass  # Ignore cache deletion errors
+        # Use centralized cache invalidation for consistency
+        keys_deleted = invalidate_dataset_cache(event.dataset_id)
 
         logger.info(
             "analytics_cache_invalidated",
             dataset_id=event.dataset_id,
-            keys_invalidated=len(cache_keys),
+            keys_deleted=keys_deleted,
         )
 
     async def _cache_basic_statistics(self, event: DatasetIngestedEvent) -> None:

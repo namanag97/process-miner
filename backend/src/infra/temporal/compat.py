@@ -31,7 +31,7 @@ async def _check_temporal_connection() -> bool:
         from temporalio.client import Client
 
         # Try to connect with a short timeout
-        client = await asyncio.wait_for(
+        await asyncio.wait_for(
             Client.connect(
                 config.host,
                 namespace=config.namespace,
@@ -301,7 +301,7 @@ async def _dispatch_to_temporal(
                 "temporal_run_id": handle.result_run_id,
             }
 
-        elif workflow_type == "run_analysis":
+        if workflow_type == "run_analysis":
             from src.infra.temporal.workflows_v2.analysis import AnalysisWorkflowV2
 
             handle = await client.start_workflow(
@@ -323,15 +323,14 @@ async def _dispatch_to_temporal(
                 "temporal_run_id": handle.result_run_id,
             }
 
-        else:
-            logger.warning(
-                "unknown_workflow_type",
-                workflow_type=workflow_type,
-            )
-            return {
-                "status": "error",
-                "error": f"Unknown workflow type: {workflow_type}",
-            }
+        logger.warning(
+            "unknown_workflow_type",
+            workflow_type=workflow_type,
+        )
+        return {
+            "status": "error",
+            "error": f"Unknown workflow type: {workflow_type}",
+        }
 
     except Exception as e:
         logger.error(

@@ -5,42 +5,12 @@
  * Provides pages, hooks, and components for managing projects.
  */
 
-import { FeatureRegistry } from '../../../shared/core/plugins/FeatureRegistry';
-import { projectsRouteConfig } from './routes';
-
-// ============================================
-// Feature Configuration
-// ============================================
-
-export const FEATURE_ID = 'projects';
-
-export const FEATURE_CONFIG = {
-  id: 'projects',
-  name: 'Projects',
-  version: '1.0.0',
-  icon: 'FolderOutlined',
-  navPath: '/workspace',
-  navOrder: 1,
-};
-
-// Register feature (auto-registration on import)
-FeatureRegistry.register({
-  ...FEATURE_CONFIG,
-  routes: projectsRouteConfig,
-});
-
 // ============================================
 // Page Exports
 // ============================================
 
 export { ProjectsListPage } from './pages/ProjectsListPage';
 export { ProjectDetailPage } from './pages/ProjectDetailPage';
-
-// ============================================
-// Route Exports
-// ============================================
-
-export { ProjectsRoutes, projectsRouteConfig } from './routes';
 
 // ============================================
 // Hook Exports

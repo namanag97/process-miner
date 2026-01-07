@@ -1,6 +1,0 @@
-feature_id: "DIS-004"
-research_findings:
-  libraries:
-    python: ["pm4py.sample"]
-  recommendations:
-    must_have: ["Sample first 100 rows", "Column stats (min/max/unique)", "Quick sorting"]

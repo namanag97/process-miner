@@ -138,8 +138,9 @@ async def detect_columns(dataset_id: str, storage_key: str) -> ColumnDetectionRe
         from src.infra.infrastructure.object_storage import get_storage_client
 
         storage = get_storage_client()
-        file_obj = storage.download_fileobj("raw", storage_key)
-        file_content = file_obj.read()
+        # MEMORY OPTIMIZATION: Only download first 2MB for column detection
+        # instead of loading entire file into memory
+        file_content = storage.download_sample("raw", storage_key, max_bytes=2 * 1024 * 1024)
 
         activity.heartbeat("parsing_columns")
 
@@ -278,98 +279,105 @@ async def process_chunk(
 
         storage = get_storage_client()
 
-        # Download chunk (or entire file for single-chunk)
-        file_obj = storage.download_fileobj("raw", f"{dataset_id}/raw")
-        file_content = file_obj.read()
+        # MEMORY OPTIMIZATION: Stream to temp file instead of loading all into memory
+        # This prevents OOM on large files (up to 5GB)
+        temp_path = storage.stream_to_tempfile("raw", f"{dataset_id}/raw")
 
         activity.heartbeat(f"parsing_{chunk.chunk_id}")
 
-        # Parse with DuckDB
-        result = duckdb_ingestion_service.parse_csv_fast(
-            file_content=file_content,
-            case_id_col=mapping.case_id,
-            activity_col=mapping.activity,
-            timestamp_col=mapping.timestamp,
-            resource_col=mapping.resource,
-        )
+        try:
+            # Parse with DuckDB using file path (memory-efficient)
+            result = duckdb_ingestion_service.parse_csv_from_path(
+                file_path=temp_path,
+                case_id_col=mapping.case_id,
+                activity_col=mapping.activity,
+                timestamp_col=mapping.timestamp,
+                resource_col=mapping.resource,
+            )
 
-        cases_data = (
-            result["cases_arrow"].to_pylist() if hasattr(result["cases_arrow"], "to_pylist") else []
-        )
-        events_data = (
-            result["events_arrow"].to_pylist()
-            if hasattr(result["events_arrow"], "to_pylist")
-            else []
-        )
+            cases_data = (
+                result["cases_arrow"].to_pylist() if hasattr(result["cases_arrow"], "to_pylist") else []
+            )
+            events_data = (
+                result["events_arrow"].to_pylist()
+                if hasattr(result["events_arrow"], "to_pylist")
+                else []
+            )
 
-        activity.heartbeat(f"inserting_{chunk.chunk_id}")
+            activity.heartbeat(f"inserting_{chunk.chunk_id}")
 
-        # Insert with idempotency (ON CONFLICT DO NOTHING)
-        async with async_session_maker() as db:
-            # Insert cases
-            case_id_map = {}
-            for case_dict in cases_data:
-                case = ProcessCase(
-                    dataset_id=dataset_id,
-                    case_id=str(case_dict["case_id"]),
-                    variant_key=case_dict.get("variant"),
-                    start_time=case_dict.get("start_time"),
-                    end_time=case_dict.get("end_time"),
-                )
-                db.add(case)
-                try:
-                    await db.flush()
-                    case_id_map[case.case_id] = case.id
-                except Exception:
-                    # Case already exists - get existing
-                    await db.rollback()
-                    from sqlalchemy import select
+            # Insert with idempotency (ON CONFLICT DO NOTHING)
+            async with async_session_maker() as db:
+                # Insert cases
+                case_id_map = {}
+                for case_dict in cases_data:
+                    case = ProcessCase(
+                        dataset_id=dataset_id,
+                        case_id=str(case_dict["case_id"]),
+                        variant_key=case_dict.get("variant"),
+                        start_time=case_dict.get("start_time"),
+                        end_time=case_dict.get("end_time"),
+                    )
+                    db.add(case)
+                    try:
+                        await db.flush()
+                        case_id_map[case.case_id] = case.id
+                    except Exception:
+                        # Case already exists - get existing
+                        await db.rollback()
+                        from sqlalchemy import select
 
-                    existing = await db.execute(
-                        select(ProcessCase).where(
-                            ProcessCase.dataset_id == dataset_id,
-                            ProcessCase.case_id == str(case_dict["case_id"]),
+                        existing = await db.execute(
+                            select(ProcessCase).where(
+                                ProcessCase.dataset_id == dataset_id,
+                                ProcessCase.case_id == str(case_dict["case_id"]),
+                            )
                         )
-                    )
-                    existing_case = existing.scalar_one_or_none()
-                    if existing_case:
-                        case_id_map[existing_case.case_id] = existing_case.id
+                        existing_case = existing.scalar_one_or_none()
+                        if existing_case:
+                            case_id_map[existing_case.case_id] = existing_case.id
 
-            # Insert events
-            events_inserted = 0
-            for event_dict in events_data:
-                case_ref_id = case_id_map.get(str(event_dict["case_id"]))
-                if case_ref_id:
-                    event = ProcessEvent(
-                        case_ref_id=case_ref_id,
-                        activity=str(event_dict["activity"]),
-                        timestamp=event_dict["timestamp"],
-                        resource=str(event_dict.get("resource"))
-                        if event_dict.get("resource")
-                        else None,
-                    )
-                    db.add(event)
-                    events_inserted += 1
+                # Insert events
+                events_inserted = 0
+                for event_dict in events_data:
+                    case_ref_id = case_id_map.get(str(event_dict["case_id"]))
+                    if case_ref_id:
+                        event = ProcessEvent(
+                            case_ref_id=case_ref_id,
+                            activity=str(event_dict["activity"]),
+                            timestamp=event_dict["timestamp"],
+                            resource=str(event_dict.get("resource"))
+                            if event_dict.get("resource")
+                            else None,
+                        )
+                        db.add(event)
+                        events_inserted += 1
 
-            await db.commit()
+                await db.commit()
 
-        duration_ms = (time.perf_counter() - start_time) * 1000
+            duration_ms = (time.perf_counter() - start_time) * 1000
 
-        logger.info(
-            "process_chunk_completed",
-            dataset_id=dataset_id,
-            chunk_id=chunk.chunk_id,
-            cases_processed=len(case_id_map),
-            events_processed=events_inserted,
-            duration_ms=round(duration_ms, 2),
-        )
+            logger.info(
+                "process_chunk_completed",
+                dataset_id=dataset_id,
+                chunk_id=chunk.chunk_id,
+                cases_processed=len(case_id_map),
+                events_processed=events_inserted,
+                duration_ms=round(duration_ms, 2),
+            )
 
-        return ChunkProcessResult(
-            chunk_id=chunk.chunk_id,
-            events_processed=events_inserted,
-            cases_processed=len(case_id_map),
-            success=True,
-        )
+            return ChunkProcessResult(
+                chunk_id=chunk.chunk_id,
+                events_processed=events_inserted,
+                cases_processed=len(case_id_map),
+                success=True,
+            )
+        finally:
+            # CRITICAL: Clean up temp file to prevent disk space leak
+            import os
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+                logger.debug("temp_file_cleaned", path=temp_path)
 
     except Exception as e:
         logger.error(

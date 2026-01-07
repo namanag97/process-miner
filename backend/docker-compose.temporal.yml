@@ -61,7 +61,7 @@ services:
   # ---------------------------------------------------------------------------
   temporal-admin-tools:
     container_name: temporal-admin-tools
-    image: temporalio/admin-tools:1.24.2
+    image: temporalio/admin-tools:latest
     stdin_open: true
     tty: true
     environment:

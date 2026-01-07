@@ -17,7 +17,7 @@
 
 import { useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Card, Typography, Button, Space, Spin, message } from 'antd';
+import { Card, Typography, Button, Spin, message } from 'antd';
 import { ArrowLeftOutlined, LoadingOutlined } from '@ant-design/icons';
 import { tokens, logAction } from '@lumina/design-system';
 import { devLog } from '../../../../shared/ui/DevConsole';
@@ -28,8 +28,9 @@ import {
     MapDataStep,
     FinalizeStep
 } from '../components/steps';
+import type { WizardStep } from '../types';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 export function UploadWizardPage() {
     const { projectId } = useParams<{ projectId: string }>();

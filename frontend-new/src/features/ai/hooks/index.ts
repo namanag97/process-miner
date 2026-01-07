@@ -82,6 +82,15 @@ export const useAIPredictors = createQueryHook<Predictor[], string>({
 // Mutation Hooks
 // ============================================
 
+// AI Chat mutation hook
+export { useSendAIMessage } from '../api/mutations';
+export type {
+  AIChatMessage,
+  AIChatRequest,
+  AIChatResponse,
+  AIInsight,
+} from '../api/mutations';
+
 /**
  * Hook to train a new predictor
  * TODO: Implement train() method in predictions module

@@ -21,20 +21,3 @@ export {
   type BreadcrumbItem,
   type EmptyStateConfig,
 } from './components/FeaturePage';
-
-// Plugin System
-export {
-  FeatureRegistry,
-  useFeatureRegistry,
-  useFeatureNavigation,
-  useFeatureRoutes,
-  type FeatureConfig,
-  type NavItem,
-} from './plugins/FeatureRegistry';
-
-// Route Utilities
-export {
-  createRouteWithErrorBoundary,
-  wrapRoutesWithErrorBoundary,
-  createParentRouteWithErrorBoundary,
-} from './utils/createRouteWithErrorBoundary';

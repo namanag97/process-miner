@@ -1,9 +1,0 @@
-feature_id: "DIS-005"
-research_findings:
-  libraries:
-    python: ["pm4py.discover_petri_net_inductive", "pm4py.discover_dfg"]
-  competitors:
-    celonis: "Variant Explorer, Process Explorer."
-    signavio: "Delta Analysis, Conformance Checking."
-  recommendations:
-    must_have: ["Alpha Miner", "Inductive Miner", "Heuristic Miner", "DFG"]

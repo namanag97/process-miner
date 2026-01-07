@@ -5,30 +5,6 @@
  * Provides AI assistant, automated insights, and ML predictions.
  */
 
-import { FeatureRegistry } from '../../shared/core/plugins/FeatureRegistry';
-import { aiRouteConfig } from './routes';
-
-// ============================================
-// Feature Configuration
-// ============================================
-
-export const FEATURE_ID = 'ai';
-
-export const FEATURE_CONFIG = {
-  id: 'ai',
-  name: 'AI & Predictions',
-  version: '1.0.0',
-  icon: 'RobotOutlined',
-  navPath: '/ai',
-  navOrder: 6,
-};
-
-// Register feature
-FeatureRegistry.register({
-  ...FEATURE_CONFIG,
-  routes: aiRouteConfig,
-});
-
 // ============================================
 // Page Exports
 // ============================================
@@ -40,12 +16,6 @@ export {
   PredictionsPage,
   PredictorDetailPage,
 } from './pages';
-
-// ============================================
-// Route Exports
-// ============================================
-
-export { AIRoutes, aiRouteConfig } from './routes';
 
 // ============================================
 // Hook Exports

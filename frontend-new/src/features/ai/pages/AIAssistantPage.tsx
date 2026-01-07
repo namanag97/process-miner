@@ -18,7 +18,7 @@ import { ProcessSelector, type ProcessOption } from '../components/ProcessSelect
 import { ChatMessage } from '../components/ChatMessage';
 import { InsightCard } from '../components/InsightCard';
 import { ChatMessage as ChatMessageType, DEFAULT_PROMPTS } from '../types';
-import { useAIProcesses, useAIProcessSummary } from '../hooks';
+import { useAIProcesses, useAIProcessSummary, useSendAIMessage } from '../hooks';
 
 const { Text, Title } = Typography;
 
@@ -56,11 +56,13 @@ export function AIAssistantPage() {
     refetch: refetchProcesses,
   } = useAIProcesses({ pageSize: 100 });
 
+  // AI Chat mutation
+  const { mutate: sendAIMessage, isPending: isLoading } = useSendAIMessage();
+
   // Local state
   const [selectedProcessId, setSelectedProcessId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
 
   // Fetch process summary when selection changes
   const {
@@ -110,10 +112,12 @@ export function AIAssistantPage() {
   const handleSendMessage = useCallback(async () => {
     if (!inputValue.trim() || !selectedProcessId || !processSummary) return;
 
+    const userMessageContent = inputValue.trim();
+
     const userMessage: ChatMessageType = {
       id: generateId(),
       role: 'user',
-      content: inputValue.trim(),
+      content: userMessageContent,
       timestamp: new Date(),
     };
 
@@ -130,27 +134,49 @@ export function AIAssistantPage() {
       },
     ]);
     setInputValue('');
-    setIsLoading(true);
 
-    // Simulate LLM response (replace with actual LLM call in future)
-    setTimeout(() => {
-      const selectedProcess = processes.find((p) => p.id === selectedProcessId);
+    // Build conversation history for context (last 10 messages)
+    const conversationHistory = messages.slice(-10).map((msg) => ({
+      role: msg.role as 'user' | 'assistant',
+      content: msg.content,
+      timestamp: msg.timestamp?.toISOString(),
+    }));
 
-      // Generate contextual mock response based on the question
-      const response = generateMockResponse(inputValue, processSummary, selectedProcess?.name || 'Process');
-
-      setMessages((prev) => [
-        ...prev.slice(0, -1), // Remove loading message
-        {
-          id: generateId(),
-          role: 'assistant',
-          content: response,
-          timestamp: new Date(),
+    // Send message to backend API
+    sendAIMessage(
+      {
+        datasetId: selectedProcessId,
+        message: userMessageContent,
+        conversationHistory,
+      },
+      {
+        onSuccess: (response) => {
+          setMessages((prev) => [
+            ...prev.slice(0, -1), // Remove loading message
+            {
+              id: generateId(),
+              role: 'assistant',
+              content: response.message,
+              timestamp: new Date(),
+              insights: response.insights,
+            },
+          ]);
         },
-      ]);
-      setIsLoading(false);
-    }, 1500);
-  }, [inputValue, selectedProcessId, processSummary, processes]);
+        onError: (error) => {
+          console.error('[AI Chat] Error:', error);
+          setMessages((prev) => [
+            ...prev.slice(0, -1), // Remove loading message
+            {
+              id: generateId(),
+              role: 'assistant',
+              content: 'Sorry, I encountered an error processing your request. Please try again.',
+              timestamp: new Date(),
+            },
+          ]);
+        },
+      }
+    );
+  }, [inputValue, selectedProcessId, processSummary, messages, sendAIMessage]);
 
   const handlePromptClick = useCallback((prompt: string) => {
     setInputValue(prompt);
@@ -509,50 +535,6 @@ export function AIAssistantPage() {
       )}
     </div>
   );
-}
-
-// Mock response generator (replace with actual LLM integration)
-function generateMockResponse(question: string, summary: ProcessSummaryData, processName: string): string {
-  const lowerQ = question.toLowerCase();
-
-  if (lowerQ.includes('bottleneck')) {
-    const bottlenecks = summary.bottlenecks.filter(b => b.isBottleneck);
-    if (bottlenecks.length === 0) {
-      return `Good news! I don't see any significant bottlenecks in the **${processName}** process. The activities are flowing smoothly with acceptable waiting times.`;
-    }
-    const top = bottlenecks[0];
-    return `The main bottleneck in **${processName}** is the **${top.activity}** activity with an average waiting time of ${formatDuration(top.avgWaitingTimeSeconds)}.\n\n**Recommendations:**\n1. Consider adding parallel processing capacity for ${top.activity}\n2. Review resource allocation during peak times\n3. Implement automation for routine ${top.activity} tasks`;
-  }
-
-  if (lowerQ.includes('rework') || lowerQ.includes('repeat')) {
-    if (summary.rework.reworkPercentage < 5) {
-      return `The rework rate in **${processName}** is very low at ${summary.rework.reworkPercentage.toFixed(1)}%. This indicates good process quality and first-time-right performance.`;
-    }
-    const topRework = summary.rework.activities[0];
-    return `The rework rate in **${processName}** is ${summary.rework.reworkPercentage.toFixed(1)}%, affecting ${summary.rework.totalReworkCases.toLocaleString()} cases.\n\nThe most repeated activity is **${topRework?.activity || 'N/A'}** with ${topRework?.reworkCount || 0} occurrences.\n\n**Suggestions:**\n1. Investigate root causes for ${topRework?.activity || 'rework'}\n2. Implement validation checks earlier in the process\n3. Consider process redesign to reduce loops`;
-  }
-
-  if (lowerQ.includes('pattern') || lowerQ.includes('variant')) {
-    if (summary.patterns.length === 0) {
-      return `I couldn't identify distinct patterns with sufficient frequency in **${processName}**. The process may have high variability which could indicate either flexibility or lack of standardization.`;
-    }
-    const patterns = summary.patterns.slice(0, 3).map((p, i) => 
-      `${i + 1}. ${p.pattern.join(' → ')} (${(p.support * 100).toFixed(1)}% of cases)`
-    ).join('\n');
-    return `Here are the most common patterns in **${processName}**:\n\n${patterns}\n\nThe dominant pattern represents the "happy path" - optimizing this flow will have the highest impact on overall process performance.`;
-  }
-
-  if (lowerQ.includes('cycle') || lowerQ.includes('time') || lowerQ.includes('duration')) {
-    return `**Cycle Time Analysis for ${processName}:**\n\n- Average: ${formatDuration(summary.cycleTime.avgSeconds)}\n- Median: ${formatDuration(summary.cycleTime.medianSeconds)}\n- Range: ${formatDuration(summary.cycleTime.minSeconds)} to ${formatDuration(summary.cycleTime.maxSeconds)}\n\nThe difference between average and median suggests ${summary.cycleTime.avgSeconds > summary.cycleTime.medianSeconds * 1.5 ? 'some cases are taking significantly longer than typical, skewing the average upward' : 'relatively consistent processing times across cases'}.`;
-  }
-
-  if (lowerQ.includes('summary') || lowerQ.includes('overview')) {
-    const bottleneckCount = summary.bottlenecks.filter(b => b.isBottleneck).length;
-    return `**Process Summary: ${processName}**\n\n📊 **Volume:** ${summary.throughput.totalCases.toLocaleString()} cases processed\n⏱️ **Cycle Time:** Average ${formatDuration(summary.cycleTime.avgSeconds)}\n🔄 **Throughput:** ${summary.throughput.casesPerDay.toFixed(1)} cases/day\n⚠️ **Bottlenecks:** ${bottleneckCount} identified\n🔁 **Rework Rate:** ${summary.rework.reworkPercentage.toFixed(1)}%\n\nOverall, the process is ${bottleneckCount > 2 || summary.rework.reworkPercentage > 25 ? 'showing signs of inefficiency that could benefit from optimization' : 'performing reasonably well with room for incremental improvements'}.`;
-  }
-
-  // Default response
-  return `Based on the data from **${processName}**, here's what I can tell you:\n\n- The process handles ${summary.throughput.totalCases.toLocaleString()} cases with an average cycle time of ${formatDuration(summary.cycleTime.avgSeconds)}\n- There are ${summary.bottlenecks.filter(b => b.isBottleneck).length} bottlenecks and a ${summary.rework.reworkPercentage.toFixed(1)}% rework rate\n\nWould you like me to dive deeper into any specific area like bottlenecks, patterns, or performance trends?`;
 }
 
 export default AIAssistantPage;

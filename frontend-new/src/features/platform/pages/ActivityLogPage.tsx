@@ -1,21 +1,25 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Table, Select, Button, Space, Tag, Typography } from 'antd';
+import { Table, Select, Button, Space, Tag, Typography, Alert } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { PageHeader, tokens, toast } from '@lumina/design-system';
+import { PageHeader, tokens, toast, logAction } from '@lumina/design-system';
 import { createLogger } from '../../../shared/lib/logger';
+import { useQuery } from '@tanstack/react-query';
+import { sdk } from '../../../api/sdk';
 
 const log = createLogger('Activity');
 const { Text } = Typography;
 
+type ActionType = 'upload' | 'view' | 'settings' | 'login' | 'logout' | 'delete' | 'export' | 'create' | 'update' | 'analyze';
+
 interface ActivityItem {
   id: string;
-  action: 'upload' | 'view' | 'settings' | 'login' | 'logout' | 'delete' | 'export';
+  action: ActionType;
   description: string;
   timestamp: Date;
 }
 
-const actionColors: Record<ActivityItem['action'], string> = {
+const actionColors: Record<ActionType, string> = {
   upload: 'blue',
   view: 'green',
   settings: 'purple',
@@ -23,9 +27,12 @@ const actionColors: Record<ActivityItem['action'], string> = {
   logout: 'default',
   delete: 'red',
   export: 'orange',
+  create: 'geekblue',
+  update: 'gold',
+  analyze: 'magenta',
 };
 
-const actionLabels: Record<ActivityItem['action'], string> = {
+const actionLabels: Record<ActionType, string> = {
   upload: 'Upload',
   view: 'View',
   settings: 'Settings',
@@ -33,6 +40,9 @@ const actionLabels: Record<ActivityItem['action'], string> = {
   logout: 'Logout',
   delete: 'Delete',
   export: 'Export',
+  create: 'Create',
+  update: 'Update',
+  analyze: 'Analyze',
 };
 
 // Mock activity data
@@ -86,14 +96,46 @@ export function ActivityLogPage() {
   const [dateRange, setDateRange] = useState('7');
   const [actionType, setActionType] = useState('all');
 
+  // Fetch audit logs from backend
+  const { data: auditData, isLoading, error } = useQuery({
+    queryKey: ['audit', 'logs', dateRange],
+    queryFn: async () => {
+      // Calculate date range for query
+      const endDate = new Date().toISOString();
+      let startDate: string | undefined;
+      if (dateRange !== 'all') {
+        const days = parseInt(dateRange, 10);
+        startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      }
+      return sdk.audit.list({ startDate, endDate, pageSize: 100 });
+    },
+    staleTime: 60 * 1000, // 1 minute
+  });
+
   useEffect(() => {
     log.info('Activity log page viewed');
-  }, []);
+    logAction('ActivityLogPage', 'page_viewed', { dateRange, actionType });
+  }, [dateRange, actionType]);
+
+  // Transform API data or fall back to mock data
+  const activities = useMemo((): ActivityItem[] => {
+    // If we have data from the API, transform it
+    if (auditData?.items && auditData.items.length > 0) {
+      return auditData.items.map((item: { id: string; action_type?: string; description?: string; created_at?: string }) => ({
+        id: item.id,
+        action: (item.action_type?.toLowerCase() || 'view') as ActionType,
+        description: item.description || 'Activity recorded',
+        timestamp: new Date(item.created_at || Date.now()),
+      }));
+    }
+    // Fall back to mock data (backend audit is a stub that returns empty)
+    return mockActivities;
+  }, [auditData]);
 
   const filteredActivities = useMemo(() => {
-    let result = [...mockActivities];
+    let result = [...activities];
 
-    // Filter by date range
+    // Filter by date range (client-side for mock data)
     if (dateRange !== 'all') {
       const days = parseInt(dateRange, 10);
       const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -106,7 +148,7 @@ export function ActivityLogPage() {
     }
 
     return result;
-  }, [dateRange, actionType]);
+  }, [activities, dateRange, actionType]);
 
   const handleExport = () => {
     log.info('Export requested');
@@ -149,12 +191,29 @@ export function ActivityLogPage() {
     },
   ];
 
+  // Show error state
+  if (error) {
+    log.error('Failed to load audit logs', { error: (error as Error).message });
+  }
+
   return (
     <div>
       <PageHeader
         title="Activity Log"
         description="View your recent actions and activity history"
       />
+
+      {/* Error alert */}
+      {error && (
+        <Alert
+          type="warning"
+          message="Unable to fetch activity logs from server"
+          description="Showing cached demo data. Activity logging will be available in a future release."
+          showIcon
+          closable
+          style={{ marginBottom: tokens.spacing[4] }}
+        />
+      )}
 
       {/* Filters */}
       <div
@@ -192,6 +251,7 @@ export function ActivityLogPage() {
         dataSource={filteredActivities}
         columns={columns}
         rowKey="id"
+        loading={isLoading}
         pagination={{
           pageSize: 10,
           showSizeChanger: false,

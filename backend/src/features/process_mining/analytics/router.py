@@ -26,6 +26,7 @@ from src.application.queries.analytics_queries import (
     GetBottlenecksQuery,
     GetCycleTimeQuery,
     GetReworkQuery,
+    GetThroughputQuery,
 )
 from src.application.queries.get_variants import GetVariantsQuery
 from src.features.process_mining.schemas import (
@@ -34,6 +35,7 @@ from src.features.process_mining.schemas import (
     CycleTimeResponse,
     ReworkListResponse,
     ReworkResponse,
+    ThroughputResponse,
     VariantListResponse,
     VariantResponse,
 )
@@ -66,10 +68,14 @@ async def get_bottlenecks(
         bottlenecks=[
             BottleneckResponse(
                 activity=b.activity,
-                avg_wait_time=b.avg_wait_time_seconds,
-                median_wait_time=b.median_wait_time_seconds,
-                max_wait_time=b.max_wait_time_seconds,
-                count=b.occurrence_count,
+                avg_waiting_time_seconds=b.avg_wait_time_seconds,
+                avg_service_time_seconds=0,  # Not available in current query result
+                frequency=b.occurrence_count,
+                is_bottleneck=True,
+                severity="high" if b.avg_wait_time_seconds > 3600 else "medium" if b.avg_wait_time_seconds > 600 else "low",
+                preceding_activities=[],
+                following_activities=[],
+                bottleneck_impact_score=min(1.0, b.avg_wait_time_seconds / 7200),  # Normalize to 0-1
             )
             for b in result.bottlenecks
         ],
@@ -94,12 +100,39 @@ async def get_cycle_time(
 
     return CycleTimeResponse(
         dataset_id=dataset_id,
-        mean_duration=result.mean_seconds,
-        median_duration=result.median_seconds,
-        min_duration=result.min_seconds,
-        max_duration=result.max_seconds,
-        std_deviation=result.std_seconds,
+        min_seconds=result.min_seconds,
+        max_seconds=result.max_seconds,
+        avg_seconds=result.mean_seconds,
+        median_seconds=result.median_seconds,
+        percentile_25_seconds=0,  # Not available in current query result
+        percentile_75_seconds=0,
+        percentile_95_seconds=0,
+    )
+
+
+@router.get("/datasets/{dataset_id}/throughput", response_model=ThroughputResponse)
+async def get_throughput(
+    dataset_id: str,
+    user: CurrentUser,
+    query_bus: QueryBusDep,
+) -> ThroughputResponse:
+    """Get throughput statistics for a dataset.
+
+    Uses CQRS QueryBus to dispatch GetThroughputQuery.
+    """
+    logger.info("get_throughput", dataset_id=dataset_id, user_id=user.id)
+
+    query = GetThroughputQuery(dataset_id=dataset_id)
+    result = await query_bus.dispatch(query)
+
+    return ThroughputResponse(
+        dataset_id=dataset_id,
         total_cases=result.total_cases,
+        completed_cases=result.completed_cases,
+        cases_per_day=result.cases_per_day,
+        cases_per_week=result.cases_per_week,
+        cases_per_month=result.cases_per_month,
+        time_range_days=result.time_range_days,
     )
 
 
@@ -123,9 +156,9 @@ async def get_rework(
         rework_activities=[
             ReworkResponse(
                 activity=r.activity,
-                repeat_count=r.repeat_count,
-                case_count=r.case_count,
-                percentage=r.percentage,
+                rework_count=r.repeat_count,
+                cases_with_rework=r.case_count,
+                rework_percentage=r.percentage,
             )
             for r in result.rework_patterns
         ],

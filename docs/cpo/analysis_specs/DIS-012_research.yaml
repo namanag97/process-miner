@@ -1,6 +1,0 @@
-feature_id: "DIS-012"
-research_findings:
-  libraries:
-    python: ["pm4py DFG comparison"]
-  recommendations:
-    must_have: ["Delta coloring", "Side-by-side sync", "KPI deltas"]
