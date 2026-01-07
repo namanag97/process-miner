@@ -27,18 +27,48 @@ security = HTTPBearer(auto_error=False)
 
 
 # =============================================================================
-# Database Session Dependency
+# Database Session Dependencies (CQRS)
 # =============================================================================
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Get database session."""
+    """Get database session (legacy - uses write session)."""
     async for session in get_session():
         yield session
 
 
-# Type alias for dependency injection
+async def get_write_db() -> AsyncGenerator[AsyncSession, None]:
+    """Get write database session for commands (transactional operations)."""
+    from src.platform.infrastructure.database import get_write_session
+
+    async for session in get_write_session():
+        yield session
+
+
+async def get_read_db() -> AsyncGenerator[AsyncSession, None]:
+    """Get read database session for queries (read-only operations)."""
+    from src.platform.infrastructure.database import get_read_session
+
+    async for session in get_read_session():
+        yield session
+
+
+def get_duckdb():
+    """Get DuckDB connection for analytics queries."""
+    from src.platform.infrastructure.duckdb import duckdb_manager
+
+    return duckdb_manager
+
+
+# Type aliases for dependency injection
 DBSession = Annotated[AsyncSession, Depends(get_db)]
+WriteDBSession = Annotated[AsyncSession, Depends(get_write_db)]
+ReadDBSession = Annotated[AsyncSession, Depends(get_read_db)]
+
+# DuckDB for analytics (OLAP queries on Parquet)
+from src.platform.infrastructure.duckdb import DuckDBManager
+
+AnalyticsDB = Annotated[DuckDBManager, Depends(get_duckdb)]
 
 
 # =============================================================================

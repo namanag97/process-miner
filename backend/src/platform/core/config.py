@@ -39,6 +39,11 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = "sqlite+aiosqlite:///./data/db/process_mining.db"
+    # Optional read replica URL (defaults to primary if not set)
+    read_database_url: str | None = None
+    # Connection pool sizes (for PostgreSQL - SQLite uses StaticPool)
+    write_pool_size: int = 10
+    read_pool_size: int = 50
 
     # File Storage
     upload_dir: Path = Path("./data/uploads")
