@@ -16,6 +16,7 @@ from src.platform.users.api import (
 )
 
 # Platform Infrastructure
+from src.api.routers.operations import router as operations_router  # Unified Temporal API
 from src.api.routers.workflows import router as workflows_api_router
 from src.platform.dag.router import router as dags_router
 from src.platform.devtools.router import router as dev_log_router
@@ -66,6 +67,7 @@ __all__ = [
     "dev_log_router",
     "health_router",
     "jobs_router",
+    "operations_router",  # Unified Temporal operations API
     "workflows_api_router",
     # Datasets
     "datasets_router",

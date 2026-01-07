@@ -21,6 +21,7 @@ export * from './useDatasets';
 export * from './useDiscovery';
 export * from './useAnalytics';
 export * from './useJobs';
+export * from './useOperations';  // Unified Temporal operations (v2)
 export * from './useProjects';
 export * from './useWorkspaces';
 export * from './useKPI';

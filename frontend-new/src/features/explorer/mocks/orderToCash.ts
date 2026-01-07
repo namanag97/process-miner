@@ -1,5 +1,29 @@
 
-import { DFGResponse, Variant, ActivityDetail, ProcessKPIs } from '../types';
+import type { DFGResponse, Variant, ProcessKPIs } from '../types';
+
+// Local ActivityDetail type for mock data (matches explorer types)
+interface MockActivityDetail {
+    id: string;
+    name: string;
+    frequency: number;
+    frequencyPercent: number;
+    avgDuration: number;
+    minDuration: number;
+    maxDuration: number;
+    isStart: boolean;
+    isEnd: boolean;
+    resources: string[];
+}
+
+// Dataset-like mock type for logInfo fallback
+export interface MockDatasetInfo {
+    id: string;
+    name: string;
+    status: string;
+    createdAt: string;
+    totalCases?: number;
+    totalEvents?: number;
+}
 
 /**
  * Mock data for "Order to Cash" process
@@ -64,7 +88,7 @@ export const mockOrderToCashVariants: Variant[] = [
     }
 ];
 
-export const mockOrderToCashActivities: ActivityDetail[] = [
+export const mockOrderToCashActivities: MockActivityDetail[] = [
     { id: 'receive_order', name: 'Receive Order', frequency: 1000, frequencyPercent: 100, avgDuration: 300, minDuration: 60, maxDuration: 600, isStart: true, isEnd: false, resources: ['System'] },
     { id: 'check_credit', name: 'Check Credit', frequency: 950, frequencyPercent: 95, avgDuration: 600, minDuration: 120, maxDuration: 1200, isStart: false, isEnd: false, resources: ['Credit Officer'] },
     { id: 'approve_order', name: 'Approve Order', frequency: 900, frequencyPercent: 90, avgDuration: 300, minDuration: 60, maxDuration: 600, isStart: false, isEnd: false, resources: ['Manager'] },
@@ -75,7 +99,16 @@ export const mockOrderToCashActivities: ActivityDetail[] = [
     { id: 'cancel_order', name: 'Cancel Order', frequency: 150, frequencyPercent: 15, avgDuration: 0, minDuration: 0, maxDuration: 0, isStart: false, isEnd: true, resources: ['System'] },
 ];
 
-export const mockOrderToCashLogInfo: ProcessKPIs = {
+export const mockOrderToCashLogInfo: MockDatasetInfo = {
+    id: 'mock-order-to-cash',
+    name: 'Order to Cash (Demo)',
+    status: 'ready',
+    createdAt: new Date().toISOString(),
+    totalCases: 1000,
+    totalEvents: 7400,
+};
+
+export const mockOrderToCashKPIs: ProcessKPIs = {
     totalCases: 1000,
     uniqueVariants: 15,
     uniqueActivities: 8,

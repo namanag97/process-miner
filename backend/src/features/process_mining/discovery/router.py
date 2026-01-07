@@ -71,6 +71,48 @@ async def discover_model(
 
     # Async mode - offload to Temporal workflow
     if async_mode:
+        from src.platform.temporal.config import get_temporal_config
+
+        config = get_temporal_config()
+
+        # =====================================================================
+        # V2: Temporal-native architecture
+        # =====================================================================
+        if config.use_temporal_v2:
+            from temporalio.common import WorkflowIDReusePolicy
+            from temporalio.exceptions import WorkflowAlreadyStartedError
+
+            from src.platform.temporal.client import get_temporal_client
+            from src.platform.temporal.workflows_v2.analysis import ProcessDiscoveryWorkflowV2
+
+            # Deterministic workflow ID
+            workflow_id = f"discover-{request.dataset_id}-{miner_type.value}"
+
+            client = await get_temporal_client()
+
+            try:
+                handle = await client.start_workflow(
+                    ProcessDiscoveryWorkflowV2.run,
+                    args=[request.dataset_id, miner_type.value, request.model_name],
+                    id=workflow_id,
+                    task_queue=config.QUEUE_ANALYSIS,
+                    id_reuse_policy=WorkflowIDReusePolicy.ALLOW_DUPLICATE_FAILED_ONLY,
+                )
+            except WorkflowAlreadyStartedError:
+                # Already running - return existing ID
+                logger.info("discovery_workflow_already_running", workflow_id=workflow_id)
+
+            logger.info("async_discovery_started_v2", workflow_id=workflow_id, temporal_v2=True)
+            return JSONResponse(status_code=202, content={
+                "workflow_id": workflow_id,
+                "status": "queued",
+                "message": "Discovery started (v2). Use /api/v1/operations/{workflow_id} to check status.",
+                "poll_endpoint": f"/api/v1/operations/{workflow_id}",
+            })
+
+        # =====================================================================
+        # V1: Legacy AsyncJob + Temporal compat layer
+        # =====================================================================
         from src.platform.temporal.compat import dispatch_workflow, is_temporal_enabled
 
         async_job = AsyncJob(

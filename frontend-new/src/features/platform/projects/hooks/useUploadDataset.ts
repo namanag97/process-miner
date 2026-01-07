@@ -9,7 +9,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
-import { queryKeys, instrumentedFetch } from '@/src/shared/design-system';
+import { queryKeys } from '@/src/shared/design-system';
 import { env } from '../../../../config/env';
 
 interface UploadDatasetParams {
@@ -72,8 +72,7 @@ async function uploadDataset({
     }
 
     // BUG-045 FIX: Add abort signal
-    // Note: Using instrumentedFetch for DevConsole visibility
-    const response = await instrumentedFetch(apiUrl, {
+    const response = await fetch(apiUrl, {
         method: 'POST',
         headers,
         body: formData,

@@ -61,6 +61,7 @@ class TemporalConfig:
 
     # Feature flags
     use_temporal: bool = field(default=False)  # Feature flag for migration
+    use_temporal_v2: bool = field(default=False)  # Use Temporal-native v2 architecture
 
 
 @lru_cache

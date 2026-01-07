@@ -16,6 +16,14 @@ import { createLogger } from '../../../shared/lib/logger';
 const log = createLogger('ExplorerIndexPage');
 const { Text, Title } = Typography;
 
+interface EventLogItem {
+  id: string;
+  name: string;
+  projectId?: string;
+  totalCases: number;
+  totalEvents: number;
+}
+
 export function ExplorerIndexPage() {
   const navigate = useNavigate();
   const [searchText, setSearchText] = useState('');
@@ -23,17 +31,17 @@ export function ExplorerIndexPage() {
   // Fetch logs using feature hook
   const { data, isLoading, error, refetch } = useEventLogsList({ pageSize: 50 });
 
-  const logs = Array.isArray(data?.items) ? data.items : [];
+  const logs: EventLogItem[] = Array.isArray(data?.items) ? data.items : [];
 
   log.debug('Rendering ExplorerIndexPage', { logCount: logs.length, isLoading });
 
   const filteredLogs = useMemo(() => {
     if (!searchText) return logs;
     const lower = searchText.toLowerCase();
-    return logs.filter((logItem) => logItem.name.toLowerCase().includes(lower));
+    return logs.filter((logItem: EventLogItem) => logItem.name.toLowerCase().includes(lower));
   }, [logs, searchText]);
 
-  const handleExplore = (logItem: any) => {
+  const handleExplore = (logItem: EventLogItem) => {
     logAction('ExplorerIndexPage', 'explore_clicked', { datasetId: logItem.id, name: logItem.name });
     log.info('Exploring log', { datasetId: logItem.id, name: logItem.name });
     // Navigate to workspace-scoped route if projectId is available

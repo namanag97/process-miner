@@ -41,7 +41,7 @@ The ingestion job will:
 4. Compute metadata statistics
 5. Update status to READY
 
-Use `GET /jobs/{job_id}` to track progress.
+Use `GET /operations/{workflow_id}` (v2) or `GET /jobs/{job_id}` to track progress.
     """,
     responses={
         202: {"description": "Ingestion job queued"},
@@ -54,12 +54,15 @@ async def trigger_ingestion(
     dataset_id: str,
     user: CurrentUser,
 ) -> JobStatusResponse:
-    """Trigger background ingestion job using Temporal workflow."""
+    """Trigger background ingestion job.
+    
+    Uses Temporal v2 (native) or v1 (compat) based on feature flag.
+    """
     from datetime import datetime
     from uuid import uuid4
 
     from src.platform.core.enums import JobStatus
-    from src.platform.temporal.compat import dispatch_workflow, is_temporal_enabled
+    from src.platform.temporal.config import get_temporal_config
 
     # Verify permission
     _, dataset = await require_dataset_permission(
@@ -81,6 +84,97 @@ async def trigger_ingestion(
     
     if not mapping and not dataset.mapping_json:
         raise ValidationError("No column mapping found. Submit mapping first.")
+
+    # Build mapping dict
+    if mapping:
+        mapping_dict = {
+            "case_id": mapping.case_id_column,
+            "activity": mapping.activity_column,
+            "timestamp": mapping.timestamp_column,
+            "resource": mapping.resource_column,
+        }
+    elif dataset.mapping_json:
+        import json
+        mapping_dict = json.loads(dataset.mapping_json) if isinstance(dataset.mapping_json, str) else dataset.mapping_json
+    else:
+        mapping_dict = {}
+
+    config = get_temporal_config()
+
+    # =========================================================================
+    # V2: Temporal-native architecture
+    # =========================================================================
+    if config.use_temporal_v2:
+        from temporalio.client import WorkflowExecutionStatus
+        from temporalio.common import WorkflowIDReusePolicy
+        from temporalio.exceptions import WorkflowAlreadyStartedError
+
+        from src.platform.temporal.client import get_temporal_client
+        from src.platform.temporal.workflows_v2.ingestion import DatasetIngestionWorkflowV2
+
+        # Deterministic workflow ID - enables idempotent starts
+        workflow_id = f"ingest-dataset-{dataset_id}"
+
+        client = await get_temporal_client()
+
+        try:
+            handle = await client.start_workflow(
+                DatasetIngestionWorkflowV2.run,
+                args=[dataset_id, dataset.storage_key, mapping_dict],
+                id=workflow_id,
+                task_queue=config.QUEUE_INGESTION,
+                id_reuse_policy=WorkflowIDReusePolicy.REJECT_DUPLICATE,
+            )
+            workflow_run_id = handle.result_run_id
+        except WorkflowAlreadyStartedError:
+            # Idempotent - workflow already running, that's fine
+            handle = client.get_workflow_handle(workflow_id)
+            desc = await handle.describe()
+            workflow_run_id = desc.run_id
+            
+            # If already completed/failed, allow restart
+            if desc.status in (WorkflowExecutionStatus.COMPLETED, WorkflowExecutionStatus.FAILED):
+                handle = await client.start_workflow(
+                    DatasetIngestionWorkflowV2.run,
+                    args=[dataset_id, dataset.storage_key, mapping_dict],
+                    id=workflow_id,
+                    task_queue=config.QUEUE_INGESTION,
+                    id_reuse_policy=WorkflowIDReusePolicy.ALLOW_DUPLICATE_FAILED_ONLY,
+                )
+                workflow_run_id = handle.result_run_id
+
+        # Update dataset status (minimal DB write - just status)
+        dataset.status = DatasetStatus.INGESTING.value
+        dataset.error_message = None
+        await db.commit()
+
+        logger.info(
+            "ingestion_triggered_v2",
+            dataset_id=dataset_id,
+            workflow_id=workflow_id,
+            temporal_v2=True,
+        )
+
+        # Return v2 response (no job_id, use workflow_id)
+        return JobStatusResponse(
+            id=workflow_id,  # Use workflow_id as the ID
+            job_type="ingest_dataset",
+            status=JobStatus.PENDING.value,
+            progress=0,
+            stage="queued",
+            created_at=datetime.utcnow(),
+            result={
+                "workflow_id": workflow_id,
+                "workflow_run_id": workflow_run_id,
+                "message": "Ingestion job queued (v2)",
+                "poll_endpoint": f"/api/v1/operations/{workflow_id}",
+            },
+        )
+
+    # =========================================================================
+    # V1: Legacy AsyncJob + Temporal compat layer
+    # =========================================================================
+    from src.platform.temporal.compat import dispatch_workflow, is_temporal_enabled
 
     # Create async job record
     job = AsyncJob(
@@ -162,12 +256,15 @@ async def trigger_reingest(
     dataset_id: str,
     user: CurrentUser,
 ) -> JobStatusResponse:
-    """Trigger re-ingestion with updated mapping using Temporal workflow."""
+    """Trigger re-ingestion with updated mapping.
+    
+    Uses Temporal v2 (native) or v1 (compat) based on feature flag.
+    """
     from datetime import datetime
     from uuid import uuid4
 
     from src.platform.core.enums import JobStatus
-    from src.platform.temporal.compat import dispatch_workflow, is_temporal_enabled
+    from src.platform.temporal.config import get_temporal_config
 
     # Verify permission
     _, dataset = await require_dataset_permission(
@@ -193,6 +290,77 @@ async def trigger_reingest(
 
     if not mapping and not dataset.mapping_json:
         raise ValidationError("No column mapping found. Submit mapping first.")
+
+    # Build mapping dict
+    if mapping:
+        mapping_dict = {
+            "case_id": mapping.case_id_column,
+            "activity": mapping.activity_column,
+            "timestamp": mapping.timestamp_column,
+            "resource": mapping.resource_column,
+        }
+    elif dataset.mapping_json:
+        import json
+        mapping_dict = json.loads(dataset.mapping_json) if isinstance(dataset.mapping_json, str) else dataset.mapping_json
+    else:
+        mapping_dict = {}
+
+    config = get_temporal_config()
+
+    # =========================================================================
+    # V2: Temporal-native architecture
+    # =========================================================================
+    if config.use_temporal_v2:
+        from temporalio.common import WorkflowIDReusePolicy
+
+        from src.platform.temporal.client import get_temporal_client
+        from src.platform.temporal.workflows_v2.ingestion import DatasetIngestionWorkflowV2
+
+        # For reingest, use timestamp suffix to allow re-runs
+        workflow_id = f"reingest-dataset-{dataset_id}"
+
+        client = await get_temporal_client()
+
+        # For reingest, always allow if previous completed/failed
+        handle = await client.start_workflow(
+            DatasetIngestionWorkflowV2.run,
+            args=[dataset_id, dataset.storage_key, mapping_dict],
+            id=workflow_id,
+            task_queue=config.QUEUE_INGESTION,
+            id_reuse_policy=WorkflowIDReusePolicy.ALLOW_DUPLICATE_FAILED_ONLY,
+        )
+
+        # Update dataset status
+        dataset.status = DatasetStatus.INGESTING.value
+        dataset.error_message = None
+        await db.commit()
+
+        logger.info(
+            "reingest_triggered_v2",
+            dataset_id=dataset_id,
+            workflow_id=workflow_id,
+            temporal_v2=True,
+        )
+
+        return JobStatusResponse(
+            id=workflow_id,
+            job_type="reingest_dataset",
+            status=JobStatus.PENDING.value,
+            progress=0,
+            stage="queued",
+            created_at=datetime.utcnow(),
+            result={
+                "workflow_id": workflow_id,
+                "workflow_run_id": handle.result_run_id,
+                "message": "Re-ingestion job queued (v2)",
+                "poll_endpoint": f"/api/v1/operations/{workflow_id}",
+            },
+        )
+
+    # =========================================================================
+    # V1: Legacy AsyncJob + Temporal compat layer
+    # =========================================================================
+    from src.platform.temporal.compat import dispatch_workflow, is_temporal_enabled
 
     # Create async job record
     job = AsyncJob(
@@ -250,3 +418,4 @@ async def trigger_reingest(
             "message": "Re-ingestion job queued",
         },
     )
+

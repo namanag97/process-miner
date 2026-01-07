@@ -12,7 +12,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
-import { queryKeys, instrumentedFetch } from '@/src/shared/design-system';
+import { queryKeys } from '@/src/shared/design-system';
 import { env } from '../../../../config/env';
 
 // ============================================
@@ -81,8 +81,7 @@ async function detectColumns(
     console.log('[AnalyzeDataset] Detecting columns:', apiUrl);
 
     // BUG-043 & BUG-045 FIX: Add auth headers and abort signal
-    // Using instrumentedFetch for DevConsole visibility
-    const response = await instrumentedFetch(apiUrl, {
+    const response = await fetch(apiUrl, {
         headers: getAuthHeaders(),
         signal,
     });
@@ -123,8 +122,7 @@ async function startAnalysis({
     console.log('[AnalyzeDataset] Starting analysis:', apiUrl);
 
     // BUG-043 & BUG-045 FIX: Add auth headers and abort signal
-    // Using instrumentedFetch for DevConsole visibility
-    const response = await instrumentedFetch(apiUrl, {
+    const response = await fetch(apiUrl, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(mapping),
@@ -169,8 +167,7 @@ async function getJobStatus(jobId: string, signal?: AbortSignal): Promise<JobSta
     const apiUrl = `${env.API_BASE_URL}/api/v1/jobs/${jobId}`;
 
     // BUG-043 & BUG-045 FIX: Add auth headers and abort signal
-    // Using instrumentedFetch for DevConsole visibility
-    const response = await instrumentedFetch(apiUrl, {
+    const response = await fetch(apiUrl, {
         headers: getAuthHeaders(),
         signal,
     });

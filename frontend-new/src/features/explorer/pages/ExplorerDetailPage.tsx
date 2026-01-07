@@ -55,6 +55,12 @@ import type {
 } from '../types';
 import { hasReworkInVariant } from '../types';
 
+// Helper to safely extract number values (handles {} from API)
+const toNumber = (val: unknown): number | undefined => {
+  if (typeof val === 'number') return val;
+  return undefined;
+};
+
 // Import mock data and fallback utilities
 import {
   mockOrderToCashDFG,
@@ -111,10 +117,10 @@ export function ExplorerDetailPage() {
     data: explorerData,
     isLoading: explorerLoading,
     error: explorerError,
-  } = useExplorerData({
-    datasetId: datasetId || '',
-    options: { includePerformance: true, topVariants: 50 }
-  });
+  } = useExplorerData(
+    datasetId || '',
+    { includePerformance: true, topVariants: 50 }
+  );
 
   // Extract individual data from unified response
   const dfgData = explorerData?.dfg;
@@ -129,31 +135,32 @@ export function ExplorerDetailPage() {
   const loading = logLoading || explorerLoading;
 
   // Apply fallbacks - Re-enabled for graceful degradation when backend is unavailable
+  // Note: Mock data types are cast to match API types for fallback compatibility
   const logInfoWithFallback = useFallbackData(
     logInfo,
     null,
-    mockOrderToCashLogInfo,
+    mockOrderToCashLogInfo as typeof logInfo,
     { source: 'ExplorerDetailPage', hookType: 'useLogDetail', datasetId: datasetId || '', disableFallback: false }
   );
 
   const dfgDataWithFallback = useFallbackData(
     dfgData,
     dfgError,
-    mockOrderToCashDFG,
+    mockOrderToCashDFG as typeof dfgData,
     { source: 'ExplorerDetailPage', hookType: 'useDFG', datasetId: datasetId || '', endpoint: '/api/visualization/dfg', disableFallback: false }
   );
 
   const variantsWithFallback = useFallbackData(
     variants,
     variantsError,
-    mockOrderToCashVariants,
+    mockOrderToCashVariants as typeof variants,
     { source: 'ExplorerDetailPage', hookType: 'useVariants', datasetId: datasetId || '', endpoint: '/api/datasets/variants', disableFallback: false }
   );
 
-  const activitiesWithFallback = useFallbackData<ActivityDetail[]>(
+  const activitiesWithFallback = useFallbackData(
     activities,
     activitiesError,
-    mockOrderToCashActivities,
+    mockOrderToCashActivities as typeof activities,
     { source: 'ExplorerDetailPage', hookType: 'useActivities', datasetId: datasetId || '', endpoint: '/api/discovery/activities', disableFallback: false }
   );
 
@@ -192,9 +199,9 @@ export function ExplorerDetailPage() {
         frequency: node.frequency ?? 0,
         isStart: node.isStart ?? false,
         isEnd: node.isEnd ?? false,
-        avgDuration: activityDetail?.avgDuration ?? undefined,
-        minDuration: activityDetail?.minDuration ?? undefined,
-        maxDuration: activityDetail?.maxDuration ?? undefined,
+        avgDuration: toNumber(activityDetail?.avgDuration),
+        minDuration: toNumber(activityDetail?.minDuration),
+        maxDuration: toNumber(activityDetail?.maxDuration),
       };
     });
   }, [dfgDataWithFallback, activitiesWithFallback]);
@@ -231,7 +238,7 @@ export function ExplorerDetailPage() {
       avgDuration: v.avgDuration ?? null,
       avgDurationSeconds: v.avgDuration ?? 0,
       isHappyPath: index === 0 && (v.frequencyPercent ?? 0) > 50,
-      complexityScore: v.complexityScore,
+      complexityScore: (v as { complexityScore?: number }).complexityScore,
       hasRework: hasReworkInVariant(Array.isArray(v.activities) ? v.activities : []),
     }));
   }, [variantsWithFallback]);
@@ -302,13 +309,13 @@ export function ExplorerDetailPage() {
     );
     if (!activity) return null;
     return {
-      id: activity.id,
+      id: activity.id ?? activity.name,
       name: activity.name,
-      totalOccurrences: activity.frequency ?? 0,
-      casePercentage: activity.frequencyPercent ?? 0,
-      avgDurationSeconds: activity.avgDuration ?? 0,
-      minDurationSeconds: activity.minDuration ?? 0,
-      maxDurationSeconds: activity.maxDuration ?? 0,
+      totalOccurrences: toNumber(activity.frequency) ?? 0,
+      casePercentage: toNumber(activity.frequencyPercent) ?? 0,
+      avgDurationSeconds: toNumber(activity.avgDuration) ?? 0,
+      minDurationSeconds: toNumber(activity.minDuration) ?? 0,
+      maxDurationSeconds: toNumber(activity.maxDuration) ?? 0,
       resources: Array.isArray(activity.resources) ? activity.resources : [],
     };
   }, [selectedNodeId, activitiesWithFallback]);
@@ -327,7 +334,7 @@ export function ExplorerDetailPage() {
       target: edge.target,
       frequency: edge.frequency,
       frequencyPercent: (edge.frequency / totalFrequency) * 100,
-      avgDurationSeconds: edge.performance,
+      avgDurationSeconds: toNumber(edge.performance),
     };
   }, [selectedEdgeId, dfgEdges]);
 
@@ -340,9 +347,9 @@ export function ExplorerDetailPage() {
     return activitiesWithFallback.map((a) => ({
       id: a.id || a.name,
       name: a.name,
-      frequency: a.frequency ?? 0,
-      casePercent: a.frequencyPercent ?? 0,
-      avgDuration: a.avgDuration ?? undefined,
+      frequency: toNumber(a.frequency) ?? 0,
+      casePercent: toNumber(a.frequencyPercent) ?? 0,
+      avgDuration: toNumber(a.avgDuration),
     }));
   }, [activitiesWithFallback]);
 
@@ -612,7 +619,7 @@ export function ExplorerDetailPage() {
               style={{ padding: 40 }}
             />
           }
-          onError={(_error) => {
+          onError={(_error: Error) => {
             logError('VariantPanel', { datasetId: datasetId || '', componentCrash: true });
           }}
         >
@@ -967,7 +974,7 @@ export function ExplorerDetailPage() {
                   }
                 />
               }
-              onError={(_error) => {
+              onError={(_error: Error) => {
                 logError('CytoscapeCanvas', { datasetId: datasetId || '', componentCrash: true });
               }}
             >

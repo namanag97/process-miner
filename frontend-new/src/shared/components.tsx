@@ -203,6 +203,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children, sider, header }) =
 interface ErrorBoundaryProps {
     children: ReactNode;
     fallback?: ReactNode;
+    onError?: (error: Error, errorInfo: ErrorInfo) => void;
 }
 
 interface ErrorBoundaryState {
@@ -222,6 +223,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
     componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error('[ErrorBoundary] Caught error:', error, errorInfo);
+        this.props.onError?.(error, errorInfo);
     }
 
     render() {

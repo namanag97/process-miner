@@ -295,9 +295,9 @@ export const queryKeys = {
         performance: () => [...queryKeys.kpi.all, 'performance'] as const,
     },
     projects: {
-        all: ['projects'] as const,
-        list: () => [...queryKeys.projects.all, 'list'] as const,
-        detail: (id: string) => [...queryKeys.projects.all, 'detail', id] as const,
+        all: () => ['projects'] as const,
+        list: (_options?: Record<string, unknown>) => ['projects', 'list'] as const,
+        detail: (id: string) => ['projects', 'detail', id] as const,
     },
     datasets: {
         all: ['datasets'] as const,
@@ -415,7 +415,11 @@ export interface ActivityDetail {
     id?: string;
     name: string;
     frequency: number;
-    avgDuration: number;
+    avgDuration?: number;
+    minDuration?: number;
+    maxDuration?: number;
+    frequencyPercent?: number;
+    resources?: string[];
     [key: string]: unknown;
 }
 
@@ -484,14 +488,22 @@ export { PageHeader, MetricCard, ProcessQuestion, EmptyState, AppShell, ErrorBou
 export type { ProcessMiningSdk } from './components';
 
 interface LoadingStateProps {
-    type?: 'card' | 'inline' | 'page' | 'fullPage';
+    type?: 'card' | 'inline' | 'page' | 'fullPage' | 'skeleton';
     rows?: number;
+    text?: string;
 }
 
-export const LoadingState: React.FC<LoadingStateProps> = ({ type = 'inline' }) => {
-    if (type === 'card') {
+export const LoadingState: React.FC<LoadingStateProps> = ({ type = 'inline', text }) => {
+    if (type === 'card' || type === 'skeleton') {
         return React.createElement(Card, { style: { textAlign: 'center', padding: 40 } },
-            React.createElement(Spin, { size: 'large' })
+            React.createElement(Spin, { size: 'large' }),
+            text ? React.createElement('div', { style: { marginTop: 16 } }, text) : null
+        );
+    }
+    if (type === 'fullPage' || type === 'page') {
+        return React.createElement('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh' } },
+            React.createElement(Spin, { size: 'large' }),
+            text ? React.createElement('div', { style: { marginTop: 16 } }, text) : null
         );
     }
     return React.createElement(Spin);
@@ -500,16 +512,25 @@ export const LoadingState: React.FC<LoadingStateProps> = ({ type = 'inline' }) =
 interface QueryErrorProps {
     error: Error | unknown;
     onRetry?: () => void;
+    variant?: 'inline' | 'card' | 'fullPage';
 }
 
-export const QueryError: React.FC<QueryErrorProps> = ({ error, onRetry }) => {
-    const message = error instanceof Error ? error.message : 'An error occurred';
-    return React.createElement(Alert, {
+export const QueryError: React.FC<QueryErrorProps> = ({ error, onRetry, variant = 'inline' }) => {
+    const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+    const alertElement = React.createElement(Alert, {
         type: 'error',
         message: 'Error',
-        description: message,
+        description: errorMessage,
         action: onRetry ? React.createElement(Button, { onClick: onRetry, size: 'small' }, 'Retry') : undefined,
     });
+
+    if (variant === 'card') {
+        return React.createElement(Card, { style: { textAlign: 'center', padding: 40 } }, alertElement);
+    }
+    if (variant === 'fullPage') {
+        return React.createElement('div', { style: { padding: 40, maxWidth: 600, margin: '0 auto' } }, alertElement);
+    }
+    return alertElement;
 };
 
 // ==============================================
@@ -549,22 +570,42 @@ export const useKPIPerformance = (_datasetId: string) => ({
 // ==============================================
 // Additional KPI Hooks (stub implementations)
 // ==============================================
+interface PerformanceStubData {
+    topBottlenecks?: Array<{ activity: string; avgWaitingTime: number; impactScore: number }>;
+    [key: string]: unknown;
+}
+
+interface CycleTimeStubData {
+    avg_seconds?: number;
+    min_seconds?: number;
+    median_seconds?: number;
+    max_seconds?: number;
+    [key: string]: unknown;
+}
+
+interface ThroughputStubData {
+    total_cases?: number;
+    completed_cases?: number;
+    cases_per_day?: number;
+    [key: string]: unknown;
+}
+
 export const usePerformance = (_datasetId: string) => ({
-    data: null,
+    data: null as PerformanceStubData | null,
     isLoading: false,
     error: null,
     refetch: noopRefetch,
 });
 
 export const useCycleTime = (_datasetId: string) => ({
-    data: null,
+    data: null as CycleTimeStubData | null,
     isLoading: false,
     error: null,
     refetch: noopRefetch,
 });
 
 export const useThroughput = (_datasetId: string) => ({
-    data: null,
+    data: null as ThroughputStubData | null,
     isLoading: false,
     error: null,
     refetch: noopRefetch,

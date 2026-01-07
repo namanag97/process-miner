@@ -31,6 +31,7 @@ from src.api.routers import (
     health_router,
     jobs_router,
     ocpm_router,
+    operations_router,  # Unified Temporal operations API
     organizational_router,
     organizations_router,
     predictions_router,
@@ -520,6 +521,7 @@ For support, please contact the developer team or refer to the internal document
     # Platform Infrastructure Routers
     # =========================================================================
     app.include_router(jobs_router, prefix=settings.api_prefix)
+    app.include_router(operations_router, prefix=settings.api_prefix)  # Unified Temporal operations (v2)
     app.include_router(workflows_api_router, prefix=settings.api_prefix)  # Temporal workflow status
     app.include_router(dags_router, prefix=settings.api_prefix)
     app.include_router(audit_router, prefix=settings.api_prefix)
