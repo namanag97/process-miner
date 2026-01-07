@@ -1,7 +1,0 @@
-case_id,activity,timestamp,resource
-C1,Register,2024-01-01 10:00:00,Alice
-C1,Review,2024-01-01 11:00:00,Bob
-C1,Approve,2024-01-01 12:00:00,Charlie
-C2,Register,2024-01-01 10:30:00,Alice
-C2,Review,2024-01-01 11:30:00,Bob
-C2,Reject,2024-01-01 12:30:00,Charlie
