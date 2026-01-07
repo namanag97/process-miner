@@ -13,7 +13,9 @@ from src.features.process_mining.models import (
     Dataset,
     ProcessModel,
 )
-from src.platform.dag.models import DAGDefinition
+
+# DAG system deprecated - use Temporal workflows via /operations API
+# from src.platform.dag.models import DAGDefinition
 from src.platform.models import AsyncJob, Project
 from src.shared.base_repository import BaseRepository
 
@@ -82,32 +84,33 @@ class ProcessModelRepository(BaseRepository[ProcessModel]):
         return result.scalar_one_or_none()
 
 
-class DAGDefinitionRepository(BaseRepository[DAGDefinition]):
-    """Repository for DAGDefinition aggregate."""
-
-    model_class = DAGDefinition
-
-    async def get_active(self) -> list[DAGDefinition]:
-        """Get all active DAG definitions."""
-        stmt = (
-            select(DAGDefinition)
-            .where(DAGDefinition.is_active)
-            .order_by(DAGDefinition.created_at.desc())
-        )
-        result = await self._session.execute(stmt)
-        return list(result.scalars().all())
-
-    async def get_by_name(self, name: str) -> DAGDefinition | None:
-        """Get DAG definition by name."""
-        stmt = (
-            select(DAGDefinition)
-            .where(DAGDefinition.name == name)
-            .where(DAGDefinition.is_active)
-            .order_by(DAGDefinition.version.desc())
-            .limit(1)
-        )
-        result = await self._session.execute(stmt)
-        return result.scalar_one_or_none()
+# DAG system deprecated - use Temporal workflows via /operations API
+# class DAGDefinitionRepository(BaseRepository[DAGDefinition]):
+#     """Repository for DAGDefinition aggregate."""
+#
+#     model_class = DAGDefinition
+#
+#     async def get_active(self) -> list[DAGDefinition]:
+#         """Get all active DAG definitions."""
+#         stmt = (
+#             select(DAGDefinition)
+#             .where(DAGDefinition.is_active)
+#             .order_by(DAGDefinition.created_at.desc())
+#         )
+#         result = await self._session.execute(stmt)
+#         return list(result.scalars().all())
+#
+#     async def get_by_name(self, name: str) -> DAGDefinition | None:
+#         """Get DAG definition by name."""
+#         stmt = (
+#             select(DAGDefinition)
+#             .where(DAGDefinition.name == name)
+#             .where(DAGDefinition.is_active)
+#             .order_by(DAGDefinition.version.desc())
+#             .limit(1)
+#         )
+#         result = await self._session.execute(stmt)
+#         return result.scalar_one_or_none()
 
 
 class ProjectRepository(BaseRepository[Project]):
@@ -234,7 +237,7 @@ def get_repositories(session: AsyncSession) -> dict:
     return {
         "analysis": AnalysisRepository(session),
         "process_model": ProcessModelRepository(session),
-        "dag_definition": DAGDefinitionRepository(session),
+        # "dag_definition": DAGDefinitionRepository(session),  # DAG deprecated
         "project": ProjectRepository(session),
         "dataset": DatasetRepositoryV2(session),
         "job": JobRepository(session),

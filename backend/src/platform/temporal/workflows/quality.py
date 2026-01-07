@@ -102,7 +102,6 @@ class QualityEvaluationWorkflow:
 
         results = {}
         self._state.computed_metrics = []
-        total_steps = 5 if include_generalization else 4
 
         try:
             # Step 1: Verify dataset is ready

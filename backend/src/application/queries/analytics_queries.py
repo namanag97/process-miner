@@ -9,7 +9,7 @@ Usage:
     )
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import duckdb
@@ -17,7 +17,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.queries import BaseQuery, QueryHandler
-
 
 # =============================================================================
 # Queries
@@ -27,7 +26,7 @@ from src.application.queries import BaseQuery, QueryHandler
 @dataclass
 class GetBottlenecksQuery(BaseQuery):
     """Get process bottlenecks based on waiting times."""
-    
+
     dataset_id: str
     limit: int = 10
 
@@ -39,7 +38,7 @@ class GetBottlenecksQuery(BaseQuery):
 @dataclass
 class GetCycleTimeQuery(BaseQuery):
     """Get cycle time (case duration) statistics."""
-    
+
     dataset_id: str
 
     def validate(self) -> None:
@@ -89,7 +88,7 @@ class GetDFGQuery(BaseQuery):
 @dataclass
 class BottleneckResult:
     """Single bottleneck item."""
-    
+
     activity: str
     avg_wait_time_seconds: float
     median_wait_time_seconds: float
@@ -100,7 +99,7 @@ class BottleneckResult:
 @dataclass
 class BottlenecksResult:
     """Bottleneck analysis result."""
-    
+
     bottlenecks: list[BottleneckResult]
     total_activities: int
 
@@ -108,7 +107,7 @@ class BottlenecksResult:
 @dataclass
 class CycleTimeResult:
     """Cycle time statistics."""
-    
+
     mean_seconds: float
     median_seconds: float
     min_seconds: float
@@ -120,7 +119,7 @@ class CycleTimeResult:
 @dataclass
 class ReworkItem:
     """Single rework pattern."""
-    
+
     activity: str
     repeat_count: int
     case_count: int
@@ -130,7 +129,7 @@ class ReworkItem:
 @dataclass
 class ReworkResult:
     """Rework analysis result."""
-    
+
     rework_patterns: list[ReworkItem]
     total_cases_with_rework: int
     rework_rate: float
@@ -139,7 +138,7 @@ class ReworkResult:
 @dataclass
 class VariantItem:
     """Single process variant."""
-    
+
     variant_id: int
     activities: list[str]
     case_count: int
@@ -149,7 +148,7 @@ class VariantItem:
 @dataclass
 class VariantsResult:
     """Variants analysis result."""
-    
+
     variants: list[VariantItem]
     total_variants: int
     total_cases: int
@@ -162,10 +161,10 @@ class VariantsResult:
 
 class AnalyticsQueryHandlerBase(QueryHandler):
     """Base class for analytics query handlers.
-    
+
     Provides common functionality for Parquet/DuckDB queries.
     """
-    
+
     def __init__(
         self,
         duckdb_conn: duckdb.DuckDBPyConnection | None = None,
@@ -174,43 +173,42 @@ class AnalyticsQueryHandlerBase(QueryHandler):
     ):
         super().__init__(duckdb_conn=duckdb_conn, cache=cache)
         self.db = db  # For metadata lookups only
-    
+
     async def get_parquet_path(self, dataset_id: str) -> str:
         """Get Parquet file path for a dataset.
-        
+
         Looks up in PostgreSQL metadata, but reads data from Parquet.
         """
         if not self.db:
             raise ValueError("Database session required for metadata lookup")
-        
+
         from src.features.process_mining.models import Dataset
         from src.platform.core.config import get_settings
-        
+
         result = await self.db.execute(
             select(Dataset.parquet_s3_key).where(Dataset.id == dataset_id)
         )
         parquet_key = result.scalar_one_or_none()
-        
+
         if not parquet_key:
             raise ValueError(f"Dataset not found or no Parquet file: {dataset_id}")
-        
+
         settings = get_settings()
-        
+
         # Resolve to full path (local or S3)
         if settings.storage_type == "local":
             return f"./data/storage/{settings.s3_bucket_cache}/{parquet_key}"
-        else:
-            # S3 path 
-            endpoint = settings.s3_endpoint_url or "s3://"
-            return f"{endpoint}/{settings.s3_bucket_cache}/{parquet_key}"
+        # S3 path
+        endpoint = settings.s3_endpoint_url or "s3://"
+        return f"{endpoint}/{settings.s3_bucket_cache}/{parquet_key}"
 
 
 class GetBottlenecksHandler(AnalyticsQueryHandlerBase):
     """Handler for GetBottlenecksQuery.
-    
+
     Queries Parquet via DuckDB to find activities with high wait times.
     """
-    
+
     async def handle(self, query: GetBottlenecksQuery) -> BottlenecksResult:
         # Check cache first
         cached = await self.get_cached(query)
@@ -223,24 +221,24 @@ class GetBottlenecksHandler(AnalyticsQueryHandlerBase):
         # DuckDB query - compute wait times between activities
         sql = f"""
             WITH events AS (
-                SELECT 
+                SELECT
                     "case:concept:name" as case_id,
                     "concept:name" as activity,
                     "time:timestamp" as ts,
                     LAG("time:timestamp") OVER (
-                        PARTITION BY "case:concept:name" 
+                        PARTITION BY "case:concept:name"
                         ORDER BY "time:timestamp"
                     ) as prev_ts
                 FROM read_parquet('{parquet_path}')
             ),
             wait_times AS (
-                SELECT 
+                SELECT
                     activity,
                     EXTRACT(EPOCH FROM (ts - prev_ts)) as wait_seconds
                 FROM events
                 WHERE prev_ts IS NOT NULL
             )
-            SELECT 
+            SELECT
                 activity,
                 AVG(wait_seconds) as avg_wait,
                 MEDIAN(wait_seconds) as median_wait,
@@ -251,9 +249,9 @@ class GetBottlenecksHandler(AnalyticsQueryHandlerBase):
             ORDER BY avg_wait DESC
             LIMIT {query.limit}
         """
-        
+
         result = self.duckdb.execute(sql).fetchall()
-        
+
         bottlenecks = [
             BottleneckResult(
                 activity=row[0],
@@ -264,31 +262,32 @@ class GetBottlenecksHandler(AnalyticsQueryHandlerBase):
             )
             for row in result
         ]
-        
+
         # Get total activities
         total_sql = f"""
-            SELECT COUNT(DISTINCT "concept:name") 
+            SELECT COUNT(DISTINCT "concept:name")
             FROM read_parquet('{parquet_path}')
         """
-        total = self.duckdb.execute(total_sql).fetchone()[0]
-        
+        total_row = self.duckdb.execute(total_sql).fetchone()
+        total = total_row[0] if total_row else 0
+
         response = BottlenecksResult(
             bottlenecks=bottlenecks,
             total_activities=total or 0,
         )
-        
+
         # Cache result
         await self.set_cached(query, response, ttl=3600)
-        
+
         return response
 
 
 class GetCycleTimeHandler(AnalyticsQueryHandlerBase):
     """Handler for GetCycleTimeQuery.
-    
+
     Computes case duration statistics from Parquet.
     """
-    
+
     async def handle(self, query: GetCycleTimeQuery) -> CycleTimeResult:
         cached = await self.get_cached(query)
         if cached:
@@ -299,7 +298,7 @@ class GetCycleTimeHandler(AnalyticsQueryHandlerBase):
 
         sql = f"""
             WITH case_times AS (
-                SELECT 
+                SELECT
                     "case:concept:name" as case_id,
                     MIN("time:timestamp") as start_time,
                     MAX("time:timestamp") as end_time
@@ -307,11 +306,11 @@ class GetCycleTimeHandler(AnalyticsQueryHandlerBase):
                 GROUP BY "case:concept:name"
             ),
             durations AS (
-                SELECT 
+                SELECT
                     EXTRACT(EPOCH FROM (end_time - start_time)) as duration_seconds
                 FROM case_times
             )
-            SELECT 
+            SELECT
                 AVG(duration_seconds) as mean_dur,
                 MEDIAN(duration_seconds) as median_dur,
                 MIN(duration_seconds) as min_dur,
@@ -320,28 +319,38 @@ class GetCycleTimeHandler(AnalyticsQueryHandlerBase):
                 COUNT(*) as total_cases
             FROM durations
         """
-        
+
         row = self.duckdb.execute(sql).fetchone()
-        
-        result = CycleTimeResult(
-            mean_seconds=row[0] or 0,
-            median_seconds=row[1] or 0,
-            min_seconds=row[2] or 0,
-            max_seconds=row[3] or 0,
-            std_seconds=row[4] or 0,
-            total_cases=row[5] or 0,
-        )
-        
+
+        if row:
+            result = CycleTimeResult(
+                mean_seconds=row[0] or 0,
+                median_seconds=row[1] or 0,
+                min_seconds=row[2] or 0,
+                max_seconds=row[3] or 0,
+                std_seconds=row[4] or 0,
+                total_cases=row[5] or 0,
+            )
+        else:
+            result = CycleTimeResult(
+                mean_seconds=0,
+                median_seconds=0,
+                min_seconds=0,
+                max_seconds=0,
+                std_seconds=0,
+                total_cases=0,
+            )
+
         await self.set_cached(query, result, ttl=3600)
         return result
 
 
 class GetReworkHandler(AnalyticsQueryHandlerBase):
     """Handler for GetReworkQuery.
-    
+
     Identifies repeated activities within cases.
     """
-    
+
     async def handle(self, query: GetReworkQuery) -> ReworkResult:
         cached = await self.get_cached(query)
         if cached:
@@ -352,7 +361,7 @@ class GetReworkHandler(AnalyticsQueryHandlerBase):
 
         sql = f"""
             WITH activity_counts AS (
-                SELECT 
+                SELECT
                     "case:concept:name" as case_id,
                     "concept:name" as activity,
                     COUNT(*) as repeat_count
@@ -364,7 +373,7 @@ class GetReworkHandler(AnalyticsQueryHandlerBase):
                 SELECT COUNT(DISTINCT "case:concept:name") as cnt
                 FROM read_parquet('{parquet_path}')
             )
-            SELECT 
+            SELECT
                 a.activity,
                 SUM(a.repeat_count) as total_repeats,
                 COUNT(DISTINCT a.case_id) as case_count,
@@ -374,9 +383,9 @@ class GetReworkHandler(AnalyticsQueryHandlerBase):
             ORDER BY total_repeats DESC
             LIMIT 20
         """
-        
+
         rows = self.duckdb.execute(sql).fetchall()
-        
+
         patterns = [
             ReworkItem(
                 activity=row[0],
@@ -386,11 +395,11 @@ class GetReworkHandler(AnalyticsQueryHandlerBase):
             )
             for row in rows
         ]
-        
-        # Get total cases with any rework  
+
+        # Get total cases with any rework
         rework_sql = f"""
             WITH activity_counts AS (
-                SELECT 
+                SELECT
                     "case:concept:name" as case_id,
                     "concept:name" as activity,
                     COUNT(*) as cnt
@@ -402,39 +411,39 @@ class GetReworkHandler(AnalyticsQueryHandlerBase):
                 SELECT COUNT(DISTINCT "case:concept:name") as cnt
                 FROM read_parquet('{parquet_path}')
             )
-            SELECT 
+            SELECT
                 COUNT(DISTINCT case_id) as cases_with_rework,
                 (SELECT cnt FROM total_cases) as total
             FROM activity_counts
         """
         stats = self.duckdb.execute(rework_sql).fetchone()
-        cases_with_rework = stats[0] or 0
-        total = stats[1] or 1
-        
+        cases_with_rework = stats[0] if stats else 0
+        total = stats[1] if stats else 1
+
         result = ReworkResult(
             rework_patterns=patterns,
             total_cases_with_rework=cases_with_rework,
             rework_rate=cases_with_rework / total if total > 0 else 0,
         )
-        
+
         await self.set_cached(query, result, ttl=3600)
         return result
 
 
 # =============================================================================
-# Exports  
+# Exports
 # =============================================================================
 
 __all__ = [
-    "GetBottlenecksQuery",
-    "GetBottlenecksHandler",
     "BottlenecksResult",
-    "GetCycleTimeQuery",
-    "GetCycleTimeHandler",
     "CycleTimeResult",
-    "GetReworkQuery",
-    "GetReworkHandler",
-    "ReworkResult",
-    "GetVariantsQuery",
+    "GetBottlenecksHandler",
+    "GetBottlenecksQuery",
+    "GetCycleTimeHandler",
+    "GetCycleTimeQuery",
     "GetDFGQuery",
+    "GetReworkHandler",
+    "GetReworkQuery",
+    "GetVariantsQuery",
+    "ReworkResult",
 ]

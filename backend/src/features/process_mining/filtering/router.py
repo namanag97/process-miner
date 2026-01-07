@@ -40,10 +40,10 @@ import json
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from sqlalchemy import select
 
-from src.api.dependencies import CurrentUser, ReadDBSession, WriteDBSession, ServiceContainer
+from src.api.dependencies import CurrentUser, ReadDBSession, ServiceContainer
 from src.features.process_mining.models import Dataset, ProcessCase, ProcessEvent
 from src.features.process_mining.schemas import (
     FilterConfig,

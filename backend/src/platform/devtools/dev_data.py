@@ -10,12 +10,12 @@ SECURITY: Only enabled in debug mode.
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from sqlalchemy import inspect, text
 
 from src.platform.core.config import get_settings
-from src.platform.infrastructure.database import get_session_context
 from src.platform.core.exceptions import BadRequestError, NotFoundError
+from src.platform.infrastructure.database import get_session_context
 
 router = APIRouter(prefix="/dev/data", tags=["DevData"])
 settings = get_settings()

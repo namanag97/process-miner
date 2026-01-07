@@ -6,6 +6,7 @@ Handles OpenTelemetry traces and other observability data from the frontend.
 from typing import Any
 
 from fastapi import APIRouter, Request, Response, status
+
 from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -16,7 +17,7 @@ router = APIRouter(prefix="/telemetry", tags=["Observability"])
 @router.post("/traces", status_code=status.HTTP_202_ACCEPTED)
 async def receive_traces(request: Request) -> Response:
     """Receive and process traces from the frontend.
-    
+
     This endpoint currently accepts traces and logs their presence.
     In a full implementation, this might forward them to an OTLP collector.
     """
@@ -30,7 +31,7 @@ async def receive_traces(request: Request) -> Response:
         )
     except Exception as e:
         logger.warning("failed_to_parse_telemetry_body", error=str(e))
-    
+
     return Response(status_code=status.HTTP_202_ACCEPTED)
 
 

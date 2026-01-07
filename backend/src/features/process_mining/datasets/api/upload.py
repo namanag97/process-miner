@@ -12,7 +12,7 @@ from uuid import uuid4
 import aiofiles
 from fastapi import APIRouter, File, Form, Request, Response, UploadFile
 
-from src.api.dependencies import CurrentUser, ReadDBSession, WriteDBSession
+from src.api.dependencies import CurrentUser, ReadDBSession
 from src.features.process_mining.models import Dataset, DatasetStatus, UploadedFile
 from src.features.process_mining.schemas.datasets import (
     DatasetResponse,

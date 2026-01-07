@@ -137,7 +137,7 @@ async def trigger_ingestion(
             error=str(e),
         )
         dataset.status = DatasetStatus.ERROR.value
-        dataset.error_message = f"Failed to start ingestion workflow: {str(e)}"
+        dataset.error_message = f"Failed to start ingestion workflow: {e!s}"
         await db.commit()
         raise ServiceUnavailableError(
             service="Temporal",
@@ -152,7 +152,7 @@ async def trigger_ingestion(
 
     from datetime import timezone
     now = datetime.now(timezone.utc)
-    
+
     return JobStatusResponse(
         id=workflow_id,
         job_type=JobType.INGESTION,
@@ -258,7 +258,7 @@ async def trigger_reingest(
             error=str(e),
         )
         dataset.status = DatasetStatus.ERROR.value
-        dataset.error_message = f"Failed to start re-ingestion workflow: {str(e)}"
+        dataset.error_message = f"Failed to start re-ingestion workflow: {e!s}"
         await db.commit()
         raise ServiceUnavailableError(
             service="Temporal",

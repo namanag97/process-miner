@@ -8,14 +8,11 @@ Commands for dataset write operations:
 """
 
 from dataclasses import dataclass, field
-from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.commands import BaseCommand, CommandHandler, CommandSuccess
-from src.shared.events import EventEnvelope, EventStore, DATASET_CREATED, DATASET_DELETED
-
+from src.shared.events import DATASET_CREATED, DATASET_DELETED
 
 # =============================================================================
 # Commands
@@ -25,12 +22,12 @@ from src.shared.events import EventEnvelope, EventStore, DATASET_CREATED, DATASE
 @dataclass
 class CreateDatasetCommand(BaseCommand):
     """Create a new dataset."""
-    
+
     name: str
     project_id: str
     source_format: str = "csv"
     original_filename: str = ""
-    
+
     def validate(self) -> None:
         if not self.name:
             raise ValueError("Dataset name is required")
@@ -38,10 +35,10 @@ class CreateDatasetCommand(BaseCommand):
             raise ValueError("Project ID is required")
 
 
-@dataclass  
+@dataclass
 class UpdateMappingCommand(BaseCommand):
     """Update column mapping for a dataset."""
-    
+
     dataset_id: str
     case_id_column: str
     activity_column: str
@@ -49,7 +46,7 @@ class UpdateMappingCommand(BaseCommand):
     resource_column: str | None = None
     cost_column: str | None = None
     additional_columns: dict[str, str] = field(default_factory=dict)
-    
+
     def validate(self) -> None:
         if not self.dataset_id:
             raise ValueError("Dataset ID is required")
@@ -64,9 +61,9 @@ class UpdateMappingCommand(BaseCommand):
 @dataclass
 class TriggerIngestionCommand(BaseCommand):
     """Trigger ingestion workflow for a dataset."""
-    
+
     dataset_id: str
-    
+
     def validate(self) -> None:
         if not self.dataset_id:
             raise ValueError("Dataset ID is required")
@@ -75,10 +72,10 @@ class TriggerIngestionCommand(BaseCommand):
 @dataclass
 class DeleteDatasetCommand(BaseCommand):
     """Delete a dataset and associated data."""
-    
+
     dataset_id: str
     delete_parquet: bool = True  # Also delete Parquet files
-    
+
     def validate(self) -> None:
         if not self.dataset_id:
             raise ValueError("Dataset ID is required")
@@ -98,7 +95,7 @@ class CreateDatasetHandler(CommandHandler[CreateDatasetCommand]):
 
     async def handle(self, cmd: CreateDatasetCommand) -> str:
         from src.features.process_mining.models import Dataset, DatasetStatus
-        
+
         # Create dataset
         dataset = Dataset(
             name=cmd.name,
@@ -107,10 +104,10 @@ class CreateDatasetHandler(CommandHandler[CreateDatasetCommand]):
             original_filename=cmd.original_filename,
             status=DatasetStatus.PENDING.value,
         )
-        
+
         self.db.add(dataset)
         await self.db.flush()
-        
+
         # Emit domain event
         await self.emit_event(
             aggregate_type="dataset",
@@ -122,7 +119,7 @@ class CreateDatasetHandler(CommandHandler[CreateDatasetCommand]):
                 "source_format": cmd.source_format,
             },
         )
-        
+
         return dataset.id
 
 
@@ -133,7 +130,7 @@ class UpdateMappingHandler(CommandHandler[UpdateMappingCommand]):
     """
 
     async def handle(self, cmd: UpdateMappingCommand) -> CommandSuccess:
-        from src.features.process_mining.models import Dataset, DatasetStatus, DatasetColumnMapping
+        from src.features.process_mining.models import Dataset, DatasetColumnMapping, DatasetStatus
         from src.shared.events import DATASET_COLUMNS_MAPPED
 
         # Get dataset
@@ -166,7 +163,7 @@ class UpdateMappingHandler(CommandHandler[UpdateMappingCommand]):
         dataset.status = DatasetStatus.MAPPED.value
 
         await self.db.flush()
-        
+
         # Emit domain event
         await self.emit_event(
             aggregate_type="dataset",
@@ -179,7 +176,7 @@ class UpdateMappingHandler(CommandHandler[UpdateMappingCommand]):
                 "resource_column": cmd.resource_column,
             },
         )
-        
+
         return CommandSuccess(
             id=cmd.dataset_id,
             message="Column mapping updated successfully",
@@ -188,43 +185,43 @@ class UpdateMappingHandler(CommandHandler[UpdateMappingCommand]):
 
 class TriggerIngestionHandler(CommandHandler[TriggerIngestionCommand]):
     """Handler for TriggerIngestionCommand.
-    
+
     Validates dataset state and triggers Temporal workflow.
     """
-    
+
     async def handle(self, cmd: TriggerIngestionCommand) -> CommandSuccess:
         from src.features.process_mining.models import Dataset, DatasetStatus
         from src.shared.events import DATASET_INGESTION_STARTED
-        
+
         # Get dataset
         result = await self.db.execute(
             select(Dataset).where(Dataset.id == cmd.dataset_id)
         )
         dataset = result.scalar_one_or_none()
-        
+
         if not dataset:
             raise ValueError(f"Dataset not found: {cmd.dataset_id}")
-        
+
         if dataset.status != DatasetStatus.MAPPED.value:
             raise ValueError(
                 f"Dataset must be in MAPPED status to ingest. Current: {dataset.status}"
             )
-        
+
         # Update status
         dataset.status = DatasetStatus.INGESTING.value
         await self.db.flush()
-        
-        # Emit domain event 
+
+        # Emit domain event
         await self.emit_event(
             aggregate_type="dataset",
             aggregate_id=cmd.dataset_id,
             event_type=DATASET_INGESTION_STARTED,
             payload={"dataset_id": cmd.dataset_id},
         )
-        
+
         # Note: Actual Temporal workflow trigger is handled by the router
         # This handler just validates and updates state
-        
+
         return CommandSuccess(
             id=cmd.dataset_id,
             message="Ingestion started",
@@ -240,22 +237,22 @@ class DeleteDatasetHandler(CommandHandler[DeleteDatasetCommand]):
 
     async def handle(self, cmd: DeleteDatasetCommand) -> CommandSuccess:
         from src.features.process_mining.models import Dataset
-        
+
         # Get dataset
         result = await self.db.execute(
             select(Dataset).where(Dataset.id == cmd.dataset_id)
         )
         dataset = result.scalar_one_or_none()
-        
+
         if not dataset:
             raise ValueError(f"Dataset not found: {cmd.dataset_id}")
-        
+
         parquet_path = dataset.parquet_s3_key
-        
+
         # Delete from database
         await self.db.delete(dataset)
         await self.db.flush()
-        
+
         # Emit domain event for cache invalidation
         await self.emit_event(
             aggregate_type="dataset",
@@ -266,7 +263,7 @@ class DeleteDatasetHandler(CommandHandler[DeleteDatasetCommand]):
                 "delete_parquet": cmd.delete_parquet,
             },
         )
-        
+
         return CommandSuccess(
             id=cmd.dataset_id,
             message="Dataset deleted successfully",
@@ -280,10 +277,10 @@ class DeleteDatasetHandler(CommandHandler[DeleteDatasetCommand]):
 __all__ = [
     "CreateDatasetCommand",
     "CreateDatasetHandler",
-    "UpdateMappingCommand",
-    "UpdateMappingHandler",
-    "TriggerIngestionCommand",
-    "TriggerIngestionHandler",
     "DeleteDatasetCommand",
     "DeleteDatasetHandler",
+    "TriggerIngestionCommand",
+    "TriggerIngestionHandler",
+    "UpdateMappingCommand",
+    "UpdateMappingHandler",
 ]

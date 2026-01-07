@@ -52,7 +52,7 @@ Headers: Authorization: Bearer {access_token}
 from datetime import datetime
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import select
 
@@ -65,10 +65,6 @@ from src.platform.core.exceptions import (
     ConflictError,
     ProcessingError,
 )
-
-
-
-
 from src.platform.core.logging_config import get_logger
 from src.platform.core.security import (
     TokenPair,
@@ -77,14 +73,13 @@ from src.platform.core.security import (
     validate_refresh_token,
     verify_password,
 )
-from src.platform.users import Organization, User, Workspace, WorkspaceMember
-from src.platform.devconsole import log_error, log_info
 from src.platform.schemas import (
     CurrentUserResponse,
     OrganizationResponse,
     UserResponse,
     WorkspaceResponse,
 )
+from src.platform.users import Organization, User, Workspace, WorkspaceMember
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 logger = get_logger(__name__)

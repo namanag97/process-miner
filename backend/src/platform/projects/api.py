@@ -21,7 +21,6 @@ from src.platform.core.exceptions import (
 )
 from src.platform.core.logging_config import get_logger
 from src.platform.devconsole import log_error, log_info
-from src.platform.users import Project, Workspace, WorkspaceMember
 from src.platform.schemas import (
     ProjectCreateRequest,
     ProjectDetailResponse,
@@ -29,6 +28,7 @@ from src.platform.schemas import (
     ProjectResponse,
     ProjectUpdateRequest,
 )
+from src.platform.users import Project, Workspace, WorkspaceMember
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/projects", tags=["Projects"])

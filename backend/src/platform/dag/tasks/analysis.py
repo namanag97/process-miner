@@ -48,7 +48,7 @@ async def discover_model(ctx: DAGContext, params: dict[str, Any]) -> TaskResult:
 
         # Validate miner type
         try:
-            miner_enum = MinerType(miner_type)
+            _miner_enum = MinerType(miner_type)
         except ValueError:
             return TaskResult.fail(f"Invalid miner type: {miner_type}")
 
@@ -70,7 +70,7 @@ async def discover_model(ctx: DAGContext, params: dict[str, Any]) -> TaskResult:
         if model_format.value in ["petri_net", "process_tree"]:
             try:
                 if model_format.value == "petri_net":
-                    net, im, fm = model_data
+                    _net, _im, _fm = model_data
                 else:
                     _net, _im, _fm = mining_service.tree_to_petri_net(model_data)
 
@@ -146,7 +146,6 @@ async def check_conformance(ctx: DAGContext, params: dict[str, Any]) -> TaskResu
     )
 
     try:
-        from src.features.process_mining.services.conformance import conformance_service
 
         # TODO: Fix this - conformance_service.check_conformance_by_ids doesn't exist
         # Need to load Dataset and ProcessModel objects from DB first,

@@ -10,6 +10,6 @@ Usage:
     result = await query_bus.dispatch(query)
 """
 
-from src.application.queries.base import BaseQuery, QueryHandler, QueryBus
+from src.application.queries.base import BaseQuery, QueryBus, QueryHandler
 
-__all__ = ["BaseQuery", "QueryHandler", "QueryBus"]
+__all__ = ["BaseQuery", "QueryBus", "QueryHandler"]

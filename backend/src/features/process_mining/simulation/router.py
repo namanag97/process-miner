@@ -37,10 +37,10 @@ Simulation enables experimentation without real process changes:
 import json
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from sqlalchemy import select
 
-from src.api.dependencies import CurrentUser, ReadDBSession, WriteDBSession, ServiceContainer
+from src.api.dependencies import CurrentUser, ReadDBSession, ServiceContainer
 from src.features.process_mining.models import Dataset, ProcessCase, ProcessEvent, ProcessModel
 from src.features.process_mining.schemas import (
     PlayOutRequest,
@@ -48,11 +48,11 @@ from src.features.process_mining.schemas import (
     SimulationRequest,
     SimulationResponse,
 )
+from src.platform.core.exceptions import BadRequestError, ModelNotFoundError, NotFoundError
 from src.platform.core.logging_config import get_logger
 from src.platform.core.permissions import Permission
 from src.platform.core.safe_unpickler import safe_loads
 from src.platform.workspaces.authorization import require_dataset_permission
-from src.platform.core.exceptions import BadRequestError, ModelNotFoundError, NotFoundError
 
 logger = get_logger(__name__)
 

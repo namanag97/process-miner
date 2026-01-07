@@ -11,7 +11,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
-from src.api.dependencies import CurrentUser, ReadDBSession, WriteDBSession
+from src.api.dependencies import CurrentUser, ReadDBSession
 from src.features.process_mining.models import (
     Dataset,
     DatasetStatus,
@@ -30,8 +30,6 @@ from src.features.process_mining.schemas import (
     OCELStatisticsResponse,
     OCPetriNetResponse,
 )
-from src.platform.core.logging_config import get_logger
-from src.platform.models import AsyncJob
 from src.platform.core.exceptions import (
     BadRequestError,
     DiscoveryError,
@@ -39,6 +37,8 @@ from src.platform.core.exceptions import (
     NotFoundError,
     ProcessingError,
 )
+from src.platform.core.logging_config import get_logger
+from src.platform.models import AsyncJob
 
 logger = get_logger(__name__)
 

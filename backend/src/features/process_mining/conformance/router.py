@@ -43,7 +43,7 @@ expected process (models) to find deviations:
 import json
 import time
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from pydantic import ValidationError
 from sqlalchemy import func, select
 
@@ -64,7 +64,6 @@ from src.features.process_mining.schemas import (
     DiagnosticsResponse,
     QualityMetricsResponse,
 )
-from src.platform.core.logging_config import get_logger
 from src.platform.core.exceptions import (
     BadRequestError,
     ConformanceError,
@@ -73,6 +72,7 @@ from src.platform.core.exceptions import (
     ProcessingError,
     ProjectNotFoundError,
 )
+from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

@@ -2,6 +2,10 @@
 
 Temporal activities for dataset ingestion workflow.
 Each activity is a discrete, retriable unit of work.
+
+All activities publish progress to Redis for real-time streaming:
+- Subscribe via: GET /api/v1/operations/{workflow_id}/stream
+- Workflow ID pattern: "ingest-dataset-{dataset_id}"
 """
 
 import json
@@ -11,6 +15,16 @@ from datetime import datetime
 import structlog
 from temporalio import activity
 
+# CQRS: Event emission for read model sync
+from src.platform.core.domain_events import DatasetIngestedEvent, event_publisher
+
+# Progress publishing for real-time streaming
+from src.platform.temporal.activities.progress import (
+    publish_progress,
+    publish_step_completed,
+    publish_step_failed,
+    publish_step_started,
+)
 from src.platform.temporal.activities.types import (
     ComputeStatsInput,
     ComputeStatsOutput,
@@ -22,10 +36,12 @@ from src.platform.temporal.activities.types import (
     ValidateFileOutput,
 )
 
-# CQRS: Event emission for read model sync
-from src.platform.core.domain_events import DatasetIngestedEvent, event_publisher
-
 logger = structlog.get_logger(__name__)
+
+
+def _workflow_id(dataset_id: str, workflow_type: str = "ingest") -> str:
+    """Build deterministic workflow ID from dataset ID."""
+    return f"{workflow_type}-dataset-{dataset_id}"
 
 
 # =============================================================================
@@ -46,11 +62,16 @@ async def validate_file_activity(input: ValidateFileInput) -> ValidateFileOutput
     Returns:
         ValidateFileOutput with validation results
     """
+    workflow_id = _workflow_id(input.dataset_id)
+
     logger.info(
         "validate_file_activity_started",
         dataset_id=input.dataset_id,
         storage_key=input.storage_key,
     )
+
+    # Publish step started
+    await publish_step_started(workflow_id, "validate_file", {"storage_key": input.storage_key})
 
     try:
         from src.platform.infrastructure.object_storage import get_storage_client
@@ -114,6 +135,12 @@ async def validate_file_activity(input: ValidateFileInput) -> ValidateFileOutput
             file_size_bytes=file_size,
         )
 
+        # Publish step completed
+        await publish_step_completed(workflow_id, "validate_file", {
+            "file_format": expected_format,
+            "file_size_bytes": file_size,
+        })
+
         return ValidateFileOutput(
             dataset_id=input.dataset_id,
             is_valid=True,
@@ -127,6 +154,7 @@ async def validate_file_activity(input: ValidateFileInput) -> ValidateFileOutput
             dataset_id=input.dataset_id,
             error=str(e),
         )
+        await publish_step_failed(workflow_id, "validate_file", str(e))
         raise
 
 
@@ -226,17 +254,28 @@ async def parse_to_parquet_activity(input: ParseToParquetInput) -> ParseToParque
     - Events are also written to S3 as Parquet for analytics queries
     - DuckDB can read directly from S3 without hitting the database
 
+    Real-time Progress:
+    - Publishes progress to Redis for SSE streaming
+    - Frontend can subscribe to /api/v1/operations/{workflow_id}/stream
+
     Args:
         input: ParseToParquetInput with column mappings
 
     Returns:
         ParseToParquetOutput with parsed data, statistics, and parquet_s3_key
     """
+    workflow_id = _workflow_id(input.dataset_id)
+
     logger.info(
         "parse_to_parquet_activity_started",
         dataset_id=input.dataset_id,
         storage_key=input.storage_key,
     )
+
+    # Publish step started
+    await publish_step_started(workflow_id, "parse_to_parquet", {
+        "storage_key": input.storage_key,
+    })
 
     try:
         import io
@@ -251,6 +290,7 @@ async def parse_to_parquet_activity(input: ParseToParquetInput) -> ParseToParque
 
         # Heartbeat to signal we're starting
         activity.heartbeat("downloading_file")
+        await publish_progress(workflow_id, "parse_to_parquet", 5, {"phase": "downloading_file"})
 
         # Download file
         storage_client = get_storage_client()
@@ -266,6 +306,10 @@ async def parse_to_parquet_activity(input: ParseToParquetInput) -> ParseToParque
 
         # Heartbeat after download
         activity.heartbeat("parsing_with_duckdb")
+        await publish_progress(workflow_id, "parse_to_parquet", 15, {
+            "phase": "parsing_with_duckdb",
+            "file_size_mb": round(file_size_mb, 2),
+        })
 
         # Parse with DuckDB
         duck_result = duckdb_ingestion_service.parse_csv_fast(
@@ -282,6 +326,7 @@ async def parse_to_parquet_activity(input: ParseToParquetInput) -> ParseToParque
 
         # Heartbeat during conversion
         activity.heartbeat("converting_cases_to_records")
+        await publish_progress(workflow_id, "parse_to_parquet", 35, {"phase": "converting_cases"})
 
         # Convert Arrow to Python lists with batched processing
         if isinstance(cases_arrow, pa.RecordBatchReader):
@@ -297,6 +342,10 @@ async def parse_to_parquet_activity(input: ParseToParquetInput) -> ParseToParque
             activity.heartbeat("cases_converted")
 
         activity.heartbeat("converting_events_to_records")
+        await publish_progress(workflow_id, "parse_to_parquet", 50, {
+            "phase": "converting_events",
+            "total_cases": stats["total_cases"],
+        })
 
         # For events, also keep the Arrow table for Parquet writing
         if isinstance(events_arrow, pa.RecordBatchReader):
@@ -320,7 +369,11 @@ async def parse_to_parquet_activity(input: ParseToParquetInput) -> ParseToParque
         parquet_size_bytes = None
 
         activity.heartbeat("writing_parquet_to_s3")
-        
+        await publish_progress(workflow_id, "parse_to_parquet", 70, {
+            "phase": "writing_parquet_to_s3",
+            "total_events": stats["total_events"],
+        })
+
         parquet_key = f"parsed/{input.dataset_id}/events.parquet"
 
         # Write to bytes buffer
@@ -354,6 +407,15 @@ async def parse_to_parquet_activity(input: ParseToParquetInput) -> ParseToParque
             parquet_s3_key=parquet_s3_key,
         )
 
+        # Publish step completed with full statistics
+        await publish_step_completed(workflow_id, "parse_to_parquet", {
+            "total_cases": stats["total_cases"],
+            "total_events": stats["total_events"],
+            "total_activities": stats["total_activities"],
+            "parquet_s3_key": parquet_s3_key,
+            "parquet_size_mb": round(parquet_size_bytes / (1024 * 1024), 2) if parquet_size_bytes else 0,
+        })
+
         # NOTE: cases_data and events_data are no longer returned since we don't
         # write events to PostgreSQL anymore. Parquet in S3 is the authoritative source.
         return ParseToParquetOutput(
@@ -374,6 +436,7 @@ async def parse_to_parquet_activity(input: ParseToParquetInput) -> ParseToParque
             dataset_id=input.dataset_id,
             error=str(e),
         )
+        await publish_step_failed(workflow_id, "parse_to_parquet", str(e))
         raise
 
 
@@ -396,10 +459,15 @@ async def compute_statistics_activity(input: ComputeStatsInput) -> ComputeStatsO
     Returns:
         ComputeStatsOutput with computed metadata
     """
+    workflow_id = _workflow_id(input.dataset_id)
+
     logger.info(
         "compute_statistics_activity_started",
         dataset_id=input.dataset_id,
     )
+
+    await publish_step_started(workflow_id, "compute_statistics")
+
     start = time.perf_counter()
 
     try:
@@ -410,6 +478,7 @@ async def compute_statistics_activity(input: ComputeStatsInput) -> ComputeStatsO
             DatasetMetadata,
             DatasetStatus,
         )
+        from src.platform.infrastructure.database import async_session_maker
 
         async with async_session_maker() as db:
             # Load dataset
@@ -476,6 +545,13 @@ async def compute_statistics_activity(input: ComputeStatsInput) -> ComputeStatsO
             total_events=stats.get("total_events"),
         )
 
+        # Publish step completed
+        await publish_step_completed(workflow_id, "compute_statistics", {
+            "total_events": stats.get("total_events", 0),
+            "total_cases": stats.get("total_cases", 0),
+            "total_activities": stats.get("total_activities", 0),
+        })
+
         return ComputeStatsOutput(
             dataset_id=input.dataset_id,
             total_events=stats.get("total_events", 0),
@@ -493,11 +569,11 @@ async def compute_statistics_activity(input: ComputeStatsInput) -> ComputeStatsO
             dataset_id=input.dataset_id,
             error=str(e),
         )
+        await publish_step_failed(workflow_id, "compute_statistics", str(e))
         raise
 
 
 __all__ = [
-    "bulk_copy_to_db_activity",
     "compute_statistics_activity",
     "detect_columns_activity",
     "parse_to_parquet_activity",

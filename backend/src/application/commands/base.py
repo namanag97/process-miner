@@ -16,6 +16,7 @@ from src.platform.core.logging_config import get_logger
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+
     from src.shared.events import EventStore
 
 logger = get_logger(__name__)
@@ -27,7 +28,7 @@ R = TypeVar("R")  # Result type for handlers
 @dataclass
 class CommandSuccess:
     """Standard result for successful command execution.
-    
+
     Attributes:
         id: The ID of the created/modified resource
         message: Human-readable success message
@@ -39,7 +40,7 @@ class CommandSuccess:
 
 
 @dataclass
-class BaseCommand(ABC):
+class BaseCommand(ABC):  # noqa: B024 - Marker base class for CQRS pattern
     """Base class for all commands (write operations).
 
     Commands represent the intent to change state. They should:

@@ -99,7 +99,7 @@ async def get_read_session() -> AsyncGenerator[AsyncSession, None]:
 # Legacy alias for backward compatibility
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """Legacy session getter - wraps write session for compatibility.
-    
+
     Deprecated: Use get_write_session() or get_read_session() directly.
     """
     async for session in get_write_session():
@@ -121,7 +121,9 @@ async def get_write_session_context() -> AsyncGenerator[AsyncSession, None]:
             logger.debug("write_session_context_committed")
         except Exception as e:
             await session.rollback()
-            logger.warning("write_session_context_rollback", error=str(e), error_type=type(e).__name__)
+            logger.warning(
+                "write_session_context_rollback", error=str(e), error_type=type(e).__name__
+            )
             raise
 
 
@@ -135,7 +137,9 @@ async def get_read_session_context() -> AsyncGenerator[AsyncSession, None]:
             logger.debug("read_session_context_committed")
         except Exception as e:
             await session.rollback()
-            logger.warning("read_session_context_rollback", error=str(e), error_type=type(e).__name__)
+            logger.warning(
+                "read_session_context_rollback", error=str(e), error_type=type(e).__name__
+            )
             raise
 
 

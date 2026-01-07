@@ -23,7 +23,7 @@ from src.api.routers import (
     auth_router,
     business_use_cases_router,
     conformance_router,
-    dags_router,
+    # dags_router,  # Removed - use Temporal workflows via /operations API
     datasets_router,
     dev_log_router,
     discovery_router,
@@ -80,6 +80,10 @@ async def lifespan(app: FastAPI):
 
     await init_database()
 
+    # Initialize CQRS infrastructure
+    from src.application.bootstrap import init_cqrs
+    await init_cqrs()
+
     # Seed MVP data (org, workspace, user) for development
     await _seed_mvp_data()
 
@@ -121,11 +125,11 @@ async def _seed_mvp_data() -> None:
     """
     from sqlalchemy import select
 
-    from src.platform.infrastructure.database import async_session_maker
+    from src.platform.infrastructure.database import write_session_maker
     from src.platform.users import Organization, Project, User, Workspace, WorkspaceMember
 
     try:
-        async with async_session_maker() as db:
+        async with write_session_maker() as db:
             # Check if MVP org already exists
             result = await db.execute(select(Organization).where(Organization.id == "mvp-org-001"))
             if result.scalar_one_or_none():
@@ -530,9 +534,9 @@ For support, please contact the developer team or refer to the internal document
     app.include_router(jobs_router, prefix=settings.api_prefix)
     app.include_router(
         operations_router, prefix=settings.api_prefix
-    )  # Unified Temporal operations (v2)
+    )  # Unified Temporal operations (v2) - replaces DAG system
     app.include_router(workflows_api_router, prefix=settings.api_prefix)  # Temporal workflow status
-    app.include_router(dags_router, prefix=settings.api_prefix)
+    # DAG router removed - use operations_router for Temporal workflows
     app.include_router(audit_router, prefix=settings.api_prefix)
 
     # Dev/Debug endpoints - ONLY in development/staging (NOT production)

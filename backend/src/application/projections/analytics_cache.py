@@ -29,10 +29,10 @@ CACHE_VERSION = "v1"
 
 class AnalyticsCacheProjection:
     """Pre-compute common analytics on dataset ingestion.
-    
+
     This projection listens to dataset events and maintains
     pre-computed analytics in the cache layer for fast reads.
-    
+
     Cached items:
     - DFG (Directly-Follows Graph)
     - Process variants
@@ -51,7 +51,7 @@ class AnalyticsCacheProjection:
 
     async def on_dataset_ingested(self, event: DatasetIngestedEvent) -> None:
         """Handle dataset ingestion - pre-compute and cache analytics.
-        
+
         Args:
             event: The ingestion event containing dataset metadata
         """
@@ -66,7 +66,7 @@ class AnalyticsCacheProjection:
             # Pre-compute analytics in background
             # Note: For large datasets, this could be offloaded to Temporal
             await self._cache_basic_statistics(event)
-            
+
             logger.info(
                 "analytics_cache_projection_completed",
                 dataset_id=event.dataset_id,
@@ -81,7 +81,7 @@ class AnalyticsCacheProjection:
 
     async def on_dataset_deleted(self, event: DatasetDeletedEvent) -> None:
         """Handle dataset deletion - invalidate cached analytics.
-        
+
         Args:
             event: The deletion event containing dataset ID
         """
@@ -116,7 +116,7 @@ class AnalyticsCacheProjection:
 
     async def _cache_basic_statistics(self, event: DatasetIngestedEvent) -> None:
         """Cache basic statistics derived from ingestion event.
-        
+
         This is a lightweight operation using data from the event itself.
         More expensive computations (DFG, variants) can be done lazily.
         """

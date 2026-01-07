@@ -42,10 +42,10 @@ POST /api/v1/predictions/datasets/{dataset_id}/train
 import json
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from sqlalchemy import select
 
-from src.api.dependencies import ReadDBSession, WriteDBSession, ServiceContainer
+from src.api.dependencies import ReadDBSession, ServiceContainer, WriteDBSession
 from src.features.process_mining.models import Dataset, PredictionModel
 from src.features.process_mining.schemas import (
     BatchPredictionRequest,
@@ -56,9 +56,8 @@ from src.features.process_mining.schemas import (
     PredictorResponse,
     TrainPredictorRequest,
 )
-from src.platform.core.logging_config import get_logger
 from src.platform.core.exceptions import BadRequestError, NotFoundError, ProcessingError
-from src.platform.devconsole import log_error, log_info
+from src.platform.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

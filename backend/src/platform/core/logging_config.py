@@ -166,7 +166,7 @@ def log_operation(
             start_time = time.perf_counter()
 
             try:
-                result = await func(*args, **kwargs)
+                result = await func(*args, **kwargs)  # type: ignore[misc]
                 duration_ms = (time.perf_counter() - start_time) * 1000
 
                 # Log success

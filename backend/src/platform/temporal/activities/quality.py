@@ -220,9 +220,9 @@ async def compute_simplicity_activity(input: dict) -> dict:
 
         # Convert to Petri net for analysis
         if model.model_format in ["process_tree"]:
-            net, im, fm = pm4py.convert_to_petri_net(model_data)
+            net, _im, _fm = pm4py.convert_to_petri_net(model_data)
         elif model.model_format in ["petri_net"] and isinstance(model_data, tuple):
-            net, im, fm = model_data
+            net, _im, _fm = model_data
         else:
             try:
                 net, _im, _fm = pm4py.convert_to_petri_net(model_data)

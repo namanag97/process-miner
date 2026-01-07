@@ -1,12 +1,13 @@
-"""Analytics schemas - Bottleneck, Rework, and Performance metrics.
+"""Analytics schemas - CQRS-compliant response models.
 
-Contains schemas for:
-- Bottleneck detection and analysis
-- Rework analysis and chains
-- Service time, cycle time, and throughput metrics
+Contains schemas for analytics query responses:
+- Bottleneck detection
+- Rework analysis
+- Cycle time statistics
+- Process variants
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # =============================================================================
 # Bottleneck Analysis
@@ -14,17 +15,13 @@ from pydantic import BaseModel
 
 
 class BottleneckResponse(BaseModel):
-    """Bottleneck detection result."""
+    """Single bottleneck result."""
 
     activity: str
-    avg_waiting_time_seconds: float
-    avg_service_time_seconds: float
-    frequency: int
-    is_bottleneck: bool
-    severity: str  # 'low', 'medium', 'high'
-    preceding_activities: list[str] = []
-    following_activities: list[str] = []
-    bottleneck_impact_score: float = 0.0  # 0-1 score based on wait time and frequency
+    avg_wait_time: float = Field(description="Average wait time in seconds")
+    median_wait_time: float = Field(default=0, description="Median wait time in seconds")
+    max_wait_time: float = Field(default=0, description="Maximum wait time in seconds")
+    count: int = Field(description="Number of occurrences")
 
 
 class BottleneckListResponse(BaseModel):
@@ -41,12 +38,12 @@ class BottleneckListResponse(BaseModel):
 
 
 class ReworkResponse(BaseModel):
-    """Rework analysis result."""
+    """Single rework pattern result."""
 
     activity: str
-    rework_count: int
-    cases_with_rework: int
-    rework_percentage: float
+    repeat_count: int = Field(description="Total repeat occurrences")
+    case_count: int = Field(description="Number of cases with this rework")
+    percentage: float = Field(description="Percentage of cases with this rework")
 
 
 class ReworkListResponse(BaseModel):
@@ -59,13 +56,13 @@ class ReworkListResponse(BaseModel):
 
 
 class ReworkChain(BaseModel):
-    """A chain of rework activities showing patterns of repeated work."""
+    """A chain of consecutive rework activities."""
 
     activity: str
-    chain_length: int  # How many times it repeats in a row
-    frequency: int  # How many cases have this chain
+    chain_length: int
+    frequency: int
     avg_chain_duration_seconds: float = 0.0
-    example_case_ids: list[str] = []  # Sample case IDs exhibiting this pattern
+    example_case_ids: list[str] = []
 
 
 class ReworkChainListResponse(BaseModel):
@@ -80,7 +77,47 @@ class ReworkChainListResponse(BaseModel):
 
 
 # =============================================================================
-# Performance Metrics
+# Cycle Time
+# =============================================================================
+
+
+class CycleTimeResponse(BaseModel):
+    """Cycle time (case duration) statistics."""
+
+    dataset_id: str
+    mean_duration: float = Field(description="Mean case duration in seconds")
+    median_duration: float = Field(description="Median case duration in seconds")
+    min_duration: float = Field(description="Minimum case duration in seconds")
+    max_duration: float = Field(description="Maximum case duration in seconds")
+    std_deviation: float = Field(default=0, description="Standard deviation in seconds")
+    total_cases: int = Field(description="Total number of cases")
+
+
+# =============================================================================
+# Process Variants
+# =============================================================================
+
+
+class VariantResponse(BaseModel):
+    """Single process variant."""
+
+    variant_id: int
+    activities: list[str] = Field(description="Sequence of activities in this variant")
+    case_count: int = Field(description="Number of cases following this variant")
+    percentage: float = Field(description="Percentage of total cases")
+
+
+class VariantListResponse(BaseModel):
+    """Process variants analysis results."""
+
+    dataset_id: str
+    variants: list[VariantResponse]
+    total_variants: int
+    total_cases: int
+
+
+# =============================================================================
+# Service Time & Throughput (for backward compatibility)
 # =============================================================================
 
 
@@ -92,20 +129,7 @@ class ServiceTimeResponse(BaseModel):
     max_seconds: float
     avg_seconds: float
     median_seconds: float
-    std_dev_seconds: float
-
-
-class CycleTimeResponse(BaseModel):
-    """Cycle time statistics."""
-
-    dataset_id: str
-    min_seconds: float
-    max_seconds: float
-    avg_seconds: float
-    median_seconds: float
-    percentile_25_seconds: float
-    percentile_75_seconds: float
-    percentile_95_seconds: float
+    std_dev_seconds: float = 0
 
 
 class ThroughputResponse(BaseModel):
@@ -113,8 +137,31 @@ class ThroughputResponse(BaseModel):
 
     dataset_id: str
     total_cases: int
-    completed_cases: int
-    cases_per_day: float
-    cases_per_week: float
-    cases_per_month: float
-    time_range_days: float
+    completed_cases: int = 0
+    cases_per_day: float = 0
+    cases_per_week: float = 0
+    cases_per_month: float = 0
+    time_range_days: float = 0
+
+
+class PatternResponse(BaseModel):
+    """Frequent pattern result."""
+
+    pattern: list[str]
+    support: float
+    case_count: int
+
+
+# =============================================================================
+# Performance Dashboard (aggregated view)
+# =============================================================================
+
+
+class PerformanceDashboardResponse(BaseModel):
+    """Comprehensive performance dashboard."""
+
+    dataset_id: str
+    cycle_time: CycleTimeResponse
+    throughput: ThroughputResponse
+    top_bottlenecks: list[BottleneckResponse]
+    rework_summary: dict

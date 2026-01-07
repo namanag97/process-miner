@@ -32,7 +32,7 @@ Visualization endpoints provide graph data for the Process Explorer UI:
 
 import time
 
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, Query, Response
 from sqlalchemy import select
 
 from src.api.dependencies import ReadDBSession, ServiceContainer
@@ -51,8 +51,14 @@ from src.features.process_mining.schemas import (
     StatisticsResponse,
     VariantResponse,
 )
+from src.platform.core.exceptions import (
+    BadRequestError,
+    ConflictError,
+    ModelNotFoundError,
+    NotFoundError,
+    ProcessingError,
+)
 from src.platform.core.logging_config import get_logger
-from src.platform.core.exceptions import BadRequestError, ConflictError, ModelNotFoundError, NotFoundError, ProcessingError
 
 logger = get_logger(__name__)
 

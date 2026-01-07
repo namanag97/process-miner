@@ -50,7 +50,7 @@ class EventLogLoader:
     Supports both:
     - S3/MinIO: For production/staging
     - Local filesystem: For MVP/local development (storage_type="local")
-    
+
     Metadata (parquet_s3_key) is fetched from PostgreSQL datasets table.
     """
 
@@ -58,7 +58,7 @@ class EventLogLoader:
         # Check storage configuration
         self._storage_type = getattr(settings, "storage_type", "s3")
         self._is_local = self._storage_type == "local"
-        
+
         if self._is_local:
             # Local file storage for MVP
             from pathlib import Path
@@ -108,6 +108,7 @@ class EventLogLoader:
         """Get Parquet path from dataset metadata."""
         # Import here to avoid circular imports
         from sqlalchemy import select
+
         from src.features.process_mining.models import Dataset
         from src.shared.database import sync_session_maker
 
@@ -124,9 +125,8 @@ class EventLogLoader:
             # Local filesystem - return absolute path
             local_path = self._local_base_path / parquet_key
             return str(local_path.absolute())
-        else:
-            # S3/MinIO
-            return f"s3://{self._s3_bucket}/{parquet_key}"
+        # S3/MinIO
+        return f"s3://{self._s3_bucket}/{parquet_key}"
 
     def load_as_dataframe(
         self,

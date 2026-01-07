@@ -396,10 +396,10 @@ class Email:
 
 def parse_id(value: str, id_type: str = "process") -> ProcessId | ProjectId | ModelId:
     """Parse a string ID into the appropriate value object."""
-    id_map = {
+    id_map: dict[str, type[ProcessId] | type[ProjectId] | type[ModelId]] = {
         "process": ProcessId,
         "project": ProjectId,
         "model": ModelId,
     }
     id_class = id_map.get(id_type, ProcessId)
-    return id_class(value)
+    return id_class(value)  # type: ignore[return-value]

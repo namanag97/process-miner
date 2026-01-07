@@ -1,8 +1,10 @@
 """API routers - Central registry for all API routers.
 
 Consolidated architecture:
-- Platform: Auth, organizations, workspaces, projects, health, jobs, DAGs
+- Platform: Auth, organizations, workspaces, projects, health, jobs, operations
 - Process Mining: Discovery, conformance, analytics, visualization, datasets, etc.
+
+Note: DAG system was removed - use Temporal workflows via /operations API instead.
 """
 
 # ============================================================================
@@ -10,6 +12,7 @@ Consolidated architecture:
 # ============================================================================
 # Platform Infrastructure
 from src.api.routers.operations import router as operations_router  # Unified Temporal API
+
 # from src.api.routers.telemetry import router as telemetry_router  # TODO: Create telemetry router
 from src.api.routers.workflows import router as workflows_api_router
 
@@ -55,7 +58,9 @@ from src.features.process_mining.simulation import router as simulation_router
 from src.features.process_mining.statistics import router as statistics_router
 from src.features.process_mining.visualization import router as visualization_router
 from src.features.process_mining.workflows import router as workflows_router
-from src.platform.dag.router import router as dags_router
+
+# DAG system removed - use Temporal workflows via /operations API
+# from src.platform.dag.router import router as dags_router
 from src.platform.devtools.router import router as dev_log_router
 from src.platform.health.router import router as health_router
 from src.platform.jobs.router import router as jobs_router
@@ -75,8 +80,7 @@ __all__ = [
     "auth_router",
     "business_use_cases_router",
     "conformance_router",
-    # Platform - Infrastructure
-    "dags_router",
+    # Platform - Infrastructure (DAG removed, use /operations API)
     "datasets_crud_router",
     "datasets_export_router",
     "datasets_ingest_router",
