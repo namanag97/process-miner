@@ -11,7 +11,7 @@ import pm4py
 
 from src.features.process_mining.models import Dataset, ProcessModel
 from src.features.process_mining.services.conformance import conformance_service
-from src.platform.core.logging_config import get_logger
+from src.infra.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

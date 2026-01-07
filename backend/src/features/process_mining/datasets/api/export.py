@@ -12,11 +12,11 @@ from src.api.dependencies import CurrentUser, ReadDBSession
 from src.features.process_mining.models import DatasetStatus
 from src.features.process_mining.schemas.analyses import JobStatusResponse
 from src.features.process_mining.schemas.datasets import DownloadResponse
-from src.platform.core.exceptions import NotFoundError, ValidationError
-from src.platform.core.logging_config import get_logger
-from src.platform.core.permissions import Permission
-from src.platform.models import AsyncJob
-from src.platform.users.services import require_dataset_permission
+from src.infra.core.exceptions import NotFoundError, ValidationError
+from src.infra.core.logging_config import get_logger
+from src.infra.core.permissions import Permission
+from src.infra.models import AsyncJob
+from src.infra.users.services import require_dataset_permission
 
 logger = get_logger(__name__)
 
@@ -60,7 +60,7 @@ async def export_dataset(
     export_format: str = Query("csv", pattern=r"^(csv|xes|parquet)$"),
 ) -> JobStatusResponse:
     """Start async export job."""
-    from src.platform.core.enums import JobStatus
+    from src.infra.core.enums import JobStatus
 
     # Verify permission
     _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
@@ -123,7 +123,7 @@ async def download_original_file(
     user: CurrentUser,
 ) -> DownloadResponse:
     """Get download URL for original file."""
-    from src.platform.infrastructure.object_storage import get_storage_client
+    from src.infra.infrastructure.object_storage import get_storage_client
 
     # Verify permission
     _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)

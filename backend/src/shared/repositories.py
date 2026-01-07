@@ -15,8 +15,8 @@ from src.features.process_mining.models import (
 )
 
 # DAG system deprecated - use Temporal workflows via /operations API
-# from src.platform.dag.models import DAGDefinition
-from src.platform.models import AsyncJob, Project
+# from src.infra.dag.models import DAGDefinition
+from src.infra.models import AsyncJob, Project
 from src.shared.base_repository import BaseRepository
 
 

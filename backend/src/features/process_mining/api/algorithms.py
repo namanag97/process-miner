@@ -7,8 +7,8 @@ from fastapi import APIRouter, Query
 
 from src.api.dependencies import ReadDBSession
 from src.features.process_mining.services.algorithm_registry_service import AlgorithmRegistryService
-from src.platform.core.exceptions import ResourceNotFoundError
-from src.platform.core.logging_config import get_logger
+from src.infra.core.exceptions import ResourceNotFoundError
+from src.infra.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

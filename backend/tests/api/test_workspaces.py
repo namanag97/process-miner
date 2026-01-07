@@ -75,7 +75,7 @@ async def test_update_workspace(auth_client: AsyncClient, seeded_workspace):
 @pytest.mark.asyncio
 async def test_delete_workspace(auth_client: AsyncClient, seeded_org, seeded_user, db_session):
     """Test deleting a workspace."""
-    from src.platform.models import Workspace, WorkspaceMember
+    from src.infra.models import Workspace, WorkspaceMember
 
     # Create a workspace to delete
     workspace = Workspace(

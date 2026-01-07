@@ -17,9 +17,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.shared.database import Base
 
 # Import all models to ensure they're registered
-from src.platform.models import *  # noqa
-from src.platform.workflows.models import *  # noqa
-from src.platform.system.models import *  # noqa
+from src.infra.models import *  # noqa
+from src.infra.workflows.models import *  # noqa
+from src.infra.system.models import *  # noqa
 from src.features.process_mining.models import *  # noqa
 
 

@@ -24,7 +24,7 @@ class TestActivityProgressPublisher:
     @pytest.mark.asyncio
     async def test_publish_progress_with_redis(self):
         """Test publishing progress to Redis."""
-        from src.platform.temporal.activities.progress import ActivityProgressPublisher
+        from src.infra.temporal.activities.progress import ActivityProgressPublisher
 
         publisher = ActivityProgressPublisher()
 
@@ -51,7 +51,7 @@ class TestActivityProgressPublisher:
     @pytest.mark.asyncio
     async def test_publish_progress_without_redis(self):
         """Test graceful handling when Redis is unavailable."""
-        from src.platform.temporal.activities.progress import ActivityProgressPublisher
+        from src.infra.temporal.activities.progress import ActivityProgressPublisher
 
         publisher = ActivityProgressPublisher()
         publisher._redis = None
@@ -70,7 +70,7 @@ class TestActivityProgressPublisher:
     @pytest.mark.asyncio
     async def test_step_started_event(self):
         """Test step started event publishing."""
-        from src.platform.temporal.activities.progress import (
+        from src.infra.temporal.activities.progress import (
             ActivityProgressPublisher,
             ProgressEventType,
         )
@@ -94,7 +94,7 @@ class TestActivityProgressPublisher:
     @pytest.mark.asyncio
     async def test_step_completed_event(self):
         """Test step completed event publishing."""
-        from src.platform.temporal.activities.progress import ActivityProgressPublisher
+        from src.infra.temporal.activities.progress import ActivityProgressPublisher
 
         publisher = ActivityProgressPublisher()
         mock_redis = AsyncMock()
@@ -114,7 +114,7 @@ class TestActivityProgressPublisher:
     @pytest.mark.asyncio
     async def test_step_failed_event(self):
         """Test step failed event publishing."""
-        from src.platform.temporal.activities.progress import ActivityProgressPublisher
+        from src.infra.temporal.activities.progress import ActivityProgressPublisher
 
         publisher = ActivityProgressPublisher()
         mock_redis = AsyncMock()
@@ -134,7 +134,7 @@ class TestActivityProgressPublisher:
     @pytest.mark.asyncio
     async def test_workflow_completed_event(self):
         """Test workflow completed event publishing."""
-        from src.platform.temporal.activities.progress import ActivityProgressPublisher
+        from src.infra.temporal.activities.progress import ActivityProgressPublisher
 
         publisher = ActivityProgressPublisher()
         mock_redis = AsyncMock()
@@ -153,7 +153,7 @@ class TestActivityProgressPublisher:
     @pytest.mark.asyncio
     async def test_workflow_failed_event(self):
         """Test workflow failed event publishing."""
-        from src.platform.temporal.activities.progress import ActivityProgressPublisher
+        from src.infra.temporal.activities.progress import ActivityProgressPublisher
 
         publisher = ActivityProgressPublisher()
         mock_redis = AsyncMock()
@@ -183,12 +183,12 @@ class TestProgressConvenienceFunctions:
     async def test_publish_progress_function(self):
         """Test the publish_progress convenience function."""
         with patch(
-            "src.platform.temporal.activities.progress.get_progress_publisher"
+            "src.infra.temporal.activities.progress.get_progress_publisher"
         ) as mock_get:
             mock_publisher = AsyncMock()
             mock_get.return_value = mock_publisher
 
-            from src.platform.temporal.activities.progress import publish_progress
+            from src.infra.temporal.activities.progress import publish_progress
 
             await publish_progress(
                 workflow_id="test-workflow",
@@ -205,12 +205,12 @@ class TestProgressConvenienceFunctions:
     async def test_publish_step_started_function(self):
         """Test the publish_step_started convenience function."""
         with patch(
-            "src.platform.temporal.activities.progress.get_progress_publisher"
+            "src.infra.temporal.activities.progress.get_progress_publisher"
         ) as mock_get:
             mock_publisher = AsyncMock()
             mock_get.return_value = mock_publisher
 
-            from src.platform.temporal.activities.progress import publish_step_started
+            from src.infra.temporal.activities.progress import publish_step_started
 
             await publish_step_started(
                 workflow_id="test-workflow",
@@ -224,12 +224,12 @@ class TestProgressConvenienceFunctions:
     async def test_publish_step_completed_function(self):
         """Test the publish_step_completed convenience function."""
         with patch(
-            "src.platform.temporal.activities.progress.get_progress_publisher"
+            "src.infra.temporal.activities.progress.get_progress_publisher"
         ) as mock_get:
             mock_publisher = AsyncMock()
             mock_get.return_value = mock_publisher
 
-            from src.platform.temporal.activities.progress import publish_step_completed
+            from src.infra.temporal.activities.progress import publish_step_completed
 
             await publish_step_completed(
                 workflow_id="test-workflow",
@@ -250,7 +250,7 @@ class TestProgressEventTypes:
 
     def test_event_type_values(self):
         """Test that event types have correct SSE values."""
-        from src.platform.temporal.activities.progress import ProgressEventType
+        from src.infra.temporal.activities.progress import ProgressEventType
 
         assert ProgressEventType.STEP_STARTED.value == "step:started"
         assert ProgressEventType.STEP_PROGRESS.value == "step:progress"
@@ -271,7 +271,7 @@ class TestIngestionProgressState:
 
     def test_default_values(self):
         """Test default values for IngestionProgress."""
-        from src.platform.temporal.workflows.ingestion import IngestionProgress
+        from src.infra.temporal.workflows.ingestion import IngestionProgress
 
         progress = IngestionProgress()
         assert progress.progress_percent == 0
@@ -283,7 +283,7 @@ class TestIngestionProgressState:
 
     def test_custom_values(self):
         """Test IngestionProgress with custom values."""
-        from src.platform.temporal.workflows.ingestion import IngestionProgress
+        from src.infra.temporal.workflows.ingestion import IngestionProgress
 
         progress = IngestionProgress(
             progress_percent=50,
@@ -303,7 +303,7 @@ class TestValidationProgressState:
 
     def test_default_values(self):
         """Test default values for ValidationProgress."""
-        from src.platform.temporal.workflows.ingestion import ValidationProgress
+        from src.infra.temporal.workflows.ingestion import ValidationProgress
 
         progress = ValidationProgress()
         assert progress.progress_percent == 0
@@ -316,7 +316,7 @@ class TestAnalysisProgressState:
 
     def test_default_values(self):
         """Test default values for AnalysisProgress."""
-        from src.platform.temporal.workflows.analysis import AnalysisProgress
+        from src.infra.temporal.workflows.analysis import AnalysisProgress
 
         progress = AnalysisProgress()
         assert progress.progress_percent == 0
@@ -330,7 +330,7 @@ class TestQualityProgressState:
 
     def test_default_values(self):
         """Test default values for QualityProgress."""
-        from src.platform.temporal.workflows.quality import QualityProgress
+        from src.infra.temporal.workflows.quality import QualityProgress
 
         progress = QualityProgress()
         assert progress.progress_percent == 0
@@ -350,7 +350,7 @@ class TestSSEMessageFormat:
     @pytest.mark.asyncio
     async def test_sse_message_structure(self):
         """Test that SSE messages follow correct format."""
-        from src.platform.temporal.activities.progress import ActivityProgressPublisher
+        from src.infra.temporal.activities.progress import ActivityProgressPublisher
 
         publisher = ActivityProgressPublisher()
         mock_redis = AsyncMock()
@@ -384,7 +384,7 @@ class TestSSEMessageFormat:
     @pytest.mark.asyncio
     async def test_sse_channel_naming(self):
         """Test Redis channel naming convention."""
-        from src.platform.temporal.activities.progress import ActivityProgressPublisher
+        from src.infra.temporal.activities.progress import ActivityProgressPublisher
 
         publisher = ActivityProgressPublisher()
         mock_redis = AsyncMock()
@@ -415,13 +415,13 @@ class TestPublisherSingleton:
 
     def test_get_progress_publisher_returns_singleton(self):
         """Test that get_progress_publisher returns the same instance."""
-        from src.platform.temporal.activities.progress import (
+        from src.infra.temporal.activities.progress import (
             ActivityProgressPublisher,
             get_progress_publisher,
         )
 
         # Reset singleton for test isolation
-        import src.platform.temporal.activities.progress as progress_module
+        import src.infra.temporal.activities.progress as progress_module
 
         progress_module._publisher = None
 

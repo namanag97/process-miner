@@ -93,11 +93,11 @@ def update_file(filepath):
         
         new_blocks = []
         if platform_names:
-            platform_block = f"{indent}from src.platform.schemas import {', '.join(platform_names)}"
+            platform_block = f"{indent}from src.infra.schemas import {', '.join(platform_names)}"
             # If line is too long or originally multiline, formatting might be ugly, but auto-formatter can fix.
             # Ideally we keep style.
             if len(platform_names) > 3 or "(" in match.group(0):
-                 platform_block = f"{indent}from src.platform.schemas import (\n{indent}    " + f",\n{indent}    ".join(platform_names) + f",\n{indent})"
+                 platform_block = f"{indent}from src.infra.schemas import (\n{indent}    " + f",\n{indent}    ".join(platform_names) + f",\n{indent})"
             new_blocks.append(platform_block)
             
         if domain_names:
@@ -119,7 +119,7 @@ def update_file(filepath):
     content = pattern_singleline.sub(replace_schema_import, content)
     
     # 3. Update Enum Imports (Move generic -> domain)
-    # from src.platform.core.enums import MinerType, JobStatus
+    # from src.infra.core.enums import MinerType, JobStatus
     def replace_enum_import(match):
         indent = match.group(1)
         imports_str = match.group(2)
@@ -139,9 +139,9 @@ def update_file(filepath):
         new_blocks = []
         if platform_enums:
             # Reconstruct original import for remaining platform enums
-            block = f"{indent}from src.platform.core.enums import {', '.join(platform_enums)}"
+            block = f"{indent}from src.infra.core.enums import {', '.join(platform_enums)}"
             if len(platform_enums) > 3 or "(" in match.group(0):
-                block = f"{indent}from src.platform.core.enums import (\n{indent}    " + f",\n{indent}    ".join(platform_enums) + f",\n{indent})"
+                block = f"{indent}from src.infra.core.enums import (\n{indent}    " + f",\n{indent}    ".join(platform_enums) + f",\n{indent})"
             new_blocks.append(block)
             
         if domain_enums:

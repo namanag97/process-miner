@@ -14,25 +14,25 @@ from temporalio.client import Client
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
-from src.platform.temporal.activities.analysis import (
+from src.infra.temporal.activities.analysis import (
     check_conformance_activity,
     compute_metrics_activity,
     load_event_log_activity,
     mine_model_activity,
 )
-from src.platform.temporal.activities.dataset import (
+from src.infra.temporal.activities.dataset import (
     bulk_copy_to_db_activity,
     compute_statistics_activity,
     detect_columns_activity,
     parse_to_parquet_activity,
     validate_file_activity,
 )
-from src.platform.temporal.config import get_temporal_config
-from src.platform.temporal.workflows.analysis import (
+from src.infra.temporal.config import get_temporal_config
+from src.infra.temporal.workflows.analysis import (
     ConformanceCheckWorkflow,
     ProcessDiscoveryWorkflow,
 )
-from src.platform.temporal.workflows.ingestion import (
+from src.infra.temporal.workflows.ingestion import (
     DatasetIngestionWorkflow,
     DatasetValidationWorkflow,
 )
@@ -95,7 +95,7 @@ def mock_storage_client(sample_csv_content: bytes):
     mock_client.upload_fileobj.return_value = None
 
     with patch(
-        "src.platform.temporal.activities.dataset.get_storage_client",
+        "src.infra.temporal.activities.dataset.get_storage_client",
         return_value=mock_client,
     ):
         yield mock_client
@@ -130,11 +130,11 @@ def mock_session_factory(mock_db_session):
 
     with (
         patch(
-            "src.platform.temporal.activities.dataset.AsyncSessionLocal",
+            "src.infra.temporal.activities.dataset.AsyncSessionLocal",
             mock_factory,
         ),
         patch(
-            "src.platform.temporal.activities.analysis.AsyncSessionLocal",
+            "src.infra.temporal.activities.analysis.AsyncSessionLocal",
             mock_factory,
         ),
     ):

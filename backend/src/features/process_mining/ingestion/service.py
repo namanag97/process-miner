@@ -23,9 +23,9 @@ from src.features.process_mining.models import (
     ProcessEvent,
     UploadedFile,
 )
-from src.platform.core.exceptions import ValidationError
-from src.platform.core.logging_config import get_logger
-from src.platform.storage.storage import storage_service
+from src.infra.core.exceptions import ValidationError
+from src.infra.core.logging_config import get_logger
+from src.infra.storage.storage import storage_service
 
 logger = get_logger(__name__)
 

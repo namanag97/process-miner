@@ -52,7 +52,7 @@ class TestCQRSInfrastructure:
     @pytest.mark.asyncio
     async def test_database_engines_are_separate(self):
         """Read and write engines should be separate instances."""
-        from src.platform.infrastructure.database import read_engine, write_engine
+        from src.infra.infrastructure.database import read_engine, write_engine
 
         assert write_engine is not None
         assert read_engine is not None
@@ -187,7 +187,7 @@ class TestQueryInfrastructure:
     async def test_request_scoped_query_bus_instantiable(self, db_session: AsyncSession):
         """RequestScopedQueryBus should be instantiable with a session."""
         from src.application.bootstrap import RequestScopedQueryBus
-        from src.platform.infrastructure.duckdb import duckdb_manager
+        from src.infra.infrastructure.duckdb import duckdb_manager
 
         bus = RequestScopedQueryBus(db_session, duckdb_manager)
         assert bus is not None
@@ -198,7 +198,7 @@ class TestQueryInfrastructure:
         """Query bus should dispatch queries and get expected errors for missing data."""
         from src.application.bootstrap import RequestScopedQueryBus
         from src.application.queries.analytics_queries import GetBottlenecksQuery
-        from src.platform.infrastructure.duckdb import duckdb_manager
+        from src.infra.infrastructure.duckdb import duckdb_manager
 
         query_bus = RequestScopedQueryBus(db_session, duckdb_manager)
         query = GetBottlenecksQuery(dataset_id="nonexistent-dataset")
@@ -295,21 +295,21 @@ class TestDatabaseSessionSeparation:
     @pytest.mark.asyncio
     async def test_write_session_factory_exists(self):
         """Write session factory should exist."""
-        from src.platform.infrastructure.database import write_session_maker
+        from src.infra.infrastructure.database import write_session_maker
 
         assert write_session_maker is not None
 
     @pytest.mark.asyncio
     async def test_read_session_factory_exists(self):
         """Read session factory should exist."""
-        from src.platform.infrastructure.database import read_session_maker
+        from src.infra.infrastructure.database import read_session_maker
 
         assert read_session_maker is not None
 
     @pytest.mark.asyncio
     async def test_session_generators_exist(self):
         """Session generators should be importable."""
-        from src.platform.infrastructure.database import get_read_session, get_write_session
+        from src.infra.infrastructure.database import get_read_session, get_write_session
 
         assert get_read_session is not None
         assert get_write_session is not None
@@ -317,7 +317,7 @@ class TestDatabaseSessionSeparation:
     @pytest.mark.asyncio
     async def test_context_managers_exist(self):
         """Session context managers should be importable."""
-        from src.platform.infrastructure.database import (
+        from src.infra.infrastructure.database import (
             get_read_session_context,
             get_write_session_context,
         )
@@ -337,7 +337,7 @@ class TestDuckDBIntegration:
     @pytest.mark.asyncio
     async def test_duckdb_manager_exists(self):
         """DuckDB manager should be importable."""
-        from src.platform.infrastructure.duckdb import DuckDBManager, duckdb_manager
+        from src.infra.infrastructure.duckdb import DuckDBManager, duckdb_manager
 
         assert DuckDBManager is not None
         assert duckdb_manager is not None
@@ -345,7 +345,7 @@ class TestDuckDBIntegration:
     @pytest.mark.asyncio
     async def test_duckdb_connection_works(self):
         """DuckDB should be able to execute queries."""
-        from src.platform.infrastructure.duckdb import duckdb_manager
+        from src.infra.infrastructure.duckdb import duckdb_manager
 
         conn = duckdb_manager.get_connection()
         result = conn.execute("SELECT 1 as test").fetchone()
@@ -358,7 +358,7 @@ class TestDuckDBIntegration:
         """DuckDB should be able to read Parquet files."""
         import pandas as pd
 
-        from src.platform.infrastructure.duckdb import duckdb_manager
+        from src.infra.infrastructure.duckdb import duckdb_manager
 
         # Create a test Parquet file
         df = pd.DataFrame({"case_id": [1, 2, 3], "activity": ["A", "B", "C"]})

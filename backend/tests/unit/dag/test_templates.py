@@ -2,8 +2,8 @@
 
 import pytest
 
-from src.platform.dag.engine import dag_engine
-from src.platform.dag.templates import (
+from src.infra.dag.engine import dag_engine
+from src.infra.dag.templates import (
     get_template,
     get_template_edges,
     get_template_steps,

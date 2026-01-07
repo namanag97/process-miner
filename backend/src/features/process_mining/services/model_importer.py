@@ -11,8 +11,8 @@ from pm4py.objects.bpmn.obj import BPMN
 from pm4py.objects.petri_net.obj import Marking, PetriNet
 
 from src.features.process_mining.enums import ModelFormat
-from src.platform.core.exceptions import ValidationError
-from src.platform.core.logging_config import get_logger
+from src.infra.core.exceptions import ValidationError
+from src.infra.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

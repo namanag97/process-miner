@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
-from src.platform.core.logging_config import get_logger
+from src.infra.core.logging_config import get_logger
 
 if TYPE_CHECKING:
     import duckdb

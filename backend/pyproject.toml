@@ -200,10 +200,10 @@ module = [
     "src.features.process_mining.statistics.*",
     "src.features.process_mining.visualization.*",
     "src.features.process_mining.business_use_cases.*",
-    "src.platform.infrastructure.*",
-    "src.platform.temporal.*",
-    "src.platform.dag.*",
-    "src.platform.workflows.*",
+    "src.infra.infrastructure.*",
+    "src.infra.temporal.*",
+    "src.infra.dag.*",
+    "src.infra.workflows.*",
     "src.shared.*",
     "src.scripts.*",
     "src.domain.*",
@@ -236,12 +236,12 @@ include_external_packages = true
 # Note: Contracts for src.domain and src.services removed - these modules don't exist
 # The architecture is currently organized as:
 # - src.features (process mining business logic)
-# - src.platform (generic SaaS infrastructure)
+# - src.infra (generic SaaS infrastructure)
 # - src.api (presentation layer)
 # - src.application (CQRS commands/queries)
 
 # Contract 3: Infrastructure cannot depend on API
-# Note: src.infrastructure is a deprecated shim that re-exports from src.platform.infrastructure
+# Note: src.infrastructure is a deprecated shim that re-exports from src.infra.infrastructure
 # The actual contract is enforced on the platform layer, not this shim
 # Disabled: This contract creates false positives due to transitive imports through the shim
 # [[tool.importlinter.contracts]]
@@ -265,18 +265,18 @@ include_external_packages = true
 [[tool.importlinter.contracts]]
 name = "Platform Core Independence from Features"
 type = "forbidden"
-source_modules = ["src.platform.core"]
+source_modules = ["src.infra.core"]
 forbidden_modules = ["src.features", "src.models.orm"]
 ignore_imports = [
     # TODO: Technical debt - remove this shim file and update all imports
     # to use src.features.process_mining.enums directly
-    "src.platform.core.enums -> src.features.process_mining.enums",
+    "src.infra.core.enums -> src.features.process_mining.enums",
 ]
 
 # Contract 5: Platform core cannot depend on platform services
 [[tool.importlinter.contracts]]
 name = "Platform Core Independence"
 type = "forbidden"
-source_modules = ["src.platform.core"]
-forbidden_modules = ["src.platform.auth", "src.platform.users", "src.platform.workspaces", "src.platform.projects", "src.platform.infrastructure"]
+source_modules = ["src.infra.core"]
+forbidden_modules = ["src.infra.auth", "src.infra.users", "src.infra.workspaces", "src.infra.projects", "src.infra.infrastructure"]
 

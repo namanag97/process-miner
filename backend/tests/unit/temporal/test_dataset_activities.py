@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.platform.temporal.activities.types import (
+from src.infra.temporal.activities.types import (
     BulkCopyInput,
     ComputeStatsInput,
     DetectColumnsInput,
@@ -19,7 +19,7 @@ class TestValidateFileActivity:
     @pytest.mark.asyncio
     async def test_validate_csv_valid(self):
         """Test validation of valid CSV file."""
-        from src.platform.temporal.activities.dataset import validate_file_activity
+        from src.infra.temporal.activities.dataset import validate_file_activity
 
         mock_storage = MagicMock()
         mock_storage.stream_file.return_value = iter(
@@ -28,7 +28,7 @@ class TestValidateFileActivity:
         mock_storage.get_file_size.return_value = 1000
 
         with patch(
-            "src.platform.temporal.activities.dataset.get_storage_client",
+            "src.infra.temporal.activities.dataset.get_storage_client",
             return_value=mock_storage,
         ):
             input_data = ValidateFileInput(
@@ -45,14 +45,14 @@ class TestValidateFileActivity:
     @pytest.mark.asyncio
     async def test_validate_xes_valid(self):
         """Test validation of valid XES file."""
-        from src.platform.temporal.activities.dataset import validate_file_activity
+        from src.infra.temporal.activities.dataset import validate_file_activity
 
         mock_storage = MagicMock()
         mock_storage.stream_file.return_value = iter([b"<?xml version='1.0'?><log />"])
         mock_storage.get_file_size.return_value = 2000
 
         with patch(
-            "src.platform.temporal.activities.dataset.get_storage_client",
+            "src.infra.temporal.activities.dataset.get_storage_client",
             return_value=mock_storage,
         ):
             input_data = ValidateFileInput(
@@ -67,7 +67,7 @@ class TestValidateFileActivity:
     @pytest.mark.asyncio
     async def test_validate_csv_binary_invalid(self):
         """Test validation rejects binary data as CSV."""
-        from src.platform.temporal.activities.dataset import validate_file_activity
+        from src.infra.temporal.activities.dataset import validate_file_activity
 
         mock_storage = MagicMock()
         # Binary content that can't be decoded as UTF-8
@@ -75,7 +75,7 @@ class TestValidateFileActivity:
         mock_storage.get_file_size.return_value = 1024
 
         with patch(
-            "src.platform.temporal.activities.dataset.get_storage_client",
+            "src.infra.temporal.activities.dataset.get_storage_client",
             return_value=mock_storage,
         ):
             input_data = ValidateFileInput(
@@ -90,14 +90,14 @@ class TestValidateFileActivity:
     @pytest.mark.asyncio
     async def test_validate_xes_invalid_signature(self):
         """Test validation rejects non-XML as XES."""
-        from src.platform.temporal.activities.dataset import validate_file_activity
+        from src.infra.temporal.activities.dataset import validate_file_activity
 
         mock_storage = MagicMock()
         mock_storage.stream_file.return_value = iter([b"not xml content"])
         mock_storage.get_file_size.return_value = 100
 
         with patch(
-            "src.platform.temporal.activities.dataset.get_storage_client",
+            "src.infra.temporal.activities.dataset.get_storage_client",
             return_value=mock_storage,
         ):
             input_data = ValidateFileInput(
@@ -116,7 +116,7 @@ class TestDetectColumnsActivity:
     @pytest.mark.asyncio
     async def test_detect_columns_success(self):
         """Test successful column detection."""
-        from src.platform.temporal.activities.dataset import detect_columns_activity
+        from src.infra.temporal.activities.dataset import detect_columns_activity
 
         mock_detection_result = {
             "columns": [
@@ -133,7 +133,7 @@ class TestDetectColumnsActivity:
         }
 
         with patch(
-            "src.platform.temporal.activities.dataset.unified_ingestion_service"
+            "src.infra.temporal.activities.dataset.unified_ingestion_service"
         ) as mock_service:
             mock_service.detect_columns.return_value = mock_detection_result
 
@@ -151,7 +151,7 @@ class TestDetectColumnsActivity:
     @pytest.mark.asyncio
     async def test_detect_columns_low_confidence(self):
         """Test column detection with low confidence disables auto-map."""
-        from src.platform.temporal.activities.dataset import detect_columns_activity
+        from src.infra.temporal.activities.dataset import detect_columns_activity
 
         mock_detection_result = {
             "columns": [{"name": "col1", "dtype": "STRING"}],
@@ -162,7 +162,7 @@ class TestDetectColumnsActivity:
         }
 
         with patch(
-            "src.platform.temporal.activities.dataset.unified_ingestion_service"
+            "src.infra.temporal.activities.dataset.unified_ingestion_service"
         ) as mock_service:
             mock_service.detect_columns.return_value = mock_detection_result
 
@@ -184,7 +184,7 @@ class TestParseToParquetActivity:
         """Test successful CSV parsing."""
         import pyarrow as pa
 
-        from src.platform.temporal.activities.dataset import parse_to_parquet_activity
+        from src.infra.temporal.activities.dataset import parse_to_parquet_activity
 
         # Create mock Arrow tables
         cases_table = pa.table(
@@ -220,13 +220,13 @@ class TestParseToParquetActivity:
 
         with (
             patch(
-                "src.platform.temporal.activities.dataset.get_storage_client",
+                "src.infra.temporal.activities.dataset.get_storage_client",
                 return_value=mock_storage,
             ),
             patch(
-                "src.platform.temporal.activities.dataset.duckdb_ingestion_service"
+                "src.infra.temporal.activities.dataset.duckdb_ingestion_service"
             ) as mock_duckdb,
-            patch("src.platform.temporal.activities.dataset.activity") as mock_activity,
+            patch("src.infra.temporal.activities.dataset.activity") as mock_activity,
         ):
             mock_duckdb.parse_csv_fast.return_value = mock_duck_result
             mock_activity.heartbeat = MagicMock()
@@ -252,7 +252,7 @@ class TestBulkCopyToDbActivity:
     @pytest.mark.asyncio
     async def test_bulk_copy_batching(self):
         """Test that bulk copy uses batching."""
-        from src.platform.temporal.activities.dataset import bulk_copy_to_db_activity
+        from src.infra.temporal.activities.dataset import bulk_copy_to_db_activity
 
         cases_data = [
             {"case_id": "1", "variant": "A->B", "start_time": None, "end_time": None},
@@ -276,7 +276,7 @@ class TestBulkCopyToDbActivity:
         mock_case.id = "case-uuid-1"
 
         with patch(
-            "src.platform.temporal.activities.dataset.AsyncSessionLocal"
+            "src.infra.temporal.activities.dataset.AsyncSessionLocal"
         ) as mock_session_local:
             mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_local.return_value.__aexit__ = AsyncMock()
@@ -299,7 +299,7 @@ class TestComputeStatisticsActivity:
     @pytest.mark.asyncio
     async def test_compute_stats_success(self):
         """Test successful statistics computation."""
-        from src.platform.temporal.activities.dataset import compute_statistics_activity
+        from src.infra.temporal.activities.dataset import compute_statistics_activity
 
         mock_dataset = MagicMock()
         mock_dataset.id = "test-dataset-123"
@@ -312,7 +312,7 @@ class TestComputeStatisticsActivity:
         mock_session.commit = AsyncMock()
 
         with patch(
-            "src.platform.temporal.activities.dataset.AsyncSessionLocal"
+            "src.infra.temporal.activities.dataset.AsyncSessionLocal"
         ) as mock_session_local:
             mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_local.return_value.__aexit__ = AsyncMock()

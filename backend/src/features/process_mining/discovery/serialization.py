@@ -9,7 +9,7 @@ from typing import Any
 import joblib
 
 from src.features.process_mining.enums import ModelFormat
-from src.platform.core.logging_config import get_logger
+from src.infra.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -45,7 +45,7 @@ class ModelSerializer:
             buffer = io.BytesIO(data)
             return joblib.load(buffer)
         except Exception:
-            from src.platform.core.safe_unpickler import safe_loads
+            from src.infra.core.safe_unpickler import safe_loads
 
             logger.warning(
                 "deserializing_legacy_pickle_model",

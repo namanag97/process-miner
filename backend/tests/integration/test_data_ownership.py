@@ -32,7 +32,7 @@ class TestDataOwnership:
         assert parquet_key is not None, "Dataset must have parquet_s3_key after ingestion"
 
         # Verify Parquet file exists (local or S3)
-        from src.platform.infrastructure.object_storage import get_storage_client
+        from src.infra.infrastructure.object_storage import get_storage_client
         storage = get_storage_client()
         assert storage.file_exists("cache", parquet_key), "Parquet file must exist"
 
@@ -82,7 +82,7 @@ class TestDataOwnership:
         """Verify bulk_copy_to_db_activity is not in ingestion workflow."""
         import inspect
 
-        from src.platform.temporal.workflows.ingestion import DatasetIngestionWorkflow
+        from src.infra.temporal.workflows.ingestion import DatasetIngestionWorkflow
 
         source = inspect.getsource(DatasetIngestionWorkflow.run)
 
@@ -93,7 +93,7 @@ class TestDataOwnership:
         """Verify parse_to_parquet_activity requires successful Parquet write."""
         import inspect
 
-        from src.platform.temporal.activities.dataset import parse_to_parquet_activity
+        from src.infra.temporal.activities.dataset import parse_to_parquet_activity
 
         source = inspect.getsource(parse_to_parquet_activity)
 
@@ -148,7 +148,7 @@ async def test_dataset_with_parquet(db_session):
     import pyarrow.parquet as pq
 
     from src.features.process_mining.models import Dataset
-    from src.platform.infrastructure.object_storage import get_storage_client
+    from src.infra.infrastructure.object_storage import get_storage_client
 
     dataset_id = str(uuid.uuid4())
     parquet_key = f"parsed/{dataset_id}/events.parquet"

@@ -28,9 +28,9 @@ if TYPE_CHECKING:
     from src.features.process_mining.visualization.service import VisualizationService
 
     # DAG system deprecated - use Temporal workflows via /operations API
-    # from src.platform.dag.service import DAGService
-    from src.platform.jobs.service import JobService
-    from src.platform.storage.storage import StorageService
+    # from src.infra.dag.service import DAGService
+    from src.infra.jobs.service import JobService
+    from src.infra.storage.storage import StorageService
 
 
 class Container:
@@ -144,7 +144,7 @@ class Container:
     # @cached_property
     # def dags(self) -> "DAGService":
     #     """DAG workflow orchestration service."""
-    #     from src.platform.dag.service import DAGService
+    #     from src.infra.dag.service import DAGService
     #     return DAGService(self._session)
 
     # =========================================================================
@@ -154,13 +154,13 @@ class Container:
     @cached_property
     def jobs(self) -> "JobService":
         """Async job management service."""
-        from src.platform.jobs.service import JobService
+        from src.infra.jobs.service import JobService
 
         return JobService()
 
     @cached_property
     def storage(self) -> "StorageService":
         """File storage service."""
-        from src.platform.storage.storage import StorageService
+        from src.infra.storage.storage import StorageService
 
         return StorageService()

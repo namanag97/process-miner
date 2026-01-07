@@ -11,8 +11,8 @@ import pytest
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
-from src.platform.temporal.config import get_temporal_config
-from src.platform.temporal.workflows.analysis import (
+from src.infra.temporal.config import get_temporal_config
+from src.infra.temporal.workflows.analysis import (
     ConformanceCheckWorkflow,
     ProcessDiscoveryWorkflow,
 )
@@ -75,7 +75,7 @@ class TestProcessDiscoveryWorkflow:
         workflow_id = f"test-discovery-{dataset_id}"
 
         # Mock the load_event_log to return is_loaded=True
-        with patch("src.platform.temporal.activities.analysis.AsyncSessionLocal") as mock_session:
+        with patch("src.infra.temporal.activities.analysis.AsyncSessionLocal") as mock_session:
             mock_session.return_value.__aenter__ = AsyncMock(return_value=MagicMock())
             mock_session.return_value.__aexit__ = AsyncMock()
 

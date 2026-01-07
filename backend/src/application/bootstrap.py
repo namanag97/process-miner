@@ -29,8 +29,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.commands.base import command_bus
 from src.application.queries.base import query_bus
-from src.platform.core.logging_config import get_logger
-from src.platform.infrastructure.duckdb import DuckDBManager, duckdb_manager
+from src.infra.core.logging_config import get_logger
+from src.infra.infrastructure.duckdb import DuckDBManager, duckdb_manager
 
 logger = get_logger(__name__)
 
@@ -218,7 +218,7 @@ class RequestScopedQueryBus:
 
 async def get_command_bus() -> AsyncGenerator[RequestScopedCommandBus, None]:
     """Get request-scoped command bus."""
-    from src.platform.infrastructure.database import get_write_session
+    from src.infra.infrastructure.database import get_write_session
     from src.shared.events import EventStore
 
     async for session in get_write_session():
@@ -228,7 +228,7 @@ async def get_command_bus() -> AsyncGenerator[RequestScopedCommandBus, None]:
 
 async def get_query_bus() -> AsyncGenerator[RequestScopedQueryBus, None]:
     """Get request-scoped query bus."""
-    from src.platform.infrastructure.database import get_read_session
+    from src.infra.infrastructure.database import get_read_session
 
     async for session in get_read_session():
         yield RequestScopedQueryBus(session, duckdb_manager)

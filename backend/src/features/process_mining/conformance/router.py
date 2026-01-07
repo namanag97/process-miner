@@ -64,7 +64,7 @@ from src.features.process_mining.schemas import (
     DiagnosticsResponse,
     QualityMetricsResponse,
 )
-from src.platform.core.exceptions import (
+from src.infra.core.exceptions import (
     BadRequestError,
     ConformanceError,
     ModelNotFoundError,
@@ -72,7 +72,7 @@ from src.platform.core.exceptions import (
     ProcessingError,
     ProjectNotFoundError,
 )
-from src.platform.core.logging_config import get_logger
+from src.infra.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -426,7 +426,7 @@ async def import_reference_model(
     from uuid import uuid4
 
     from src.features.process_mining.services.model_importer import model_importer
-    from src.platform.models import Project
+    from src.infra.models import Project
 
     logger.info("model_import_started", project_id=project_id, model_name=model_name)
     start_time = time.perf_counter()

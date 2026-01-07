@@ -44,16 +44,16 @@ from src.api.routers import (
     workflows_router,
     workspaces_router,
 )
-from src.platform.audit.router import router as audit_router
-from src.platform.core.api_logging import APILoggingMiddleware
-from src.platform.core.config import get_settings
-from src.platform.core.exceptions import AppException
-from src.platform.core.logging_config import configure_logging, get_logger
-from src.platform.core.middleware import PerformanceLoggingMiddleware, RequestLoggingMiddleware
-from src.platform.devconsole.streaming import router as dev_logs_stream_router
-from src.platform.devtools.dev_data import router as dev_data_router
-from src.platform.health.router import mark_startup_complete
-from src.platform.infrastructure.database import close_database, init_database
+from src.infra.audit.router import router as audit_router
+from src.infra.core.api_logging import APILoggingMiddleware
+from src.infra.core.config import get_settings
+from src.infra.core.exceptions import AppException
+from src.infra.core.logging_config import configure_logging, get_logger
+from src.infra.core.middleware import PerformanceLoggingMiddleware, RequestLoggingMiddleware
+from src.infra.devconsole.streaming import router as dev_logs_stream_router
+from src.infra.devtools.dev_data import router as dev_data_router
+from src.infra.health.router import mark_startup_complete
+from src.infra.infrastructure.database import close_database, init_database
 
 settings = get_settings()
 
@@ -89,7 +89,7 @@ async def lifespan(app: FastAPI):
 
     # Connect log broker for DevConsole
     if settings.debug:
-        from src.platform.devconsole.broker import startup_log_broker
+        from src.infra.devconsole.broker import startup_log_broker
 
         await startup_log_broker()
 
@@ -105,7 +105,7 @@ async def lifespan(app: FastAPI):
 
     # Disconnect log broker
     if settings.debug:
-        from src.platform.devconsole.broker import shutdown_log_broker
+        from src.infra.devconsole.broker import shutdown_log_broker
 
         await shutdown_log_broker()
 
@@ -125,8 +125,8 @@ async def _seed_mvp_data() -> None:
     """
     from sqlalchemy import select
 
-    from src.platform.infrastructure.database import write_session_maker
-    from src.platform.users import Organization, Project, User, Workspace, WorkspaceMember
+    from src.infra.infrastructure.database import write_session_maker
+    from src.infra.users import Organization, Project, User, Workspace, WorkspaceMember
 
     try:
         async with write_session_maker() as db:
@@ -385,7 +385,7 @@ For support, please contact the developer team or refer to the internal document
     from slowapi import _rate_limit_exceeded_handler
     from slowapi.errors import RateLimitExceeded
 
-    from src.platform.core.rate_limit import limiter
+    from src.infra.core.rate_limit import limiter
 
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]

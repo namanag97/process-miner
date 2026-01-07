@@ -60,11 +60,11 @@ from src.features.process_mining.visualization import router as visualization_ro
 from src.features.process_mining.workflows import router as workflows_router
 
 # DAG system removed - use Temporal workflows via /operations API
-# from src.platform.dag.router import router as dags_router
-from src.platform.devtools.router import router as dev_log_router
-from src.platform.health.router import router as health_router
-from src.platform.jobs.router import router as jobs_router
-from src.platform.users.api import (
+# from src.infra.dag.router import router as dags_router
+from src.infra.devtools.router import router as dev_log_router
+from src.infra.health.router import router as health_router
+from src.infra.jobs.router import router as jobs_router
+from src.infra.users.api import (
     auth_router,
     organizations_router,
     projects_router,

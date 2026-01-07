@@ -348,7 +348,7 @@ class TestProgressPublisherIntegration:
         except Exception:
             pytest.skip("Redis not available")
 
-        from src.platform.temporal.activities.progress import (
+        from src.infra.temporal.activities.progress import (
             ActivityProgressPublisher,
             ProgressEventType,
         )

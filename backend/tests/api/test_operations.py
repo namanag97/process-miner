@@ -30,7 +30,7 @@ pytestmark = pytest.mark.integration
 @pytest.fixture
 def mock_temporal_client():
     """Mock Temporal client for testing."""
-    with patch("src.platform.temporal.client.get_temporal_client") as mock:
+    with patch("src.infra.temporal.client.get_temporal_client") as mock:
         client = AsyncMock()
         mock.return_value = client
         yield client

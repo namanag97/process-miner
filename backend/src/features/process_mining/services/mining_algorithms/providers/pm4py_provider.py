@@ -15,7 +15,7 @@ from src.features.process_mining.services.mining_algorithms.providers.base impor
     ComplexityEstimate,
     MiningProvider,
 )
-from src.platform.core.logging_config import get_logger, log_business_metric
+from src.infra.core.logging_config import get_logger, log_business_metric
 
 logger = get_logger(__name__)
 

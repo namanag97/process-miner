@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.features.process_mining.models import Algorithm, AlgorithmParameter, Dataset
-from src.platform.core.logging_config import get_logger
+from src.infra.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

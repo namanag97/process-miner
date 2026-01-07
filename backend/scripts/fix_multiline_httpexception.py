@@ -146,12 +146,12 @@ def add_imports_to_file(file_path: Path, dry_run: bool = True) -> bool:
         return False
     
     # Check if we already have an import
-    if 'from src.platform.core.exceptions import' in content:
+    if 'from src.infra.core.exceptions import' in content:
         # Already has import line, need to update it
         return False  # For now, skip these
     
     # Add import after existing imports
-    import_line = f"from src.platform.core.exceptions import {', '.join(sorted(exceptions_used))}\n"
+    import_line = f"from src.infra.core.exceptions import {', '.join(sorted(exceptions_used))}\n"
     
     # Find the last import line
     lines = content.split('\n')

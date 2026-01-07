@@ -21,7 +21,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from src.api.main import app
-from src.platform.models import Organization, User, Workspace, WorkspaceMember
+from src.infra.models import Organization, User, Workspace, WorkspaceMember
 from src.shared.database import Base
 
 # =============================================================================
@@ -87,7 +87,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     # Override the database dependencies to use test session
     from src.api.dependencies import get_read_db, get_write_db
-    from src.platform.health.router import mark_startup_complete
+    from src.infra.health.router import mark_startup_complete
 
     async def override_get_write_db():
         yield db_session
@@ -210,7 +210,7 @@ async def seeded_project(
     seeded_workspace: Workspace,
 ) -> Any:
     """Create a test project."""
-    from src.platform.models import Project
+    from src.infra.models import Project
 
     project = Project(
         id=str(uuid4()),

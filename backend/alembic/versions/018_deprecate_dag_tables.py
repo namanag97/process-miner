@@ -36,7 +36,7 @@ def upgrade() -> None:
     if bind.dialect.name == "postgresql":
         op.execute(
             "COMMENT ON TABLE dag_definitions IS "
-            "'DEPRECATED: Migrate to Temporal workflows. See src.platform.temporal'"
+            "'DEPRECATED: Migrate to Temporal workflows. See src.infra.temporal'"
         )
         op.execute(
             "COMMENT ON TABLE dag_definition_steps IS "

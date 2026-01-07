@@ -11,8 +11,8 @@ from typing import Any
 
 import pm4py
 
-from src.platform.core.exceptions import PM4PyError
-from src.platform.core.logging_config import get_logger
+from src.infra.core.exceptions import PM4PyError
+from src.infra.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

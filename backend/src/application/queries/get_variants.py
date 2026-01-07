@@ -10,10 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.queries.base import BaseQuery, QueryHandler
 from src.features.process_mining.models import Dataset
-from src.platform.core.exceptions import NotFoundError
-from src.platform.core.logging_config import get_logger
-from src.platform.infrastructure.cache import cache_service
-from src.platform.infrastructure.duckdb import DuckDBManager
+from src.infra.core.exceptions import NotFoundError
+from src.infra.core.logging_config import get_logger
+from src.infra.infrastructure.cache import cache_service
+from src.infra.infrastructure.duckdb import DuckDBManager
 
 logger = get_logger(__name__)
 

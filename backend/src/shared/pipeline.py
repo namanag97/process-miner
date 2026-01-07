@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Generic, TypeVar
 
-from src.platform.core.logging_config import get_logger
+from src.infra.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

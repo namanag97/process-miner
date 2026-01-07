@@ -55,10 +55,10 @@ from src.features.process_mining.schemas.datasets import (
     DatasetListResponse,
     DatasetResponse,
 )
-from src.platform.core.logging_config import get_logger
-from src.platform.core.permissions import Permission
-from src.platform.infrastructure.cache import invalidate_dataset_cache
-from src.platform.users.services import require_dataset_permission
+from src.infra.core.logging_config import get_logger
+from src.infra.core.permissions import Permission
+from src.infra.infrastructure.cache import invalidate_dataset_cache
+from src.infra.users.services import require_dataset_permission
 from src.shared.events import DATASET_DELETED, log_dataset_event
 
 logger = get_logger(__name__)
@@ -335,7 +335,7 @@ async def delete_dataset(
     CQRS: Uses WriteDBSession for transactional delete.
     Emits DATASET_DELETED event for cache invalidation.
     """
-    from src.platform.infrastructure.object_storage import get_storage_client
+    from src.infra.infrastructure.object_storage import get_storage_client
 
     logger.info(
         "delete_dataset_request",

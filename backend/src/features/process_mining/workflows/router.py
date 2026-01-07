@@ -18,8 +18,8 @@ from src.features.process_mining.schemas.workflows import (
     WorkflowRunResponse,
     WorkflowTemplate,
 )
-from src.platform.core.exceptions import ProcessingError
-from src.platform.core.logging_config import get_logger
+from src.infra.core.exceptions import ProcessingError
+from src.infra.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

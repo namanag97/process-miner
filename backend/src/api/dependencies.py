@@ -17,16 +17,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.bootstrap import CommandBusDep, QueryBusDep
-from src.platform.core.config import get_settings
-from src.platform.core.exceptions import AuthenticationError
-from src.platform.core.logging_config import get_logger
-from src.platform.devconsole import log_auth_event
-from src.platform.infrastructure.duckdb import DuckDBManager
+from src.infra.core.config import get_settings
+from src.infra.core.exceptions import AuthenticationError
+from src.infra.core.logging_config import get_logger
+from src.infra.devconsole import log_auth_event
+from src.infra.infrastructure.duckdb import DuckDBManager
 from src.shared.container import Container
 
 if TYPE_CHECKING:
-    from src.platform.models import User
-    from src.platform.workspaces.authorization import AuthorizationService
+    from src.infra.models import User
+    from src.infra.workspaces.authorization import AuthorizationService
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -42,7 +42,7 @@ security = HTTPBearer(auto_error=False)
 
 async def get_write_db() -> AsyncGenerator[AsyncSession, None]:
     """Get write database session for commands (transactional operations)."""
-    from src.platform.infrastructure.database import get_write_session
+    from src.infra.infrastructure.database import get_write_session
 
     async for session in get_write_session():
         yield session
@@ -50,7 +50,7 @@ async def get_write_db() -> AsyncGenerator[AsyncSession, None]:
 
 async def get_read_db() -> AsyncGenerator[AsyncSession, None]:
     """Get read database session for queries (read-only operations)."""
-    from src.platform.infrastructure.database import get_read_session
+    from src.infra.infrastructure.database import get_read_session
 
     async for session in get_read_session():
         yield session
@@ -58,7 +58,7 @@ async def get_read_db() -> AsyncGenerator[AsyncSession, None]:
 
 def get_duckdb():
     """Get DuckDB connection for analytics queries."""
-    from src.platform.infrastructure.duckdb import duckdb_manager
+    from src.infra.infrastructure.duckdb import duckdb_manager
 
     return duckdb_manager
 
@@ -94,8 +94,8 @@ async def get_current_user(
     Raises:
         AuthenticationError: If auth is enabled and token is invalid/missing
     """
-    from src.platform.core.security import decode_token
-    from src.platform.models import User
+    from src.infra.core.security import decode_token
+    from src.infra.models import User
 
     # If auth is disabled, return mock user for development
     if not settings.auth_enabled:
@@ -152,8 +152,8 @@ async def get_current_user_optional(
 
     Use this for endpoints that work with or without auth.
     """
-    from src.platform.core.security import decode_token
-    from src.platform.models import User
+    from src.infra.core.security import decode_token
+    from src.infra.models import User
 
     if not credentials:
         return None
@@ -176,7 +176,7 @@ async def _get_mock_user(db: AsyncSession) -> "User":
     """
     from datetime import datetime
 
-    from src.platform.users import Organization, User, Workspace, WorkspaceMember
+    from src.infra.users import Organization, User, Workspace, WorkspaceMember
 
     # First, try to find the seeded MVP user (preferred)
     result = await db.execute(select(User).filter(User.email == "analyst@example.com"))
@@ -264,7 +264,7 @@ async def get_authorization_service(db: WriteDBSession) -> "AuthorizationService
             workspace_id, user, Permission.DATASET_READ
         )
     """
-    from src.platform.workspaces.authorization import AuthorizationService
+    from src.infra.workspaces.authorization import AuthorizationService
 
     return AuthorizationService(db)
 

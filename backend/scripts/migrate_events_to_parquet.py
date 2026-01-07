@@ -29,8 +29,8 @@ async def migrate_dataset(dataset_id: str, dry_run: bool = False) -> dict:
 
     from src.features.process_mining.models import Dataset
     from src.features.process_mining.services.loader import event_log_loader
-    from src.platform.infrastructure.object_storage import get_storage_client
-    from src.platform.infrastructure.database import async_session_maker
+    from src.infra.infrastructure.object_storage import get_storage_client
+    from src.infra.infrastructure.database import async_session_maker
 
     result = {
         "dataset_id": dataset_id,
@@ -117,7 +117,7 @@ async def migrate_all(dry_run: bool = False):
     from sqlalchemy import select
 
     from src.features.process_mining.models import Dataset
-    from src.platform.infrastructure.database import async_session_maker
+    from src.infra.infrastructure.database import async_session_maker
 
     async with async_session_maker() as session:
         # Find datasets without parquet_s3_key

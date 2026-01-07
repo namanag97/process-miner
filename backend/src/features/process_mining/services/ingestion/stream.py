@@ -20,8 +20,8 @@ from collections.abc import AsyncGenerator
 from datetime import datetime
 from enum import Enum
 
-from src.platform.core.config import get_settings
-from src.platform.core.logging_config import get_logger
+from src.infra.core.config import get_settings
+from src.infra.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 settings = get_settings()

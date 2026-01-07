@@ -14,11 +14,11 @@ from sqlalchemy import select
 from src.api.dependencies import CurrentUser, ReadDBSession
 from src.features.process_mining.models import DatasetColumnMapping, DatasetStatus
 from src.features.process_mining.schemas.analyses import JobStatusResponse
-from src.platform.core.enums import JobType
-from src.platform.core.exceptions import ValidationError
-from src.platform.core.logging_config import get_logger
-from src.platform.core.permissions import Permission
-from src.platform.users.services import require_dataset_permission
+from src.infra.core.enums import JobType
+from src.infra.core.exceptions import ValidationError
+from src.infra.core.logging_config import get_logger
+from src.infra.core.permissions import Permission
+from src.infra.users.services import require_dataset_permission
 
 logger = get_logger(__name__)
 
@@ -63,10 +63,10 @@ async def trigger_ingestion(
     from temporalio.common import WorkflowIDReusePolicy
     from temporalio.exceptions import WorkflowAlreadyStartedError
 
-    from src.platform.core.enums import JobStatus
-    from src.platform.temporal.client import get_temporal_client
-    from src.platform.temporal.config import get_temporal_config
-    from src.platform.temporal.workflows_v2.ingestion import DatasetIngestionWorkflowV2
+    from src.infra.core.enums import JobStatus
+    from src.infra.temporal.client import get_temporal_client
+    from src.infra.temporal.config import get_temporal_config
+    from src.infra.temporal.workflows_v2.ingestion import DatasetIngestionWorkflowV2
 
     # Verify permission
     _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_UPDATE)
@@ -128,7 +128,7 @@ async def trigger_ingestion(
             workflow_run_id = handle.result_run_id
     except Exception as e:
         # Handle Temporal client errors - update dataset to ERROR state
-        from src.platform.core.exceptions import ServiceUnavailableError
+        from src.infra.core.exceptions import ServiceUnavailableError
 
         logger.error(
             "temporal_workflow_start_failed",
@@ -197,10 +197,10 @@ async def trigger_reingest(
 
     from temporalio.common import WorkflowIDReusePolicy
 
-    from src.platform.core.enums import JobStatus
-    from src.platform.temporal.client import get_temporal_client
-    from src.platform.temporal.config import get_temporal_config
-    from src.platform.temporal.workflows_v2.ingestion import DatasetIngestionWorkflowV2
+    from src.infra.core.enums import JobStatus
+    from src.infra.temporal.client import get_temporal_client
+    from src.infra.temporal.config import get_temporal_config
+    from src.infra.temporal.workflows_v2.ingestion import DatasetIngestionWorkflowV2
 
     # Verify permission
     _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_UPDATE)
@@ -249,7 +249,7 @@ async def trigger_reingest(
         )
     except Exception as e:
         # Handle Temporal client errors - update dataset to ERROR state
-        from src.platform.core.exceptions import ServiceUnavailableError
+        from src.infra.core.exceptions import ServiceUnavailableError
 
         logger.error(
             "temporal_reingest_start_failed",

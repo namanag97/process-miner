@@ -43,8 +43,8 @@ from src.features.process_mining.schemas import (
     VariantResponse,
 )
 from src.features.process_mining.services.registry import analysis_registry
-from src.platform.core.exceptions import NotFoundError
-from src.platform.core.logging_config import get_logger
+from src.infra.core.exceptions import NotFoundError
+from src.infra.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

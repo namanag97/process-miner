@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.platform.temporal.activities.types import (
+from src.infra.temporal.activities.types import (
     CheckConformanceInput,
     ComputeMetricsInput,
     LoadEventLogInput,
@@ -18,7 +18,7 @@ class TestLoadEventLogActivity:
     @pytest.mark.asyncio
     async def test_load_event_log_success(self):
         """Test successful event log loading."""
-        from src.platform.temporal.activities.analysis import load_event_log_activity
+        from src.infra.temporal.activities.analysis import load_event_log_activity
 
         mock_dataset = MagicMock()
         mock_dataset.id = "test-dataset-123"
@@ -34,9 +34,9 @@ class TestLoadEventLogActivity:
 
         with (
             patch(
-                "src.platform.temporal.activities.analysis.AsyncSessionLocal"
+                "src.infra.temporal.activities.analysis.AsyncSessionLocal"
             ) as mock_session_local,
-            patch("src.platform.temporal.activities.analysis.DatasetStatus") as mock_status,
+            patch("src.infra.temporal.activities.analysis.DatasetStatus") as mock_status,
         ):
             mock_status.READY.value = "ready"
             mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
@@ -54,7 +54,7 @@ class TestLoadEventLogActivity:
     @pytest.mark.asyncio
     async def test_load_event_log_not_found(self):
         """Test error when dataset not found."""
-        from src.platform.temporal.activities.analysis import load_event_log_activity
+        from src.infra.temporal.activities.analysis import load_event_log_activity
 
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -62,7 +62,7 @@ class TestLoadEventLogActivity:
         mock_session.execute = AsyncMock(return_value=mock_result)
 
         with patch(
-            "src.platform.temporal.activities.analysis.AsyncSessionLocal"
+            "src.infra.temporal.activities.analysis.AsyncSessionLocal"
         ) as mock_session_local:
             mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_local.return_value.__aexit__ = AsyncMock()
@@ -75,7 +75,7 @@ class TestLoadEventLogActivity:
     @pytest.mark.asyncio
     async def test_load_event_log_not_ready(self):
         """Test error when dataset not ready."""
-        from src.platform.temporal.activities.analysis import load_event_log_activity
+        from src.infra.temporal.activities.analysis import load_event_log_activity
 
         mock_dataset = MagicMock()
         mock_dataset.id = "test-dataset-123"
@@ -88,9 +88,9 @@ class TestLoadEventLogActivity:
 
         with (
             patch(
-                "src.platform.temporal.activities.analysis.AsyncSessionLocal"
+                "src.infra.temporal.activities.analysis.AsyncSessionLocal"
             ) as mock_session_local,
-            patch("src.platform.temporal.activities.analysis.DatasetStatus") as mock_status,
+            patch("src.infra.temporal.activities.analysis.DatasetStatus") as mock_status,
         ):
             mock_status.READY.value = "ready"
             mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
@@ -108,7 +108,7 @@ class TestMineModelActivity:
     @pytest.mark.asyncio
     async def test_mine_model_alpha(self):
         """Test Alpha miner discovery."""
-        from src.platform.temporal.activities.analysis import mine_model_activity
+        from src.infra.temporal.activities.analysis import mine_model_activity
 
         mock_dataset = MagicMock()
         mock_dataset.id = "test-dataset-123"
@@ -130,11 +130,11 @@ class TestMineModelActivity:
 
         with (
             patch(
-                "src.platform.temporal.activities.analysis.AsyncSessionLocal"
+                "src.infra.temporal.activities.analysis.AsyncSessionLocal"
             ) as mock_session_local,
-            patch("src.platform.temporal.activities.analysis.mining_service") as mock_mining,
-            patch("src.platform.temporal.activities.analysis.activity") as mock_activity,
-            patch("src.platform.temporal.activities.analysis.MinerType") as mock_miner_type,
+            patch("src.infra.temporal.activities.analysis.mining_service") as mock_mining,
+            patch("src.infra.temporal.activities.analysis.activity") as mock_activity,
+            patch("src.infra.temporal.activities.analysis.MinerType") as mock_miner_type,
         ):
             mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_local.return_value.__aexit__ = AsyncMock()
@@ -158,7 +158,7 @@ class TestMineModelActivity:
     @pytest.mark.asyncio
     async def test_mine_model_invalid_miner(self):
         """Test error for invalid miner type."""
-        from src.platform.temporal.activities.analysis import mine_model_activity
+        from src.infra.temporal.activities.analysis import mine_model_activity
 
         mock_dataset = MagicMock()
         mock_dataset.id = "test-dataset-123"
@@ -170,10 +170,10 @@ class TestMineModelActivity:
 
         with (
             patch(
-                "src.platform.temporal.activities.analysis.AsyncSessionLocal"
+                "src.infra.temporal.activities.analysis.AsyncSessionLocal"
             ) as mock_session_local,
-            patch("src.platform.temporal.activities.analysis.activity") as mock_activity,
-            patch("src.platform.temporal.activities.analysis.MinerType") as mock_miner_type,
+            patch("src.infra.temporal.activities.analysis.activity") as mock_activity,
+            patch("src.infra.temporal.activities.analysis.MinerType") as mock_miner_type,
         ):
             mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_local.return_value.__aexit__ = AsyncMock()
@@ -195,7 +195,7 @@ class TestComputeMetricsActivity:
     @pytest.mark.asyncio
     async def test_compute_metrics_success(self):
         """Test successful metrics computation."""
-        from src.platform.temporal.activities.analysis import compute_metrics_activity
+        from src.infra.temporal.activities.analysis import compute_metrics_activity
 
         mock_dataset = MagicMock()
         mock_dataset.id = "test-dataset-123"
@@ -214,9 +214,9 @@ class TestComputeMetricsActivity:
 
         with (
             patch(
-                "src.platform.temporal.activities.analysis.AsyncSessionLocal"
+                "src.infra.temporal.activities.analysis.AsyncSessionLocal"
             ) as mock_session_local,
-            patch("src.platform.temporal.activities.analysis.mining_service") as mock_mining,
+            patch("src.infra.temporal.activities.analysis.mining_service") as mock_mining,
         ):
             mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_local.return_value.__aexit__ = AsyncMock()
@@ -242,7 +242,7 @@ class TestCheckConformanceActivity:
     @pytest.mark.asyncio
     async def test_check_conformance_token_replay(self):
         """Test token replay conformance checking."""
-        from src.platform.temporal.activities.analysis import check_conformance_activity
+        from src.infra.temporal.activities.analysis import check_conformance_activity
 
         mock_dataset = MagicMock()
         mock_dataset.id = "test-dataset-123"
@@ -272,12 +272,12 @@ class TestCheckConformanceActivity:
 
         with (
             patch(
-                "src.platform.temporal.activities.analysis.AsyncSessionLocal"
+                "src.infra.temporal.activities.analysis.AsyncSessionLocal"
             ) as mock_session_local,
             patch(
-                "src.platform.temporal.activities.analysis.conformance_service"
+                "src.infra.temporal.activities.analysis.conformance_service"
             ) as mock_conformance,
-            patch("src.platform.temporal.activities.analysis.ConformanceResult") as mock_conf_class,
+            patch("src.infra.temporal.activities.analysis.ConformanceResult") as mock_conf_class,
         ):
             mock_session_local.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session_local.return_value.__aexit__ = AsyncMock()

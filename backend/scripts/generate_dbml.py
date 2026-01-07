@@ -7,9 +7,9 @@ from sqlalchemy import create_engine, inspect
 sys.path.append(os.getcwd())
 
 from src.shared.database import Base
-from src.platform.core.config import get_settings
+from src.infra.core.config import get_settings
 # Import all models to ensure they're registered with the Base
-import src.platform.models
+import src.infra.models
 import src.features.process_mining.models
 
 def generate_dbml():

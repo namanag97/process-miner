@@ -24,13 +24,13 @@ from src.features.process_mining.schemas import (
     OCELLogResponse,
     WorkflowResponse,
 )
-from src.platform.schemas import (
+from src.infra.schemas import (
     ProjectResponse,
 )
 
 if TYPE_CHECKING:
     from src.features.process_mining.models import Analysis, Dataset, OCELLog, Workflow
-    from src.platform.models import Project
+    from src.infra.models import Project
 
 
 def dataset_to_response(dataset: "Dataset") -> DatasetResponse:

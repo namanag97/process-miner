@@ -6,7 +6,7 @@ Currently: Process Mining SaaS.
 Modules:
 - process_mining: Process discovery, conformance, analytics
 
-Features CAN import from src.platform.* but platform CANNOT import from features.
+Features CAN import from src.infra.* but platform CANNOT import from features.
 """
 
 from src.features import process_mining

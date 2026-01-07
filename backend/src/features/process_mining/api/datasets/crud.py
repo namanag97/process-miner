@@ -50,9 +50,9 @@ from src.features.process_mining.schemas.datasets import (
     DatasetListResponse,
     DatasetResponse,
 )
-from src.platform.core.logging_config import get_logger
-from src.platform.core.permissions import Permission
-from src.platform.workspaces.authorization import require_dataset_permission
+from src.infra.core.logging_config import get_logger
+from src.infra.core.permissions import Permission
+from src.infra.workspaces.authorization import require_dataset_permission
 
 logger = get_logger(__name__)
 
@@ -282,7 +282,7 @@ async def delete_dataset(
     user: CurrentUser,
 ) -> dict[str, Any]:
     """Delete dataset and cascade to related records."""
-    from src.platform.infrastructure.object_storage import get_storage_client
+    from src.infra.infrastructure.object_storage import get_storage_client
 
     logger.info(
         "delete_dataset_request",

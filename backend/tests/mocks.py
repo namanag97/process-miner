@@ -46,7 +46,7 @@ def mock_s3_client(content: bytes = b"", bucket: str = "test-bucket"):
     )
 
     with patch(
-        "src.platform.infrastructure.storage.client.get_client",
+        "src.infra.infrastructure.storage.client.get_client",
         return_value=mock_client,
     ):
         yield mock_client
@@ -76,7 +76,7 @@ def mock_storage_service(files: dict[str, bytes] | None = None):
     mock_service.exists = MagicMock(side_effect=lambda k: k in files)
 
     with patch(
-        "src.platform.infrastructure.storage.service.StorageService",
+        "src.infra.infrastructure.storage.service.StorageService",
         return_value=mock_service,
     ):
         yield mock_service
@@ -100,7 +100,7 @@ def mock_temporal_client():
     mock_client.execute_workflow = AsyncMock(return_value={"status": "completed"})
 
     with patch(
-        "src.platform.temporal.client.get_client",
+        "src.infra.temporal.client.get_client",
         return_value=mock_client,
     ):
         yield mock_client
@@ -116,7 +116,7 @@ def mock_workflow_dispatch():
     mock_dispatch = AsyncMock(return_value="workflow-id-123")
 
     with patch(
-        "src.platform.temporal.dispatch.dispatch_workflow",
+        "src.infra.temporal.dispatch.dispatch_workflow",
         mock_dispatch,
     ):
         yield mock_dispatch
@@ -160,7 +160,7 @@ def mock_session_factory():
     mock_factory = MagicMock(return_value=mock_session)
 
     with patch(
-        "src.platform.infrastructure.database.async_session_maker",
+        "src.infra.infrastructure.database.async_session_maker",
         mock_factory,
     ):
         yield mock_factory, mock_session

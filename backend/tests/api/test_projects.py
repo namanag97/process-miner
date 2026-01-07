@@ -71,7 +71,7 @@ async def test_update_project(auth_client: AsyncClient, seeded_project):
 @pytest.mark.asyncio
 async def test_delete_project(auth_client: AsyncClient, seeded_workspace, db_session):
     """Test deleting a project."""
-    from src.platform.models import Project
+    from src.infra.models import Project
 
     # Create a project to delete
     project = Project(

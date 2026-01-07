@@ -35,9 +35,9 @@ async def migrate_jobs(dry_run: bool = True) -> dict:
     from sqlalchemy import select
     from temporalio.client import WorkflowExecutionStatus
 
-    from src.platform.infrastructure.database import async_session_maker
-    from src.platform.models import AsyncJob
-    from src.platform.temporal.client import get_temporal_client
+    from src.infra.infrastructure.database import async_session_maker
+    from src.infra.models import AsyncJob
+    from src.infra.temporal.client import get_temporal_client
 
     stats = {
         "total_jobs": 0,

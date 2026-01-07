@@ -364,10 +364,10 @@ def generate_import_statement(classes: set[str]) -> str:
         return ""
     sorted_classes = sorted(classes)
     if len(sorted_classes) <= 3:
-        return f"from src.platform.core.exceptions import {', '.join(sorted_classes)}"
+        return f"from src.infra.core.exceptions import {', '.join(sorted_classes)}"
     else:
         class_list = ',\n    '.join(sorted_classes)
-        return f"from src.platform.core.exceptions import (\n    {class_list},\n)"
+        return f"from src.infra.core.exceptions import (\n    {class_list},\n)"
 
 
 def generate_report(all_matches: list[HTTPExceptionMatch]) -> str:
@@ -414,7 +414,7 @@ def apply_fixes(file_path: Path, matches: list[HTTPExceptionMatch], dry_run: boo
     if needed_imports:
         import_stmt = generate_import_statement(needed_imports)
         # Add after existing imports (simple heuristic)
-        if 'from src.platform.core.exceptions import' not in content:
+        if 'from src.infra.core.exceptions import' not in content:
             # Find last import line
             lines = content.split('\n')
             last_import_idx = 0

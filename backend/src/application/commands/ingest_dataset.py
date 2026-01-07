@@ -11,9 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.commands.base import BaseCommand, CommandHandler
 from src.features.process_mining.models import Dataset, DatasetStatus
-from src.platform.core.domain_events import DatasetIngestedEvent, event_publisher
-from src.platform.core.exceptions import NotFoundError, ValidationError
-from src.platform.core.logging_config import get_logger
+from src.infra.core.domain_events import DatasetIngestedEvent, event_publisher
+from src.infra.core.exceptions import NotFoundError, ValidationError
+from src.infra.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

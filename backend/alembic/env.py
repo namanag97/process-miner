@@ -11,12 +11,12 @@ from alembic import context
 
 # Import your Base and models
 from src.shared.database import Base
-from src.platform.core.config import get_settings
+from src.infra.core.config import get_settings
 
 # Import all models to ensure they're registered with Base.metadata
-from src.platform.models import *  # noqa
-from src.platform.workflows.models import *  # noqa: Workflow, WorkflowTask
-from src.platform.system.models import *  # noqa: FeatureFlag, APIUsage
+from src.infra.models import *  # noqa
+from src.infra.workflows.models import *  # noqa: Workflow, WorkflowTask
+from src.infra.system.models import *  # noqa: FeatureFlag, APIUsage
 from src.features.process_mining.models import *  # noqa
 
 # this is the Alembic Config object, which provides

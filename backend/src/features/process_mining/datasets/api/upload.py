@@ -19,10 +19,10 @@ from src.features.process_mining.schemas.datasets import (
     PresignedUploadRequest,
     PresignedUploadResponse,
 )
-from src.platform.core.config import get_settings
-from src.platform.core.exceptions import InvalidFileError, ProcessingError, ValidationError
-from src.platform.core.logging_config import get_logger
-from src.platform.core.rate_limit import limiter
+from src.infra.core.config import get_settings
+from src.infra.core.exceptions import InvalidFileError, ProcessingError, ValidationError
+from src.infra.core.logging_config import get_logger
+from src.infra.core.rate_limit import limiter
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -168,9 +168,9 @@ async def create_presigned_upload(
     Creates a dataset record and returns a presigned S3 URL for direct upload.
     After uploading, call POST /datasets/{id}/uploaded to trigger validation.
     """
-    from src.platform.core.permissions import Permission
-    from src.platform.infrastructure.object_storage import get_storage_client
-    from src.platform.workspaces.authorization import require_project_permission
+    from src.infra.core.permissions import Permission
+    from src.infra.infrastructure.object_storage import get_storage_client
+    from src.infra.workspaces.authorization import require_project_permission
 
     logger.info(
         "presigned_upload_request",
@@ -265,8 +265,8 @@ async def confirm_upload_complete(
 ) -> dict:
     """Trigger validation after S3 upload complete."""
 
-    from src.platform.core.permissions import Permission
-    from src.platform.workspaces.authorization import require_dataset_permission
+    from src.infra.core.permissions import Permission
+    from src.infra.workspaces.authorization import require_dataset_permission
 
     # Verify permission and get dataset
     _, dataset = await require_dataset_permission(
@@ -284,7 +284,7 @@ async def confirm_upload_complete(
     await db.commit()
 
     # Queue validation job via Temporal/Celery compat layer
-    from src.platform.temporal.compat import dispatch_workflow
+    from src.infra.temporal.compat import dispatch_workflow
 
     result = await dispatch_workflow(
         workflow_type="validate_uploaded_file",
@@ -348,10 +348,10 @@ async def upload_dataset(
     Validates, stores, and queues the file for processing.
     Use presigned upload for files larger than 50MB.
     """
-    from src.platform.core.permissions import Permission
-    from src.platform.infrastructure.object_storage import get_storage_client
-    from src.platform.temporal.compat import dispatch_workflow
-    from src.platform.workspaces.authorization import require_project_permission
+    from src.infra.core.permissions import Permission
+    from src.infra.infrastructure.object_storage import get_storage_client
+    from src.infra.temporal.compat import dispatch_workflow
+    from src.infra.workspaces.authorization import require_project_permission
 
     # Validate file type
     validate_file_upload(file)

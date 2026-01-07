@@ -13,7 +13,7 @@ from pm4py.objects.petri_net.obj import Marking, PetriNet
 from pm4py.objects.process_tree.obj import ProcessTree
 
 from src.features.process_mining.enums import MinerType, ModelFormat
-from src.platform.core.logging_config import get_logger
+from src.infra.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

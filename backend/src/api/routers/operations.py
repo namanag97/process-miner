@@ -35,8 +35,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from src.api.dependencies import CurrentUser
-from src.platform.core.exceptions import BadRequestError, NotFoundError, ProcessingError
-from src.platform.core.logging_config import get_logger
+from src.infra.core.exceptions import BadRequestError, NotFoundError, ProcessingError
+from src.infra.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -103,7 +103,7 @@ async def get_operation_status(workflow_id: str, user: CurrentUser) -> Operation
     Returns:
         OperationStatus with current status and progress
     """
-    from src.platform.temporal.client import get_temporal_client
+    from src.infra.temporal.client import get_temporal_client
 
     try:
         client = await get_temporal_client()
@@ -181,7 +181,7 @@ async def list_operations(
     Returns:
         List of operations matching filters
     """
-    from src.platform.temporal.client import get_temporal_client
+    from src.infra.temporal.client import get_temporal_client
 
     try:
         client = await get_temporal_client()
@@ -263,7 +263,7 @@ async def cancel_operation(workflow_id: str, user: CurrentUser) -> CancelRespons
     Returns:
         Confirmation of cancel request
     """
-    from src.platform.temporal.client import get_temporal_client
+    from src.infra.temporal.client import get_temporal_client
 
     try:
         client = await get_temporal_client()
@@ -292,7 +292,7 @@ async def get_operation_result(workflow_id: str, user: CurrentUser):
     Returns:
         The workflow's return value
     """
-    from src.platform.temporal.client import get_temporal_client
+    from src.infra.temporal.client import get_temporal_client
 
     try:
         client = await get_temporal_client()
@@ -404,8 +404,8 @@ async def stream_operation_progress(
 
     async def event_generator() -> AsyncGenerator[str, None]:
         """Generate SSE events for the workflow."""
-        from src.platform.core.config import get_settings
-        from src.platform.temporal.client import get_temporal_client
+        from src.infra.core.config import get_settings
+        from src.infra.temporal.client import get_temporal_client
 
         settings = get_settings()
 

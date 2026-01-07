@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.platform.dag.registry import (
+from src.infra.dag.registry import (
     DAGContext,
     TaskRegistry,
     TaskResult,

@@ -56,8 +56,8 @@ from src.features.process_mining.schemas import (
     PredictorResponse,
     TrainPredictorRequest,
 )
-from src.platform.core.exceptions import BadRequestError, NotFoundError, ProcessingError
-from src.platform.core.logging_config import get_logger
+from src.infra.core.exceptions import BadRequestError, NotFoundError, ProcessingError
+from src.infra.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

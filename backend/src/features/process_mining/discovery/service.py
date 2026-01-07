@@ -18,7 +18,7 @@ from pm4py.objects.process_tree.obj import ProcessTree
 
 from src.features.process_mining.enums import MinerType, ModelFormat
 from src.features.process_mining.models import Dataset
-from src.platform.core.logging_config import get_logger, log_business_metric
+from src.infra.core.logging_config import get_logger, log_business_metric
 
 from .algorithms import (
     AdvancedMiner,

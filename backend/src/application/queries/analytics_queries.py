@@ -183,7 +183,7 @@ class AnalyticsQueryHandlerBase(QueryHandler):
             raise ValueError("Database session required for metadata lookup")
 
         from src.features.process_mining.models import Dataset
-        from src.platform.core.config import get_settings
+        from src.infra.core.config import get_settings
 
         result = await self.db.execute(
             select(Dataset.parquet_s3_key).where(Dataset.id == dataset_id)

@@ -30,15 +30,15 @@ from src.features.process_mining.schemas import (
     OCELStatisticsResponse,
     OCPetriNetResponse,
 )
-from src.platform.core.exceptions import (
+from src.infra.core.exceptions import (
     BadRequestError,
     DiscoveryError,
     ModelNotFoundError,
     NotFoundError,
     ProcessingError,
 )
-from src.platform.core.logging_config import get_logger
-from src.platform.models import AsyncJob
+from src.infra.core.logging_config import get_logger
+from src.infra.models import AsyncJob
 
 logger = get_logger(__name__)
 
@@ -126,7 +126,7 @@ async def upload_ocel(
             await ocpm_service.persist_ocel_2_0(db, ocel, source_dataset_id=log_model.id)
         else:
             # Async: Create background job for persistence
-            from src.platform.core.enums import EntityType, JobStatus, JobType
+            from src.infra.core.enums import EntityType, JobStatus, JobType
 
             job = AsyncJob(
                 job_type=JobType.OCEL_PERSIST.value
@@ -427,7 +427,7 @@ async def flatten_ocel_to_dataset(
     name: str | None = Form(None, description="Name for the created dataset"),
 ):
     """Flatten an OCEL log to a traditional event log based on an object type."""
-    from src.platform.core.enums import EntityType, JobStatus, JobType
+    from src.infra.core.enums import EntityType, JobStatus, JobType
 
     result = await db.execute(select(OCELLog).where(OCELLog.id == dataset_id))
     log = result.scalar_one_or_none()

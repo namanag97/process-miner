@@ -8,9 +8,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from src.api.dependencies import CurrentUser, ReadDBSession
-from src.platform.core.exceptions import NotFoundError
-from src.platform.core.logging_config import get_logger
-from src.platform.workflows import (
+from src.infra.core.exceptions import NotFoundError
+from src.infra.core.logging_config import get_logger
+from src.infra.workflows import (
     Workflow,
     WorkflowListResponse,
     WorkflowResponse,
@@ -140,7 +140,7 @@ async def get_workflow_tasks(
 # =============================================================================
 #
 # NOTE: These endpoints have been deprecated in favor of the unified
-# /operations API. The src.platform.temporal.compat module has been removed.
+# /operations API. The src.infra.temporal.compat module has been removed.
 # Use /operations/{workflow_id} for status and cancellation instead.
 #
 # @router.get("/{workflow_id}/status")

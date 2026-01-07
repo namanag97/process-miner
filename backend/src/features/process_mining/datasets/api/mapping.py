@@ -24,10 +24,10 @@ from src.features.process_mining.schemas.datasets import (
     MappingUpdateRequest,
     PreviewResponse,
 )
-from src.platform.core.exceptions import ValidationError
-from src.platform.core.logging_config import get_logger
-from src.platform.core.permissions import Permission
-from src.platform.users.services import require_dataset_permission
+from src.infra.core.exceptions import ValidationError
+from src.infra.core.logging_config import get_logger
+from src.infra.core.permissions import Permission
+from src.infra.users.services import require_dataset_permission
 
 logger = get_logger(__name__)
 
@@ -269,7 +269,7 @@ async def get_mapping(
     user: CurrentUser,
 ) -> MappingResponse:
     """Get current column mapping."""
-    from src.platform.core.exceptions import NotFoundError
+    from src.infra.core.exceptions import NotFoundError
 
     # Verify permission
     _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)
@@ -436,8 +436,8 @@ async def preview_mapped_data(
     import csv
     import io
 
-    from src.platform.core.exceptions import NotFoundError
-    from src.platform.infrastructure.object_storage import get_storage_client
+    from src.infra.core.exceptions import NotFoundError
+    from src.infra.infrastructure.object_storage import get_storage_client
 
     # Verify permission
     _, dataset = await require_dataset_permission(db, dataset_id, user, Permission.DATASET_READ)

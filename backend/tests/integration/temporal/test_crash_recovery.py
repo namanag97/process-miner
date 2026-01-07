@@ -11,8 +11,8 @@ import pytest
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
-from src.platform.temporal.config import get_temporal_config
-from src.platform.temporal.workflows.analysis import ProcessDiscoveryWorkflow
+from src.infra.temporal.config import get_temporal_config
+from src.infra.temporal.workflows.analysis import ProcessDiscoveryWorkflow
 
 # =============================================================================
 # Activity Failure Simulation
@@ -54,7 +54,7 @@ class TestActivityRetryBehavior:
 
         # Mock the validate activity to fail once
         with patch(
-            "src.platform.temporal.activities.dataset.validate_file_activity",
+            "src.infra.temporal.activities.dataset.validate_file_activity",
             new=failing_activity,
         ):
             # Note: This test demonstrates the retry pattern
@@ -126,7 +126,7 @@ class TestWorkerRestart:
         workflow_id = f"test-restart-{dataset_id}"
 
         # Import activities for the worker
-        from src.platform.temporal.activities.analysis import (
+        from src.infra.temporal.activities.analysis import (
             compute_metrics_activity,
             load_event_log_activity,
             mine_model_activity,
@@ -169,7 +169,7 @@ class TestWorkerRestart:
         config = get_temporal_config()
         client = temporal_env.client
 
-        from src.platform.temporal.activities.analysis import (
+        from src.infra.temporal.activities.analysis import (
             compute_metrics_activity,
             load_event_log_activity,
             mine_model_activity,
@@ -240,7 +240,7 @@ class TestWorkflowQueries:
         config = get_temporal_config()
         client = temporal_env.client
 
-        from src.platform.temporal.activities.analysis import (
+        from src.infra.temporal.activities.analysis import (
             compute_metrics_activity,
             load_event_log_activity,
             mine_model_activity,

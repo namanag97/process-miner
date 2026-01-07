@@ -9,7 +9,7 @@ import re
 import tempfile
 from typing import Any
 
-from src.platform.core.logging_config import get_logger
+from src.infra.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -63,7 +63,7 @@ class DuckDBParser:
 
     def _get_manager(self):
         """Get the DuckDB manager instance."""
-        from src.platform.infrastructure.duckdb import duckdb_manager
+        from src.infra.infrastructure.duckdb import duckdb_manager
 
         return duckdb_manager
 

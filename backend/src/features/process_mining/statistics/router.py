@@ -21,9 +21,9 @@ from src.features.process_mining.schemas import (
     StatisticsResponse,
     VariantResponse,
 )
-from src.platform.core.logging_config import get_logger
-from src.platform.core.permissions import Permission
-from src.platform.workspaces.authorization import require_dataset_permission
+from src.infra.core.logging_config import get_logger
+from src.infra.core.permissions import Permission
+from src.infra.workspaces.authorization import require_dataset_permission
 
 logger = get_logger(__name__)
 

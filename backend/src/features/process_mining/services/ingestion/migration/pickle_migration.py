@@ -458,7 +458,7 @@ if __name__ == "__main__":
     import argparse
     import asyncio
 
-    from src.platform.infrastructure.database import async_session_maker
+    from src.infra.infrastructure.database import async_session_maker
 
     async def run_migration(batch_size: int, dry_run: bool) -> None:
         """Run migration from CLI."""

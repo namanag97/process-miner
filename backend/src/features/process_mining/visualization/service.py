@@ -11,7 +11,7 @@ from pm4py.visualization.dfg import visualizer as dfg_visualizer
 from pm4py.visualization.petri_net import visualizer as pn_visualizer
 
 from src.features.process_mining.enums import ModelFormat
-from src.platform.core.logging_config import get_logger
+from src.infra.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

@@ -13,13 +13,13 @@ Usage (automatic via event subscription):
     # 3. Caches results for fast retrieval
 """
 
-from src.platform.core.domain_events import (
+from src.infra.core.domain_events import (
     DatasetDeletedEvent,
     DatasetIngestedEvent,
     event_publisher,
 )
-from src.platform.core.logging_config import get_logger
-from src.platform.infrastructure.cache import cache_service
+from src.infra.core.logging_config import get_logger
+from src.infra.infrastructure.cache import cache_service
 
 logger = get_logger(__name__)
 

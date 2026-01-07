@@ -138,15 +138,15 @@ def add_logging_imports(content: str, file_path: Path) -> str:
     inserts = []
     
     if needs_logger and 'get_logger' not in content:
-        inserts.append('from src.platform.core.logging_config import get_logger')
+        inserts.append('from src.infra.core.logging_config import get_logger')
     
-    if needs_log_error and 'from src.platform.devconsole import' not in content:
-        inserts.append('from src.platform.devconsole import log_error, log_info')
+    if needs_log_error and 'from src.infra.devconsole import' not in content:
+        inserts.append('from src.infra.devconsole import log_error, log_info')
     
     if needs_exceptions:
         existing_exception_import = None
         for i, line in enumerate(lines):
-            if 'from src.platform.core.exceptions import' in line:
+            if 'from src.infra.core.exceptions import' in line:
                 existing_exception_import = i
                 break
         
@@ -179,10 +179,10 @@ def add_logging_imports(content: str, file_path: Path) -> str:
                 all_exceptions = sorted(current | exceptions_needed)
                 
                 if len(all_exceptions) <= 3:
-                    new_import = f"from src.platform.core.exceptions import {', '.join(all_exceptions)}"
+                    new_import = f"from src.infra.core.exceptions import {', '.join(all_exceptions)}"
                 else:
                     exc_list = ',\n    '.join(all_exceptions)
-                    new_import = f"from src.platform.core.exceptions import (\n    {exc_list},\n)"
+                    new_import = f"from src.infra.core.exceptions import (\n    {exc_list},\n)"
                 
                 lines[existing_exception_import] = new_import
                 # Remove old multiline import lines
@@ -200,7 +200,7 @@ def add_logging_imports(content: str, file_path: Path) -> str:
                 exceptions_needed.append('ProcessingError')
             
             if exceptions_needed:
-                inserts.append(f"from src.platform.core.exceptions import {', '.join(exceptions_needed)}")
+                inserts.append(f"from src.infra.core.exceptions import {', '.join(exceptions_needed)}")
     
     # Insert new imports
     for insert in reversed(inserts):

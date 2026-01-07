@@ -7,7 +7,7 @@ from typing import Any
 
 from fastapi import APIRouter, Request, Response, status
 
-from src.platform.core.logging_config import get_logger
+from src.infra.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

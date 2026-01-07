@@ -7,8 +7,8 @@ import pytest
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
-from src.platform.temporal.config import get_temporal_config
-from src.platform.temporal.workflows.ingestion import (
+from src.infra.temporal.config import get_temporal_config
+from src.infra.temporal.workflows.ingestion import (
     DatasetIngestionWorkflow,
     DatasetValidationWorkflow,
 )

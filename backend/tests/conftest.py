@@ -24,7 +24,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from src.api.main import app
-from src.platform.models import Organization, User, Workspace, WorkspaceMember
+from src.infra.models import Organization, User, Workspace, WorkspaceMember
 from src.shared.database import Base
 
 # =============================================================================
@@ -99,8 +99,8 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
 @pytest_asyncio.fixture(scope="function")
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Create an async HTTP client for testing with DB override."""
-    from src.platform.health.router import mark_startup_complete
-    from src.platform.infrastructure.database import get_session
+    from src.infra.health.router import mark_startup_complete
+    from src.infra.infrastructure.database import get_session
 
     # Mark startup complete so health probes pass
     mark_startup_complete()
@@ -198,7 +198,7 @@ async def seeded_workspace(
 @pytest_asyncio.fixture(scope="function")
 async def seeded_project(db_session: AsyncSession, seeded_workspace: Workspace) -> Any:
     """Create a test project."""
-    from src.platform.models import Project
+    from src.infra.models import Project
 
     project = Project(
         id=str(uuid4()),

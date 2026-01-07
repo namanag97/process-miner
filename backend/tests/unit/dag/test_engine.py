@@ -4,7 +4,7 @@ Tests core DAG execution logic including topological sort,
 ready-step detection, and cycle validation.
 """
 
-from src.platform.dag.engine import DAGEngine
+from src.infra.dag.engine import DAGEngine
 
 
 class TestDAGEngineValidation:
@@ -105,7 +105,7 @@ class TestDAGEngineTopologicalSort:
 
     def test_topological_sort_linear(self):
         """Linear DAG should sort correctly."""
-        from src.platform.dag.models import DAGDefinition, DAGDefinitionEdge, DAGDefinitionStep
+        from src.infra.dag.models import DAGDefinition, DAGDefinitionEdge, DAGDefinitionStep
 
         # Create mock definition
         dag_def = DAGDefinition(id="test-1", name="test")
@@ -135,7 +135,7 @@ class TestDAGEngineTopologicalSort:
 
     def test_topological_sort_diamond(self):
         """Diamond DAG (A -> B,C -> D) should sort with B,C before D."""
-        from src.platform.dag.models import DAGDefinition, DAGDefinitionEdge, DAGDefinitionStep
+        from src.infra.dag.models import DAGDefinition, DAGDefinitionEdge, DAGDefinitionStep
 
         dag_def = DAGDefinition(id="test-2", name="test")
         dag_def.steps = [
@@ -185,7 +185,7 @@ class TestDAGEngineReadySteps:
 
     def test_get_ready_steps_initial(self):
         """Initially, only steps with no dependencies should be ready."""
-        from src.platform.dag.models import (
+        from src.infra.dag.models import (
             DAGDefinition,
             DAGDefinitionEdge,
             DAGDefinitionStep,
@@ -249,7 +249,7 @@ class TestDAGEngineReadySteps:
 
     def test_get_ready_steps_after_completion(self):
         """After start completes, middle should be ready."""
-        from src.platform.dag.models import (
+        from src.infra.dag.models import (
             DAGDefinition,
             DAGDefinitionEdge,
             DAGDefinitionStep,
@@ -298,7 +298,7 @@ class TestDAGEngineReadySteps:
 
     def test_get_ready_steps_parallel(self):
         """Multiple parallel steps should all be ready."""
-        from src.platform.dag.models import (
+        from src.infra.dag.models import (
             DAGDefinition,
             DAGDefinitionEdge,
             DAGDefinitionStep,
@@ -368,7 +368,7 @@ class TestDAGEngineStepsToSkip:
 
     def test_steps_to_skip_on_failure(self):
         """Downstream steps should be skipped if upstream fails."""
-        from src.platform.dag.models import (
+        from src.infra.dag.models import (
             DAGDefinition,
             DAGDefinitionEdge,
             DAGDefinitionStep,
@@ -424,7 +424,7 @@ class TestDAGEngineRunCompletion:
 
     def test_is_run_finished_all_completed(self):
         """Run should be finished when all steps complete."""
-        from src.platform.dag.models import DAGRun, DAGRunStep, DAGStepStatus
+        from src.infra.dag.models import DAGRun, DAGRunStep, DAGStepStatus
 
         dag_run = DAGRun(id="r1")
         dag_run.steps = [
@@ -448,7 +448,7 @@ class TestDAGEngineRunCompletion:
 
     def test_is_run_finished_with_pending(self):
         """Run should not be finished with pending steps."""
-        from src.platform.dag.models import DAGRun, DAGRunStep, DAGStepStatus
+        from src.infra.dag.models import DAGRun, DAGRunStep, DAGStepStatus
 
         dag_run = DAGRun(id="r1")
         dag_run.steps = [
@@ -472,7 +472,7 @@ class TestDAGEngineRunCompletion:
 
     def test_compute_final_status_all_completed(self):
         """Final status should be COMPLETED if all steps completed."""
-        from src.platform.dag.models import DAGRun, DAGRunStep, DAGStepStatus
+        from src.infra.dag.models import DAGRun, DAGRunStep, DAGStepStatus
 
         dag_run = DAGRun(id="r1")
         dag_run.steps = [
@@ -496,7 +496,7 @@ class TestDAGEngineRunCompletion:
 
     def test_compute_final_status_with_failure(self):
         """Final status should be FAILED if any step failed."""
-        from src.platform.dag.models import DAGRun, DAGRunStep, DAGStepStatus
+        from src.infra.dag.models import DAGRun, DAGRunStep, DAGStepStatus
 
         dag_run = DAGRun(id="r1")
         dag_run.steps = [
@@ -520,7 +520,7 @@ class TestDAGEngineRunCompletion:
 
     def test_compute_final_status_partial(self):
         """Final status should be PARTIAL if some failed and some completed."""
-        from src.platform.dag.models import DAGRun, DAGRunStep, DAGStepStatus
+        from src.infra.dag.models import DAGRun, DAGRunStep, DAGStepStatus
 
         dag_run = DAGRun(id="r1")
         dag_run.steps = [

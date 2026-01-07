@@ -18,13 +18,13 @@ from src.features.process_mining.schemas import (
     ModelListResponse,
     ModelResponse,
 )
-from src.platform.core.exceptions import (
+from src.infra.core.exceptions import (
     DiscoveryError,
     InvalidInputError,
     ModelNotFoundError,
     ProcessNotFoundError,
 )
-from src.platform.core.logging_config import get_logger
+from src.infra.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -92,9 +92,9 @@ async def discover_model(
         from temporalio.common import WorkflowIDReusePolicy
         from temporalio.exceptions import WorkflowAlreadyStartedError
 
-        from src.platform.temporal.client import get_temporal_client
-        from src.platform.temporal.config import get_temporal_config
-        from src.platform.temporal.workflows_v2.analysis import ProcessDiscoveryWorkflowV2
+        from src.infra.temporal.client import get_temporal_client
+        from src.infra.temporal.config import get_temporal_config
+        from src.infra.temporal.workflows_v2.analysis import ProcessDiscoveryWorkflowV2
 
         config = get_temporal_config()
 
@@ -261,8 +261,8 @@ async def delete_model(db: ReadDBSession, user: CurrentUser, model_id: str):
 
     Requires DATASET_UPDATE permission on the model's dataset.
     """
-    from src.platform.core.permissions import Permission
-    from src.platform.users.services import require_dataset_permission
+    from src.infra.core.permissions import Permission
+    from src.infra.users.services import require_dataset_permission
 
     model = (
         await db.execute(select(ProcessModel).where(ProcessModel.id == model_id))
