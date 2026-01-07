@@ -120,6 +120,8 @@ from src.features.process_mining.schemas.visualization import (
     PetriNetResponse,
     PetriNetTransition,
     ProcessExplorerDataResponse,
+    TieredDFGAggregationInfo,
+    TieredDFGResponse,
 )
 
 # Workflows (legacy - superceded by DAGs)
@@ -197,6 +199,8 @@ __all__ = [
     "PredictorListResponse",
     "PredictorResponse",
     "ProcessExplorerDataResponse",
+    "TieredDFGAggregationInfo",
+    "TieredDFGResponse",
     "QualityMetricsResponse",
     "ResourceProfileResponse",
     "ResourceRoleResponse",
