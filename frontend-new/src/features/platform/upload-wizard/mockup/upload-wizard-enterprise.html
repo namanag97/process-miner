@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Wizard - Enterprise Design</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* ============================================
+           ENTERPRISE DESIGN TOKENS (Celonis-inspired)
+           ============================================ */
+        :root {
+            /* Primary - Subdued Professional Blue */
+            --primary-50: #F5F7FA;
+            --primary-100: #EBF0F7;
+            --primary-500: #2563EB;
+            --primary-600: #1D4ED8;
+            --primary-700: #1E40AF;
+
+            /* Neutral - Professional Grays */
+            --neutral-0: #FFFFFF;
+            --neutral-50: #FAFBFC;
+            --neutral-100: #F4F5F7;
+            --neutral-150: #EBECF0;
+            --neutral-200: #DFE1E6;
+            --neutral-300: #C1C7D0;
+            --neutral-400: #97A0AF;
+            --neutral-500: #6B778C;
+            --neutral-600: #505F79;
+            --neutral-700: #344563;
+            --neutral-800: #253858;
+            --neutral-900: #172B4D;
+
+            /* Semantic */
+            --success-500: #36B37E;
+            --success-50: #E3FCEF;
+            --warning-500: #FFAB00;
+            --error-500: #DE350B;
+
+            /* Spacing */
+            --spacing-1: 4px;
+            --spacing-2: 8px;
+            --spacing-3: 12px;
+            --spacing-4: 16px;
+            --spacing-5: 20px;
+            --spacing-6: 24px;
+            --spacing-8: 32px;
+            --spacing-10: 40px;
+            --spacing-12: 48px;
+
+            /* Radius - Subtle */
+            --radius-sm: 3px;
+            --radius-md: 6px;
+            --radius-lg: 8px;
+
+            /* Shadows - Minimal */
+            --shadow-sm: 0 1px 2px rgba(9, 30, 66, 0.08);
+            --shadow-md: 0 4px 8px -2px rgba(9, 30, 66, 0.1), 0 0 1px rgba(9, 30, 66, 0.12);
+            --shadow-lg: 0 8px 16px -4px rgba(9, 30, 66, 0.15), 0 0 1px rgba(9, 30, 66, 0.12);
+
+            /* Sidebar */
+            --sidebar-width: 56px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--neutral-900);
+            background: var(--neutral-50);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* ============================================
+           SIDEBAR (Celonis-style)
+           ============================================ */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--neutral-800);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: var(--spacing-3) 0;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            z-index: 100;
+        }
+
+        .sidebar-logo {
+            width: 32px;
+            height: 32px;
+            background: var(--primary-500);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: var(--spacing-6);
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-1);
+            flex: 1;
+        }
+
+        .sidebar-item {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-md);
+            color: var(--neutral-400);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .sidebar-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--neutral-0);
+        }
+
+        .sidebar-item.active {
+            background: rgba(255, 255, 255, 0.12);
+            color: var(--neutral-0);
+        }
+
+        .sidebar-item svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* ============================================
+           MAIN LAYOUT
+           ============================================ */
+        .main-container {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            min-height: 100vh;
+        }
+
+        /* Header Bar */
+        .header-bar {
+            background: var(--neutral-0);
+            border-bottom: 1px solid var(--neutral-150);
+            padding: 0 var(--spacing-6);
+            height: 56px;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-3);
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-2);
+            font-size: 13px;
+            color: var(--neutral-600);
+        }
+
+        .breadcrumb-link {
+            color: var(--primary-500);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-1);
+        }
+
+        .breadcrumb-link:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb-sep {
+            color: var(--neutral-300);
+        }
+
+        .breadcrumb-current {
+            color: var(--neutral-700);
+            font-weight: 500;
+        }
+
+        /* ============================================
+           WIZARD CONTENT
+           ============================================ */
+        .wizard-content {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: var(--spacing-8) var(--spacing-6);
+        }
+
+        /* Step Section */
+        .step-section {
+            margin-bottom: var(--spacing-8);
+        }
+
+        .step-header {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--spacing-4);
+            margin-bottom: var(--spacing-4);
+        }
+
+        .step-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .step-number.completed {
+            background: var(--success-500);
+            color: white;
+        }
+
+        .step-number.active {
+            background: var(--primary-500);
+            color: white;
+        }
+
+        .step-number.pending {
+            background: var(--neutral-150);
+            color: var(--neutral-500);
+        }
+
+        .step-info {
+            flex: 1;
+        }
+
+        .step-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--neutral-900);
+            margin-bottom: var(--spacing-1);
+        }
+
+        .step-description {
+            font-size: 13px;
+            color: var(--neutral-500);
+            line-height: 1.5;
+        }
+
+        .step-description a {
+            color: var(--primary-500);
+            text-decoration: none;
+        }
+
+        .step-description a:hover {
+            text-decoration: underline;
+        }
+
+        /* Step Body */
+        .step-body {
+            margin-left: 44px;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: var(--spacing-5);
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--neutral-700);
+            margin-bottom: var(--spacing-2);
+        }
+
+        .form-input {
+            width: 100%;
+            max-width: 320px;
+            padding: var(--spacing-2) var(--spacing-3);
+            border: 1px solid var(--neutral-200);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            color: var(--neutral-900);
+            background: var(--neutral-0);
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .form-input:hover {
+            border-color: var(--neutral-300);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-500);
+            box-shadow: 0 0 0 1px var(--primary-500);
+        }
+
+        .form-select {
+            width: auto;
+            min-width: 160px;
+            padding: var(--spacing-2) var(--spacing-8) var(--spacing-2) var(--spacing-3);
+            border: 1px solid var(--neutral-200);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            color: var(--neutral-900);
+            background: var(--neutral-0) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B778C' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center;
+            cursor: pointer;
+            appearance: none;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: var(--primary-500);
+        }
+
+        /* Search Box */
+        .search-box {
+            position: relative;
+            max-width: 280px;
+            margin-bottom: var(--spacing-4);
+        }
+
+        .search-input {
+            width: 100%;
+            padding: var(--spacing-2) var(--spacing-3) var(--spacing-2) var(--spacing-8);
+            border: 1px solid var(--neutral-200);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            color: var(--neutral-900);
+            background: var(--neutral-0);
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary-500);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--neutral-400);
+        }
+
+        /* Option Cards (Data Model / File Type selection) */
+        .option-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-2);
+            margin-bottom: var(--spacing-6);
+        }
+
+        .option-card {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-3);
+            padding: var(--spacing-4);
+            background: var(--neutral-0);
+            border: 1px solid var(--neutral-200);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .option-card:hover {
+            border-color: var(--neutral-300);
+            background: var(--neutral-50);
+        }
+
+        .option-card.selected {
+            border-color: var(--primary-500);
+            background: var(--primary-50);
+        }
+
+        .option-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .option-icon.csv {
+            background: #E8F5E9;
+            color: #43A047;
+        }
+
+        .option-icon.excel {
+            background: #E3F2FD;
+            color: #1976D2;
+        }
+
+        .option-icon.db {
+            background: #FFF3E0;
+            color: #F57C00;
+        }
+
+        .option-icon svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .option-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .option-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--neutral-900);
+            margin-bottom: 2px;
+        }
+
+        .option-meta {
+            font-size: 12px;
+            color: var(--neutral-500);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-2);
+        }
+
+        .option-meta-divider {
+            width: 3px;
+            height: 3px;
+            background: var(--neutral-300);
+            border-radius: 50%;
+        }
+
+        .option-stats {
+            font-size: 12px;
+            color: var(--neutral-500);
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .option-stats-value {
+            font-weight: 500;
+            color: var(--neutral-700);
+        }
+
+        .option-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--neutral-300);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.15s ease;
+        }
+
+        .option-card.selected .option-checkbox {
+            background: var(--primary-500);
+            border-color: var(--primary-500);
+        }
+
+        .option-checkbox svg {
+            width: 12px;
+            height: 12px;
+            color: white;
+            opacity: 0;
+        }
+
+        .option-card.selected .option-checkbox svg {
+            opacity: 1;
+        }
+
+        /* Divider with Label */
+        .divider-label {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-3);
+            margin: var(--spacing-6) 0 var(--spacing-4);
+            color: var(--neutral-500);
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .divider-label::before,
+        .divider-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--neutral-200);
+        }
+
+        /* Upload Area */
+        .upload-area {
+            border: 2px dashed var(--neutral-200);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-8);
+            text-align: center;
+            background: var(--neutral-0);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary-500);
+            background: var(--primary-50);
+        }
+
+        .upload-area.dragging {
+            border-color: var(--primary-500);
+            border-style: solid;
+            background: var(--primary-50);
+        }
+
+        .upload-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto var(--spacing-4);
+            color: var(--neutral-400);
+        }
+
+        .upload-area:hover .upload-icon {
+            color: var(--primary-500);
+        }
+
+        .upload-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--neutral-700);
+            margin-bottom: var(--spacing-1);
+        }
+
+        .upload-hint {
+            font-size: 13px;
+            color: var(--neutral-500);
+        }
+
+        .upload-hint a {
+            color: var(--primary-500);
+            text-decoration: none;
+        }
+
+        .upload-hint a:hover {
+            text-decoration: underline;
+        }
+
+        /* File Formats */
+        .format-chips {
+            display: flex;
+            justify-content: center;
+            gap: var(--spacing-2);
+            margin-top: var(--spacing-4);
+        }
+
+        .format-chip {
+            padding: var(--spacing-1) var(--spacing-2);
+            background: var(--neutral-100);
+            border-radius: var(--radius-sm);
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--neutral-600);
+            text-transform: uppercase;
+        }
+
+        /* Column Mapping Section */
+        .mapping-section {
+            margin-top: var(--spacing-6);
+        }
+
+        .mapping-row {
+            display: flex;
+            align-items: center;
+            padding: var(--spacing-4);
+            background: var(--neutral-0);
+            border: 1px solid var(--neutral-200);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-3);
+        }
+
+        .mapping-row:hover {
+            border-color: var(--neutral-300);
+        }
+
+        .mapping-field {
+            width: 140px;
+            flex-shrink: 0;
+        }
+
+        .mapping-field-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--neutral-900);
+        }
+
+        .mapping-field-required {
+            font-size: 11px;
+            color: var(--error-500);
+            margin-left: var(--spacing-1);
+        }
+
+        .mapping-arrow {
+            width: 40px;
+            display: flex;
+            justify-content: center;
+            color: var(--neutral-300);
+        }
+
+        .mapping-select-wrapper {
+            flex: 1;
+        }
+
+        .mapping-select {
+            width: 100%;
+            max-width: 240px;
+            padding: var(--spacing-2) var(--spacing-8) var(--spacing-2) var(--spacing-3);
+            border: 1px solid var(--neutral-200);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            color: var(--neutral-900);
+            background: var(--neutral-0) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B778C' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .mapping-select:focus {
+            outline: none;
+            border-color: var(--primary-500);
+        }
+
+        .mapping-badge {
+            margin-left: var(--spacing-3);
+            padding: 2px 8px;
+            background: var(--primary-50);
+            color: var(--primary-600);
+            font-size: 11px;
+            font-weight: 500;
+            border-radius: var(--radius-sm);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-2);
+            padding: var(--spacing-2) var(--spacing-4);
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--primary-500);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-600);
+        }
+
+        .btn-secondary {
+            background: var(--neutral-0);
+            color: var(--neutral-700);
+            border: 1px solid var(--neutral-200);
+        }
+
+        .btn-secondary:hover {
+            background: var(--neutral-50);
+            border-color: var(--neutral-300);
+        }
+
+        .btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Navigation Footer */
+        .wizard-footer {
+            display: flex;
+            justify-content: space-between;
+            margin-top: var(--spacing-8);
+            padding-top: var(--spacing-6);
+            border-top: 1px solid var(--neutral-150);
+        }
+
+        /* Demo Tabs */
+        .demo-tabs {
+            display: flex;
+            gap: var(--spacing-1);
+            padding: var(--spacing-4) var(--spacing-6);
+            background: var(--neutral-100);
+            border-bottom: 1px solid var(--neutral-150);
+        }
+
+        .demo-tab {
+            padding: var(--spacing-2) var(--spacing-4);
+            background: transparent;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--neutral-600);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .demo-tab.active {
+            background: var(--neutral-0);
+            color: var(--neutral-900);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .step-content {
+            display: none;
+        }
+
+        .step-content.active {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-logo">P</div>
+        <nav class="sidebar-nav">
+            <div class="sidebar-item active">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                </svg>
+            </div>
+            <div class="sidebar-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="M21 21l-4.35-4.35" />
+                </svg>
+            </div>
+            <div class="sidebar-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path
+                        d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                </svg>
+            </div>
+            <div class="sidebar-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Main -->
+    <div class="main-container">
+        <!-- Header -->
+        <div class="header-bar">
+            <div class="breadcrumb">
+                <a href="#" class="breadcrumb-link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7" />
+                    </svg>
+                    Process Miner
+                </a>
+                <span class="breadcrumb-sep">›</span>
+                <span class="breadcrumb-current">Setting up your Process Workspace</span>
+            </div>
+        </div>
+
+        <!-- Demo Tabs -->
+        <div class="demo-tabs">
+            <button class="demo-tab active" data-step="upload">1. Select Data Source</button>
+            <button class="demo-tab" data-step="mapping">2. Map Columns</button>
+        </div>
+
+        <!-- UPLOAD FLOW -->
+        <div class="step-content active" id="uploadStep">
+            <div class="wizard-content">
+                <!-- Step 1: Select Process Type -->
+                <div class="step-section">
+                    <div class="step-header">
+                        <div class="step-number completed">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="3">
+                                <polyline points="20,6 9,17 4,12" />
+                            </svg>
+                        </div>
+                        <div class="step-info">
+                            <div class="step-title">Select your process type</div>
+                            <div class="step-description">
+                                We'll store everything related to this process in a Process Workspace.
+                                Select <a href="#">Other process</a> if your process isn't in the list.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-body">
+                        <select class="form-select">
+                            <option>Other process</option>
+                            <option>Order to Cash</option>
+                            <option>Procure to Pay</option>
+                            <option>Service Desk</option>
+                        </select>
+
+                        <div class="form-group" style="margin-top: var(--spacing-5);">
+                            <label class="form-label">Name your process</label>
+                            <input type="text" class="form-input" value="Test" placeholder="Enter process name">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Choose Data Source -->
+                <div class="step-section">
+                    <div class="step-header">
+                        <div class="step-number active">2</div>
+                        <div class="step-info">
+                            <div class="step-title">Choose your Data Source</div>
+                            <div class="step-description">
+                                The data used in your process lives in a Data Source. Choose the source that's the best
+                                fit for your process type.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-body">
+                        <!-- Search -->
+                        <div class="search-box">
+                            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8" />
+                                <path d="M21 21l-4.35-4.35" />
+                            </svg>
+                            <input type="text" class="search-input" placeholder="Search">
+                        </div>
+
+                        <!-- Quick Start Options -->
+                        <div class="option-list">
+                            <div class="option-card" onclick="this.classList.toggle('selected')">
+                                <div class="option-icon csv">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                        <polyline points="14 2 14 8 20 8" />
+                                    </svg>
+                                </div>
+                                <div class="option-content">
+                                    <div class="option-title">[Quickstarts] CSV/XLSX</div>
+                                    <div class="option-meta">
+                                        <span>Type: Case-Centric</span>
+                                        <span class="option-meta-divider"></span>
+                                        <span>Data Pool: [Quickstarts] naman.agarwal's Data Pool</span>
+                                    </div>
+                                </div>
+                                <div class="option-stats">
+                                    <div class="option-stats-value">30K cases</div>
+                                    <div>Last updated: Dec 5, 2025</div>
+                                </div>
+                                <div class="option-checkbox">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                        <polyline points="20,6 9,17 4,12" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <div class="option-card selected">
+                                <div class="option-icon excel">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                        <polyline points="14 2 14 8 20 8" />
+                                        <line x1="16" y1="13" x2="8" y2="13" />
+                                        <line x1="16" y1="17" x2="8" y2="17" />
+                                    </svg>
+                                </div>
+                                <div class="option-content">
+                                    <div class="option-title">[Quickstarts] CSV/XLSX (1)</div>
+                                    <div class="option-meta">
+                                        <span>Type: Case-Centric</span>
+                                        <span class="option-meta-divider"></span>
+                                        <span>Data Pool: [Quickstarts] naman.agarwal's Data Pool</span>
+                                    </div>
+                                </div>
+                                <div class="option-stats">
+                                    <div class="option-stats-value">30K cases</div>
+                                    <div>Last updated: Dec 22, 2025</div>
+                                </div>
+                                <div class="option-checkbox">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                        <polyline points="20,6 9,17 4,12" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <div class="option-card">
+                                <div class="option-icon db">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <ellipse cx="12" cy="5" rx="9" ry="3" />
+                                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                                    </svg>
+                                </div>
+                                <div class="option-content">
+                                    <div class="option-title">[Quickstarts] Oracle AP</div>
+                                    <div class="option-meta">
+                                        <span>Type: Case-Centric</span>
+                                        <span class="option-meta-divider"></span>
+                                        <span>Data Pool: [Quickstarts] naman.agarwal's Data Pool</span>
+                                    </div>
+                                </div>
+                                <div class="option-stats">
+                                    <div class="option-stats-value">140K cases</div>
+                                    <div>Last updated: Dec 30, 2025</div>
+                                </div>
+                                <div class="option-checkbox">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                        <polyline points="20,6 9,17 4,12" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Additional Options Divider -->
+                        <div class="divider-label">Additional Options</div>
+
+                        <div class="step-description" style="margin-bottom: var(--spacing-4);">
+                            If you don't have a data model available for this process, consider trying one of our other
+                            options to bring your data into Celonis.
+                        </div>
+
+                        <!-- Upload Options -->
+                        <div style="display: flex; gap: var(--spacing-4);">
+                            <div class="upload-area" style="flex: 1;">
+                                <div class="upload-icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="1.5">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                        <polyline points="14 2 14 8 20 8" />
+                                    </svg>
+                                </div>
+                                <div class="upload-title">CSV/XLSX file</div>
+                                <div class="upload-hint">Drop files here or <a href="#">browse</a></div>
+                                <div class="format-chips">
+                                    <span class="format-chip">CSV</span>
+                                    <span class="format-chip">XLSX</span>
+                                    <span class="format-chip">XLS</span>
+                                </div>
+                            </div>
+
+                            <div class="upload-area" style="flex: 1;">
+                                <div class="upload-icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="1.5">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                        <line x1="3" y1="9" x2="21" y2="9" />
+                                        <line x1="9" y1="21" x2="9" y2="9" />
+                                    </svg>
+                                </div>
+                                <div class="upload-title">Google Sheet</div>
+                                <div class="upload-hint">Connect to Google Sheets</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="wizard-footer">
+                    <button class="btn btn-secondary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 12H5M12 19l-7-7 7-7" />
+                        </svg>
+                        Back
+                    </button>
+                    <button class="btn btn-primary">
+                        Continue
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAPPING FLOW -->
+        <div class="step-content" id="mappingStep">
+            <div class="wizard-content">
+                <!-- Step 3: Map Columns -->
+                <div class="step-section">
+                    <div class="step-header">
+                        <div class="step-number active">3</div>
+                        <div class="step-info">
+                            <div class="step-title">Map your columns</div>
+                            <div class="step-description">
+                                Tell us which columns contain your process mining data. We've auto-detected likely
+                                matches based on column names.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-body">
+                        <div class="mapping-section">
+                            <!-- Case ID -->
+                            <div class="mapping-row">
+                                <div class="mapping-field">
+                                    <span class="mapping-field-label">Case ID</span>
+                                    <span class="mapping-field-required">*</span>
+                                </div>
+                                <div class="mapping-arrow">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M5 12h14M12 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                                <div class="mapping-select-wrapper">
+                                    <select class="mapping-select">
+                                        <option value="order_id" selected>order_id</option>
+                                        <option value="case_number">case_number</option>
+                                        <option value="id">id</option>
+                                    </select>
+                                </div>
+                                <span class="mapping-badge">Auto-detected</span>
+                            </div>
+
+                            <!-- Activity -->
+                            <div class="mapping-row">
+                                <div class="mapping-field">
+                                    <span class="mapping-field-label">Activity</span>
+                                    <span class="mapping-field-required">*</span>
+                                </div>
+                                <div class="mapping-arrow">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M5 12h14M12 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                                <div class="mapping-select-wrapper">
+                                    <select class="mapping-select">
+                                        <option value="activity_name" selected>activity_name</option>
+                                        <option value="event_type">event_type</option>
+                                        <option value="action">action</option>
+                                    </select>
+                                </div>
+                                <span class="mapping-badge">Auto-detected</span>
+                            </div>
+
+                            <!-- Timestamp -->
+                            <div class="mapping-row">
+                                <div class="mapping-field">
+                                    <span class="mapping-field-label">Timestamp</span>
+                                    <span class="mapping-field-required">*</span>
+                                </div>
+                                <div class="mapping-arrow">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M5 12h14M12 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                                <div class="mapping-select-wrapper">
+                                    <select class="mapping-select">
+                                        <option value="event_timestamp" selected>event_timestamp</option>
+                                        <option value="created_at">created_at</option>
+                                        <option value="date">date</option>
+                                    </select>
+                                </div>
+                                <span class="mapping-badge">Auto-detected</span>
+                            </div>
+
+                            <!-- Resource (Optional) -->
+                            <div class="mapping-row">
+                                <div class="mapping-field">
+                                    <span class="mapping-field-label">Resource</span>
+                                </div>
+                                <div class="mapping-arrow">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M5 12h14M12 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                                <div class="mapping-select-wrapper">
+                                    <select class="mapping-select">
+                                        <option value="">Select column...</option>
+                                        <option value="assigned_to">assigned_to</option>
+                                        <option value="user_email">user_email</option>
+                                        <option value="agent_id">agent_id</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="wizard-footer">
+                    <button class="btn btn-secondary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 12H5M12 19l-7-7 7-7" />
+                        </svg>
+                        Back
+                    </button>
+                    <button class="btn btn-primary">
+                        Start Analysis
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+        document.querySelectorAll('.demo-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.demo-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.step-content').forEach(s => s.classList.remove('active'));
+
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.step + 'Step').classList.add('active');
+            });
+        });
+
+        // Option card selection
+        document.querySelectorAll('.option-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+            });
+        });
+
+        // Upload area drag effects
+        document.querySelectorAll('.upload-area').forEach(area => {
+            area.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                area.classList.add('dragging');
+            });
+            area.addEventListener('dragleave', () => {
+                area.classList.remove('dragging');
+            });
+            area.addEventListener('drop', (e) => {
+                e.preventDefault();
+                area.classList.remove('dragging');
+            });
+        });
+    </script>
+</body>
+
+</html>

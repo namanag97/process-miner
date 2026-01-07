@@ -46,3 +46,54 @@ export type { NotificationState, AppNotification } from './notificationStore';
 // Backend health state
 export { useBackendHealthStore } from './backendHealthStore';
 export type { BackendHealthState } from './backendHealthStore';
+
+// Entity store (normalized cache)
+export {
+    useEntityStore,
+    // Single entity selectors
+    useDataset,
+    useProject,
+    useModel,
+    useJob,
+    // Multiple entity selectors
+    useDatasetsById,
+    useProjectsById,
+    useModelsById,
+    useJobsById,
+    // All entities selectors
+    useAllDatasets,
+    useAllProjects,
+    useAllModels,
+    useAllJobs,
+    // Relationship selectors
+    useProjectDatasets,
+    useDatasetModels,
+    useEntityJobs,
+    // Static selectors
+    selectDataset,
+    selectProject,
+    selectModel,
+    selectJob,
+    selectAllDatasets,
+    selectAllProjects,
+    selectAllModels,
+    selectAllJobs,
+} from './entityStore';
+
+export type {
+    EntityState,
+    NormalizedDataset,
+    NormalizedProject,
+    NormalizedModel,
+    NormalizedJob,
+    DatasetStatus,
+    JobStatus,
+} from './entityStore.types';
+
+// Transformation utilities
+export {
+    transformDataset,
+    transformProject,
+    transformModel,
+    transformJob,
+} from './entityStore.types';
