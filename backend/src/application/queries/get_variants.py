@@ -110,10 +110,19 @@ class GetVariantsHandler(QueryHandler[GetVariantsQuery, VariantsListResult]):
                 total_cases=0,
             )
 
+        # Build full parquet path
+        from src.infra.core.config import get_settings
+        settings = get_settings()
+        if settings.storage_type == "local":
+            parquet_path = f"./data/storage/{settings.s3_bucket_cache}/{dataset.parquet_s3_key}"
+        else:
+            endpoint = settings.s3_endpoint_url or "s3://"
+            parquet_path = f"{endpoint}/{settings.s3_bucket_cache}/{dataset.parquet_s3_key}"
+
         # Query DuckDB for variants
         try:
             variants_result = self._compute_variants(
-                dataset.parquet_s3_key,
+                parquet_path,
                 query.dataset_id,
                 query.top_n,
                 query.filters,
@@ -162,14 +171,14 @@ class GetVariantsHandler(QueryHandler[GetVariantsQuery, VariantsListResult]):
             if conditions:
                 where_clause = "WHERE " + " AND ".join(conditions)
 
-        # Query to compute variants
+        # Query to compute variants (uses PM4Py standard column names)
         sql = f"""
         WITH ordered_events AS (
             SELECT
-                case_id,
-                activity,
-                timestamp,
-                ROW_NUMBER() OVER (PARTITION BY case_id ORDER BY timestamp) as event_order
+                "case:concept:name" as case_id,
+                "concept:name" as activity,
+                "time:timestamp" as timestamp,
+                ROW_NUMBER() OVER (PARTITION BY "case:concept:name" ORDER BY "time:timestamp") as event_order
             FROM read_parquet('{parquet_path}')
             {where_clause}
         ),
@@ -202,14 +211,32 @@ class GetVariantsHandler(QueryHandler[GetVariantsQuery, VariantsListResult]):
             result = self.duckdb.execute(sql)
             rows = result.fetchall()
 
-            # Get total counts
-            total_sql = f"""
-            SELECT COUNT(DISTINCT case_id) as total_cases
-            FROM read_parquet('{parquet_path}')
+            # Get total counts (uses PM4Py column names)
+            totals_sql = f"""
+            WITH ordered_events AS (
+                SELECT
+                    "case:concept:name" as case_id,
+                    "concept:name" as activity,
+                    "time:timestamp" as timestamp,
+                    ROW_NUMBER() OVER (PARTITION BY "case:concept:name" ORDER BY "time:timestamp") as event_order
+                FROM read_parquet('{parquet_path}')
+            ),
+            case_variants AS (
+                SELECT
+                    case_id,
+                    STRING_AGG(activity, ' -> ' ORDER BY event_order) as variant_path
+                FROM ordered_events
+                GROUP BY case_id
+            )
+            SELECT
+                COUNT(DISTINCT case_id) as total_cases,
+                COUNT(DISTINCT variant_path) as total_variants
+            FROM case_variants
             """
-            total_result = self.duckdb.execute(total_sql)
-            total_row = total_result.fetchone()
-            total_cases = int(total_row[0]) if total_row else 0
+            totals_result = self.duckdb.execute(totals_sql)
+            totals_row = totals_result.fetchone()
+            total_cases = int(totals_row[0]) if totals_row else 0
+            total_variants = int(totals_row[1]) if totals_row else 0
 
             variants = []
             for row in rows:
@@ -232,7 +259,7 @@ class GetVariantsHandler(QueryHandler[GetVariantsQuery, VariantsListResult]):
             return VariantsListResult(
                 dataset_id=dataset_id,
                 variants=variants,
-                total_variants=len(rows),
+                total_variants=total_variants,
                 total_cases=total_cases,
             )
 

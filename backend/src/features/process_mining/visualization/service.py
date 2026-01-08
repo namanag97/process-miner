@@ -36,7 +36,8 @@ class VisualizationService:
             SVG bytes
         """
         gviz = pn_visualizer.apply(net, im, fm)
-        return pn_visualizer.serialize(gviz)
+        # PM4Py 2.7+ returns a graphviz.Digraph - use pipe() for SVG bytes
+        return gviz.pipe(format="svg")
 
     def visualize_dfg(
         self,
@@ -47,15 +48,44 @@ class VisualizationService:
         """Generate SVG visualization of DFG.
 
         Args:
-            dfg: Directly-follows graph dict
+            dfg: Directly-follows graph dict {(source, target): count}
             start_activities: Start activity frequencies
             end_activities: End activity frequencies
 
         Returns:
             SVG bytes
         """
-        gviz = dfg_visualizer.apply(dfg, activities_count=start_activities)
-        return dfg_visualizer.serialize(gviz)
+        # Compute activity frequencies from DFG edges
+        # Each activity appears as source/target in DFG edges
+        activities_count: dict[str, int] = {}
+
+        # Collect all activities and estimate frequencies
+        for (source, _target), count in dfg.items():
+            # Add source activity frequency
+            activities_count[source] = activities_count.get(source, 0) + count
+            # Note: We don't double-count targets as they become sources in next transitions
+
+        # Include end activities that might not appear as sources
+        for activity, count in end_activities.items():
+            if activity not in activities_count:
+                activities_count[activity] = count
+
+        # Include start activities
+        for activity, count in start_activities.items():
+            if activity not in activities_count:
+                activities_count[activity] = count
+
+        gviz = dfg_visualizer.apply(
+            dfg,
+            activities_count=activities_count,
+            parameters={
+                "start_activities": start_activities,
+                "end_activities": end_activities,
+                "format": "svg",  # Ensure SVG output format
+            }
+        )
+        # PM4Py 2.7+ returns a graphviz.Digraph - use pipe() for SVG bytes
+        return gviz.pipe(format="svg")
 
     def visualize_model(
         self,

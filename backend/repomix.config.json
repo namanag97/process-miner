@@ -1,0 +1,54 @@
+{
+    "output": {
+        "filePath": "backend_essential_code.txt",
+        "style": "xml",
+        "removeComments": true,
+        "showLineNumbers": false,
+        "topFilesLength": 15
+    },
+    "ignore": {
+        "customPatterns": [
+            "**/data/**",
+            "**/storage/**",
+            "**/*.csv",
+            "**/*.parquet",
+            "**/*.db",
+            "**/*.sqlite",
+            "**/*.log",
+            "**/.venv/**",
+            "**/__pycache__/**",
+            "**/tests/**",
+            "**/test/**",
+            "**/migrations/**",
+            "**/alembic/**",
+            "**/examples/**",
+            "**/docs/**",
+            "**/scripts/**",
+            "**/tools/**",
+            "**/*.md",
+            "**/*.json",
+            "**/*.yaml",
+            "**/*.yml",
+            "**/*.ini",
+            "**/*.toml",
+            "**/features/process_mining/discovery/**",
+            "**/features/process_mining/filtering/**",
+            "**/features/process_mining/conformance/**",
+            "**/features/process_mining/ocpm/**",
+            "**/features/process_mining/visualization/**",
+            "**/features/process_mining/analytics/**",
+            "**/features/process_mining/business_use_cases/**",
+            "**/infra/infrastructure/object_storage.py"
+        ]
+    },
+    "include": [
+        "**/api/**/*.py",
+        "**/application/**/*.py",
+        "**/domain/**/*.py",
+        "**/infra/database/**/*.py",
+        "**/infra/users/**/*.py",
+        "**/features/process_mining/services/**/*.py",
+        "**/features/datasets/**/*.py",
+        "**/features/projects/**/*.py"
+    ]
+}

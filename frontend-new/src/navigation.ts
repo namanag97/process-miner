@@ -66,6 +66,7 @@ export const datasetNavItems: NavItem[] = [
  * Used by AppShell's onNavigate handler
  */
 export const navRoutes: Record<string, string> = {
+  login: '/login',
   workspace: '/workspace',
   home: '/workspace',
   logs: '/processes',
@@ -84,6 +85,7 @@ export const navRoutes: Record<string, string> = {
  * Get the active nav item ID from the current path
  */
 export function getActiveNavId(path: string): string {
+  if (path.startsWith('/login')) return 'login';
   if (path.startsWith('/workspace')) return 'workspace';
   if (path.startsWith('/home')) return 'workspace';
   if (path.startsWith('/projects')) return 'workspace';

@@ -105,6 +105,9 @@ function Header() {
             </svg>
             <span>Star</span>
           </a>
+          <Link to="/login" className={styles.navLink} style={{ marginRight: 8 }}>
+            Sign In
+          </Link>
           <Link to="/workspace" className={styles.btnPrimary}>
             Get Started
           </Link>

@@ -50,8 +50,8 @@ class GraphStructureSerializer:
                 "id": activity,
                 "label": activity,
                 "frequency": activities_count.get(activity, 0) if activities_count else 0,
-                "isStart": activity in start_activities,
-                "isEnd": activity in end_activities,
+                "is_start": activity in start_activities,
+                "is_end": activity in end_activities,
             }
             nodes.append(node)
 
@@ -64,7 +64,7 @@ class GraphStructureSerializer:
                 "id": f"edge-{source}-{target}",
                 "source": source,
                 "target": target,
-                "frequency": frequency,
+                "value": frequency,
                 "probability": frequency / total_frequency if total_frequency > 0 else 0,
             }
             edges.append(edge)

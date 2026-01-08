@@ -175,6 +175,7 @@ async def discover_model(
         name=model_name,
         dataset_id=event_log.id,
         miner_type=miner_type.value,
+        model_type=model_format.value,
         model_format=model_format.value,
         serialized_model=serialized,
         graph_structure_json=graph_structure_json,
@@ -296,3 +297,65 @@ async def delete_model(db: ReadDBSession, user: CurrentUser, model_id: str):
     await db.flush()
     logger.info("delete_model_completed", model_id=model_id, user_id=user.id)
     return {"status": "deleted", "id": model_id}
+
+
+# =============================================================================
+# Variants (convenience endpoint - delegates to analytics)
+# =============================================================================
+
+
+@router.get("/variants/{dataset_id}")
+async def get_variants(
+    db: ReadDBSession,
+    user: CurrentUser,
+    dataset_id: str,
+    top_n: int = Query(20, ge=1, le=100, description="Number of top variants to return"),
+):
+    """Get process variants (unique activity sequences) for a dataset.
+
+    This is a convenience endpoint that delegates to the analytics variants query.
+    Variants are computed from the Parquet file using DuckDB for OLAP performance.
+
+    Returns the top N most frequent variants with:
+    - Activity sequence
+    - Case count
+    - Percentage of total cases
+    """
+    from src.application.queries.get_variants import GetVariantsQuery, GetVariantsHandler
+    from src.infra.infrastructure.duckdb import DuckDBManager
+
+    logger.info("get_variants", dataset_id=dataset_id, user_id=user.id, top_n=top_n)
+
+    # Verify dataset exists and is ready
+    query = select(Dataset).where(Dataset.id == dataset_id)
+    dataset = (await db.execute(query)).scalar_one_or_none()
+
+    if not dataset:
+        raise ProcessNotFoundError(dataset_id)
+    if dataset.status != DatasetStatus.READY.value:
+        raise InvalidInputError(
+            f"Dataset not ready (status: {dataset.status}). Complete ingestion first.",
+            field="dataset_id",
+        )
+
+    # Execute variants query using DuckDB
+    duckdb_manager = DuckDBManager()
+    handler = GetVariantsHandler(db, duckdb_manager)
+    variants_query = GetVariantsQuery(dataset_id=dataset_id, top_n=top_n)
+
+    result = await handler.handle(variants_query)
+
+    return {
+        "dataset_id": result.dataset_id,
+        "variants": [
+            {
+                "variant_id": v.variant_id,
+                "activities": v.activities,
+                "case_count": v.case_count,
+                "percentage": v.percentage,
+            }
+            for v in result.variants
+        ],
+        "total_variants": result.total_variants,
+        "total_cases": result.total_cases,
+    }

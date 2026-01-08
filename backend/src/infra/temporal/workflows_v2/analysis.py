@@ -79,7 +79,6 @@ class ProcessDiscoveryWorkflowV2:
             dict with model data and metrics
         """
         from src.infra.temporal.activities_v2.analysis import (
-            compute_model_metrics,
             discover_process_model,
             load_event_log,
             save_process_model,
@@ -120,14 +119,13 @@ class ProcessDiscoveryWorkflowV2:
 
             self._state.progress_percent = 70
 
-            # Step 3: Compute metrics
-            self._state.current_step = "compute_metrics"
-            metrics = await workflow.execute_activity(
-                compute_model_metrics,
-                args=[dataset_id, discovery.model_data],
-                start_to_close_timeout=timedelta(minutes=5),
-                retry_policy=retry_policy,
-            )
+            # Step 3: Use metrics from discovery (they're already computed)
+            # The discover_process_model activity now computes fitness/precision
+            metrics = {
+                "fitness": discovery.fitness,
+                "precision": discovery.precision,
+                "model_format": discovery.model_format,
+            }
 
             self._state.progress_percent = 90
 
@@ -153,8 +151,9 @@ class ProcessDiscoveryWorkflowV2:
                 "model_id": model_id,
                 "dataset_id": dataset_id,
                 "miner_type": miner_type,
-                "fitness": metrics.get("fitness"),
-                "precision": metrics.get("precision"),
+                "model_format": discovery.model_format,
+                "fitness": discovery.fitness,
+                "precision": discovery.precision,
             }
 
         except Exception as e:

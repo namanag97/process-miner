@@ -160,14 +160,17 @@ class EventLogLoader:
             limit_clause = f"LIMIT {max_events}" if max_events > 0 else ""
 
             # Query Parquet directly via DuckDB
+            # Note: Parquet files use PM4Py standard column names with colons,
+            # which must be quoted in DuckDB SQL.
+            # The resource column may be stored as "resource" or "org:resource"
             query = f"""
                 SELECT
-                    case_id AS "case:concept:name",
-                    activity AS "concept:name",
-                    timestamp AS "time:timestamp",
-                    resource AS "org:resource"
+                    "case:concept:name",
+                    "concept:name",
+                    "time:timestamp",
+                    "resource" AS "org:resource"
                 FROM read_parquet('{parquet_url}')
-                ORDER BY case_id, timestamp
+                ORDER BY "case:concept:name", "time:timestamp"
                 {limit_clause}
             """
 
@@ -330,12 +333,12 @@ class EventLogLoader:
                 f"""
                 SELECT
                     COUNT(*) as total_events,
-                    COUNT(DISTINCT case_id) as total_cases,
-                    COUNT(DISTINCT activity) as total_activities,
-                    COUNT(DISTINCT resource) FILTER (WHERE resource IS NOT NULL) as total_resources,
-                    MIN(timestamp) as start_time,
-                    MAX(timestamp) as end_time,
-                    LIST(DISTINCT activity ORDER BY activity) as activities
+                    COUNT(DISTINCT "case:concept:name") as total_cases,
+                    COUNT(DISTINCT "concept:name") as total_activities,
+                    COUNT(DISTINCT "resource") FILTER (WHERE "resource" IS NOT NULL) as total_resources,
+                    MIN("time:timestamp") as start_time,
+                    MAX("time:timestamp") as end_time,
+                    LIST(DISTINCT "concept:name" ORDER BY "concept:name") as activities
                 FROM read_parquet('{parquet_url}')
             """
             ).fetchone()
@@ -418,15 +421,15 @@ class EventLogLoader:
                 f"""
                 WITH first_events AS (
                     SELECT
-                        case_id,
-                        activity,
-                        ROW_NUMBER() OVER (PARTITION BY case_id ORDER BY timestamp) as rn
+                        "case:concept:name",
+                        "concept:name",
+                        ROW_NUMBER() OVER (PARTITION BY "case:concept:name" ORDER BY "time:timestamp") as rn
                     FROM read_parquet('{parquet_url}')
                 )
-                SELECT activity, COUNT(*) as freq
+                SELECT "concept:name", COUNT(*) as freq
                 FROM first_events
                 WHERE rn = 1
-                GROUP BY activity
+                GROUP BY "concept:name"
                 ORDER BY freq DESC
             """
             ).fetchall()
@@ -435,15 +438,15 @@ class EventLogLoader:
                 f"""
                 WITH last_events AS (
                     SELECT
-                        case_id,
-                        activity,
-                        ROW_NUMBER() OVER (PARTITION BY case_id ORDER BY timestamp DESC) as rn
+                        "case:concept:name",
+                        "concept:name",
+                        ROW_NUMBER() OVER (PARTITION BY "case:concept:name" ORDER BY "time:timestamp" DESC) as rn
                     FROM read_parquet('{parquet_url}')
                 )
-                SELECT activity, COUNT(*) as freq
+                SELECT "concept:name", COUNT(*) as freq
                 FROM last_events
                 WHERE rn = 1
-                GROUP BY activity
+                GROUP BY "concept:name"
                 ORDER BY freq DESC
             """
             ).fetchall()
@@ -537,19 +540,19 @@ class EventLogLoader:
                 f"""
                 WITH ordered_events AS (
                     SELECT
-                        case_id,
-                        activity,
-                        timestamp,
-                        LEAD(activity) OVER (
-                            PARTITION BY case_id
-                            ORDER BY timestamp
+                        "case:concept:name",
+                        "concept:name",
+                        "time:timestamp",
+                        LEAD("concept:name") OVER (
+                            PARTITION BY "case:concept:name"
+                            ORDER BY "time:timestamp"
                         ) as next_activity
                     FROM read_parquet('{parquet_url}')
                 )
-                SELECT activity, next_activity, COUNT(*) as freq
+                SELECT "concept:name", next_activity, COUNT(*) as freq
                 FROM ordered_events
                 WHERE next_activity IS NOT NULL
-                GROUP BY activity, next_activity
+                GROUP BY "concept:name", next_activity
                 ORDER BY freq DESC
             """
             ).fetchall()
@@ -640,10 +643,10 @@ class EventLogLoader:
             query = f"""
                 WITH case_variants AS (
                     SELECT
-                        case_id,
-                        STRING_AGG(activity, ' -> ' ORDER BY timestamp) as variant_key
+                        "case:concept:name",
+                        STRING_AGG("concept:name", ' -> ' ORDER BY "time:timestamp") as variant_key
                     FROM read_parquet('{parquet_url}')
-                    GROUP BY case_id
+                    GROUP BY "case:concept:name"
                 ),
                 variants_agg AS (
                     SELECT

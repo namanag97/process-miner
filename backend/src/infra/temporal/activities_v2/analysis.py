@@ -146,43 +146,53 @@ async def discover_process_model(
     start_time = time.perf_counter()
 
     try:
-        from sqlalchemy import select
-
-        from src.features.process_mining.models import ProcessCase, ProcessEvent
+        from src.features.process_mining.discovery.service import mining_service
+        from src.features.process_mining.enums import MinerType, ModelFormat
+        from src.features.process_mining.models import Dataset
+        from src.features.process_mining.services.loader import event_log_loader
         from src.infra.infrastructure.database import async_session_maker
 
-        # Load event log data
-        activity.heartbeat("loading_events")
-
+        # Load dataset metadata
+        activity.heartbeat("loading_dataset")
         async with async_session_maker() as db:
-            # Get all events for dataset
-            result = await db.execute(
-                select(ProcessEvent, ProcessCase.case_id)
-                .join(ProcessCase)
-                .where(ProcessCase.dataset_id == dataset_id)
-                .order_by(ProcessCase.case_id, ProcessEvent.timestamp)
-            )
-            rows = result.all()
+            dataset = await db.get(Dataset, dataset_id)
+            if not dataset:
+                raise ValueError(f"Dataset not found: {dataset_id}")
 
-        # Convert to PM4Py format
-        activity.heartbeat("converting_to_pm4py")
+        # Load event log using the high-performance Parquet path
+        activity.heartbeat("loading_event_log")
+        pm4py_log = event_log_loader.load_as_pm4py_log(dataset_id)
 
-        events = []
-        for event, case_id in rows:
-            events.append(
-                {
-                    "case:concept:name": case_id,
-                    "concept:name": event.activity,
-                    "time:timestamp": event.timestamp,
-                    "org:resource": event.resource,
-                }
-            )
-
-        if not events:
+        if len(pm4py_log) == 0:
             raise ValueError("No events found in dataset")
 
-        # For now, return placeholder - actual PM4Py integration would go here
+        # Run discovery algorithm
         activity.heartbeat(f"running_{miner_type}_miner")
+        miner_enum = MinerType(miner_type)
+        model_data, model_format = mining_service._run_discovery(
+            pm4py_log, miner_enum, parameters or {}
+        )
+
+        # Serialize the model using joblib
+        activity.heartbeat("serializing_model")
+        serialized = mining_service.serialize_model(model_data)
+
+        # Compute initial metrics if applicable
+        fitness = 0.0
+        precision = 0.0
+        if model_format in [ModelFormat.PETRI_NET, ModelFormat.PROCESS_TREE]:
+            activity.heartbeat("computing_metrics")
+            try:
+                import pm4py as pm4py_lib
+                if model_format == ModelFormat.PETRI_NET:
+                    net, im, fm = model_data
+                else:
+                    net, im, fm = pm4py_lib.convert_to_petri_net(model_data)
+                fitness_result = pm4py_lib.fitness_token_based_replay(pm4py_log, net, im, fm)
+                fitness = fitness_result.get("average_trace_fitness", 0.0)
+                precision = pm4py_lib.precision_token_based_replay(pm4py_log, net, im, fm)
+            except Exception as e:
+                logger.warning("metrics_computation_failed", error=str(e))
 
         duration_ms = (time.perf_counter() - start_time) * 1000
 
@@ -190,14 +200,17 @@ async def discover_process_model(
             "discover_process_model_completed",
             dataset_id=dataset_id,
             miner_type=miner_type,
+            model_format=model_format.value,
+            fitness=fitness,
+            precision=precision,
             duration_ms=round(duration_ms, 2),
         )
 
         return DiscoveryResult(
-            model_data=b"<pnml></pnml>",  # Placeholder
-            model_format="pnml",
-            fitness=0.0,
-            precision=0.0,
+            model_data=serialized,
+            model_format=model_format.value,
+            fitness=fitness,
+            precision=precision,
         )
 
     except Exception as e:
@@ -242,12 +255,14 @@ async def save_process_model(
     Args:
         dataset_id: UUID of the dataset
         model_name: Name for the model
-        model_data: Serialized model
-        metrics: Quality metrics
+        model_data: Serialized model (joblib bytes)
+        metrics: Quality metrics including model_format
 
     Returns:
         model_id (UUID string)
     """
+    import json
+
     logger.info("save_process_model_started", dataset_id=dataset_id, model_name=model_name)
 
     try:
@@ -255,8 +270,24 @@ async def save_process_model(
 
         from sqlalchemy import select
 
+        from src.features.process_mining.discovery.serialization import model_serializer
+        from src.features.process_mining.enums import ModelFormat
         from src.features.process_mining.models import ProcessModel
         from src.infra.infrastructure.database import async_session_maker
+
+        # Get model format from metrics
+        model_format_str = metrics.get("model_format", "petri_net")
+        model_format = ModelFormat(model_format_str)
+
+        # Deserialize to generate graph JSON
+        graph_json = None
+        try:
+            deserialized = model_serializer.deserialize(model_data)
+            graph_data = model_serializer.to_graph_json(deserialized, model_format)
+            if graph_data:
+                graph_json = json.dumps(graph_data)
+        except Exception as e:
+            logger.warning("graph_json_generation_failed", error=str(e))
 
         async with async_session_maker() as db:
             # Check for existing model with same name
@@ -270,9 +301,10 @@ async def save_process_model(
 
             if model:
                 # Update existing
-                model.serialized_model = (
-                    model_data.decode("utf-8") if isinstance(model_data, bytes) else model_data
-                )
+                model.serialized_model = model_data
+                model.model_type = model_format_str
+                model.model_format = model_format_str
+                model.graph_structure_json = graph_json
                 model.fitness = metrics.get("fitness")
                 model.precision = metrics.get("precision")
                 model_id = model.id
@@ -283,9 +315,10 @@ async def save_process_model(
                     id=model_id,
                     dataset_id=dataset_id,
                     name=model_name,
-                    serialized_model=model_data.decode("utf-8")
-                    if isinstance(model_data, bytes)
-                    else model_data,
+                    model_type=model_format_str,
+                    model_format=model_format_str,
+                    serialized_model=model_data,
+                    graph_structure_json=graph_json,
                     fitness=metrics.get("fitness"),
                     precision=metrics.get("precision"),
                 )
@@ -293,7 +326,12 @@ async def save_process_model(
 
             await db.commit()
 
-        logger.info("save_process_model_completed", model_id=model_id)
+        logger.info(
+            "save_process_model_completed",
+            model_id=model_id,
+            model_format=model_format_str,
+            has_graph_json=graph_json is not None,
+        )
         return model_id
 
     except Exception as e:

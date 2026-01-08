@@ -40,6 +40,7 @@ expected process (models) to find deviations:
 - **409**: Dataset not ready (complete ingestion first)
 """
 
+import asyncio
 import json
 import time
 
@@ -47,7 +48,7 @@ from fastapi import APIRouter, Query
 from pydantic import ValidationError
 from sqlalchemy import func, select
 
-from src.api.dependencies import ReadDBSession, ServiceContainer
+from src.api.dependencies import ReadDBSession, ServiceContainer, WriteDBSession
 from src.features.process_mining.enums import ConformanceMethod, ModelFormat
 from src.features.process_mining.models import (
     ConformanceResult,
@@ -66,6 +67,7 @@ from src.features.process_mining.schemas import (
 )
 from src.infra.core.exceptions import (
     BadRequestError,
+    ConflictError,
     ConformanceError,
     ModelNotFoundError,
     NotFoundError,
@@ -112,7 +114,7 @@ async def _get_model_or_404(db: ReadDBSession, model_id: str) -> ProcessModel:
 @router.post("/check", response_model=ConformanceResponse)
 async def check_conformance(
     request: ConformanceCheckRequest,
-    db: ReadDBSession,
+    db: WriteDBSession,
     container: ServiceContainer,
     auto_discover: bool = Query(False, description="Auto-discover model if model_id not provided"),
 ):
@@ -134,8 +136,17 @@ async def check_conformance(
 
     model = await _get_model_or_404(db, request.model_id)
 
+    # Extract values needed by sync service before calling it
+    # This avoids greenlet issues with async-session-bound objects
+    dataset_id = event_log.id
+    model_id = model.id
+    model_serialized = model.serialized_model
+    model_format = model.model_format
+
     try:
-        result = container.conformance.check_conformance(
+        # Run sync conformance check in thread pool to avoid blocking
+        result = await asyncio.to_thread(
+            container.conformance.check_conformance,
             event_log=event_log,
             model=model,
             method=request.method,
@@ -261,7 +272,7 @@ async def get_conformance_result(result_id: str, db: ReadDBSession):
 
 
 @router.delete("/results/{result_id}")
-async def delete_conformance_result(result_id: str, db: ReadDBSession):
+async def delete_conformance_result(result_id: str, db: WriteDBSession):
     """Delete a conformance check result."""
     result = await db.execute(select(ConformanceResult).where(ConformanceResult.id == result_id))
     record = result.scalar_one_or_none()
@@ -283,9 +294,17 @@ async def get_conformance_diagnostics(
     event_log = await _get_dataset_or_404(db, dataset_id)
     model = await _get_model_or_404(db, model_id)
 
+    # Pre-load attributes to avoid lazy loading in sync context
+    _ = event_log.id, model.id, model.serialized_model, model.model_format
+
     try:
-        diagnostics = container.conformance.get_diagnostics(event_log, model)
-        result = container.conformance.check_conformance(event_log, model)
+        # Run sync operations in thread pool
+        diagnostics = await asyncio.to_thread(
+            container.conformance.get_diagnostics, event_log, model
+        )
+        result = await asyncio.to_thread(
+            container.conformance.check_conformance, event_log, model
+        )
 
         return DiagnosticsResponse(
             fitness=result["fitness"],
@@ -312,8 +331,13 @@ async def get_deviations(
     event_log = await _get_dataset_or_404(db, dataset_id)
     model = await _get_model_or_404(db, model_id)
 
+    # Pre-load attributes to avoid lazy loading in sync context
+    _ = event_log.id, model.id, model.serialized_model, model.model_format
+
     try:
-        deviations = container.conformance.detect_deviations(event_log, model, threshold)
+        deviations = await asyncio.to_thread(
+            container.conformance.detect_deviations, event_log, model, threshold
+        )
         return [
             DeviationResponse(
                 case_id=d["case_id"],
@@ -342,8 +366,13 @@ async def get_alignment_diagnostics(
     event_log = await _get_dataset_or_404(db, dataset_id)
     model = await _get_model_or_404(db, model_id)
 
+    # Pre-load attributes to avoid lazy loading in sync context
+    _ = event_log.id, model.id, model.serialized_model, model.model_format
+
     try:
-        diagnostics = container.conformance.get_alignment_diagnostics(event_log, model, max_cases)
+        diagnostics = await asyncio.to_thread(
+            container.conformance.get_alignment_diagnostics, event_log, model, max_cases
+        )
 
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info("alignment_diagnostics_completed", duration_ms=round(duration_ms, 2))
@@ -394,8 +423,13 @@ async def get_quality_metrics(
     event_log = await _get_dataset_or_404(db, dataset_id)
     model = await _get_model_or_404(db, model_id)
 
+    # Pre-load attributes to avoid lazy loading in sync context
+    _ = event_log.id, model.id, model.serialized_model, model.model_format
+
     try:
-        metrics = container.conformance.get_full_quality_metrics(event_log, model)
+        metrics = await asyncio.to_thread(
+            container.conformance.get_full_quality_metrics, event_log, model
+        )
 
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info("quality_metrics_completed", duration_ms=round(duration_ms, 2))
@@ -416,7 +450,7 @@ async def get_quality_metrics(
 
 @router.post("/import-model")
 async def import_reference_model(
-    db: ReadDBSession,
+    db: WriteDBSession,
     container: ServiceContainer,
     project_id: str = Query(..., description="Project ID to store the model under"),
     model_name: str = Query(..., description="Name for the imported model"),
@@ -507,9 +541,13 @@ async def get_root_cause_analysis(
     event_log = await _get_dataset_or_404(db, dataset_id)
     model = await _get_model_or_404(db, model_id)
 
+    # Pre-load attributes to avoid lazy loading in sync context
+    _ = event_log.id, model.id, model.serialized_model, model.model_format
+
     try:
         attribute_list = [a.strip() for a in attributes.split(",") if a.strip()]
-        analysis = root_cause_analyzer.get_comprehensive_root_cause_analysis(
+        analysis = await asyncio.to_thread(
+            root_cause_analyzer.get_comprehensive_root_cause_analysis,
             event_log, model, attribute_list
         )
 
@@ -533,8 +571,13 @@ async def get_deviations_by_activity(
     event_log = await _get_dataset_or_404(db, dataset_id)
     model = await _get_model_or_404(db, model_id)
 
+    # Pre-load attributes to avoid lazy loading in sync context
+    _ = event_log.id, model.id, model.serialized_model, model.model_format
+
     try:
-        return root_cause_analyzer.aggregate_deviations_by_activity(event_log, model)
+        return await asyncio.to_thread(
+            root_cause_analyzer.aggregate_deviations_by_activity, event_log, model
+        )
     except Exception as e:
         raise ProcessingError(message=f"Failed to aggregate deviations: {e!s}") from e
 
@@ -551,8 +594,13 @@ async def get_deviations_by_position(
     event_log = await _get_dataset_or_404(db, dataset_id)
     model = await _get_model_or_404(db, model_id)
 
+    # Pre-load attributes to avoid lazy loading in sync context
+    _ = event_log.id, model.id, model.serialized_model, model.model_format
+
     try:
-        return root_cause_analyzer.aggregate_deviations_by_position(event_log, model)
+        return await asyncio.to_thread(
+            root_cause_analyzer.aggregate_deviations_by_position, event_log, model
+        )
     except Exception as e:
         raise ProcessingError(message=f"Failed to aggregate deviations: {e!s}") from e
 
@@ -570,8 +618,13 @@ async def get_attribute_correlation(
     event_log = await _get_dataset_or_404(db, dataset_id)
     model = await _get_model_or_404(db, model_id)
 
+    # Pre-load attributes to avoid lazy loading in sync context
+    _ = event_log.id, model.id, model.serialized_model, model.model_format
+
     try:
-        return root_cause_analyzer.analyze_attribute_correlation(event_log, model, attribute)
+        return await asyncio.to_thread(
+            root_cause_analyzer.analyze_attribute_correlation, event_log, model, attribute
+        )
     except Exception as e:
         raise ProcessingError(
             message=f"Failed to analyze attribute correlation: {e!s}"

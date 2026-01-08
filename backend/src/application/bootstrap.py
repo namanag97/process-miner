@@ -106,8 +106,8 @@ class QueryHandlerFactory:
     def create_variants_handler(self):
         from src.application.queries.get_variants import GetVariantsHandler
         return GetVariantsHandler(
-            duckdb_manager=self.duckdb,
             db=self.db,
+            duckdb=self.duckdb,
         )
 
     def create_throughput_handler(self):
@@ -192,8 +192,8 @@ class RequestScopedQueryBus:
             GetCycleTimeQuery,
             GetReworkQuery,
             GetThroughputQuery,
-            GetVariantsQuery,
         )
+        from src.application.queries.get_variants import GetVariantsQuery
 
         query_type = type(query).__name__
 

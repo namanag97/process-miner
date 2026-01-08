@@ -84,7 +84,15 @@ async function submitMapping(datasetId: string, mapping: ColumnMapping): Promise
     }
 }
 
-async function startIngestion(datasetId: string, mapping: ColumnMapping): Promise<{ id: string }> {
+interface IngestionResponse {
+    id: string;
+    status: string;
+    progress?: number;
+    error?: string;
+    result?: Record<string, unknown>;
+}
+
+async function startIngestion(datasetId: string, mapping: ColumnMapping): Promise<IngestionResponse> {
     console.log('[API:startIngestion] Request started', { datasetId });
     devLog.info('API:startIngestion', 'Starting dataset ingestion', { datasetId });
     try {
@@ -95,7 +103,7 @@ async function startIngestion(datasetId: string, mapping: ColumnMapping): Promis
         const data = await sdk.datasets.ingest(datasetId);
         console.log('[API:startIngestion] Success', data);
         devLog.action('API:startIngestion', 'Ingestion started successfully', data);
-        return data;
+        return data as IngestionResponse;
     } catch (err: unknown) {
         const error = err instanceof Error ? err : new Error(String(err));
         console.error('[API:startIngestion] Exception thrown', { message: error.message, datasetId });
@@ -162,6 +170,9 @@ export function useUploadWizard(_projectId: string, initialDatasetId?: string) {
         isLoading: false,
     });
 
+    // Track sync completion to skip polling (when Temporal unavailable)
+    const [syncJobResult, setSyncJobResult] = useState<IngestionResponse | null>(null);
+
     // Fetch sheets when we have a dataset
     const { data: sheetsData, isLoading: isSheetsLoading } = useQuery({
         queryKey: ['wizard', 'sheets', state.datasetId],
@@ -184,10 +195,11 @@ export function useUploadWizard(_projectId: string, initialDatasetId?: string) {
     }, [previewData]);
 
     // Poll job status when finalizing with adaptive intervals
-    const { data: jobStatus } = useQuery({
+    // Skip polling if we have immediate sync result (Temporal unavailable fallback)
+    const { data: polledJobStatus } = useQuery({
         queryKey: ['wizard', 'job', state.jobId],
         queryFn: () => checkJobStatus(state.jobId!),
-        enabled: !!state.jobId && state.currentStep === 'finalize',
+        enabled: !!state.jobId && state.currentStep === 'finalize' && !syncJobResult,
         refetchInterval: (query) => {
             const status = query.state.data?.status;
             // Stop polling on terminal states
@@ -209,6 +221,9 @@ export function useUploadWizard(_projectId: string, initialDatasetId?: string) {
             return 8000;                                                    // Late phase: every 8s
         },
     });
+
+    // Use sync result if available, otherwise use polled status
+    const jobStatus = syncJobResult || polledJobStatus;
 
     // Navigation functions
     const goToStep = useCallback((step: WizardStep) => {
@@ -259,12 +274,19 @@ export function useUploadWizard(_projectId: string, initialDatasetId?: string) {
             return startIngestion(state.datasetId, state.mapping);
         },
         onSuccess: (data) => {
+            // Check if sync fallback completed immediately
+            if (data.status === 'completed') {
+                devLog.info('UploadWizard', 'Sync ingestion completed immediately', data);
+                setSyncJobResult(data);
+                message.success('Processing complete!');
+            } else {
+                message.info('Processing started...');
+            }
             setState(prev => ({
                 ...prev,
                 jobId: data.id,
                 currentStep: 'finalize',
             }));
-            message.info('Processing started...');
         },
         onError: (error: Error) => {
             message.error(error.message);

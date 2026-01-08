@@ -34,6 +34,7 @@ import time
 
 from fastapi import APIRouter, Query, Response
 from sqlalchemy import select
+from sqlalchemy.orm import undefer
 
 from src.api.dependencies import ReadDBSession, ServiceContainer
 from src.features.process_mining.enums import ModelFormat
@@ -205,8 +206,8 @@ async def get_tiered_dfg(
     total_nodes = len(full_nodes)
     total_edges = len(full_edges)
 
-    # Apply edge frequency filtering
-    filtered_edges = [e for e in full_edges if e.get("frequency", 0) >= min_edge_frequency]
+    # Apply edge frequency filtering (use 'value' field for transition counts)
+    filtered_edges = [e for e in full_edges if e.get("value", 0) >= min_edge_frequency]
 
     # Get nodes connected by filtered edges
     connected_node_ids = set()
@@ -249,7 +250,7 @@ async def get_tiered_dfg(
             aggregated_frequency = sum(n.get("frequency", 0) for n in excluded_nodes)
             aggregated_node = {
                 "id": "__aggregated__",
-                "name": f"Other ({len(excluded_nodes)} activities)",
+                "label": f"Other ({len(excluded_nodes)} activities)",
                 "frequency": aggregated_frequency,
                 "is_start": False,
                 "is_end": False,
@@ -276,8 +277,8 @@ async def get_tiered_dfg(
 
                 key = f"{source}-{target}"
                 if key in edge_map:
-                    # Merge edge frequencies
-                    edge_map[key]["frequency"] += edge.get("frequency", 0)
+                    # Merge edge values (transition counts)
+                    edge_map[key]["value"] += edge.get("value", 0)
                 else:
                     edge_map[key] = {
                         **edge,
@@ -352,7 +353,13 @@ async def get_petri_net(
     Returns places, transitions, and arcs with initial/final markings.
     Works with models discovered using Alpha, Heuristics, or Inductive miners.
     """
-    query = select(ProcessModel).where(ProcessModel.id == model_id)
+    # FIX: Use undefer() to eagerly load the deferred serialized_model column
+    # This prevents greenlet_spawn error when accessing the column after the query
+    query = (
+        select(ProcessModel)
+        .where(ProcessModel.id == model_id)
+        .options(undefer(ProcessModel.serialized_model))
+    )
     result = await db.execute(query)
     model = result.scalar_one_or_none()
 
@@ -434,7 +441,13 @@ async def get_model_svg(
 
     Returns an SVG image that can be displayed directly in the browser.
     """
-    query = select(ProcessModel).where(ProcessModel.id == model_id)
+    # FIX: Use undefer() to eagerly load the deferred serialized_model column
+    # This prevents greenlet_spawn error when accessing the column after the query
+    query = (
+        select(ProcessModel)
+        .where(ProcessModel.id == model_id)
+        .options(undefer(ProcessModel.serialized_model))
+    )
     result = await db.execute(query)
     model = result.scalar_one_or_none()
 
@@ -491,11 +504,11 @@ async def get_dfg_svg(
 
     # Discover DFG using efficient DuckDB path
     try:
-        # BUG-060 FIX: Use discovery service get_dfg_data which uses DuckDB
-        dfg_data = container.discovery.get_dfg_data(event_log)
-        svg_bytes = container.discovery.visualize_dfg(
-            dfg_data["dfg"], dfg_data["start_activities"], dfg_data["end_activities"]
-        )
+        # Load raw DFG data for visualization (not the structured node/edge format)
+        from src.features.process_mining.services.loader import event_log_loader
+
+        dfg, start_activities, end_activities = event_log_loader.load_dfg(str(event_log.id))
+        svg_bytes = container.discovery.visualize_dfg(dfg, start_activities, end_activities)
     except Exception as e:
         logger.error(
             "dfg_svg_visualization_failed",

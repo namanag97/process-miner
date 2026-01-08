@@ -24,6 +24,9 @@ import { PageLoader } from '@/shared/ui/PageLoader';
 
 // Note: LandingPage is loaded in App.tsx (rendered outside AppShell)
 
+// Auth
+const LoginPage = lazy(() => import('./features/auth/pages/LoginPage'));
+
 // Platform / Workspace
 const ProjectsListPage = lazy(() => import('./features/platform/projects/pages/ProjectsListPage'));
 const ProjectDetailPage = lazy(() => import('./features/platform/projects/pages/ProjectDetailPage'));
@@ -105,6 +108,11 @@ function page(component: ReactNode, featureName: string): ReactNode {
 export const routes: RouteObject[] = [
   // Note: Landing page "/" is handled directly in App.tsx via AppRouter
   // to render it outside the AppShell
+
+  // ----------------------------------------
+  // Authentication
+  // ----------------------------------------
+  { path: '/login', element: page(<LoginPage />, 'Login') },
 
   // ----------------------------------------
   // Workspace & Projects

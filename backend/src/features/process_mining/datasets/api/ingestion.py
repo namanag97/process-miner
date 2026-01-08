@@ -162,12 +162,45 @@ async def trigger_ingestion(
             )
 
             stats = result["statistics"]
+            events_arrow = result.get("events_arrow")
+
+            # Save events to Parquet file for analytics/visualization
+            parquet_key = None
+            if events_arrow is not None and len(events_arrow) > 0:
+                import io
+                import pyarrow as pa
+                import pyarrow.parquet as pq
+
+                # Rename columns to PM4Py standard names for analytics compatibility
+                column_mapping = {
+                    "case_id": "case:concept:name",
+                    "activity": "concept:name",
+                    "timestamp": "time:timestamp",
+                }
+                new_names = [column_mapping.get(c, c) for c in events_arrow.column_names]
+                events_arrow = events_arrow.rename_columns(new_names)
+
+                # Write Arrow table to Parquet bytes
+                parquet_buffer = io.BytesIO()
+                pq.write_table(events_arrow, parquet_buffer)
+                parquet_buffer.seek(0)
+
+                # Save to storage
+                parquet_key = f"{dataset_id}/events.parquet"
+                await run_in_threadpool(
+                    storage_client.upload_fileobj,
+                    file_obj=parquet_buffer,
+                    bucket_type="cache",
+                    key=parquet_key,
+                )
+                logger.info("parquet_saved", dataset_id=dataset_id, key=parquet_key)
 
             dataset.total_cases = stats.get("total_cases", 0)
             dataset.total_events = stats.get("total_events", 0)
             dataset.total_activities = stats.get("total_activities", 0)
             dataset.variant_count = stats.get("total_variants", 0)
             dataset.activities_json = json.dumps(stats.get("activities", []))
+            dataset.parquet_s3_key = parquet_key
             dataset.status = DatasetStatus.READY.value
             dataset.updated_at = datetime.now(timezone.utc)
 

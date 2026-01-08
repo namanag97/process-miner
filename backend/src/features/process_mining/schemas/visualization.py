@@ -23,7 +23,7 @@ class DFGNode(BaseModel):
     """DFG node for visualization."""
 
     id: str
-    name: str
+    label: str
     frequency: int
     is_start: bool = False
     is_end: bool = False
@@ -34,7 +34,7 @@ class DFGEdge(BaseModel):
 
     source: str
     target: str
-    frequency: int
+    value: int
     probability: float
     # Performance metrics (optional, populated when include_performance=true)
     avg_duration_seconds: float | None = None

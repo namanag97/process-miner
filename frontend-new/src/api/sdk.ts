@@ -544,17 +544,19 @@ export const sdk = {
 
         // Visualization endpoints
         buildDFG: async (datasetId: string, options?: { includePerformance?: boolean }): Promise<DFGResponse> => {
-            const { data } = await apiClient.get(`/visualization/dfg/${datasetId}`, {
+            // Fixed: correct endpoint path
+            const { data } = await apiClient.get(`/visualization/${datasetId}/dfg`, {
                 params: { include_performance: options?.includePerformance },
             });
             return data;
         },
 
         getVariants: async (datasetId: string, options?: { topN?: number }): Promise<Variant[]> => {
-            const { data } = await apiClient.get(`/discovery/datasets/${datasetId}/variants`, {
+            // Fixed: correct endpoint path
+            const { data } = await apiClient.get(`/discovery/variants/${datasetId}`, {
                 params: { top_n: options?.topN },
             });
-            return data;
+            return data.variants || data;
         },
 
         getActivityStats: async (datasetId: string) => {
@@ -562,13 +564,13 @@ export const sdk = {
             return data;
         },
 
-        // Unified explorer data endpoint
+        // Unified explorer data endpoint - uses /visualization endpoint
         getExplorerData: async (datasetId: string, options?: {
             includePerformance?: boolean;
             includeComplexity?: boolean;
             topVariants?: number;
         }): Promise<ExplorerData> => {
-            const { data } = await apiClient.get(`/discovery/datasets/${datasetId}/explorer`, {
+            const { data } = await apiClient.get(`/visualization/${datasetId}/explorer-data`, {
                 params: {
                     include_performance: options?.includePerformance,
                     include_complexity: options?.includeComplexity,

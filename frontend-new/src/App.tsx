@@ -17,6 +17,9 @@ import { PageLoader } from './shared/ui/PageLoader';
 // Landing page lazy-loaded separately (rendered outside AppShell)
 const LandingPage = lazy(() => import('./features/landing/pages/LandingPage'));
 
+// Login page also rendered outside AppShell
+const LoginPage = lazy(() => import('./features/auth/pages/LoginPage'));
+
 const log = createLogger('Navigation');
 
 // Error reporting handler (integrate with your error tracking service)
@@ -155,6 +158,17 @@ function LandingWrapper() {
 }
 
 /**
+ * Login page wrapper - renders outside the AppShell
+ */
+function LoginWrapper() {
+  return (
+    <Suspense fallback={<PageLoader fullPage message="Loading..." />}>
+      <LoginPage />
+    </Suspense>
+  );
+}
+
+/**
  * Router component that handles landing page vs app routes
  */
 function AppRouter() {
@@ -163,6 +177,11 @@ function AppRouter() {
   // Landing page renders without AppShell
   if (location.pathname === '/') {
     return <LandingWrapper />;
+  }
+
+  // Login page renders without AppShell
+  if (location.pathname === '/login') {
+    return <LoginWrapper />;
   }
 
   // All other routes render within AppShell

@@ -67,7 +67,7 @@ class ProcessAnalyzer:
         nodes = [
             {
                 "id": act,
-                "name": act,
+                "label": act,
                 "frequency": activity_freq.get(act, 0),
                 "is_start": act in start_activities,
                 "is_end": act in end_activities,
@@ -79,7 +79,7 @@ class ProcessAnalyzer:
             {
                 "source": source,
                 "target": target,
-                "frequency": freq,
+                "value": freq,
                 "probability": round(freq / total_freq, 4) if total_freq > 0 else 0,
             }
             for (source, target), freq in dfg.items()
@@ -113,7 +113,7 @@ class ProcessAnalyzer:
         nodes = [
             {
                 "id": act,
-                "name": act,
+                "label": act,
                 "frequency": activity_freq.get(act, 0),
                 "is_start": act in start_activities,
                 "is_end": act in end_activities,
@@ -126,7 +126,7 @@ class ProcessAnalyzer:
             edge_data = {
                 "source": source,
                 "target": target,
-                "frequency": freq,
+                "value": freq,
                 "probability": round(freq / total_freq, 4) if total_freq > 0 else 0,
             }
             if (source, target) in perf_dfg:
