@@ -14,17 +14,22 @@ export class OrganizationalMiningService {
      * Get Handover Network
      * Discover handover of work network.
      * @param datasetId
+     * @param xOrgId
      * @returns SocialNetworkResponse Successful Response
      * @throws ApiError
      */
     public getHandoverNetworkApiV1OrganizationalDatasetsDatasetIdHandoverNetworkGet(
         datasetId: string,
+        xOrgId?: (string | null),
     ): CancelablePromise<SocialNetworkResponse> {
         return this.httpRequest.request({
             method: 'GET',
             url: '/api/v1/organizational/datasets/{dataset_id}/handover-network',
             path: {
                 'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
             },
             errors: {
                 422: `Validation Error`,
@@ -35,17 +40,22 @@ export class OrganizationalMiningService {
      * Get Collaboration Network
      * Discover working together network.
      * @param datasetId
+     * @param xOrgId
      * @returns SocialNetworkResponse Successful Response
      * @throws ApiError
      */
     public getCollaborationNetworkApiV1OrganizationalDatasetsDatasetIdCollaborationNetworkGet(
         datasetId: string,
+        xOrgId?: (string | null),
     ): CancelablePromise<SocialNetworkResponse> {
         return this.httpRequest.request({
             method: 'GET',
             url: '/api/v1/organizational/datasets/{dataset_id}/collaboration-network',
             path: {
                 'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
             },
             errors: {
                 422: `Validation Error`,
@@ -56,17 +66,22 @@ export class OrganizationalMiningService {
      * Get Resource Similarity
      * Discover resource similarity based on activities.
      * @param datasetId
+     * @param xOrgId
      * @returns SocialNetworkResponse Successful Response
      * @throws ApiError
      */
     public getResourceSimilarityApiV1OrganizationalDatasetsDatasetIdResourceSimilarityGet(
         datasetId: string,
+        xOrgId?: (string | null),
     ): CancelablePromise<SocialNetworkResponse> {
         return this.httpRequest.request({
             method: 'GET',
             url: '/api/v1/organizational/datasets/{dataset_id}/resource-similarity',
             path: {
                 'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
             },
             errors: {
                 422: `Validation Error`,
@@ -77,17 +92,22 @@ export class OrganizationalMiningService {
      * Get Roles
      * Discover organizational roles.
      * @param datasetId
+     * @param xOrgId
      * @returns ResourceRoleResponse Successful Response
      * @throws ApiError
      */
     public getRolesApiV1OrganizationalDatasetsDatasetIdRolesGet(
         datasetId: string,
+        xOrgId?: (string | null),
     ): CancelablePromise<Array<ResourceRoleResponse>> {
         return this.httpRequest.request({
             method: 'GET',
             url: '/api/v1/organizational/datasets/{dataset_id}/roles',
             path: {
                 'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
             },
             errors: {
                 422: `Validation Error`,
@@ -99,12 +119,14 @@ export class OrganizationalMiningService {
      * Get detailed profile for a specific resource.
      * @param datasetId
      * @param resource
+     * @param xOrgId
      * @returns ResourceProfileResponse Successful Response
      * @throws ApiError
      */
     public getResourceProfileApiV1OrganizationalDatasetsDatasetIdResourcesResourceProfileGet(
         datasetId: string,
         resource: string,
+        xOrgId?: (string | null),
     ): CancelablePromise<ResourceProfileResponse> {
         return this.httpRequest.request({
             method: 'GET',
@@ -112,6 +134,9 @@ export class OrganizationalMiningService {
             path: {
                 'dataset_id': datasetId,
                 'resource': resource,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
             },
             errors: {
                 422: `Validation Error`,
@@ -122,17 +147,22 @@ export class OrganizationalMiningService {
      * Get Workload
      * Get workload distribution across resources.
      * @param datasetId
+     * @param xOrgId
      * @returns ResourceWorkloadResponse Successful Response
      * @throws ApiError
      */
     public getWorkloadApiV1OrganizationalDatasetsDatasetIdWorkloadGet(
         datasetId: string,
+        xOrgId?: (string | null),
     ): CancelablePromise<ResourceWorkloadResponse> {
         return this.httpRequest.request({
             method: 'GET',
             url: '/api/v1/organizational/datasets/{dataset_id}/workload',
             path: {
                 'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
             },
             errors: {
                 422: `Validation Error`,

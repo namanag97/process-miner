@@ -21,18 +21,23 @@ export class FilteringService {
      * The original log is not modified.
      * @param datasetId
      * @param requestBody
+     * @param xOrgId
      * @returns FilteredLogResponse Successful Response
      * @throws ApiError
      */
     public applyFiltersApiV1FilteringDatasetsDatasetIdApplyPost(
         datasetId: string,
         requestBody: FilterRequest,
+        xOrgId?: (string | null),
     ): CancelablePromise<FilteredLogResponse> {
         return this.httpRequest.request({
             method: 'POST',
             url: '/api/v1/filtering/datasets/{dataset_id}/apply',
             path: {
                 'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
             },
             body: requestBody,
             mediaType: 'application/json',
@@ -48,18 +53,23 @@ export class FilteringService {
      * Returns statistics on how many cases/events would be retained.
      * @param datasetId
      * @param requestBody
+     * @param xOrgId
      * @returns FilterPreviewResponse Successful Response
      * @throws ApiError
      */
     public previewFiltersApiV1FilteringDatasetsDatasetIdPreviewPost(
         datasetId: string,
         requestBody: FilterPreviewRequest,
+        xOrgId?: (string | null),
     ): CancelablePromise<FilterPreviewResponse> {
         return this.httpRequest.request({
             method: 'POST',
             url: '/api/v1/filtering/datasets/{dataset_id}/preview',
             path: {
                 'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
             },
             body: requestBody,
             mediaType: 'application/json',
@@ -75,17 +85,22 @@ export class FilteringService {
      * Returns activities, resources, time ranges, and other values
      * that can be used for filtering.
      * @param datasetId
+     * @param xOrgId
      * @returns FilterOptionsResponse Successful Response
      * @throws ApiError
      */
     public getFilterOptionsApiV1FilteringDatasetsDatasetIdOptionsGet(
         datasetId: string,
+        xOrgId?: (string | null),
     ): CancelablePromise<FilterOptionsResponse> {
         return this.httpRequest.request({
             method: 'GET',
             url: '/api/v1/filtering/datasets/{dataset_id}/options',
             path: {
                 'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
             },
             errors: {
                 422: `Validation Error`,
@@ -96,17 +111,22 @@ export class FilteringService {
      * List Filtered Logs
      * List all filtered versions of an event log.
      * @param datasetId
+     * @param xOrgId
      * @returns FilteredLogListResponse Successful Response
      * @throws ApiError
      */
     public listFilteredLogsApiV1FilteringDatasetsDatasetIdResultsGet(
         datasetId: string,
+        xOrgId?: (string | null),
     ): CancelablePromise<FilteredLogListResponse> {
         return this.httpRequest.request({
             method: 'GET',
             url: '/api/v1/filtering/datasets/{dataset_id}/results',
             path: {
                 'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
             },
             errors: {
                 422: `Validation Error`,
@@ -118,12 +138,14 @@ export class FilteringService {
      * Delete a filtered log.
      * @param datasetId
      * @param filteredId
+     * @param xOrgId
      * @returns any Successful Response
      * @throws ApiError
      */
     public deleteFilteredLogApiV1FilteringDatasetsDatasetIdResultsFilteredIdDelete(
         datasetId: string,
         filteredId: string,
+        xOrgId?: (string | null),
     ): CancelablePromise<Record<string, any>> {
         return this.httpRequest.request({
             method: 'DELETE',
@@ -131,6 +153,9 @@ export class FilteringService {
             path: {
                 'dataset_id': datasetId,
                 'filtered_id': filteredId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
             },
             errors: {
                 422: `Validation Error`,

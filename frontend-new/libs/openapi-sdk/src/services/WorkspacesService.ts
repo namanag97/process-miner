@@ -149,6 +149,7 @@ export class WorkspacesService {
      *
      * Requires WORKSPACE_DELETE permission (owner role only).
      * WARNING: This permanently deletes all projects in the workspace.
+     * Fails if any projects contain datasets (delete datasets first).
      * @param workspaceId Workspace ID (UUID format)
      * @param xOrgId
      * @returns void

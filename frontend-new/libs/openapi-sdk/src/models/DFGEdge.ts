@@ -8,7 +8,7 @@
 export type DFGEdge = {
     source: string;
     target: string;
-    frequency: number;
+    value: number;
     probability: number;
     avg_duration_seconds?: (number | null);
     min_duration_seconds?: (number | null);

@@ -7,7 +7,7 @@
  */
 export type DFGNode = {
     id: string;
-    name: string;
+    label: string;
     frequency: number;
     is_start?: boolean;
     is_end?: boolean;

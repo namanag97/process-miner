@@ -42,21 +42,38 @@ export interface AppShellProps {
   notificationCount?: number;
 }
 
-// Default navigation items per Information Architecture
-const defaultNavItems: NavItem[] = [
-  { id: 'workspace', label: 'Workspace', icon: <FolderOutlined /> },
-  { id: 'logs', label: 'Event Logs', icon: <FolderOutlined /> },
+// Default navigation items - clearer hierarchy
+// WORK: Where users organize and manage their projects
+const workNavItems: NavItem[] = [
+  { id: 'projects', label: 'Projects', icon: <FolderOutlined /> },
+];
+
+// ANALYZE: Tools for exploring and analyzing process data
+const analyzeNavItems: NavItem[] = [
   { id: 'explorer', label: 'Process Explorer', icon: <SearchOutlined /> },
   { id: 'analytics', label: 'Analytics', icon: <BarChartOutlined /> },
-  { id: 'ai-insights', label: 'AI Insights', icon: <RobotOutlined /> },
+];
+
+// AI TOOLS: AI-powered features
+const aiNavItems: NavItem[] = [
+  { id: 'ai-assistant', label: 'AI Assistant', icon: <RobotOutlined /> },
   { id: 'predictions', label: 'Predictions', icon: <ExperimentOutlined /> },
 ];
 
-const bottomNavItems: NavItem[] = [
-  { id: 'test-bench', label: 'Test Bench', icon: <ToolOutlined /> },
+// SYSTEM: Settings and help
+const systemNavItems: NavItem[] = [
   { id: 'settings', label: 'Settings', icon: <SettingOutlined /> },
   { id: 'help', label: 'Help', icon: <QuestionCircleOutlined /> },
 ];
+
+// Combined default nav items for backwards compatibility
+const defaultNavItems: NavItem[] = [
+  ...workNavItems,
+  ...analyzeNavItems,
+  ...aiNavItems,
+];
+
+const bottomNavItems: NavItem[] = systemNavItems;
 
 /**
  * AppShell - Main application layout with collapsible sidebar
@@ -81,28 +98,46 @@ export function AppShell({
 }: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false);
 
-  // Build menu items
+  // Build menu items with clear section labels
+  // Filter navItems into categories for proper grouping
+  const projectItems = navItems.filter(item => item.id === 'projects' || item.id === 'workspace');
+  const analyzeItems = navItems.filter(item => ['explorer', 'analytics'].includes(item.id));
+  const aiItems = navItems.filter(item => ['ai-assistant', 'ai-insights', 'predictions'].includes(item.id));
+
   const mainMenuItems: MenuProps['items'] = [
-    {
-      type: 'group',
-      label: !collapsed ? 'MAIN' : undefined,
-      children: navItems.slice(0, 4).map((item) => ({
+    // Projects section
+    ...(projectItems.length > 0 ? [{
+      type: 'group' as const,
+      label: !collapsed ? 'WORK' : undefined,
+      children: projectItems.map((item) => ({
         key: item.id,
         icon: item.icon,
         label: item.label,
         onClick: () => onNavigate?.(item.id),
       })),
-    },
-    {
-      type: 'group',
-      label: !collapsed ? 'AI & ADVANCED' : undefined,
-      children: navItems.slice(4).map((item) => ({
+    }] : []),
+    // Analysis tools section
+    ...(analyzeItems.length > 0 ? [{
+      type: 'group' as const,
+      label: !collapsed ? 'ANALYZE' : undefined,
+      children: analyzeItems.map((item) => ({
         key: item.id,
         icon: item.icon,
         label: item.label,
         onClick: () => onNavigate?.(item.id),
       })),
-    },
+    }] : []),
+    // AI tools section
+    ...(aiItems.length > 0 ? [{
+      type: 'group' as const,
+      label: !collapsed ? 'AI TOOLS' : undefined,
+      children: aiItems.map((item) => ({
+        key: item.id,
+        icon: item.icon,
+        label: item.label,
+        onClick: () => onNavigate?.(item.id),
+      })),
+    }] : []),
   ];
 
   const bottomMenuItems: MenuProps['items'] = [

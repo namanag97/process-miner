@@ -37,7 +37,6 @@ from .conftest import (
     TestContext,
 )
 
-
 # =============================================================================
 # Test Helpers
 # =============================================================================
@@ -546,7 +545,7 @@ class TestFullBusinessJourney:
         token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         test_context.access_token = token
-        print(f"  Logged in successfully")
+        print("  Logged in successfully")
 
         # Step 2: Get current user
         print("\n=== Step 2: Get User Info ===")
@@ -633,8 +632,8 @@ class TestFullBusinessJourney:
             if current_status == "READY":
                 print("  Dataset processing complete!")
                 break
-            elif current_status in ("FAILED", "ERROR"):
-                print(f"  Dataset processing failed!")
+            if current_status in ("FAILED", "ERROR"):
+                print("  Dataset processing failed!")
                 break
 
             time.sleep(poll_interval)

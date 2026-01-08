@@ -63,24 +63,42 @@ npm run lint
 
 ```
 frontend-new/
-├── apps/frontend-new/          # Main application
-│   └── src/
-│       ├── features/           # Feature modules (domains)
-│       ├── shared/             # Shared utilities, hooks, components
-│       ├── App.tsx             # Root component
-│       └── main.tsx            # Entry point
+├── src/                        # Main application source
+│   ├── App.tsx                # App shell, providers, routing
+│   ├── routes.tsx             # Explicit route definitions (all routes here)
+│   ├── navigation.ts          # Navigation config and route mappings
+│   ├── main.tsx               # Application entry point
+│   │
+│   ├── features/              # Feature modules
+│   │   ├── platform/          # Workspace, projects, settings
+│   │   ├── explorer/          # Process visualization (DFG, variants)
+│   │   ├── analytics/         # Performance analytics dashboards
+│   │   ├── discovery/         # Process discovery UI
+│   │   ├── ai/                # AI predictions and chat
+│   │   ├── kpi/               # KPI dashboards
+│   │   ├── auth/              # Authentication pages
+│   │   └── landing/           # Landing page
+│   │
+│   ├── shared/                # Shared code
+│   │   ├── design-system.ts   # UI component exports (import from here!)
+│   │   ├── context/           # UserContext, NotificationContext
+│   │   ├── hooks/             # Shared custom hooks
+│   │   ├── lib/               # Utilities (logger, formatters)
+│   │   └── ui/                # DevConsole, ErrorBoundary
+│   │
+│   ├── api/                   # API integration
+│   │   └── hooks/             # TanStack Query hooks
+│   │
+│   └── stores/                # Global state stores
 │
-├── libs/                       # Shared libraries
-│   ├── design-system/          # @lumina/design-system
-│   ├── openapi-sdk/            # Auto-generated API client
-│   └── process-graph/          # Process visualization
+├── libs/                      # Shared libraries
+│   └── openapi-sdk/           # Auto-generated TypeScript API client
 │
-└── docs/                       # Comprehensive documentation
-    ├── ARCHITECTURE.md
+└── docs/                      # Documentation
+    ├── API_INTEGRATION_GUIDE.md
     ├── STATE_MANAGEMENT_GUIDE.md
     ├── ERROR_HANDLING_AND_LOGGING_GUIDE.md
-    ├── TESTING_GUIDE.md
-    └── API_INTEGRATION_GUIDE.md
+    └── TESTING_GUIDE.md
 ```
 
 ---

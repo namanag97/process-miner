@@ -2,14 +2,15 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { AdminUserResponse } from './AdminUserResponse';
+import type { WorkflowResponse } from './WorkflowResponse';
 /**
- * Paginated admin user list.
+ * Paginated workflow list.
  */
-export type AdminUserListResponse = {
-    items: Array<AdminUserResponse>;
+export type WorkflowListResponse = {
     total: number;
     page: number;
     page_size: number;
+    pages: number;
+    items: Array<WorkflowResponse>;
 };
 

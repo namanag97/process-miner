@@ -32,7 +32,7 @@ export class AnalysesService {
      * Create Analysis
      * Create a new analysis for an event log.
      *
-     * The analysis will be queued for processing and status updated when complete.
+     * The analysis is created and queued for processing.
      * @param datasetId
      * @param requestBody
      * @returns AnalysisResponse Successful Response

@@ -29,15 +29,19 @@
  */
 
 import { Suspense, ReactNode, useEffect } from 'react';
-import { Button, Result, Skeleton } from 'antd';
+import { Button, Result, Skeleton, Space, Typography } from 'antd';
 import {
   ReloadOutlined,
   InboxOutlined,
   WarningOutlined,
   HomeOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
+
 import { useNavigate } from 'react-router-dom';
 import { PageHeader, tokens, logAction } from '@lumina/design-system';
+
+const { Text } = Typography;
 
 // ============================================
 // Types
@@ -49,12 +53,21 @@ interface BreadcrumbItem {
   icon?: ReactNode;
 }
 
+interface SecondaryAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface EmptyStateConfig {
   icon?: ReactNode;
   title: string;
   description?: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** Secondary action shown as a text link below the primary action */
+  secondaryAction?: SecondaryAction;
+  /** Quick tips shown as a bulleted list to help users get started */
+  tips?: string[];
 }
 
 interface FeaturePageProps {
@@ -173,18 +186,123 @@ interface EmptyStateProps {
 
 function EmptyState({ config }: EmptyStateProps) {
   return (
-    <Result
-      icon={config.icon || <InboxOutlined style={{ color: tokens.colors.neutral[400] }} />}
-      title={config.title}
-      subTitle={config.description}
-      extra={
-        config.actionLabel && config.onAction && (
-          <Button type="primary" onClick={config.onAction}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: tokens.spacing[8],
+        textAlign: 'center',
+        maxWidth: 480,
+        margin: '0 auto',
+      }}
+    >
+      {/* Icon */}
+      <div
+        style={{
+          fontSize: 48,
+          color: tokens.colors.primary[400],
+          marginBottom: tokens.spacing[4],
+        }}
+      >
+        {config.icon || <InboxOutlined style={{ color: tokens.colors.neutral[400] }} />}
+      </div>
+
+      {/* Title */}
+      <h3
+        style={{
+          marginBottom: tokens.spacing[2],
+          color: tokens.colors.neutral[800],
+          fontSize: tokens.fontSize.xl,
+          fontWeight: 600,
+        }}
+      >
+        {config.title}
+      </h3>
+
+      {/* Description */}
+      {config.description && (
+        <p
+          style={{
+            color: tokens.colors.neutral[500],
+            marginBottom: tokens.spacing[4],
+            maxWidth: 360,
+          }}
+        >
+          {config.description}
+        </p>
+      )}
+
+      {/* Tips list */}
+      {config.tips && config.tips.length > 0 && (
+        <div
+          style={{
+            marginBottom: tokens.spacing[6],
+            textAlign: 'left',
+            background: tokens.colors.neutral[50],
+            padding: tokens.spacing[4],
+            borderRadius: tokens.radius.md,
+            width: '100%',
+            maxWidth: 320,
+          }}
+        >
+          <Text
+            strong
+            style={{
+              display: 'block',
+              marginBottom: tokens.spacing[2],
+              color: tokens.colors.neutral[700],
+              fontSize: 12,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+            }}
+          >
+            What you can do
+          </Text>
+          {config.tips.map((tip, index) => (
+            <div
+              key={index}
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: tokens.spacing[2],
+                marginBottom: index < config.tips!.length - 1 ? tokens.spacing[2] : 0,
+              }}
+            >
+              <CheckCircleOutlined
+                style={{
+                  color: tokens.colors.success[500],
+                  fontSize: 14,
+                  marginTop: 3,
+                }}
+              />
+              <Text style={{ color: tokens.colors.neutral[600], fontSize: 13 }}>
+                {tip}
+              </Text>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Action buttons */}
+      <Space direction="vertical" size="small" align="center">
+        {config.actionLabel && config.onAction && (
+          <Button type="primary" size="large" onClick={config.onAction}>
             {config.actionLabel}
           </Button>
-        )
-      }
-    />
+        )}
+        {config.secondaryAction && (
+          <Button
+            type="link"
+            onClick={config.secondaryAction.onClick}
+            style={{ color: tokens.colors.neutral[500] }}
+          >
+            {config.secondaryAction.label}
+          </Button>
+        )}
+      </Space>
+    </div>
   );
 }
 

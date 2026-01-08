@@ -62,7 +62,6 @@ from src.features.process_mining.visualization import router as visualization_ro
 # Legacy workflows_router removed - was broken, all endpoints threw errors
 # Use /operations API for workflow status and /workflows for database records
 # from src.features.process_mining.workflows import router as workflows_router
-
 # DAG system removed - use Temporal workflows via /operations API
 # from src.infra.dag.router import router as dags_router
 from src.infra.devtools.router import router as dev_log_router

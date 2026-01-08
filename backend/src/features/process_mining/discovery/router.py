@@ -321,7 +321,7 @@ async def get_variants(
     - Case count
     - Percentage of total cases
     """
-    from src.application.queries.get_variants import GetVariantsQuery, GetVariantsHandler
+    from src.application.queries.get_variants import GetVariantsHandler, GetVariantsQuery
     from src.infra.infrastructure.duckdb import DuckDBManager
 
     logger.info("get_variants", dataset_id=dataset_id, user_id=user.id, top_n=top_n)

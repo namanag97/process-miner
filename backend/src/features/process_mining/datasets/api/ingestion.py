@@ -136,7 +136,9 @@ async def trigger_ingestion(
 
         # Perform synchronous ingestion instead
         from datetime import datetime, timezone
+
         from starlette.concurrency import run_in_threadpool
+
         from src.features.process_mining.ingestion import duckdb_parser
         from src.features.process_mining.models import DatasetMetadata
         from src.infra.infrastructure.object_storage import get_storage_client
@@ -168,7 +170,7 @@ async def trigger_ingestion(
             parquet_key = None
             if events_arrow is not None and len(events_arrow) > 0:
                 import io
-                import pyarrow as pa
+
                 import pyarrow.parquet as pq
 
                 # Rename columns to PM4Py standard names for analytics compatibility

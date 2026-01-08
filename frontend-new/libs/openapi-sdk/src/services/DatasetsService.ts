@@ -25,6 +25,229 @@ import type { BaseHttpRequest } from '../core/BaseHttpRequest';
 export class DatasetsService {
     constructor(public readonly httpRequest: BaseHttpRequest) {}
     /**
+     * List Datasets
+     * List all datasets with pagination and filtering.
+     * @param page
+     * @param pageSize
+     * @param sourceFormat
+     * @param projectId
+     * @param status Filter by status
+     * @param xOrgId
+     * @returns DatasetListResponse Successful Response
+     * @throws ApiError
+     */
+    public listDatasetsApiV1DatasetsGet(
+        page: number = 1,
+        pageSize: number = 20,
+        sourceFormat?: (string | null),
+        projectId?: (string | null),
+        status?: (string | null),
+        xOrgId?: (string | null),
+    ): CancelablePromise<DatasetListResponse> {
+        return this.httpRequest.request({
+            method: 'GET',
+            url: '/api/v1/datasets/',
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
+            query: {
+                'page': page,
+                'page_size': pageSize,
+                'source_format': sourceFormat,
+                'project_id': projectId,
+                'status': status,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Upload Event Log File
+     * Upload and store an event log file (CSV or XES).
+     *
+     * For small files (< 50MB), use this direct upload.
+     * For large files (> 50MB), use the presigned upload flow.
+     *
+     * ## Flow
+     * 1. File is validated and stored
+     * 2. Validation job is queued automatically
+     * 3. Poll `GET /datasets/{id}` for status updates
+     * @param formData
+     * @param xOrgId
+     * @returns DatasetResponse Dataset created and validation queued
+     * @throws ApiError
+     */
+    public uploadDatasetApiV1DatasetsPost(
+        formData: Body_upload_dataset_api_v1_datasets__post,
+        xOrgId?: (string | null),
+    ): CancelablePromise<DatasetResponse> {
+        return this.httpRequest.request({
+            method: 'POST',
+            url: '/api/v1/datasets/',
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
+            formData: formData,
+            mediaType: 'multipart/form-data',
+            errors: {
+                400: `Invalid file format`,
+                413: `File too large (> 100MB)`,
+                422: `Validation error`,
+            },
+        });
+    }
+    /**
+     * Get Dataset Details
+     * Get detailed information about a dataset.
+     * @param datasetId
+     * @param xOrgId
+     * @returns DatasetDetailResponse Successful Response
+     * @throws ApiError
+     */
+    public getDatasetApiV1DatasetsDatasetIdGet(
+        datasetId: string,
+        xOrgId?: (string | null),
+    ): CancelablePromise<DatasetDetailResponse> {
+        return this.httpRequest.request({
+            method: 'GET',
+            url: '/api/v1/datasets/{dataset_id}',
+            path: {
+                'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Delete Dataset
+     * Delete a dataset and all associated data.
+     * @param datasetId
+     * @param xOrgId
+     * @returns any Dataset deleted
+     * @throws ApiError
+     */
+    public deleteDatasetApiV1DatasetsDatasetIdDelete(
+        datasetId: string,
+        xOrgId?: (string | null),
+    ): CancelablePromise<Record<string, any>> {
+        return this.httpRequest.request({
+            method: 'DELETE',
+            url: '/api/v1/datasets/{dataset_id}',
+            path: {
+                'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
+            errors: {
+                404: `Dataset not found`,
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Get Dataset Sheets
+     * Get list of sheets for multi-sheet files (Excel). CSV/XES files return a single sheet.
+     * @param datasetId
+     * @param xOrgId
+     * @returns any Successful Response
+     * @throws ApiError
+     */
+    public getDatasetSheetsApiV1DatasetsDatasetIdSheetsGet(
+        datasetId: string,
+        xOrgId?: (string | null),
+    ): CancelablePromise<Record<string, any>> {
+        return this.httpRequest.request({
+            method: 'GET',
+            url: '/api/v1/datasets/{dataset_id}/sheets',
+            path: {
+                'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Get Raw Data Preview
+     * Get a preview of the raw data from the uploaded file.
+     *
+     * Returns column information with detected types and sample row data.
+     * Used by the upload wizard's Configure step before mapping is applied.
+     * @param datasetId
+     * @param rows Number of sample rows to return
+     * @param xOrgId
+     * @returns any Preview data with columns and sample rows
+     * @throws ApiError
+     */
+    public getDatasetPreviewApiV1DatasetsDatasetIdPreviewGet(
+        datasetId: string,
+        rows: number = 10,
+        xOrgId?: (string | null),
+    ): CancelablePromise<Record<string, any>> {
+        return this.httpRequest.request({
+            method: 'GET',
+            url: '/api/v1/datasets/{dataset_id}/preview',
+            path: {
+                'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
+            query: {
+                'rows': rows,
+            },
+            errors: {
+                404: `Dataset not found or file not accessible`,
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Preview Mapped Data
+     * Preview how data will look after applying the mapping.
+     *
+     * Returns a sample of events with the mapping applied.
+     * Useful for verifying column selections before ingestion.
+     * @param datasetId
+     * @param limit Number of sample rows
+     * @param xOrgId
+     * @returns PreviewResponse Preview generated
+     * @throws ApiError
+     */
+    public previewMappedDataApiV1DatasetsDatasetIdPreviewPost(
+        datasetId: string,
+        limit: number = 10,
+        xOrgId?: (string | null),
+    ): CancelablePromise<PreviewResponse> {
+        return this.httpRequest.request({
+            method: 'POST',
+            url: '/api/v1/datasets/{dataset_id}/preview',
+            path: {
+                'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
+            query: {
+                'limit': limit,
+            },
+            errors: {
+                400: `No mapping found`,
+                404: `Dataset not found`,
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
      * Get Presigned S3 Upload URL
      * Generate a presigned URL for direct S3 upload.
      *
@@ -86,74 +309,35 @@ export class DatasetsService {
         });
     }
     /**
-     * Upload Event Log File
-     * Upload and store an event log file (CSV or XES).
+     * Trigger Column Detection
+     * Manually trigger column detection for an existing dataset.
      *
-     * For small files (< 50MB), use this direct upload.
-     * For large files (> 50MB), use the presigned upload flow.
+     * Use this when:
+     * - Columns were not detected during upload (e.g., Temporal unavailable)
+     * - You want to re-detect columns with updated settings
      *
-     * ## Flow
-     * 1. File is validated and stored
-     * 2. Validation job is queued automatically
-     * 3. Poll `GET /datasets/{id}` for status updates
-     * @param formData
+     * Works on datasets in UPLOADED or AWAITING_MAPPING status.
+     * @param datasetId
      * @param xOrgId
-     * @returns DatasetResponse Dataset created and validation queued
+     * @returns any Column detection completed
      * @throws ApiError
      */
-    public uploadDatasetApiV1DatasetsPost(
-        formData: Body_upload_dataset_api_v1_datasets__post,
+    public validateDatasetApiV1DatasetsDatasetIdValidatePost(
+        datasetId: string,
         xOrgId?: (string | null),
-    ): CancelablePromise<DatasetResponse> {
+    ): CancelablePromise<Record<string, any>> {
         return this.httpRequest.request({
             method: 'POST',
-            url: '/api/v1/datasets/',
+            url: '/api/v1/datasets/{dataset_id}/validate',
+            path: {
+                'dataset_id': datasetId,
+            },
             headers: {
                 'X-Org-Id': xOrgId,
             },
-            formData: formData,
-            mediaType: 'multipart/form-data',
             errors: {
-                400: `Invalid file format`,
-                413: `File too large (> 100MB)`,
-                422: `Validation error`,
-            },
-        });
-    }
-    /**
-     * List Datasets
-     * List all datasets with pagination and filtering.
-     * @param page
-     * @param pageSize
-     * @param sourceFormat
-     * @param projectId
-     * @param status Filter by status
-     * @param xOrgId
-     * @returns DatasetListResponse Successful Response
-     * @throws ApiError
-     */
-    public listDatasetsApiV1DatasetsGet(
-        page: number = 1,
-        pageSize: number = 20,
-        sourceFormat?: (string | null),
-        projectId?: (string | null),
-        status?: (string | null),
-        xOrgId?: (string | null),
-    ): CancelablePromise<DatasetListResponse> {
-        return this.httpRequest.request({
-            method: 'GET',
-            url: '/api/v1/datasets/',
-            headers: {
-                'X-Org-Id': xOrgId,
-            },
-            query: {
-                'page': page,
-                'page_size': pageSize,
-                'source_format': sourceFormat,
-                'project_id': projectId,
-                'status': status,
-            },
-            errors: {
+                400: `Dataset not in valid state`,
+                404: `Dataset not found`,
                 422: `Validation Error`,
             },
         });
@@ -292,42 +476,6 @@ export class DatasetsService {
         });
     }
     /**
-     * Preview Mapped Data
-     * Preview how data will look after applying the mapping.
-     *
-     * Returns a sample of events with the mapping applied.
-     * Useful for verifying column selections before ingestion.
-     * @param datasetId
-     * @param limit Number of sample rows
-     * @param xOrgId
-     * @returns PreviewResponse Preview generated
-     * @throws ApiError
-     */
-    public previewMappedDataApiV1DatasetsDatasetIdPreviewPost(
-        datasetId: string,
-        limit: number = 10,
-        xOrgId?: (string | null),
-    ): CancelablePromise<PreviewResponse> {
-        return this.httpRequest.request({
-            method: 'POST',
-            url: '/api/v1/datasets/{dataset_id}/preview',
-            path: {
-                'dataset_id': datasetId,
-            },
-            headers: {
-                'X-Org-Id': xOrgId,
-            },
-            query: {
-                'limit': limit,
-            },
-            errors: {
-                400: `No mapping found`,
-                404: `Dataset not found`,
-                422: `Validation Error`,
-            },
-        });
-    }
-    /**
      * Trigger Dataset Ingestion
      * Start background ingestion job for a MAPPED dataset.
      *
@@ -342,7 +490,7 @@ export class DatasetsService {
      * 4. Compute metadata statistics
      * 5. Update status to READY
      *
-     * Use `GET /jobs/{job_id}` to track progress.
+     * Use `GET /operations/{workflow_id}` to track progress.
      * @param datasetId
      * @param xOrgId
      * @returns JobStatusResponse Successful Response
@@ -366,6 +514,42 @@ export class DatasetsService {
                 400: `Dataset not in MAPPED state`,
                 404: `Dataset not found`,
                 422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Synchronous Ingestion (Dev Mode)
+     * Process dataset ingestion synchronously without Temporal.
+     *
+     * **Development mode only** - use this when Temporal is unavailable.
+     * For production, use `POST /datasets/{id}/ingest` with Temporal workflows.
+     *
+     * Prerequisites:
+     * - Dataset must be in MAPPED or ERROR status
+     * - Column mapping must be saved
+     * @param datasetId
+     * @param xOrgId
+     * @returns any Ingestion completed successfully
+     * @throws ApiError
+     */
+    public syncIngestApiV1DatasetsDatasetIdIngestSyncPost(
+        datasetId: string,
+        xOrgId?: (string | null),
+    ): CancelablePromise<Record<string, any>> {
+        return this.httpRequest.request({
+            method: 'POST',
+            url: '/api/v1/datasets/{dataset_id}/ingest-sync',
+            path: {
+                'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
+            errors: {
+                400: `Dataset not in valid state`,
+                404: `Dataset not found`,
+                422: `Validation Error`,
+                500: `Ingestion failed`,
             },
         });
     }
@@ -670,59 +854,6 @@ export class DatasetsService {
                 'X-Org-Id': xOrgId,
             },
             errors: {
-                422: `Validation Error`,
-            },
-        });
-    }
-    /**
-     * Get Dataset Details
-     * Get detailed information about a dataset.
-     * @param datasetId
-     * @param xOrgId
-     * @returns DatasetDetailResponse Successful Response
-     * @throws ApiError
-     */
-    public getDatasetApiV1DatasetsDatasetIdGet(
-        datasetId: string,
-        xOrgId?: (string | null),
-    ): CancelablePromise<DatasetDetailResponse> {
-        return this.httpRequest.request({
-            method: 'GET',
-            url: '/api/v1/datasets/{dataset_id}',
-            path: {
-                'dataset_id': datasetId,
-            },
-            headers: {
-                'X-Org-Id': xOrgId,
-            },
-            errors: {
-                422: `Validation Error`,
-            },
-        });
-    }
-    /**
-     * Delete Dataset
-     * Delete a dataset and all associated data.
-     * @param datasetId
-     * @param xOrgId
-     * @returns any Dataset deleted
-     * @throws ApiError
-     */
-    public deleteDatasetApiV1DatasetsDatasetIdDelete(
-        datasetId: string,
-        xOrgId?: (string | null),
-    ): CancelablePromise<Record<string, any>> {
-        return this.httpRequest.request({
-            method: 'DELETE',
-            url: '/api/v1/datasets/{dataset_id}',
-            path: {
-                'dataset_id': datasetId,
-            },
-            headers: {
-                'X-Org-Id': xOrgId,
-            },
-            errors: {
-                404: `Dataset not found`,
                 422: `Validation Error`,
             },
         });

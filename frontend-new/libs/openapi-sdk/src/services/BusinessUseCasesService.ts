@@ -9,16 +9,6 @@ export class BusinessUseCasesService {
     /**
      * Detect P2P Mavericks
      * Detect maverick purchasing behavior in P2P process.
-     *
-     * Mavericks are purchase orders that don't follow the approved process model.
-     *
-     * Args:
-     * dataset_id: Purchase order event log ID
-     * reference_model_id: Approved P2P process model ID
-     * threshold: Fitness threshold (default 0.8). Cases below this are mavericks.
-     *
-     * Returns:
-     * Maverick cases and statistics
      * @param datasetId
      * @param referenceModelId
      * @param threshold Fitness threshold (0-1)
@@ -48,19 +38,6 @@ export class BusinessUseCasesService {
     /**
      * Generate P2P Audit Report
      * Generate comprehensive P2P audit report.
-     *
-     * Includes:
-     * - Conformance overview
-     * - Maverick analysis
-     * - Root cause analysis
-     * - Recommendations
-     *
-     * Args:
-     * dataset_id: Purchase order event log ID
-     * reference_model_id: Approved P2P process model ID
-     *
-     * Returns:
-     * Comprehensive audit report
      * @param datasetId
      * @param referenceModelId
      * @returns any Successful Response
@@ -85,18 +62,8 @@ export class BusinessUseCasesService {
     /**
      * Split Log By Attribute
      * Split event log by attribute for comparative analysis.
-     *
-     * Useful for comparing processes across regions, products, or customer segments.
-     *
-     * Args:
-     * dataset_id: Event log ID
-     * attribute: Attribute to split on
-     * value: Specific value to filter for
-     *
-     * Returns:
-     * Statistics about filtered subset
      * @param datasetId
-     * @param attribute Attribute to split on (e.g., region, product)
+     * @param attribute Attribute to split on
      * @param value Value to filter for
      * @returns any Successful Response
      * @throws ApiError
@@ -124,21 +91,10 @@ export class BusinessUseCasesService {
     /**
      * Compare Process Variants
      * Compare process variants between two logs.
-     *
-     * Useful for comparing performance across regions, before/after improvements, etc.
-     *
-     * Args:
-     * dataset_id1: First event log ID
-     * dataset_id2: Second event log ID
-     * log1_name: Display name for first group
-     * log2_name: Display name for second group
-     *
-     * Returns:
-     * Comparison metrics (durations, variants, differences)
      * @param datasetId1
      * @param datasetId2
-     * @param log1Name Display name for first group
-     * @param log2Name Display name for second group
+     * @param log1Name
+     * @param log2Name
      * @returns any Successful Response
      * @throws ApiError
      */
@@ -167,20 +123,9 @@ export class BusinessUseCasesService {
     /**
      * Simulate Process Changes
      * Simulate process changes using Monte Carlo simulation.
-     *
-     * Estimates impact of process improvements on cycle time and throughput.
-     *
-     * Args:
-     * dataset_id: Historical event log ID
-     * activity_duration_reduction: Percentage reduction in activity durations (0-1)
-     * capacity_increase: Percentage increase in resource capacity (0-1)
-     * num_simulations: Number of simulation runs (default 1000)
-     *
-     * Returns:
-     * Simulation results with baseline, simulated metrics, and impact analysis
      * @param datasetId
-     * @param activityDurationReduction Activity duration reduction (0-1, e.g., 0.2 for 20% faster)
-     * @param capacityIncrease Capacity increase (0-1, e.g., 0.3 for 30% more capacity)
+     * @param activityDurationReduction Activity duration reduction (0-1)
+     * @param capacityIncrease Capacity increase (0-1)
      * @param numSimulations Number of Monte Carlo iterations
      * @returns any Successful Response
      * @throws ApiError
@@ -210,17 +155,8 @@ export class BusinessUseCasesService {
     /**
      * Detect Journey Dropoffs
      * Detect drop-offs in customer journey funnel.
-     *
-     * Identifies at which stage customers are dropping out of the process.
-     *
-     * Args:
-     * dataset_id: Customer journey event log ID
-     * expected_path: Expected journey path (comma-separated), or None for auto-detect
-     *
-     * Returns:
-     * Drop-off analysis by stage with completion rates
      * @param datasetId
-     * @param expectedPath Expected journey path (comma-separated activities). If None, uses most common path.
+     * @param expectedPath Expected journey path (comma-separated)
      * @returns any Successful Response
      * @throws ApiError
      */

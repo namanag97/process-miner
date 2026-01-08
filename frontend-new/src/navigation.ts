@@ -25,12 +25,25 @@ export interface NavItem {
 /**
  * Primary sidebar navigation items
  * Displayed in the main navigation area
+ *
+ * Structure:
+ * - PROJECTS: Where users organize their work
+ * - ANALYZE: Tools for exploring and analyzing data
+ * - AI TOOLS: AI-powered features
  */
 export const mainNavItems: NavItem[] = [
-  { key: 'workspace', label: 'Workspace', path: '/workspace', icon: 'FolderOutlined', order: 1 },
-  { key: 'explorer', label: 'Explorer', path: '/explore', icon: 'SearchOutlined', order: 3 },
-  { key: 'analytics', label: 'Analytics', path: '/analytics', icon: 'BarChartOutlined', order: 5 },
-  { key: 'ai', label: 'AI & Predictions', path: '/ai', icon: 'RobotOutlined', order: 6 },
+  { key: 'projects', label: 'Projects', path: '/workspace', icon: 'FolderOutlined', order: 1 },
+  { key: 'explorer', label: 'Process Explorer', path: '/explore', icon: 'SearchOutlined', order: 2 },
+  { key: 'analytics', label: 'Analytics', path: '/analytics', icon: 'BarChartOutlined', order: 3 },
+];
+
+/**
+ * AI Tools navigation items
+ * Grouped separately for clarity
+ */
+export const aiNavItems: NavItem[] = [
+  { key: 'ai-assistant', label: 'AI Assistant', path: '/ai/assistant', icon: 'RobotOutlined', order: 4 },
+  { key: 'predictions', label: 'Predictions', path: '/ai/predictions', icon: 'ExperimentOutlined', order: 5 },
 ];
 
 /**
@@ -67,17 +80,16 @@ export const datasetNavItems: NavItem[] = [
  */
 export const navRoutes: Record<string, string> = {
   login: '/login',
-  workspace: '/workspace',
+  projects: '/workspace',
+  workspace: '/workspace', // Alias for backwards compatibility
   home: '/workspace',
-  logs: '/processes',
   explorer: '/explore',
   analytics: '/analytics',
-  'ai-insights': '/ai/assistant',
+  'ai-assistant': '/ai/assistant',
   predictions: '/ai/predictions',
   settings: '/settings/profile',
   help: '/help',
   notifications: '/notifications',
-  activity: '/activity',
   'test-bench': '/test-bench',
 };
 
@@ -86,19 +98,17 @@ export const navRoutes: Record<string, string> = {
  */
 export function getActiveNavId(path: string): string {
   if (path.startsWith('/login')) return 'login';
-  if (path.startsWith('/workspace')) return 'workspace';
-  if (path.startsWith('/home')) return 'workspace';
-  if (path.startsWith('/projects')) return 'workspace';
-  if (path.startsWith('/processes')) return 'logs';
+  if (path.startsWith('/workspace')) return 'projects';
+  if (path.startsWith('/home')) return 'projects';
+  if (path.startsWith('/projects')) return 'projects';
   if (path.startsWith('/explorer') || path.startsWith('/explore')) return 'explorer';
   if (path.startsWith('/analytics')) return 'analytics';
-  if (path.startsWith('/ai')) return 'ai-insights';
-  if (path.startsWith('/predictions')) return 'predictions';
+  if (path.startsWith('/ai/assistant')) return 'ai-assistant';
+  if (path.startsWith('/ai/predictions') || path.startsWith('/predictions')) return 'predictions';
+  if (path.startsWith('/ai')) return 'ai-assistant'; // Default AI route
   if (path.startsWith('/settings')) return 'settings';
   if (path.startsWith('/help')) return 'help';
   if (path.startsWith('/notifications')) return 'notifications';
-  if (path.startsWith('/activity')) return 'activity';
   if (path.startsWith('/test-bench')) return 'test-bench';
-  if (path.startsWith('/audit')) return 'audit-logs';
-  return 'workspace';
+  return 'projects';
 }

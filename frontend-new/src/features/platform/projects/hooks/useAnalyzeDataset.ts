@@ -84,7 +84,7 @@ async function detectColumns(
     datasetId: string,
     signal?: AbortSignal
 ): Promise<ColumnDetectionResponse> {
-    const apiUrl = `${env.API_BASE_URL}/api/v1/datasets/${datasetId}/detect-columns`;
+    const apiUrl = `${env.API_BASE_URL}/datasets/${datasetId}/detect-columns`;
     console.log('[AnalyzeDataset] Detecting columns:', apiUrl);
 
     // BUG-043 & BUG-045 FIX: Add auth headers and abort signal
@@ -126,7 +126,7 @@ async function startAnalysis({
     mapping,
     signal,
 }: StartAnalysisParams): Promise<AnalyzeResponse> {
-    const apiUrl = `${env.API_BASE_URL}/api/v1/datasets/${datasetId}/ingest`;
+    const apiUrl = `${env.API_BASE_URL}/datasets/${datasetId}/ingest`;
     console.log('[AnalyzeDataset] Starting analysis:', apiUrl);
 
     // BUG-043 & BUG-045 FIX: Add auth headers and abort signal
@@ -173,7 +173,7 @@ export function useStartAnalysis() {
 // ============================================
 
 async function getJobStatus(jobId: string, signal?: AbortSignal): Promise<JobStatus> {
-    const apiUrl = `${env.API_BASE_URL}/api/v1/jobs/${jobId}`;
+    const apiUrl = `${env.API_BASE_URL}/jobs/${jobId}`;
 
     // BUG-043 & BUG-045 FIX: Add auth headers and abort signal
     // Using instrumentedFetch for DevConsole visibility

@@ -13,7 +13,6 @@ with `pytest.mark.integration`. They're skipped by default but can be run
 with: pytest -m integration
 """
 
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -386,7 +385,7 @@ class TestWorkflowIdParsing:
         """Test parsing ingestion workflow ID."""
         from src.api.routers.operations import _parse_workflow_id
 
-        entity_type, entity_id, operation_type = _parse_workflow_id("ingest-dataset-abc123")
+        entity_type, _entity_id, operation_type = _parse_workflow_id("ingest-dataset-abc123")
         assert entity_type == "dataset"
         assert operation_type == "ingest"
 
@@ -394,7 +393,7 @@ class TestWorkflowIdParsing:
         """Test parsing validation workflow ID."""
         from src.api.routers.operations import _parse_workflow_id
 
-        entity_type, entity_id, operation_type = _parse_workflow_id("validate-dataset-xyz789")
+        entity_type, _entity_id, operation_type = _parse_workflow_id("validate-dataset-xyz789")
         assert entity_type == "dataset"
         assert operation_type == "validate"
 
@@ -402,7 +401,7 @@ class TestWorkflowIdParsing:
         """Test parsing discovery workflow ID."""
         from src.api.routers.operations import _parse_workflow_id
 
-        entity_type, entity_id, operation_type = _parse_workflow_id(
+        entity_type, _entity_id, operation_type = _parse_workflow_id(
             "discover-abc123-inductive"
         )
         assert entity_type == "dataset"
@@ -412,7 +411,7 @@ class TestWorkflowIdParsing:
         """Test parsing conformance workflow ID."""
         from src.api.routers.operations import _parse_workflow_id
 
-        entity_type, entity_id, operation_type = _parse_workflow_id(
+        entity_type, _entity_id, operation_type = _parse_workflow_id(
             "conformance-dataset123-model456"
         )
         assert entity_type == "dataset"

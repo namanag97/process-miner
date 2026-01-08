@@ -13,8 +13,6 @@ export class DiscoveryService {
     /**
      * List Miners
      * List available mining algorithms.
-     *
-     * Returns information about each algorithm including its output format.
      * @returns MinerInfo Successful Response
      * @throws ApiError
      */
@@ -27,17 +25,6 @@ export class DiscoveryService {
     /**
      * Discover Model
      * Discover a process model from an event log.
-     *
-     * BUG-019 FIX: Heavy mining is now offloaded to Celery by default.
-     * Set async_mode=False for synchronous execution (not recommended for large logs).
-     *
-     * Args:
-     * request: Discovery request with dataset_id, miner_type, model_name
-     * async_mode: If True (default), runs in background and returns job_id
-     *
-     * Returns:
-     * - If async_mode=True: {"job_id": "...", "status": "pending"}
-     * - If async_mode=False: ModelResponse with discovered model
      * @param requestBody
      * @param asyncMode
      * @param xOrgId
@@ -68,11 +55,10 @@ export class DiscoveryService {
     /**
      * List Models
      * List discovered process models.
-     *
-     * Supports pagination and filtering by source dataset.
      * @param page
      * @param pageSize
      * @param datasetId
+     * @param xOrgId
      * @returns ModelListResponse Successful Response
      * @throws ApiError
      */
@@ -80,10 +66,14 @@ export class DiscoveryService {
         page: number = 1,
         pageSize: number = 20,
         datasetId?: (string | null),
+        xOrgId?: (string | null),
     ): CancelablePromise<ModelListResponse> {
         return this.httpRequest.request({
             method: 'GET',
             url: '/api/v1/discovery/models',
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
             query: {
                 'page': page,
                 'page_size': pageSize,
@@ -98,17 +88,22 @@ export class DiscoveryService {
      * Get Model
      * Get details of a discovered process model.
      * @param modelId
+     * @param xOrgId
      * @returns ModelResponse Successful Response
      * @throws ApiError
      */
     public getModelApiV1DiscoveryModelsModelIdGet(
         modelId: string,
+        xOrgId?: (string | null),
     ): CancelablePromise<ModelResponse> {
         return this.httpRequest.request({
             method: 'GET',
             url: '/api/v1/discovery/models/{model_id}',
             path: {
                 'model_id': modelId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
             },
             errors: {
                 422: `Validation Error`,
@@ -118,18 +113,64 @@ export class DiscoveryService {
     /**
      * Delete Model
      * Delete a discovered process model.
+     *
+     * Requires DATASET_UPDATE permission on the model's dataset.
      * @param modelId
+     * @param xOrgId
      * @returns any Successful Response
      * @throws ApiError
      */
     public deleteModelApiV1DiscoveryModelsModelIdDelete(
         modelId: string,
+        xOrgId?: (string | null),
     ): CancelablePromise<any> {
         return this.httpRequest.request({
             method: 'DELETE',
             url: '/api/v1/discovery/models/{model_id}',
             path: {
                 'model_id': modelId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Get Variants
+     * Get process variants (unique activity sequences) for a dataset.
+     *
+     * This is a convenience endpoint that delegates to the analytics variants query.
+     * Variants are computed from the Parquet file using DuckDB for OLAP performance.
+     *
+     * Returns the top N most frequent variants with:
+     * - Activity sequence
+     * - Case count
+     * - Percentage of total cases
+     * @param datasetId
+     * @param topN Number of top variants to return
+     * @param xOrgId
+     * @returns any Successful Response
+     * @throws ApiError
+     */
+    public getVariantsApiV1DiscoveryVariantsDatasetIdGet(
+        datasetId: string,
+        topN: number = 20,
+        xOrgId?: (string | null),
+    ): CancelablePromise<any> {
+        return this.httpRequest.request({
+            method: 'GET',
+            url: '/api/v1/discovery/variants/{dataset_id}',
+            path: {
+                'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
+            },
+            query: {
+                'top_n': topN,
             },
             errors: {
                 422: `Validation Error`,

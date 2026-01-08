@@ -8,8 +8,7 @@ Tests cover:
 """
 
 import json
-from dataclasses import dataclass
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -72,7 +71,6 @@ class TestActivityProgressPublisher:
         """Test step started event publishing."""
         from src.infra.temporal.activities.progress import (
             ActivityProgressPublisher,
-            ProgressEventType,
         )
 
         publisher = ActivityProgressPublisher()
@@ -372,7 +370,7 @@ class TestSSEMessageFormat:
         assert message.endswith("\n\n")
 
         # Extract and parse JSON data
-        data_line = [line for line in message.split("\n") if line.startswith("data: ")][0]
+        data_line = next(line for line in message.split("\n") if line.startswith("data: "))
         json_data = json.loads(data_line[6:])  # Remove "data: " prefix
 
         assert json_data["workflow_id"] == "test-workflow"
@@ -415,13 +413,12 @@ class TestPublisherSingleton:
 
     def test_get_progress_publisher_returns_singleton(self):
         """Test that get_progress_publisher returns the same instance."""
+        # Reset singleton for test isolation
+        import src.infra.temporal.activities.progress as progress_module
         from src.infra.temporal.activities.progress import (
             ActivityProgressPublisher,
             get_progress_publisher,
         )
-
-        # Reset singleton for test isolation
-        import src.infra.temporal.activities.progress as progress_module
 
         progress_module._publisher = None
 

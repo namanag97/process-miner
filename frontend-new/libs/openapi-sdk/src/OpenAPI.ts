@@ -5,9 +5,11 @@
 import type { BaseHttpRequest } from './core/BaseHttpRequest';
 import type { OpenAPIConfig } from './core/OpenAPI';
 import { AxiosHttpRequest } from './core/AxiosHttpRequest';
-import { AdminService } from './services/AdminService';
+import { AiService } from './services/AiService';
+import { AlgorithmsService } from './services/AlgorithmsService';
 import { AnalysesService } from './services/AnalysesService';
 import { AnalyticsService } from './services/AnalyticsService';
+import { AuditService } from './services/AuditService';
 import { AuthService } from './services/AuthService';
 import { BusinessUseCasesService } from './services/BusinessUseCasesService';
 import { ConformanceService } from './services/ConformanceService';
@@ -20,19 +22,22 @@ import { FilteringService } from './services/FilteringService';
 import { HealthService } from './services/HealthService';
 import { JobsService } from './services/JobsService';
 import { ObjectCentricProcessMiningService } from './services/ObjectCentricProcessMiningService';
+import { OperationsService } from './services/OperationsService';
 import { OrganizationalMiningService } from './services/OrganizationalMiningService';
 import { OrganizationsService } from './services/OrganizationsService';
-import { PredictionsService } from './services/PredictionsService';
 import { ProjectsService } from './services/ProjectsService';
+import { QualityMetricsService } from './services/QualityMetricsService';
 import { SimulationService } from './services/SimulationService';
 import { VisualizationService } from './services/VisualizationService';
 import { WorkflowsService } from './services/WorkflowsService';
 import { WorkspacesService } from './services/WorkspacesService';
 type HttpRequestConstructor = new (config: OpenAPIConfig) => BaseHttpRequest;
 export class OpenAPI {
-    public readonly admin: AdminService;
+    public readonly ai: AiService;
+    public readonly algorithms: AlgorithmsService;
     public readonly analyses: AnalysesService;
     public readonly analytics: AnalyticsService;
+    public readonly audit: AuditService;
     public readonly auth: AuthService;
     public readonly businessUseCases: BusinessUseCasesService;
     public readonly conformance: ConformanceService;
@@ -45,10 +50,11 @@ export class OpenAPI {
     public readonly health: HealthService;
     public readonly jobs: JobsService;
     public readonly objectCentricProcessMining: ObjectCentricProcessMiningService;
+    public readonly operations: OperationsService;
     public readonly organizationalMining: OrganizationalMiningService;
     public readonly organizations: OrganizationsService;
-    public readonly predictions: PredictionsService;
     public readonly projects: ProjectsService;
+    public readonly qualityMetrics: QualityMetricsService;
     public readonly simulation: SimulationService;
     public readonly visualization: VisualizationService;
     public readonly workflows: WorkflowsService;
@@ -66,9 +72,11 @@ export class OpenAPI {
             HEADERS: config?.HEADERS,
             ENCODE_PATH: config?.ENCODE_PATH,
         });
-        this.admin = new AdminService(this.request);
+        this.ai = new AiService(this.request);
+        this.algorithms = new AlgorithmsService(this.request);
         this.analyses = new AnalysesService(this.request);
         this.analytics = new AnalyticsService(this.request);
+        this.audit = new AuditService(this.request);
         this.auth = new AuthService(this.request);
         this.businessUseCases = new BusinessUseCasesService(this.request);
         this.conformance = new ConformanceService(this.request);
@@ -81,10 +89,11 @@ export class OpenAPI {
         this.health = new HealthService(this.request);
         this.jobs = new JobsService(this.request);
         this.objectCentricProcessMining = new ObjectCentricProcessMiningService(this.request);
+        this.operations = new OperationsService(this.request);
         this.organizationalMining = new OrganizationalMiningService(this.request);
         this.organizations = new OrganizationsService(this.request);
-        this.predictions = new PredictionsService(this.request);
         this.projects = new ProjectsService(this.request);
+        this.qualityMetrics = new QualityMetricsService(this.request);
         this.simulation = new SimulationService(this.request);
         this.visualization = new VisualizationService(this.request);
         this.workflows = new WorkflowsService(this.request);

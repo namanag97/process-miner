@@ -8,8 +8,8 @@ import type { MemberListResponse } from '../models/MemberListResponse';
 import type { MemberResponse } from '../models/MemberResponse';
 import type { OrganizationCreateRequest } from '../models/OrganizationCreateRequest';
 import type { OrganizationListResponse } from '../models/OrganizationListResponse';
-import type { OrganizationResponse } from '../models/OrganizationResponse';
 import type { OrganizationUpdateRequest } from '../models/OrganizationUpdateRequest';
+import type { src__infra__organizations__schemas__OrganizationResponse } from '../models/src__infra__organizations__schemas__OrganizationResponse';
 import type { UpdateRoleRequest } from '../models/UpdateRoleRequest';
 import type { UsageResponse } from '../models/UsageResponse';
 import type { CancelablePromise } from '../core/CancelablePromise';
@@ -50,13 +50,13 @@ export class OrganizationsService {
      * Create new organization.
      * @param requestBody
      * @param xOrgId
-     * @returns OrganizationResponse Successful Response
+     * @returns src__infra__organizations__schemas__OrganizationResponse Successful Response
      * @throws ApiError
      */
     public createOrganizationApiV1OrganizationsPost(
         requestBody: OrganizationCreateRequest,
         xOrgId?: (string | null),
-    ): CancelablePromise<OrganizationResponse> {
+    ): CancelablePromise<src__infra__organizations__schemas__OrganizationResponse> {
         return this.httpRequest.request({
             method: 'POST',
             url: '/api/v1/organizations/',
@@ -75,13 +75,13 @@ export class OrganizationsService {
      * Get organization details.
      * @param orgId Organization ID
      * @param xOrgId
-     * @returns OrganizationResponse Successful Response
+     * @returns src__infra__organizations__schemas__OrganizationResponse Successful Response
      * @throws ApiError
      */
     public getOrganizationApiV1OrganizationsOrgIdGet(
         orgId: string,
         xOrgId?: (string | null),
-    ): CancelablePromise<OrganizationResponse> {
+    ): CancelablePromise<src__infra__organizations__schemas__OrganizationResponse> {
         return this.httpRequest.request({
             method: 'GET',
             url: '/api/v1/organizations/{org_id}',
@@ -102,14 +102,14 @@ export class OrganizationsService {
      * @param orgId Organization ID
      * @param requestBody
      * @param xOrgId
-     * @returns OrganizationResponse Successful Response
+     * @returns src__infra__organizations__schemas__OrganizationResponse Successful Response
      * @throws ApiError
      */
     public updateOrganizationApiV1OrganizationsOrgIdPut(
         orgId: string,
         requestBody: OrganizationUpdateRequest,
         xOrgId?: (string | null),
-    ): CancelablePromise<OrganizationResponse> {
+    ): CancelablePromise<src__infra__organizations__schemas__OrganizationResponse> {
         return this.httpRequest.request({
             method: 'PUT',
             url: '/api/v1/organizations/{org_id}',

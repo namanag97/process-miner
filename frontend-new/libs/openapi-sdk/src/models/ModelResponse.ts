@@ -13,6 +13,10 @@ export type ModelResponse = {
     dataset_id: (string | null);
     fitness: (number | null);
     precision: (number | null);
+    /**
+     * Status of quality metrics: 'success', 'failed', or 'not_applicable'
+     */
+    metrics_status?: (string | null);
     created_at: string;
 };
 

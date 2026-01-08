@@ -15,18 +15,23 @@ export class SimulationService {
      * Generate synthetic event log from a process model.
      * @param modelId
      * @param requestBody
+     * @param xOrgId
      * @returns PlayOutResponse Successful Response
      * @throws ApiError
      */
     public playOutModelApiV1SimulationModelsModelIdPlayOutPost(
         modelId: string,
         requestBody: PlayOutRequest,
+        xOrgId?: (string | null),
     ): CancelablePromise<PlayOutResponse> {
         return this.httpRequest.request({
             method: 'POST',
             url: '/api/v1/simulation/models/{model_id}/play-out',
             path: {
                 'model_id': modelId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
             },
             body: requestBody,
             mediaType: 'application/json',
@@ -40,18 +45,23 @@ export class SimulationService {
      * Run what-if simulation on an event log.
      * @param datasetId
      * @param requestBody
+     * @param xOrgId
      * @returns SimulationResponse Successful Response
      * @throws ApiError
      */
     public simulateScenarioApiV1SimulationDatasetsDatasetIdSimulatePost(
         datasetId: string,
         requestBody: SimulationRequest,
+        xOrgId?: (string | null),
     ): CancelablePromise<SimulationResponse> {
         return this.httpRequest.request({
             method: 'POST',
             url: '/api/v1/simulation/datasets/{dataset_id}/simulate',
             path: {
                 'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
             },
             body: requestBody,
             mediaType: 'application/json',
@@ -64,19 +74,24 @@ export class SimulationService {
      * Estimate Capacity
      * Estimate resource requirements for target throughput.
      * @param datasetId
-     * @param targetThroughput
+     * @param targetThroughput Target throughput
+     * @param xOrgId
      * @returns any Successful Response
      * @throws ApiError
      */
     public estimateCapacityApiV1SimulationDatasetsDatasetIdCapacityPlanPost(
         datasetId: string,
         targetThroughput: number,
+        xOrgId?: (string | null),
     ): CancelablePromise<Record<string, any>> {
         return this.httpRequest.request({
             method: 'POST',
             url: '/api/v1/simulation/datasets/{dataset_id}/capacity-plan',
             path: {
                 'dataset_id': datasetId,
+            },
+            headers: {
+                'X-Org-Id': xOrgId,
             },
             query: {
                 'target_throughput': targetThroughput,

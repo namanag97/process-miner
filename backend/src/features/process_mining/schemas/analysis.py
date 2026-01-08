@@ -137,6 +137,8 @@ from src.features.process_mining.schemas.workflows import (
 )
 
 __all__ = [
+    # Discovery
+    "AlgorithmParameters",
     "AlignmentDiagnosticsResponse",
     "AlignmentMove",
     # Analyses
@@ -144,6 +146,9 @@ __all__ = [
     "AnalysisDetailResponse",
     "AnalysisListResponse",
     "AnalysisResponse",
+    # Analytics Variants (renamed from VariantListResponse to avoid conflict with datasets.VariantResponse)
+    "AnalyticsVariantListResponse",
+    "AnalyticsVariantResponse",
     "BatchPredictionRequest",
     "BatchPredictionResponse",
     "BottleneckListResponse",
@@ -166,8 +171,6 @@ __all__ = [
     "DiscoverRequest",
     "FlattenedLogInfo",
     "JobStatusResponse",
-    # Discovery
-    "AlgorithmParameters",
     "MinerInfo",
     "ModelListResponse",
     "ModelResponse",
@@ -220,9 +223,6 @@ __all__ = [
     # Predictions
     "TrainPredictorRequest",
     "UploadedFileResponse",
-    # Analytics Variants (renamed from VariantListResponse to avoid conflict with datasets.VariantResponse)
-    "AnalyticsVariantListResponse",
-    "AnalyticsVariantResponse",
     "WorkflowCreateRequest",
     "WorkflowResponse",
     "WorkflowRunRequest",

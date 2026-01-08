@@ -218,6 +218,24 @@
   font-size: 1rem;
 }
 
+.btnSecondary {
+  padding: 0.625rem 1.25rem;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 200ms;
+}
+
+.btnSecondary:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
 /* ----------------------------------------
    Hero Section
    ---------------------------------------- */
@@ -257,6 +275,18 @@
   color: var(--text-muted);
   line-height: 1.7;
   margin: 0 0 2rem;
+}
+
+.heroActions {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.heroNote {
+  font-size: 0.8125rem;
+  color: var(--text-subtle);
+  margin: 0;
 }
 
 .heroInstall {
@@ -780,8 +810,10 @@
   margin: 0 0 2rem;
 }
 
-.ctaInstall {
-  margin-bottom: 1.5rem;
+.ctaNote {
+  font-size: 0.8125rem;
+  color: var(--text-subtle);
+  margin: 1.5rem 0 0;
 }
 
 /* ----------------------------------------
@@ -834,6 +866,11 @@
   .heroContent {
     max-width: none;
     text-align: center;
+  }
+
+  .heroActions {
+    justify-content: center;
+    flex-wrap: wrap;
   }
 
   .heroInstall {

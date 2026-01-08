@@ -1,4 +1,4 @@
-claude"""Platform ORM Models - Re-exports from domain models for backward compatibility.
+"""Platform ORM Models - Re-exports from domain models for backward compatibility.
 
 DEPRECATED: This module re-exports models from their new domain locations.
 New code should import directly from domain modules:
@@ -18,25 +18,24 @@ from uuid import uuid4
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from src.platform.core.enums import JobStatus
-from src.shared.database import Base
+from src.platform.projects.models import Project
 
 # =============================================================================
 # Admin Domain Models (Re-exported for backward compatibility)
 # =============================================================================
-
 from src.platform.users.models import User
 from src.platform.users.organization import Organization
 from src.platform.workspaces.models import Workspace, WorkspaceMember
-from src.platform.projects.models import Project
+
+from src.shared.database import Base
 
 __all__ = [
     "AsyncJob",
     "ErrorLog",
-    "User",
     "Organization",
     "Project",
+    "User",
     "Workspace",
     "WorkspaceMember",
 ]

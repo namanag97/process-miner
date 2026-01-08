@@ -136,13 +136,6 @@ async def check_conformance(
 
     model = await _get_model_or_404(db, request.model_id)
 
-    # Extract values needed by sync service before calling it
-    # This avoids greenlet issues with async-session-bound objects
-    dataset_id = event_log.id
-    model_id = model.id
-    model_serialized = model.serialized_model
-    model_format = model.model_format
-
     try:
         # Run sync conformance check in thread pool to avoid blocking
         result = await asyncio.to_thread(

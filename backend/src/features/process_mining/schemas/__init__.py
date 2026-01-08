@@ -11,6 +11,9 @@ from src.features.process_mining.schemas.analysis import (
     AnalysisDetailResponse,
     AnalysisListResponse,
     AnalysisResponse,
+    # Analytics variants (renamed to avoid conflict with datasets.VariantResponse)
+    AnalyticsVariantListResponse,
+    AnalyticsVariantResponse,
     BatchPredictionRequest,
     BatchPredictionResponse,
     BottleneckListResponse,
@@ -78,9 +81,6 @@ from src.features.process_mining.schemas.analysis import (
     TieredDFGResponse,
     TrainPredictorRequest,
     UploadedFileResponse,
-    # Analytics variants (renamed to avoid conflict with datasets.VariantResponse)
-    AnalyticsVariantListResponse,
-    AnalyticsVariantResponse,
     WorkflowCreateRequest,
     WorkflowResponse,
     WorkflowRunRequest,
@@ -132,6 +132,9 @@ __all__ = [
     "AnalysisDetailResponse",
     "AnalysisListResponse",
     "AnalysisResponse",
+    # Analytics variants (for CQRS queries)
+    "AnalyticsVariantListResponse",
+    "AnalyticsVariantResponse",
     "BatchPredictionRequest",
     "BatchPredictionResponse",
     "BottleneckListResponse",
@@ -229,9 +232,6 @@ __all__ = [
     "TieredDFGResponse",
     "TrainPredictorRequest",
     "UploadedFileResponse",
-    # Analytics variants (for CQRS queries)
-    "AnalyticsVariantListResponse",
-    "AnalyticsVariantResponse",
     # Datasets variant (for data exploration)
     "VariantResponse",
     "WorkflowCreateRequest",

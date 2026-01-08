@@ -8,10 +8,10 @@
 export type ThroughputResponse = {
     dataset_id: string;
     total_cases: number;
-    completed_cases: number;
-    cases_per_day: number;
-    cases_per_week: number;
-    cases_per_month: number;
-    time_range_days: number;
+    completed_cases?: number;
+    cases_per_day?: number;
+    cases_per_week?: number;
+    cases_per_month?: number;
+    time_range_days?: number;
 };
 

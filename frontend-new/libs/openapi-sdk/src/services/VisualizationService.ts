@@ -5,6 +5,7 @@
 import type { DFGResponse } from '../models/DFGResponse';
 import type { PetriNetResponse } from '../models/PetriNetResponse';
 import type { ProcessExplorerDataResponse } from '../models/ProcessExplorerDataResponse';
+import type { TieredDFGResponse } from '../models/TieredDFGResponse';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import type { BaseHttpRequest } from '../core/BaseHttpRequest';
 export class VisualizationService {
@@ -36,6 +37,57 @@ export class VisualizationService {
                 'dataset_id': datasetId,
             },
             query: {
+                'include_performance': includePerformance,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Get Tiered Dfg
+     * Get tiered DFG data for progressive loading performance.
+     *
+     * This endpoint supports three typical configurations:
+     * - **Overview tier**: max_nodes=50, min_edge_frequency=100, aggregate=true
+     * Fast initial load with top activities and high-frequency paths
+     * - **Standard tier**: max_nodes=500, min_edge_frequency=10, aggregate=false
+     * Balanced view with most activities visible
+     * - **Detailed tier**: max_nodes=null, min_edge_frequency=1, aggregate=false
+     * Full graph with all nodes and edges
+     *
+     * The response includes metadata about the full graph size, allowing
+     * the frontend to show "X of Y nodes" and offer tier upgrades.
+     *
+     * ## Performance Benefits
+     * - Overview tier typically returns in <50ms for any graph size
+     * - Enables fast initial render with progressive enhancement
+     * - Reduces memory usage on frontend for large graphs
+     * @param datasetId
+     * @param maxNodes Maximum nodes to return (null for all)
+     * @param minEdgeFrequency Minimum edge frequency to include
+     * @param aggregate Aggregate low-frequency nodes into 'Other' cluster
+     * @param includePerformance Include performance metrics on edges
+     * @returns TieredDFGResponse Successful Response
+     * @throws ApiError
+     */
+    public getTieredDfgApiV1VisualizationDatasetIdDfgTieredGet(
+        datasetId: string,
+        maxNodes?: (number | null),
+        minEdgeFrequency: number = 1,
+        aggregate: boolean = true,
+        includePerformance: boolean = false,
+    ): CancelablePromise<TieredDFGResponse> {
+        return this.httpRequest.request({
+            method: 'GET',
+            url: '/api/v1/visualization/{dataset_id}/dfg/tiered',
+            path: {
+                'dataset_id': datasetId,
+            },
+            query: {
+                'max_nodes': maxNodes,
+                'min_edge_frequency': minEdgeFrequency,
+                'aggregate': aggregate,
                 'include_performance': includePerformance,
             },
             errors: {

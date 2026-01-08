@@ -118,13 +118,20 @@ export function ProjectsListPage() {
         onRetry={() => { refetch(); }}
         isEmpty={projects.length === 0}
         emptyState={{
-          icon: <FolderOutlined style={{ fontSize: 48, color: tokens.colors.neutral[400] }} />,
-          title: 'No projects yet',
-          description: workspace
-            ? `Create your first project in ${workspace.name} to start analyzing your processes`
-            : 'Create your first project to start analyzing your processes',
-          actionLabel: 'Create Project',
+          icon: <FolderOutlined style={{ fontSize: 48, color: tokens.colors.primary[400] }} />,
+          title: 'Welcome to Process Miner',
+          description: 'Projects help you organize your process mining analyses. Each project can contain multiple datasets and analyses.',
+          actionLabel: 'Create Your First Project',
           onAction: () => setIsCreateModalOpen(true),
+          secondaryAction: {
+            label: 'Watch Quick Start Guide',
+            onClick: () => window.open('https://docs.processminer.io/quickstart', '_blank'),
+          },
+          tips: [
+            'Upload CSV or XES event log files',
+            'Discover process flows automatically',
+            'Identify bottlenecks and inefficiencies',
+          ],
         }}
         auditCategory="projects"
         actions={

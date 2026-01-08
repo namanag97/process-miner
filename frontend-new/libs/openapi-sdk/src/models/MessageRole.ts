@@ -3,11 +3,10 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
- * Frequent pattern/subsequence.
+ * Chat message role.
  */
-export type PatternResponse = {
-    pattern: string;
-    frequency: number;
-    support: number;
-};
-
+export enum MessageRole {
+    USER = 'user',
+    ASSISTANT = 'assistant',
+    SYSTEM = 'system',
+}

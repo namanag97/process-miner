@@ -16,7 +16,6 @@ For manual testing, use the curl commands in the docstrings.
 import asyncio
 import json
 import time
-from typing import Any
 
 import httpx
 import pytest
@@ -309,7 +308,7 @@ case_id,activity,timestamp,resource
                         print("Workflow completed successfully!")
                         assert status_data["progress"] == 100
                         return
-                    elif status_data.get("status") in ("FAILED", "CANCELLED"):
+                    if status_data.get("status") in ("FAILED", "CANCELLED"):
                         pytest.fail(f"Workflow failed: {status_data.get('error_message')}")
 
                 time.sleep(poll_interval)
@@ -350,7 +349,6 @@ class TestProgressPublisherIntegration:
 
         from src.infra.temporal.activities.progress import (
             ActivityProgressPublisher,
-            ProgressEventType,
         )
 
         # Create publisher
@@ -390,7 +388,7 @@ class TestProgressPublisherIntegration:
 
         # Parse SSE data
         lines = message["data"].split("\n")
-        data_line = [l for l in lines if l.startswith("data: ")][0]
+        data_line = next(line for line in lines if line.startswith("data: "))
         data = json.loads(data_line[6:])
 
         assert data["workflow_id"] == workflow_id

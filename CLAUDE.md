@@ -6,11 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A full-stack **Process Mining SaaS Platform** built with:
 - **Backend**: FastAPI (Python 3.10+) with PM4Py for process mining algorithms
-- **Frontend**: React 19 + Nx monorepo with Rspack bundling
+- **Frontend**: React 19 with Rspack bundling
 - **Database**: SQLite (async via aiosqlite) with Alembic migrations
 - **Data Processing**: DuckDB for high-performance data ingestion and analytics
-- **Storage**: S3/MinIO for event log files
-- **Task Queue**: Celery with Redis for async background jobs
+- **Storage**: S3/MinIO for event log files (local filesystem in dev)
+- **Workflow Orchestration**: Temporal for async long-running operations
+- **Authentication**: JWT with access/refresh tokens
 
 ## Essential Commands
 
@@ -71,49 +72,45 @@ make dev-full
 
 ## Architecture
 
-### Backend: Domain-Driven Design + Hexagonal Architecture
+### Backend: Layered Architecture with Feature Modules
 
 The backend follows a **layered architecture** with strict dependency rules enforced by `import-linter`:
 
 ```
 ┌─────────────────────────────────────────────────────┐
 │  API Layer (src/api/)                               │
-│  - FastAPI routers, DTOs, request/response schemas │
-│  - Depends on: all layers                           │
+│  - FastAPI app factory, middleware, exception handlers│
+│  - Imports routers from features and infra          │
 └─────────────────────────────────────────────────────┘
                         ↓
 ┌─────────────────────────────────────────────────────┐
-│  Domain Layer (src/domains/, src/features/)         │
-│  - Business logic, services, schemas                │
-│  - Depends on: platform.infrastructure only         │
-│  - NEVER depends on: api                            │
+│  Features Layer (src/features/)                     │
+│  - Process mining algorithms and business logic     │
+│  - Each feature: router.py, service.py, schemas.py  │
+│  - Depends on: infra, shared                        │
 └─────────────────────────────────────────────────────┘
                         ↓
 ┌─────────────────────────────────────────────────────┐
-│  Platform Layer (src/platform/)                     │
-│  - Infrastructure: DB, storage, tasks, cache        │
-│  - Core: Auth, config, exceptions, middleware       │
-│  - NEVER depends on: features, domains              │
+│  Infrastructure Layer (src/infra/)                  │
+│  - Platform services: auth, organizations, projects │
+│  - Core: config, database, logging, middleware      │
+│  - Temporal workflows, jobs, health checks          │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│  Shared Layer (src/shared/)                         │
+│  - Utilities, types, constants                      │
+│  - No dependencies on other layers                  │
 └─────────────────────────────────────────────────────┘
 ```
 
 **Key Principles:**
-- **Domain Independence**: Domain layer (`src/domain`) must be pure - no dependencies on infrastructure or API layers
-- **Services Independence**: Services cannot depend on API/presentation layer
-- **Platform/Feature Separation**: Platform (generic SaaS infra) NEVER depends on Features (process mining logic)
+- **Features Independence**: Feature modules cannot depend on API layer
+- **Infra Independence**: Infrastructure should not import from features
+- **Shared Isolation**: Shared layer has no internal dependencies
 
-### Domain Boundaries
+### Multi-Tenant Authorization Hierarchy
 
-The application is organized into three primary domains:
-
-#### 1. **Admin Domain** (`src/domains/admin/`)
-Multi-tenant authentication and organization management:
-- Organizations (billing plans, usage tracking)
-- Workspaces (collaborative containers with RBAC)
-- Projects (dataset/analysis organization)
-- Users (JWT auth with access/refresh tokens)
-
-**Authorization Hierarchy:**
 ```
 Organization (owner)
   └── Workspace (owner/admin/editor/viewer)
@@ -121,27 +118,20 @@ Organization (owner)
               └── Dataset (inherits project permissions)
 ```
 
-#### 2. **Datasets Domain** (`src/domains/datasets/`)
-Complete data lifecycle for event logs:
-- File upload (direct + presigned S3 URLs)
-- Column detection (automatic schema inference)
-- Column mapping (user-defined process semantics)
-- DuckDB-based ingestion pipeline
-- Metadata computation and storage
+### Dataset Lifecycle
 
-**Dataset Status Flow:**
 ```
-PENDING → UPLOADING → UPLOADED → MAPPING → MAPPED → INGESTING → READY
-                                                         ↓
-                                                    FAILED/ERROR
+PENDING → UPLOADING → UPLOADED → MAPPED → INGESTING → READY
+                                                 ↓
+                                            FAILED/ERROR
 ```
 
-#### 3. **Analysis Domain** (`src/domains/analysis/`)
-All process mining and analytics capabilities:
+### Process Mining Capabilities
+
 - **Discovery**: Alpha, Inductive, Heuristics, Split miners
 - **Conformance**: Token replay, alignments, footprint comparison
-- **Analytics**: Bottlenecks, cycle times, throughput, wait times
-- **Visualization**: DFG, Petri nets, BPMN layouts
+- **Analytics**: Bottlenecks, cycle times, throughput, rework detection
+- **Visualization**: DFG (Directly-Follows Graph), Petri nets
 - **Predictions**: ML-based next activity and remaining time
 - **Organizational**: Social network analysis, resource handovers
 - **Simulation**: What-if analysis
@@ -153,51 +143,78 @@ All process mining and analytics capabilities:
 backend/src/
 ├── api/                      # FastAPI application entry point
 │   ├── main.py              # App factory, middleware, exception handlers
-│   └── routers/             # API route definitions
-├── domains/                  # NEW: Domain-driven design structure
-│   ├── admin/               # Authentication, organizations, workspaces
-│   ├── datasets/            # Event log upload, ingestion, storage
-│   └── analysis/            # Process mining algorithms and analytics
-├── features/                 # LEGACY: Being migrated to domains/
-│   └── process_mining/      # Original process mining features
-├── platform/                 # Generic SaaS infrastructure
-│   ├── core/                # Config, exceptions, security, middleware
-│   ├── infrastructure/      # DB, storage, tasks, cache, resilience
+│   └── routers/             # Router imports and registration
+├── application/              # CQRS application layer
+│   ├── commands/            # Command handlers
+│   ├── queries/             # Query handlers
+│   └── projections/         # Read model projections
+├── features/                 # Process mining feature modules
+│   └── process_mining/
+│       ├── models/          # SQLAlchemy models (Dataset, etc.)
+│       ├── schemas/         # Pydantic schemas for API
+│       ├── datasets/        # Dataset management (upload, ingest, CRUD)
+│       ├── ingestion/       # DuckDB-based data ingestion
+│       ├── discovery/       # Process discovery algorithms
+│       ├── conformance/     # Conformance checking
+│       ├── analytics/       # Performance analytics
+│       ├── visualization/   # Graph visualization (DFG, Petri)
+│       ├── predictions/     # ML predictions
+│       ├── organizational/  # Organizational mining
+│       ├── simulation/      # What-if simulation
+│       ├── ocpm/            # Object-Centric PM (OCEL)
+│       ├── ai/              # AI chat assistant
+│       └── statistics/      # Dataset statistics
+├── infra/                    # Infrastructure layer
+│   ├── core/                # Config, logging, middleware, exceptions
+│   ├── infrastructure/      # Database, storage, cache
 │   ├── auth/                # JWT authentication
-│   ├── organizations/       # Multi-tenant org management
+│   ├── users/               # User management + API routers
+│   ├── organizations/       # Organization management
 │   ├── workspaces/          # Workspace RBAC
 │   ├── projects/            # Project management
-│   ├── jobs/                # Unified async job tracking
-│   └── health/              # Health checks for k8s
+│   ├── temporal/            # Temporal workflows and activities
+│   ├── jobs/                # Background job tracking
+│   ├── health/              # Health check endpoints
+│   ├── audit/               # Audit logging
+│   └── devconsole/          # Developer tools (SSE logs)
 └── shared/                   # Shared utilities, types, constants
 ```
 
-### Frontend: Nx Monorepo with Domain-Driven Structure
+### Frontend: React 19 with Feature-Based Structure
 
 ```
 frontend-new/
-├── apps/
-│   └── frontend-new/        # Main React application
-│       └── src/
-│           ├── domains/     # Feature modules by domain
-│           │   ├── datasets/       # Event log management UI
-│           │   ├── discovery/      # Process discovery UI
-│           │   ├── analytics/      # Analytics dashboards
-│           │   └── projects/       # Project management UI
-│           ├── core/        # Shared core functionality
-│           └── App.tsx
+├── src/
+│   ├── App.tsx              # App shell, providers, routing
+│   ├── routes.tsx           # Explicit route definitions (all routes here)
+│   ├── navigation.ts        # Navigation config and route mappings
+│   ├── main.tsx             # Application entry point
+│   ├── features/            # Feature modules
+│   │   ├── platform/        # Workspace, projects, settings
+│   │   ├── explorer/        # Process visualization (DFG, variants)
+│   │   ├── analytics/       # Performance analytics dashboards
+│   │   ├── discovery/       # Process discovery UI
+│   │   ├── ai/              # AI predictions and chat
+│   │   └── kpi/             # KPI dashboards
+│   ├── shared/              # Shared code
+│   │   ├── design-system.ts # UI component exports (use this!)
+│   │   ├── context/         # UserContext, NotificationContext
+│   │   ├── hooks/           # Shared custom hooks
+│   │   ├── lib/             # Utilities (logger, formatters)
+│   │   └── ui/              # DevConsole, ErrorBoundary
+│   ├── api/                 # API integration
+│   │   └── hooks/           # TanStack Query hooks
+│   └── stores/              # Global state stores
 └── libs/
-    ├── openapi-sdk/         # Auto-generated TypeScript API client
-    ├── ui/                  # Shared UI components (Ant Design)
-    └── process-graph/       # Process visualization (Cytoscape)
+    └── openapi-sdk/         # Auto-generated TypeScript API client
 ```
 
 **Frontend Tech Stack:**
 - React 19 with React Router v6
-- Ant Design for UI components
-- TanStack Query for API state management
+- Ant Design for UI components (import via `@/shared/design-system`)
+- TanStack Query for server state management
 - Cytoscape for process graph visualization
-- Nx for monorepo tooling, Rspack for fast builds
+- Rspack for fast bundling
 
 ## Database Schema
 
@@ -270,13 +287,35 @@ cd backend && .venv/bin/python -m pytest tests/ --cov=src --cov-report=html
 - **ReDoc**: http://localhost:8001/redoc (clean documentation)
 - **OpenAPI Spec**: http://localhost:8001/openapi.json
 
-**Key Endpoints:**
-- `/api/v1/auth/login` - JWT authentication
-- `/api/v1/datasets/` - Event log upload and management
-- `/api/v1/discovery/discover` - Process model discovery
-- `/api/v1/analytics/bottlenecks` - Performance analytics
-- `/health/live` - Liveness probe (k8s)
-- `/health/ready` - Readiness probe (k8s)
+**Dev Credentials:**
+```
+Email:    analyst@example.com
+Password: TestPass123
+```
+
+**Key API Groups:**
+
+| Group | Prefix | Description |
+|-------|--------|-------------|
+| Auth | `/api/v1/auth` | Login, refresh, logout |
+| Datasets | `/api/v1/datasets` | Upload, ingest, CRUD |
+| Discovery | `/api/v1/discovery` | Process model discovery |
+| Conformance | `/api/v1/conformance` | Conformance checking |
+| Analytics | `/api/v1/analytics` | Performance analytics |
+| Visualization | `/api/v1/visualization` | DFG, Petri net graphs |
+| Operations | `/api/v1/operations` | Long-running task status (SSE) |
+| Health | `/health` | Liveness and readiness probes |
+
+**User Flow Example:**
+```
+1. POST /api/v1/datasets/presign     → Get S3 upload URL
+2. PUT  <upload_url>                 → Upload file
+3. POST /api/v1/datasets/{id}/uploaded → Confirm, get columns
+4. POST /api/v1/datasets/{id}/mapping  → Map case_id, activity, timestamp
+5. POST /api/v1/datasets/{id}/ingest   → Start ingestion (returns workflow_id)
+6. GET  /api/v1/operations/{id}/stream → SSE progress events
+7. GET  /api/v1/datasets/{id}/statistics → View when READY
+```
 
 ## Code Quality Standards
 
@@ -315,24 +354,26 @@ cd backend && .venv/bin/python -m pytest tests/ --cov=src --cov-report=html
 
 ### Adding a New API Endpoint
 
-1. Define schema in `src/domains/{domain}/schemas/`
-2. Add model if needed in `src/domains/{domain}/models/`
-3. Create service logic in `src/domains/{domain}/services/`
-4. Add router endpoint in `src/domains/{domain}/api/`
-5. Register router in `src/api/main.py`
-6. Write tests in `backend/tests/api/`
-7. Regenerate frontend SDK: `cd frontend-new && npm run generate:sdk`
+1. Define schema in `src/features/process_mining/schemas/`
+2. Add model if needed in `src/features/process_mining/models/`
+3. Create service logic in `src/features/process_mining/{feature}/service.py`
+4. Add router endpoint in `src/features/process_mining/{feature}/router.py`
+5. Register router in `src/api/routers/__init__.py`
+6. Import router in `src/api/main.py`
+7. Write tests in `backend/tests/api/`
+8. Regenerate frontend SDK: `cd frontend-new && npm run generate:sdk`
 
 ### Adding a New Process Mining Algorithm
 
-1. Implement in `src/domains/analysis/services/{category}/`
-2. Add schemas to `src/domains/analysis/schemas/`
-3. Expose via `src/domains/analysis/api/`
-4. Add tests in `backend/tests/domain/analysis/`
+1. Implement in `src/features/process_mining/{category}/service.py`
+2. Add schemas to `src/features/process_mining/schemas/{category}.py`
+3. Create router in `src/features/process_mining/{category}/router.py`
+4. Register in `src/api/routers/__init__.py` and `src/api/main.py`
+5. Add tests in `backend/tests/api/`
 
 ### Modifying Database Schema
 
-1. Update SQLAlchemy models in `src/platform/models.py` or domain-specific models
+1. Update SQLAlchemy models in `src/features/process_mining/models/` or `src/infra/models.py`
 2. Create migration: `cd backend && .venv/bin/alembic revision --autogenerate -m "description"`
 3. Review and edit generated migration in `alembic/versions/`
 4. Test migration: `alembic upgrade head` and `alembic downgrade -1`
@@ -341,21 +382,22 @@ cd backend && .venv/bin/python -m pytest tests/ --cov=src --cov-report=html
 ## Key Dependencies
 
 ### Backend
-- **fastapi**: Web framework
-- **pm4py**: Process mining algorithms
-- **sqlalchemy**: ORM with async support
+- **fastapi**: Web framework with async support
+- **pm4py**: Process mining algorithms (discovery, conformance, analytics)
+- **sqlalchemy**: Async ORM with SQLite/aiosqlite
 - **pydantic**: Data validation and serialization
-- **duckdb**: High-performance analytics engine
-- **celery**: Distributed task queue
-- **redis**: Caching and message broker
-- **structlog**: Structured logging
+- **duckdb**: High-performance data ingestion and analytics
+- **temporalio**: Workflow orchestration for long-running operations
+- **structlog**: Structured JSON logging
+- **slowapi**: Rate limiting
 
 ### Frontend
-- **react**: UI framework
+- **react**: UI framework (v19)
 - **@tanstack/react-query**: Server state management
 - **antd**: UI component library
-- **cytoscape**: Graph visualization
+- **cytoscape**: Process graph visualization
 - **react-router-dom**: Client-side routing
+- **rspack**: Fast bundling
 
 ## Environment Setup
 
@@ -392,34 +434,38 @@ Frontend hardcodes these IDs for rapid development.
 
 ## Important Patterns
 
-### Async Background Tasks
+### Long-Running Operations with Temporal
 
-Long-running operations (data ingestion, model training) use Celery:
+Long-running operations (data ingestion, discovery) use Temporal workflows:
 
 ```python
-from src.platform.infrastructure.tasks import submit_job
+# Starting a workflow returns a workflow_id for tracking
+workflow_id = await start_ingestion_workflow(dataset_id)
 
-# Submit job
-job = await submit_job("ingest_dataset", dataset_id=dataset_id)
-
-# Poll status via /api/v1/jobs/{job_id}
+# Frontend subscribes to progress via SSE
+# GET /api/v1/operations/{workflow_id}/stream
 ```
+
+**SSE Events:**
+- `workflow:progress` - Overall progress update
+- `step:started`, `step:progress`, `step:completed` - Step-level updates
+- `workflow:completed`, `workflow:failed` - Terminal states
 
 ### Event Log Loading Pattern
 
 ```python
 # Standard pattern for accessing event logs
-from src.domains.datasets.services.ingestion import load_event_log
+from src.features.process_mining.ingestion import load_event_log
 
 event_log = await load_event_log(dataset_id)  # Returns PM4Py EventLog
 ```
 
-### Error Handling
+### Error Handling (RFC 7807)
 
 Backend uses **RFC 7807 Problem Details** for consistent error responses:
 
 ```python
-from src.platform.core.exceptions import AppException, ErrorCode
+from src.infra.core.exceptions import AppException, ErrorCode
 
 raise AppException(
     message="Dataset not found",
@@ -429,13 +475,27 @@ raise AppException(
 )
 ```
 
-### Authorization Pattern
+**Response Format:**
+```json
+{
+  "type": "about:blank",
+  "title": "Not Found",
+  "status": 404,
+  "detail": "Dataset with id 'xyz' not found",
+  "error_code": "RESOURCE_NOT_FOUND",
+  "correlation_id": "req-abc123"
+}
+```
+
+### Authentication Pattern
 
 ```python
-from src.platform.core.permissions import require_workspace_permission
+from src.infra.auth import get_current_user
 
-# In route handler
-await require_workspace_permission(db, user_id, workspace_id, "editor")
+@router.get("/protected")
+async def protected_endpoint(user: User = Depends(get_current_user)):
+    # user is authenticated
+    pass
 ```
 
 ## Debugging
@@ -463,9 +523,9 @@ SELECT * FROM datasets;
 ## Performance Considerations
 
 - **DuckDB**: Used for large-scale data ingestion (vectorized processing, columnar storage)
-- **Celery**: Offload heavy computations (process discovery, ML training)
-- **Redis Caching**: Cache expensive queries (process models, analytics results)
-- **Pagination**: All list endpoints support cursor-based pagination
+- **Temporal Workflows**: Offload heavy computations (ingestion, discovery, analytics)
+- **Lazy Loading**: Frontend routes use React.lazy() for code splitting
+- **Pagination**: All list endpoints support pagination
 - **Rate Limiting**: 100 req/min standard, 10 req/min for uploads
 
 ## Git Workflow

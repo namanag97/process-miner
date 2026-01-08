@@ -79,9 +79,9 @@ export function ExplorerDetailPage() {
   // Navigate back to project
   const getBackPath = () => `/workspace/${projectId}`;
 
-  // UI State
+  // UI State - default right panel collapsed to reduce cognitive overload
   const [leftPanelOpen] = useState(true);
-  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [rightPanelOpen, setRightPanelOpen] = useState(false); // Default collapsed for cleaner initial view
   const [rightPanelTab, setRightPanelTab] = useState('filter');
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 
@@ -836,12 +836,14 @@ export function ExplorerDetailPage() {
               }}
             />
           </Tooltip>
-          <Tooltip title={rightPanelOpen ? 'Collapse panel' : 'Expand panel'}>
+          <Tooltip title={rightPanelOpen ? 'Hide details panel' : 'Show filters & variants panel'}>
             <Button
-              type="text"
+              type={rightPanelOpen ? 'text' : 'default'}
               icon={rightPanelOpen ? <CompressOutlined /> : <ExpandOutlined />}
               onClick={() => setRightPanelOpen(!rightPanelOpen)}
-            />
+            >
+              {!rightPanelOpen && 'Details'}
+            </Button>
           </Tooltip>
         </Space>
       </div>

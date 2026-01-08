@@ -118,8 +118,13 @@ async def _run_validation_sync(dataset_id: str, storage_key: str) -> dict[str, A
     """Run file validation synchronously (fallback when Temporal is disabled).
 
     This is a simplified validation that runs synchronously instead of via Temporal.
-    It validates the file format and updates the dataset status.
+    It validates the file format, detects columns, and updates the dataset status.
     """
+    from sqlalchemy import delete
+
+    from src.features.process_mining.ingestion.unified import unified_ingestion_service
+    from src.features.process_mining.models import DatasetColumn, DatasetStatus
+    from src.infra.infrastructure.database import get_write_session_context
     from src.infra.infrastructure.object_storage import get_storage_client
 
     logger.info(
@@ -131,18 +136,10 @@ async def _run_validation_sync(dataset_id: str, storage_key: str) -> dict[str, A
     try:
         storage_client = get_storage_client()
 
-        # Stream first 10MB for validation
-        validation_chunk_size = 10 * 1024 * 1024
-        file_chunks = []
-        total_bytes = 0
-
-        for chunk in storage_client.stream_file("raw", storage_key, chunk_size=64 * 1024):
-            file_chunks.append(chunk)
-            total_bytes += len(chunk)
-            if total_bytes >= validation_chunk_size:
-                break
-
-        file_content = b"".join(file_chunks)
+        # Download the full file for column detection
+        file_obj = storage_client.download_fileobj("raw", storage_key)
+        file_content = file_obj.read()
+        total_bytes = len(file_content)
 
         # Determine file type from storage key
         file_extension = storage_key.split(".")[-1].lower() if "." in storage_key else "csv"
@@ -168,15 +165,97 @@ async def _run_validation_sync(dataset_id: str, storage_key: str) -> dict[str, A
                 dataset_id=dataset_id,
                 error=error_message,
             )
+            # Update dataset status to error
+            async with get_write_session_context() as db:
+                from sqlalchemy import select
+
+                from src.features.process_mining.models import Dataset
+
+                result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
+                dataset = result.scalar_one_or_none()
+                if dataset:
+                    dataset.status = DatasetStatus.ERROR.value
+                    dataset.error_message = error_message
+                    await db.commit()
             return {
                 "status": "failed",
                 "error": error_message,
             }
 
+        # Detect columns using the ingestion service
+        filename = storage_key.split("/")[-1] if "/" in storage_key else storage_key
+        detection = unified_ingestion_service.detect_columns(file_content, filename)
+
+        columns = detection.get("columns", [])
+        suggestions = detection.get("suggestions", {})
+
+        logger.info(
+            "sync_validation_columns_detected",
+            dataset_id=dataset_id,
+            columns_count=len(columns),
+            suggestions=list(suggestions.keys()),
+        )
+
+        # Save columns to database and update status
+        async with get_write_session_context() as db:
+            from sqlalchemy import select
+
+            from src.features.process_mining.models import Dataset
+
+            # Get dataset
+            result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
+            dataset = result.scalar_one_or_none()
+
+            if not dataset:
+                logger.error("sync_validation_dataset_not_found", dataset_id=dataset_id)
+                return {"status": "error", "error": "Dataset not found"}
+
+            # Clear existing columns
+            await db.execute(delete(DatasetColumn).where(DatasetColumn.dataset_id == dataset_id))
+
+            # Save detected columns
+            import json
+
+            for idx, col_info in enumerate(columns):
+                col_name = col_info.get("name") if isinstance(col_info, dict) else col_info
+                col_dtype = col_info.get("dtype", "string") if isinstance(col_info, dict) else "string"
+                sample_values = col_info.get("sample_values", []) if isinstance(col_info, dict) else []
+
+                col = DatasetColumn(
+                    dataset_id=dataset_id,
+                    name=col_name,
+                    dtype=col_dtype,
+                    position=idx,
+                    sample_values_json=json.dumps(sample_values[:5]) if sample_values else "[]",
+                    null_percentage=col_info.get("null_percentage", 0.0) if isinstance(col_info, dict) else 0.0,
+                    unique_count=col_info.get("unique_count", 0) if isinstance(col_info, dict) else 0,
+                    suggested_role=None,
+                    suggestion_confidence=0.0,
+                )
+
+                # Check if this column has a suggestion
+                for role, suggestion in suggestions.items():
+                    if isinstance(suggestion, dict):
+                        if suggestion.get("column") == col_name:
+                            col.suggested_role = role.replace("_column", "")
+                            col.suggestion_confidence = suggestion.get("confidence", 0.8)
+                    elif suggestion == col_name:
+                        col.suggested_role = role.replace("_column", "")
+                        col.suggestion_confidence = 0.8
+
+                db.add(col)
+
+            # Update dataset status
+            dataset.status = DatasetStatus.AWAITING_MAPPING.value
+            dataset.error_message = None
+
+            await db.commit()
+
         logger.info(
             "sync_validation_completed",
             dataset_id=dataset_id,
             file_size=total_bytes,
+            columns_detected=len(columns),
             is_valid=True,
         )
 
@@ -185,6 +264,7 @@ async def _run_validation_sync(dataset_id: str, storage_key: str) -> dict[str, A
             "workflow_id": f"sync-{uuid.uuid4().hex[:8]}",
             "dataset_id": dataset_id,
             "file_size_bytes": total_bytes,
+            "columns_detected": len(columns),
             "is_valid": True,
         }
 
@@ -194,6 +274,21 @@ async def _run_validation_sync(dataset_id: str, storage_key: str) -> dict[str, A
             dataset_id=dataset_id,
             error=str(e),
         )
+        # Try to update dataset status to error
+        try:
+            async with get_write_session_context() as db:
+                from sqlalchemy import select
+
+                from src.features.process_mining.models import Dataset
+
+                result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
+                dataset = result.scalar_one_or_none()
+                if dataset:
+                    dataset.status = DatasetStatus.ERROR.value
+                    dataset.error_message = str(e)
+                    await db.commit()
+        except Exception:
+            pass
         return {
             "status": "error",
             "error": str(e),

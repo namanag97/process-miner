@@ -3,10 +3,10 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
- * Request to run a workflow.
+ * Response for cancel operation.
  */
-export type WorkflowRunRequest = {
-    dataset_id?: (string | null);
-    params?: Record<string, any>;
+export type CancelResponse = {
+    workflow_id: string;
+    status: string;
 };
 
